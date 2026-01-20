@@ -45,13 +45,6 @@
 --radius-lg: 4px;
 --radius-xl: 9px;
 
-/* Component dimensions */
---panel-width: 400px;
---button-min-width-sm: 36px;
---button-min-width-md: 42px;
---value-display-width: 70px;
---color-picker-height: 40px;
-
 /* Z-index */
 --z-base: 0;
 --z-panel: 10;

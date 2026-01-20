@@ -97,15 +97,44 @@ vec3 oklchToRgb(vec3 oklch) {
   return clamp(vec3(r, g, bl), 0.0, 1.0);
 }
 
-// Cubic bezier evaluation
-float cubicBezier(float t, vec4 curve) {
+// Cubic bezier evaluation - uses all 4 parameters (x1, y1, x2, y2)
+// Input: x (0-1) - the input value to remap through the curve
+// Curve: vec4(x1, y1, x2, y2)
+// Returns: y value at the point where x(t) = x
+float cubicBezier(float x, vec4 curve) {
+  // Handle edge cases
+  if (x <= 0.0) return 0.0;
+  if (x >= 1.0) return 1.0;
+  
+  // Binary search to find t where x(t) = x
+  float t0 = 0.0;
+  float t1 = 1.0;
+  
+  // Binary search with 10 iterations for good precision
+  for (int i = 0; i < 10; i++) {
+    float t = (t0 + t1) * 0.5;
+    float u = 1.0 - t;
+    float tt = t * t;
+    float uu = u * u;
+    
+    // Evaluate x(t) = 3*(1-t)²*t*x1 + 3*(1-t)*t²*x2 + t³
+    float xt = 3.0 * uu * t * curve.x + 3.0 * u * tt * curve.z + tt * t;
+    
+    if (xt < x) {
+      t0 = t;
+    } else {
+      t1 = t;
+    }
+  }
+  
+  // Use final t value to compute y(t)
+  float t = (t0 + t1) * 0.5;
   float u = 1.0 - t;
   float tt = t * t;
   float uu = u * u;
-  float uuu = uu * u;
-  float ttt = tt * t;
   
-  return uuu * 0.0 + 3.0 * uu * t * curve.y + 3.0 * u * tt * curve.w + ttt * 1.0;
+  // Evaluate y(t) = 3*(1-t)²*t*y1 + 3*(1-t)*t²*y2 + t³
+  return 3.0 * uu * t * curve.y + 3.0 * u * tt * curve.w + tt * t;
 }
 
 // Tone mapping function (per-layer version)
@@ -379,95 +408,48 @@ vec3 mapColorLayer(float value, int layerNum) {
         
         float transWidth = uLayer1TransitionWidth > 0.0 ? uLayer1TransitionWidth : 0.005;
         
-        // Calculate weights for each color (matching reference mapNoiseToColor pattern)
-        // Thresholds are evenly spread from highest (brightest) to lowest (darkest)
-        vec3 color = vec3(0.0);
+        // Dynamic threshold mode: properly distribute weights across all color stops
+        // For N stops, we divide the 0-1 range into N regions
+        // High values map to bright colors (index 0), low values to dark colors (index stops-1)
         
-        // Calculate weights from brightest to darkest (matching reference pattern)
-        float w1 = 0.0, w2 = 0.0, w3 = 0.0, w4 = 0.0, w5 = 0.0;
-        float w6 = 0.0, w7 = 0.0, w8 = 0.0, w9 = 0.0, w10 = 0.0;
-        float w0 = 1.0;
+        // Apply dithering to the value
+        float ditheredValue = clamp(value + bayer, 0.0, 1.0);
         
-        // Calculate thresholds (evenly spread, highest to lowest)
-        // For N stops, we have N-1 thresholds
-        float threshold1 = 1.0 - (1.0 / float(stops)) + bayer * 0.04;
-        float threshold2 = (stops >= 2) ? (1.0 - (2.0 / float(stops)) + bayer * 0.08) : 0.0;
-        float threshold3 = (stops >= 3) ? (1.0 - (3.0 / float(stops)) + bayer * 0.10) : 0.0;
-        float threshold4 = (stops >= 4) ? (1.0 - (4.0 / float(stops)) + bayer * 0.12) : 0.0;
-        float threshold5 = (stops >= 5) ? (1.0 - (5.0 / float(stops)) + bayer * 0.14) : 0.0;
-        float threshold6 = (stops >= 6) ? (1.0 - (6.0 / float(stops)) + bayer * 0.14) : 0.0;
-        float threshold7 = (stops >= 7) ? (1.0 - (7.0 / float(stops)) + bayer * 0.14) : 0.0;
-        float threshold8 = (stops >= 8) ? (1.0 - (8.0 / float(stops)) + bayer * 0.12) : 0.0;
-        float threshold9 = (stops >= 9) ? (1.0 - (9.0 / float(stops)) + bayer * 0.08) : 0.0;
-        float threshold10 = (stops >= 10) ? (1.0 / float(stops) + bayer * 0.04) : 0.0;
+        // Find which two color stops to blend between
+        // Map value to color index: 1.0 -> 0 (brightest), 0.0 -> stops-1 (darkest)
+        float normalizedValue = 1.0 - ditheredValue; // Invert so high values map to low indices
+        float colorIndex = normalizedValue * float(stops - 1);
+        int lowerIndex = int(floor(colorIndex));
+        int upperIndex = min(lowerIndex + 1, stops - 1);
         
-        // Clamp thresholds
-        threshold1 = clamp(threshold1, 0.0, 1.0);
-        threshold2 = clamp(threshold2, 0.0, 1.0);
-        threshold3 = clamp(threshold3, 0.0, 1.0);
-        threshold4 = clamp(threshold4, 0.0, 1.0);
-        threshold5 = clamp(threshold5, 0.0, 1.0);
-        threshold6 = clamp(threshold6, 0.0, 1.0);
-        threshold7 = clamp(threshold7, 0.0, 1.0);
-        threshold8 = clamp(threshold8, 0.0, 1.0);
-        threshold9 = clamp(threshold9, 0.0, 1.0);
-        threshold10 = clamp(threshold10, 0.0, 1.0);
+        // Clamp indices to valid range
+        lowerIndex = clamp(lowerIndex, 0, stops - 1);
+        upperIndex = clamp(upperIndex, 0, stops - 1);
         
-        // Calculate weights (matching reference pattern)
-        if (stops >= 1) {
-          w1 = smoothstep(threshold1 - transWidth, threshold1 + transWidth, value);
-          w0 -= w1;
-        }
-        if (stops >= 2 && w0 > 0.0) {
-          w2 = smoothstep(threshold2 - transWidth, threshold2 + transWidth, value) * w0;
-          w0 -= w2;
-        }
-        if (stops >= 3 && w0 > 0.0) {
-          w3 = smoothstep(threshold3 - transWidth, threshold3 + transWidth, value) * w0;
-          w0 -= w3;
-        }
-        if (stops >= 4 && w0 > 0.0) {
-          w4 = smoothstep(threshold4 - transWidth, threshold4 + transWidth, value) * w0;
-          w0 -= w4;
-        }
-        if (stops >= 5 && w0 > 0.0) {
-          w5 = smoothstep(threshold5 - transWidth, threshold5 + transWidth, value) * w0;
-          w0 -= w5;
-        }
-        if (stops >= 6 && w0 > 0.0) {
-          w6 = smoothstep(threshold6 - transWidth, threshold6 + transWidth, value) * w0;
-          w0 -= w6;
-        }
-        if (stops >= 7 && w0 > 0.0) {
-          w7 = smoothstep(threshold7 - transWidth, threshold7 + transWidth, value) * w0;
-          w0 -= w7;
-        }
-        if (stops >= 8 && w0 > 0.0) {
-          w8 = smoothstep(threshold8 - transWidth, threshold8 + transWidth, value) * w0;
-          w0 -= w8;
-        }
-        if (stops >= 9 && w0 > 0.0) {
-          w9 = smoothstep(threshold9 - transWidth, threshold9 + transWidth, value) * w0;
-          w0 -= w9;
-        }
-        if (stops >= 10 && w0 > 0.0) {
-          w10 = smoothstep(threshold10 - transWidth, threshold10 + transWidth, value) * w0;
-          w0 -= w10;
+        // Calculate blend factor between the two colors
+        float blendFactor = fract(colorIndex);
+        
+        // If we're at the exact boundary or beyond, use smoothstep for smooth transitions
+        if (lowerIndex < stops - 1) {
+          // Calculate threshold between lowerIndex and upperIndex
+          float threshold = 1.0 - float(lowerIndex + 1) / float(stops);
+          threshold += bayer * 0.05; // Apply dithering
+          threshold = clamp(threshold, 0.0, 1.0);
+          
+          // Use smoothstep to create smooth transition at threshold
+          float smoothBlend = smoothstep(threshold - transWidth, threshold + transWidth, ditheredValue);
+          blendFactor = smoothBlend;
+        } else {
+          // At the darkest color, no blending needed
+          blendFactor = 0.0;
         }
         
-        // Mix colors based on weights
-        if (stops >= 1) color += oklchToRgb(uLayer1ColorStopsArray[0]) * w1;
-        if (stops >= 2) color += oklchToRgb(uLayer1ColorStopsArray[1]) * w2;
-        if (stops >= 3) color += oklchToRgb(uLayer1ColorStopsArray[2]) * w3;
-        if (stops >= 4) color += oklchToRgb(uLayer1ColorStopsArray[3]) * w4;
-        if (stops >= 5) color += oklchToRgb(uLayer1ColorStopsArray[4]) * w5;
-        if (stops >= 6) color += oklchToRgb(uLayer1ColorStopsArray[5]) * w6;
-        if (stops >= 7) color += oklchToRgb(uLayer1ColorStopsArray[6]) * w7;
-        if (stops >= 8) color += oklchToRgb(uLayer1ColorStopsArray[7]) * w8;
-        if (stops >= 9) color += oklchToRgb(uLayer1ColorStopsArray[8]) * w9;
-        if (stops >= 10) color += oklchToRgb(uLayer1ColorStopsArray[9]) * w10;
-        // Darkest color gets remaining weight
-        color += oklchToRgb(uLayer1ColorStopsArray[stops - 1]) * w0;
+        // Get the two colors to blend
+        vec3 color1 = oklchToRgb(uLayer1ColorStopsArray[lowerIndex]);
+        vec3 color2 = oklchToRgb(uLayer1ColorStopsArray[upperIndex]);
+        
+        // Mix the two colors
+        vec3 color = mix(color1, color2, blendFactor);
         
         return color;
       }
@@ -519,91 +501,48 @@ vec3 mapColorLayer(float value, int layerNum) {
         
         float transWidth = uLayer2TransitionWidth > 0.0 ? uLayer2TransitionWidth : 0.005;
         
-        // Calculate weights for each color
-        vec3 color = vec3(0.0);
-        float w1 = 0.0, w2 = 0.0, w3 = 0.0, w4 = 0.0, w5 = 0.0;
-        float w6 = 0.0, w7 = 0.0, w8 = 0.0, w9 = 0.0, w10 = 0.0;
-        float w0 = 1.0;
+        // Dynamic threshold mode: properly distribute weights across all color stops
+        // For N stops, we divide the 0-1 range into N regions
+        // High values map to bright colors (index 0), low values to dark colors (index stops-1)
         
-        // Calculate thresholds (evenly spread, highest to lowest)
-        float threshold1 = 1.0 - (1.0 / float(stops)) + bayer * 0.04;
-        float threshold2 = (stops >= 2) ? (1.0 - (2.0 / float(stops)) + bayer * 0.08) : 0.0;
-        float threshold3 = (stops >= 3) ? (1.0 - (3.0 / float(stops)) + bayer * 0.10) : 0.0;
-        float threshold4 = (stops >= 4) ? (1.0 - (4.0 / float(stops)) + bayer * 0.12) : 0.0;
-        float threshold5 = (stops >= 5) ? (1.0 - (5.0 / float(stops)) + bayer * 0.14) : 0.0;
-        float threshold6 = (stops >= 6) ? (1.0 - (6.0 / float(stops)) + bayer * 0.14) : 0.0;
-        float threshold7 = (stops >= 7) ? (1.0 - (7.0 / float(stops)) + bayer * 0.14) : 0.0;
-        float threshold8 = (stops >= 8) ? (1.0 - (8.0 / float(stops)) + bayer * 0.12) : 0.0;
-        float threshold9 = (stops >= 9) ? (1.0 - (9.0 / float(stops)) + bayer * 0.08) : 0.0;
-        float threshold10 = (stops >= 10) ? (1.0 / float(stops) + bayer * 0.04) : 0.0;
+        // Apply dithering to the value
+        float ditheredValue = clamp(value + bayer, 0.0, 1.0);
         
-        // Clamp thresholds
-        threshold1 = clamp(threshold1, 0.0, 1.0);
-        threshold2 = clamp(threshold2, 0.0, 1.0);
-        threshold3 = clamp(threshold3, 0.0, 1.0);
-        threshold4 = clamp(threshold4, 0.0, 1.0);
-        threshold5 = clamp(threshold5, 0.0, 1.0);
-        threshold6 = clamp(threshold6, 0.0, 1.0);
-        threshold7 = clamp(threshold7, 0.0, 1.0);
-        threshold8 = clamp(threshold8, 0.0, 1.0);
-        threshold9 = clamp(threshold9, 0.0, 1.0);
-        threshold10 = clamp(threshold10, 0.0, 1.0);
+        // Find which two color stops to blend between
+        // Map value to color index: 1.0 -> 0 (brightest), 0.0 -> stops-1 (darkest)
+        float normalizedValue = 1.0 - ditheredValue; // Invert so high values map to low indices
+        float colorIndex = normalizedValue * float(stops - 1);
+        int lowerIndex = int(floor(colorIndex));
+        int upperIndex = min(lowerIndex + 1, stops - 1);
         
-        // Calculate weights
-        if (stops >= 1) {
-          w1 = smoothstep(threshold1 - transWidth, threshold1 + transWidth, value);
-          w0 -= w1;
-        }
-        if (stops >= 2 && w0 > 0.0) {
-          w2 = smoothstep(threshold2 - transWidth, threshold2 + transWidth, value) * w0;
-          w0 -= w2;
-        }
-        if (stops >= 3 && w0 > 0.0) {
-          w3 = smoothstep(threshold3 - transWidth, threshold3 + transWidth, value) * w0;
-          w0 -= w3;
-        }
-        if (stops >= 4 && w0 > 0.0) {
-          w4 = smoothstep(threshold4 - transWidth, threshold4 + transWidth, value) * w0;
-          w0 -= w4;
-        }
-        if (stops >= 5 && w0 > 0.0) {
-          w5 = smoothstep(threshold5 - transWidth, threshold5 + transWidth, value) * w0;
-          w0 -= w5;
-        }
-        if (stops >= 6 && w0 > 0.0) {
-          w6 = smoothstep(threshold6 - transWidth, threshold6 + transWidth, value) * w0;
-          w0 -= w6;
-        }
-        if (stops >= 7 && w0 > 0.0) {
-          w7 = smoothstep(threshold7 - transWidth, threshold7 + transWidth, value) * w0;
-          w0 -= w7;
-        }
-        if (stops >= 8 && w0 > 0.0) {
-          w8 = smoothstep(threshold8 - transWidth, threshold8 + transWidth, value) * w0;
-          w0 -= w8;
-        }
-        if (stops >= 9 && w0 > 0.0) {
-          w9 = smoothstep(threshold9 - transWidth, threshold9 + transWidth, value) * w0;
-          w0 -= w9;
-        }
-        if (stops >= 10 && w0 > 0.0) {
-          w10 = smoothstep(threshold10 - transWidth, threshold10 + transWidth, value) * w0;
-          w0 -= w10;
+        // Clamp indices to valid range
+        lowerIndex = clamp(lowerIndex, 0, stops - 1);
+        upperIndex = clamp(upperIndex, 0, stops - 1);
+        
+        // Calculate blend factor between the two colors
+        float blendFactor = fract(colorIndex);
+        
+        // If we're at the exact boundary or beyond, use smoothstep for smooth transitions
+        if (lowerIndex < stops - 1) {
+          // Calculate threshold between lowerIndex and upperIndex
+          float threshold = 1.0 - float(lowerIndex + 1) / float(stops);
+          threshold += bayer * 0.05; // Apply dithering
+          threshold = clamp(threshold, 0.0, 1.0);
+          
+          // Use smoothstep to create smooth transition at threshold
+          float smoothBlend = smoothstep(threshold - transWidth, threshold + transWidth, ditheredValue);
+          blendFactor = smoothBlend;
+        } else {
+          // At the darkest color, no blending needed
+          blendFactor = 0.0;
         }
         
-        // Mix colors based on weights
-        if (stops >= 1) color += oklchToRgb(uLayer2ColorStopsArray[0]) * w1;
-        if (stops >= 2) color += oklchToRgb(uLayer2ColorStopsArray[1]) * w2;
-        if (stops >= 3) color += oklchToRgb(uLayer2ColorStopsArray[2]) * w3;
-        if (stops >= 4) color += oklchToRgb(uLayer2ColorStopsArray[3]) * w4;
-        if (stops >= 5) color += oklchToRgb(uLayer2ColorStopsArray[4]) * w5;
-        if (stops >= 6) color += oklchToRgb(uLayer2ColorStopsArray[5]) * w6;
-        if (stops >= 7) color += oklchToRgb(uLayer2ColorStopsArray[6]) * w7;
-        if (stops >= 8) color += oklchToRgb(uLayer2ColorStopsArray[7]) * w8;
-        if (stops >= 9) color += oklchToRgb(uLayer2ColorStopsArray[8]) * w9;
-        if (stops >= 10) color += oklchToRgb(uLayer2ColorStopsArray[9]) * w10;
-        // Darkest color gets remaining weight
-        color += oklchToRgb(uLayer2ColorStopsArray[stops - 1]) * w0;
+        // Get the two colors to blend
+        vec3 color1 = oklchToRgb(uLayer2ColorStopsArray[lowerIndex]);
+        vec3 color2 = oklchToRgb(uLayer2ColorStopsArray[upperIndex]);
+        
+        // Mix the two colors
+        vec3 color = mix(color1, color2, blendFactor);
         
         return color;
       }

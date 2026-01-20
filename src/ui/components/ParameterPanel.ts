@@ -350,9 +350,117 @@ export class ParameterPanel {
         return val.toFixed(displayPlaces);
       };
       
-      const valueDisplay = document.createElement('span');
-      valueDisplay.textContent = formatValue(initialValue);
-      valueDisplay.className = 'param-value-display';
+      // Click-to-edit functionality
+      let valueDisplay: HTMLElement;
+      if (!shouldDisable) {
+        // Helper function to create an editable value display
+        const createEditableDisplay = (displayValue: number): HTMLElement => {
+          const display = document.createElement('span');
+          display.textContent = formatValue(displayValue);
+          display.className = 'param-value-display param-value-display-editable';
+          // Prevent text selection
+          display.style.userSelect = 'none';
+          display.style.webkitUserSelect = 'none';
+          display.style.msUserSelect = 'none';
+          display.style.cursor = 'text';
+          
+          console.log('Creating editable display for:', paramName, 'with value:', displayValue);
+          
+          display.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            
+            console.log('Click handler fired on value display');
+            
+            // Create input element
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.className = 'param-value-input';
+            // Capture current value at start of editing
+            const editingStartValue = config.type === 'int' ? parseInt(slider.value) : parseFloat(slider.value);
+            input.value = String(editingStartValue);
+            input.min = config.min !== undefined ? String(config.min) : undefined;
+            input.max = config.max !== undefined ? String(config.max) : undefined;
+            input.step = config.step !== undefined ? String(config.step) : 'any';
+            
+            // Replace display with input
+            display.replaceWith(input);
+            // Use setTimeout to ensure the input is in the DOM before focusing
+            setTimeout(() => {
+              input.focus();
+              input.select();
+            }, 0);
+            
+            // Function to commit the value
+            const commitValue = () => {
+              let newValue = config.type === 'int' ? parseInt(input.value) : parseFloat(input.value);
+              
+              // Validate: if invalid, revert to value at start of editing
+              if (isNaN(newValue)) {
+                newValue = editingStartValue;
+              }
+              
+              // Clamp to min/max
+              if (config.min !== undefined) newValue = Math.max(newValue, config.min);
+              if (config.max !== undefined) newValue = Math.min(newValue, config.max);
+              
+              // Snap to step
+              if (config.step && config.type !== 'int') {
+                const step = config.step;
+                newValue = Math.round(newValue / step) * step;
+              }
+              
+              // Update value
+              slider.value = String(newValue);
+              this.parameterValues.set(`${elementId}.${paramName}`, newValue);
+              this.onParameterChange(elementId, paramName, newValue);
+              
+              // Replace input with new display
+              const newDisplay = createEditableDisplay(newValue);
+              input.replaceWith(newDisplay);
+            };
+            
+            // Function to cancel editing
+            const cancelEdit = () => {
+              const newDisplay = createEditableDisplay(editingStartValue);
+              input.replaceWith(newDisplay);
+            };
+            
+            // Handle Enter key
+            input.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                commitValue();
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                cancelEdit();
+              }
+            });
+            
+            // Handle blur (clicking away)
+            input.addEventListener('blur', () => {
+              commitValue();
+            });
+          });
+          
+          return display;
+        };
+        
+        valueDisplay = createEditableDisplay(initialValue);
+      } else {
+        valueDisplay = document.createElement('span');
+        valueDisplay.textContent = formatValue(initialValue);
+        valueDisplay.className = 'param-value-display';
+      }
+      
+      // Helper function to update the display value safely
+      const updateDisplayValue = (newValue: number) => {
+        // Find the current display element (might be valueDisplay or a newly created one)
+        const currentDisplay = sliderContainer.querySelector('.param-value-display') as HTMLElement;
+        if (currentDisplay && currentDisplay.tagName === 'SPAN') {
+          currentDisplay.textContent = formatValue(newValue);
+        }
+      };
       
       // Step buttons for all controls
       const stepBackBtn = document.createElement('button');
@@ -385,7 +493,7 @@ export class ParameterPanel {
           newValue = Math.round(newValue / step) * step;
         }
         slider.value = String(newValue);
-        valueDisplay.textContent = formatValue(newValue);
+        updateDisplayValue(newValue);
         this.parameterValues.set(`${elementId}.${paramName}`, newValue);
         this.onParameterChange(elementId, paramName, newValue);
         });
@@ -421,7 +529,7 @@ export class ParameterPanel {
           newValue = Math.round(newValue / step) * step;
         }
         slider.value = String(newValue);
-        valueDisplay.textContent = formatValue(newValue);
+        updateDisplayValue(newValue);
         this.parameterValues.set(`${elementId}.${paramName}`, newValue);
         this.onParameterChange(elementId, paramName, newValue);
         });
@@ -496,7 +604,7 @@ export class ParameterPanel {
           // Update slider value to snapped value
           slider.value = String(newValue);
         }
-        valueDisplay.textContent = formatValue(newValue);
+        updateDisplayValue(newValue);
         // Update internal value without triggering full re-render
         this.parameterValues.set(`${elementId}.${paramName}`, newValue);
         // Immediately update shader
@@ -519,7 +627,7 @@ export class ParameterPanel {
           // Update slider value to snapped value
           slider.value = String(newValue);
         }
-        valueDisplay.textContent = formatValue(newValue);
+        updateDisplayValue(newValue);
         this.parameterValues.set(`${elementId}.${paramName}`, newValue);
         this.onParameterChange(elementId, paramName, newValue);
         });

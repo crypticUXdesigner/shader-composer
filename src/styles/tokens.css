@@ -1,4 +1,11 @@
 :root {
+/* Component dimensions */
+--panel-width: 400px;
+--button-min-width-sm: 36px;
+--button-min-width-md: 42px;
+--value-display-width: 42px;
+--color-picker-height: 40px;
+
 /* === BUTTON TOKENS === */
 --button-bg: var(--color-gray-50);
 --button-bg-hover: var(--color-gray-70);

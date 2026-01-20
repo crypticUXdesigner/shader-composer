@@ -172,11 +172,11 @@ class App {
   }
   
   private initializeLayers(): void {
-    // Initialize with 2 default layers
+    // Initialize with 2 default layers (empty shader)
     this.layers = [
       {
         id: 'layer-1',
-        activeElements: ['fbm-noise'],
+        activeElements: [],
         elementOrder: elementLibrary.map(el => el.id),
         parameters: {},
         blendingMode: 0,
@@ -191,19 +191,10 @@ class App {
         parameters: {},
         blendingMode: 0,
         opacity: 1.0,
-        visible: true,  // Make visible by default so user can see it
+        visible: false,  // Turned off by default with empty shader
         colorConfig: { ...this.colorConfig }
       }
     ];
-    
-    // Initialize parameters for Layer 1 default element
-    const layer1 = this.layers[0];
-    const fbmElement = elementLibrary.find(el => el.id === 'fbm-noise');
-    if (fbmElement) {
-      Object.entries(fbmElement.parameters).forEach(([paramName, config]) => {
-        layer1.parameters[`fbm-noise.${paramName}`] = config.default;
-      });
-    }
     
     // Initialize hidden elements map
     this.hiddenElements.set('layer-1', new Set());
@@ -635,17 +626,21 @@ class App {
       selector.appendChild(option);
     });
     
-    // Auto-load first config
-    if (this.availableConfigs.length > 0) {
-      selector.value = this.availableConfigs[0];
-      await this.loadConfig(this.availableConfigs[0]);
-    }
+    // Add empty option at the top
+    const emptyOption = document.createElement('option');
+    emptyOption.value = '';
+    emptyOption.textContent = 'Empty shader';
+    selector.insertBefore(emptyOption, selector.firstChild);
+    selector.value = '';
     
     // Set up change handler
     selector.addEventListener('change', async (e) => {
       const target = e.target as HTMLSelectElement;
       if (target.value) {
         await this.loadConfig(target.value);
+      } else {
+        // Reset to empty shader
+        this.resetToEmptyShader();
       }
     });
   }
@@ -789,6 +784,35 @@ class App {
       tabLayer2.classList.remove('active');
       tabBlend.style.display = 'none';
     }
+  }
+  
+  private resetToEmptyShader(): void {
+    // Reset layers to empty
+    this.initializeLayers();
+    
+    // Reset FX layer to empty
+    this.initializeFXLayer();
+    
+    // Update UI for active layer
+    this.updateCombinedPanelForActiveLayer();
+    
+    // Update FX panel
+    const postProcessorElements = elementLibrary.filter(el => (el.elementType || 'content-generator') === 'post-processor');
+    this.fxPanel.setElements(postProcessorElements);
+    this.fxPanel.setActiveElements(this.fxLayer.activeElements);
+    this.fxPanel.setElementOrder(this.fxLayer.elementOrder);
+    this.fxPanel.setHiddenElements(this.fxHiddenElements);
+    this.updateFXPanelParameters();
+    
+    // Update color system with active layer's color config
+    const activeLayer = this.getActiveLayer();
+    this.colorSystem.setConfig(activeLayer.colorConfig);
+    
+    // Update layer UI
+    this.updateLayerUI();
+    
+    // Recompile shader
+    this.recompileShader();
   }
   
   private async loadConfig(configName: string): Promise<void> {

@@ -67,6 +67,52 @@
   display: grid;
   grid-template-columns: 1fr 1fr 1fr 1fr;
   gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+}
+
+/* Bezier Curve Editor Styles */
+.bezier-curve-editor {
+  margin-bottom: var(--spacing-md);
+}
+
+.bezier-curve-canvas {
+  width: 100%;
+  max-width: 200px;
+  height: 200px;
+  border: var(--color-picker-border);
+  border-radius: var(--color-picker-radius);
+  background: var(--color-gray-50);
+  cursor: default;
+  display: block;
+  margin: 0 auto;
+}
+
+.bezier-presets {
+  display: flex;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-sm);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.bezier-preset-button {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--color-gray-60);
+  border: none;
+  color: var(--color-gray-130);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  user-select: none;
+  font-size: var(--text-xs);
+  transition: background-color 0.15s ease;
+}
+
+.bezier-preset-button:hover {
+  background: var(--color-gray-70);
+}
+
+.bezier-preset-button:active {
+  background: var(--color-gray-80);
 }
 
 .color-system-mode-selector {

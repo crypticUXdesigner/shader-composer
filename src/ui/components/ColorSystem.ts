@@ -174,7 +174,7 @@ export class ColorSystem {
       // Threshold mode controls (including bayer dithering)
       if (this.config.mode === 'thresholds') {
         const transitionWidth = this.config.transitionWidth ?? 0.005;
-        const transitionWidthDiv = this.createSliderControl('Transition Width', transitionWidth, 0.001, 0.1, 0.001, (value) => {
+        const transitionWidthDiv = this.createSliderControl('Transition Width', transitionWidth, 0.001, 0.5, 0.001, (value) => {
           this.config.transitionWidth = value;
           this.onColorChange(this.config);
         });
@@ -561,14 +561,61 @@ export class ColorSystem {
     const labelEl = document.createElement('label');
     labelEl.textContent = label;
     labelEl.className = 'bezier-input-label';
+    div.appendChild(labelEl);
     
+    // Store current curve state
+    let currentCurve = { ...curve };
+    
+    // Store references to input elements for syncing
+    const inputRefs: Record<keyof CubicBezier, HTMLInputElement> = {} as any;
+    
+    // Function to update input values
+    const updateInputs = (newCurve: CubicBezier) => {
+      Object.keys(inputRefs).forEach(key => {
+        const input = inputRefs[key as keyof CubicBezier];
+        if (input) {
+          const newValue = newCurve[key as keyof CubicBezier];
+          // Only update if value actually changed to avoid cursor jumping
+          if (parseFloat(input.value) !== newValue) {
+            input.value = String(newValue);
+          }
+        }
+      });
+    };
+    
+    // Create visual curve editor
+    const editorContainer = this.createBezierCurveEditor(
+      () => currentCurve,
+      (newCurve) => {
+        currentCurve = newCurve;
+        updateInputs(newCurve);
+        onChange(newCurve);
+      }
+    );
+    div.appendChild(editorContainer);
+    
+    const canvas = editorContainer.querySelector('.bezier-curve-canvas') as HTMLCanvasElement;
+    const updateCanvas = () => {
+      this.drawBezierCurve(canvas, currentCurve);
+    };
+    
+    // Create numeric inputs
     const inputs = document.createElement('div');
     inputs.className = 'bezier-input-grid';
     
     const createInput = (value: number, index: keyof CubicBezier) => {
-      return this.createNumberInput(index, value, 0, 1, 0.01, (val) => {
-        onChange({ ...curve, [index]: val });
+      const inputDiv = this.createNumberInput(index, value, 0, 1, 0.01, (val) => {
+        currentCurve = { ...currentCurve, [index]: val };
+        onChange(currentCurve);
+        // Update canvas when input changes
+        updateCanvas();
       });
+      // Store reference to the actual input element
+      const inputEl = inputDiv.querySelector('input[type="number"]') as HTMLInputElement;
+      if (inputEl) {
+        inputRefs[index] = inputEl;
+      }
+      return inputDiv;
     };
     
     inputs.appendChild(createInput(curve.x1, 'x1'));
@@ -576,10 +623,316 @@ export class ColorSystem {
     inputs.appendChild(createInput(curve.x2, 'x2'));
     inputs.appendChild(createInput(curve.y2, 'y2'));
     
-    div.appendChild(labelEl);
     div.appendChild(inputs);
     
     return div;
+  }
+  
+  private createBezierCurveEditor(
+    getCurve: () => CubicBezier,
+    onChange: (curve: CubicBezier) => void
+  ): HTMLElement {
+    const container = document.createElement('div');
+    container.className = 'bezier-curve-editor';
+    
+    // Canvas for visualization
+    const canvas = document.createElement('canvas');
+    canvas.width = 200;
+    canvas.height = 200;
+    canvas.className = 'bezier-curve-canvas';
+    
+    // Draw function
+    const draw = () => {
+      this.drawBezierCurve(canvas, getCurve());
+    };
+    
+    // Preset buttons
+    const presets = this.createBezierPresets(onChange, draw);
+    
+    // Interaction state
+    let isDragging = false;
+    let dragHandle: 'p1' | 'p2' | null = null;
+    
+    // Mouse/touch interaction
+    const getCanvasPoint = (e: MouseEvent | TouchEvent): { x: number; y: number } | null => {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = 'touches' in e ? e.touches[0]?.clientX : e.clientX;
+      const clientY = 'touches' in e ? e.touches[0]?.clientY : e.clientY;
+      
+      if (clientX === undefined || clientY === undefined) return null;
+      
+      // Account for canvas scaling: use actual canvas pixel dimensions vs displayed dimensions
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      
+      // Convert click position to canvas pixel coordinates
+      const pixelX = (clientX - rect.left) * scaleX;
+      const pixelY = (clientY - rect.top) * scaleY;
+      
+      // Normalize to 0-1 range and flip Y axis (canvas Y increases downward)
+      const x = pixelX / canvas.width;
+      const y = 1 - (pixelY / canvas.height);
+      
+      return { x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)) };
+    };
+    
+    const getHandleAt = (x: number, y: number): 'p1' | 'p2' | null => {
+      const curve = getCurve();
+      // Use larger handle radius for easier clicking (0.08 = 8% of normalized space)
+      // This corresponds to ~16 pixels on a 200px canvas, or ~12 pixels if scaled to 150px
+      const handleRadius = 0.08;
+      const radiusSquared = handleRadius * handleRadius;
+      
+      // Calculate squared distances (more efficient than sqrt)
+      const dx1 = x - curve.x1;
+      const dy1 = y - curve.y1;
+      const dist1Squared = dx1 * dx1 + dy1 * dy1;
+      
+      const dx2 = x - curve.x2;
+      const dy2 = y - curve.y2;
+      const dist2Squared = dx2 * dx2 + dy2 * dy2;
+      
+      // Check which handle is closer (if any)
+      if (dist1Squared < radiusSquared && dist1Squared <= dist2Squared) {
+        return 'p1';
+      }
+      if (dist2Squared < radiusSquared) {
+        return 'p2';
+      }
+      return null;
+    };
+    
+    const handleStart = (e: MouseEvent | TouchEvent) => {
+      e.preventDefault();
+      const point = getCanvasPoint(e);
+      if (!point) return;
+      
+      const handle = getHandleAt(point.x, point.y);
+      if (handle) {
+        isDragging = true;
+        dragHandle = handle;
+        canvas.style.cursor = 'grabbing';
+      }
+    };
+    
+    const handleMove = (e: MouseEvent | TouchEvent) => {
+      if (!isDragging || !dragHandle) return;
+      
+      const point = getCanvasPoint(e);
+      if (!point) return;
+      
+      const curve = getCurve();
+      const newCurve = { ...curve };
+      
+      if (dragHandle === 'p1') {
+        newCurve.x1 = point.x;
+        newCurve.y1 = point.y;
+      } else {
+        newCurve.x2 = point.x;
+        newCurve.y2 = point.y;
+      }
+      
+      onChange(newCurve);
+      draw();
+    };
+    
+    const handleEnd = () => {
+      isDragging = false;
+      dragHandle = null;
+      canvas.style.cursor = 'default';
+    };
+    
+    // Mouse events
+    canvas.addEventListener('mousedown', handleStart);
+    canvas.addEventListener('mousemove', (e) => {
+      if (!isDragging) {
+        const point = getCanvasPoint(e);
+        if (point && getHandleAt(point.x, point.y)) {
+          canvas.style.cursor = 'grab';
+        } else {
+          canvas.style.cursor = 'default';
+        }
+      }
+      handleMove(e);
+    });
+    canvas.addEventListener('mouseup', handleEnd);
+    canvas.addEventListener('mouseleave', handleEnd);
+    
+    // Touch events
+    canvas.addEventListener('touchstart', handleStart);
+    canvas.addEventListener('touchmove', handleMove);
+    canvas.addEventListener('touchend', handleEnd);
+    canvas.addEventListener('touchcancel', handleEnd);
+    
+    // Initial draw
+    draw();
+    
+    container.appendChild(canvas);
+    container.appendChild(presets);
+    
+    return container;
+  }
+  
+  private drawBezierCurve(canvas: HTMLCanvasElement, curve: CubicBezier): void {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    const width = canvas.width;
+    const height = canvas.height;
+    const padding = 10;
+    const drawWidth = width - padding * 2;
+    const drawHeight = height - padding * 2;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, width, height);
+    
+    // Transform: flip Y axis, add padding
+    const toCanvasX = (x: number) => padding + x * drawWidth;
+    const toCanvasY = (y: number) => padding + (1 - y) * drawHeight; // Flip Y
+    
+    // Draw grid
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) {
+      const t = i / 4;
+      const x = toCanvasX(t);
+      const y = toCanvasY(t);
+      
+      // Vertical lines
+      ctx.beginPath();
+      ctx.moveTo(x, padding);
+      ctx.lineTo(x, height - padding);
+      ctx.stroke();
+      
+      // Horizontal lines
+      ctx.beginPath();
+      ctx.moveTo(padding, y);
+      ctx.lineTo(width - padding, y);
+      ctx.stroke();
+    }
+    
+    // Draw axes
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = 2;
+    
+    // X axis
+    ctx.beginPath();
+    ctx.moveTo(padding, toCanvasY(0));
+    ctx.lineTo(width - padding, toCanvasY(0));
+    ctx.stroke();
+    
+    // Y axis
+    ctx.beginPath();
+    ctx.moveTo(toCanvasX(0), padding);
+    ctx.lineTo(toCanvasX(0), height - padding);
+    ctx.stroke();
+    
+    // Draw curve
+    ctx.strokeStyle = 'rgba(100, 150, 255, 0.8)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    
+    // Evaluate bezier curve
+    const steps = 100;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const u = 1 - t;
+      const tt = t * t;
+      const uu = u * u;
+      
+      // Cubic bezier: (1-t)³P₀ + 3(1-t)²tP₁ + 3(1-t)t²P₂ + t³P₃
+      // P₀ = (0,0), P₁ = (x1,y1), P₂ = (x2,y2), P₃ = (1,1)
+      const x = 3 * uu * t * curve.x1 + 3 * u * tt * curve.x2 + tt * t;
+      const y = 3 * uu * t * curve.y1 + 3 * u * tt * curve.y2 + tt * t;
+      
+      const canvasX = toCanvasX(x);
+      const canvasY = toCanvasY(y);
+      
+      if (i === 0) {
+        ctx.moveTo(canvasX, canvasY);
+      } else {
+        ctx.lineTo(canvasX, canvasY);
+      }
+    }
+    ctx.stroke();
+    
+    // Draw tangent lines
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    
+    // Tangent from start to P1
+    ctx.beginPath();
+    ctx.moveTo(toCanvasX(0), toCanvasY(0));
+    ctx.lineTo(toCanvasX(curve.x1), toCanvasY(curve.y1));
+    ctx.stroke();
+    
+    // Tangent from end to P2
+    ctx.beginPath();
+    ctx.moveTo(toCanvasX(1), toCanvasY(1));
+    ctx.lineTo(toCanvasX(curve.x2), toCanvasY(curve.y2));
+    ctx.stroke();
+    
+    ctx.setLineDash([]);
+    
+    // Draw control points
+    const drawHandle = (x: number, y: number, isActive: boolean) => {
+      const cx = toCanvasX(x);
+      const cy = toCanvasY(y);
+      const radius = 6;
+      
+      // Outer circle
+      ctx.fillStyle = isActive ? 'rgba(100, 200, 255, 0.3)' : 'rgba(255, 255, 255, 0.2)';
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius + 2, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Inner circle
+      ctx.fillStyle = isActive ? 'rgba(100, 200, 255, 1)' : 'rgba(255, 255, 255, 0.8)';
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fill();
+    };
+    
+    drawHandle(curve.x1, curve.y1, false);
+    drawHandle(curve.x2, curve.y2, false);
+    
+    // Draw start/end points
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.beginPath();
+    ctx.arc(toCanvasX(0), toCanvasY(0), 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(toCanvasX(1), toCanvasY(1), 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  private createBezierPresets(
+    onChange: (curve: CubicBezier) => void,
+    redraw: () => void
+  ): HTMLElement {
+    const container = document.createElement('div');
+    container.className = 'bezier-presets';
+    
+    const presets: { label: string; curve: CubicBezier }[] = [
+      { label: 'Linear', curve: { x1: 0, y1: 0, x2: 1, y2: 1 } },
+      { label: 'Ease In', curve: { x1: 0.42, y1: 0, x2: 1, y2: 1 } },
+      { label: 'Ease Out', curve: { x1: 0, y1: 0, x2: 0.58, y2: 1 } },
+      { label: 'Ease In-Out', curve: { x1: 0.42, y1: 0, x2: 0.58, y2: 1 } },
+    ];
+    
+    presets.forEach(preset => {
+      const button = document.createElement('button');
+      button.textContent = preset.label;
+      button.className = 'bezier-preset-button';
+      button.addEventListener('click', () => {
+        onChange(preset.curve);
+        redraw();
+      });
+      container.appendChild(button);
+    });
+    
+    return container;
   }
   
   private createModeSelector(): HTMLElement {

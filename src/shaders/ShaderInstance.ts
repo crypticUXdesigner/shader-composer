@@ -152,29 +152,55 @@ export class ShaderInstance {
     this.gl.useProgram(this.program);
     
     const setVec3 = (name: string, value: [number, number, number]) => {
-      const loc = this.uniforms.get(name);
-      if (loc) {
-        this.gl.uniform3f(loc, value[0], value[1], value[2]);
+      let loc = this.uniforms.get(name);
+      if (!loc) {
+        // Fallback: try getUniformLocation directly
+        loc = this.gl.getUniformLocation(this.program!, name);
+        if (!loc) {
+          console.warn(`Uniform ${name} not found in cache or shader`);
+          return;
+        }
       }
+      this.gl.uniform3f(loc, value[0], value[1], value[2]);
     };
     
     const setVec4 = (name: string, value: [number, number, number, number]) => {
-      const loc = this.uniforms.get(name);
-      if (loc) {
-        this.gl.uniform4f(loc, value[0], value[1], value[2], value[3]);
+      let loc = this.uniforms.get(name);
+      if (!loc) {
+        // Fallback: try getUniformLocation directly
+        loc = this.gl.getUniformLocation(this.program!, name);
+        if (!loc) {
+          console.warn(`Uniform ${name} not found in cache or shader`);
+          return;
+        }
       }
+      this.gl.uniform4f(loc, value[0], value[1], value[2], value[3]);
     };
     
     const setInt = (name: string, value: number) => {
-      const loc = this.uniforms.get(name);
-      if (loc) {
-        this.gl.uniform1i(loc, value);
+      let loc = this.uniforms.get(name);
+      if (!loc) {
+        // Fallback: try getUniformLocation directly
+        loc = this.gl.getUniformLocation(this.program!, name);
+        if (!loc) {
+          console.warn(`Uniform ${name} not found in cache or shader`);
+          return;
+        }
       }
+      this.gl.uniform1i(loc, value);
     };
     
     const setFloat = (name: string, value: number) => {
-      const loc = this.uniforms.get(name);
-      if (loc) this.gl.uniform1f(loc, value);
+      let loc = this.uniforms.get(name);
+      if (!loc) {
+        // Fallback: try getUniformLocation directly
+        loc = this.gl.getUniformLocation(this.program!, name);
+        if (!loc) {
+          console.warn(`Uniform ${name} not found in cache or shader`);
+          return;
+        }
+      }
+      this.gl.uniform1f(loc, value);
     };
     
     const prefix = layerNum === 1 ? 'uLayer1' : 'uLayer2';
@@ -256,24 +282,42 @@ export class ShaderInstance {
     
     // Convert OKLCH to RGB for uniforms (simplified - we'll do conversion in shader)
     const setVec3 = (name: string, value: [number, number, number]) => {
-      const loc = this.uniforms.get(name);
-      if (loc) {
-        this.gl.uniform3f(loc, value[0], value[1], value[2]);
+      let loc = this.uniforms.get(name);
+      if (!loc) {
+        // Fallback: try getUniformLocation directly
+        loc = this.gl.getUniformLocation(this.program!, name);
+        if (!loc) {
+          console.warn(`Uniform ${name} not found in cache or shader`);
+          return;
+        }
       }
+      this.gl.uniform3f(loc, value[0], value[1], value[2]);
     };
     
     const setVec4 = (name: string, value: [number, number, number, number]) => {
-      const loc = this.uniforms.get(name);
-      if (loc) {
-        this.gl.uniform4f(loc, value[0], value[1], value[2], value[3]);
+      let loc = this.uniforms.get(name);
+      if (!loc) {
+        // Fallback: try getUniformLocation directly
+        loc = this.gl.getUniformLocation(this.program!, name);
+        if (!loc) {
+          console.warn(`Uniform ${name} not found in cache or shader`);
+          return;
+        }
       }
+      this.gl.uniform4f(loc, value[0], value[1], value[2], value[3]);
     };
     
     const setInt = (name: string, value: number) => {
-      const loc = this.uniforms.get(name);
-      if (loc) {
-        this.gl.uniform1i(loc, value);
+      let loc = this.uniforms.get(name);
+      if (!loc) {
+        // Fallback: try getUniformLocation directly
+        loc = this.gl.getUniformLocation(this.program!, name);
+        if (!loc) {
+          console.warn(`Uniform ${name} not found in cache or shader`);
+          return;
+        }
       }
+      this.gl.uniform1i(loc, value);
     };
     
     // Set color mode: 0 = bezier, 1 = thresholds
@@ -285,8 +329,16 @@ export class ShaderInstance {
     const ditherStrength = colorConfig.ditherStrength ?? 0.0;
     const pixelSize = colorConfig.pixelSize ?? 1.0;
     const setFloat = (name: string, value: number) => {
-      const loc = this.uniforms.get(name);
-      if (loc) this.gl.uniform1f(loc, value);
+      let loc = this.uniforms.get(name);
+      if (!loc) {
+        // Fallback: try getUniformLocation directly
+        loc = this.gl.getUniformLocation(this.program!, name);
+        if (!loc) {
+          console.warn(`Uniform ${name} not found in cache or shader`);
+          return;
+        }
+      }
+      this.gl.uniform1f(loc, value);
     };
     setFloat('uTransitionWidth', transitionWidth);
     setFloat('uDitherStrength', ditherStrength);
@@ -477,7 +529,18 @@ export class ShaderInstance {
       'vector-field.vfTimeOffset': 'uVfTimeOffset',
       'sphere-raymarch.sphereRadius': 'uSphereRadius',
       'sphere-raymarch.sphereGlowIntensity': 'uSphereGlowIntensity',
+      'sphere-raymarch.sphereBrightness': 'uSphereBrightness',
       'sphere-raymarch.raymarchSteps': 'uRaymarchSteps',
+      'sphere-raymarch.vectorFieldFrequencyX': 'uVectorFieldFrequencyX',
+      'sphere-raymarch.vectorFieldFrequencyY': 'uVectorFieldFrequencyY',
+      'sphere-raymarch.vectorFieldFrequencyZ': 'uVectorFieldFrequencyZ',
+      'sphere-raymarch.vectorFieldAmplitude': 'uVectorFieldAmplitude',
+      'sphere-raymarch.vectorFieldRadialStrength': 'uVectorFieldRadialStrength',
+      'sphere-raymarch.vectorFieldHarmonicAmplitude': 'uVectorFieldHarmonicAmplitude',
+      'sphere-raymarch.vectorFieldComplexity': 'uVectorFieldComplexity',
+      'sphere-raymarch.vectorFieldDistanceContribution': 'uVectorFieldDistanceContribution',
+      'sphere-raymarch.vectorFieldSpeed': 'uVectorFieldSpeed',
+      'sphere-raymarch.animationSpeed': 'uAnimationSpeed',
       'fractal.fractalIntensity': 'uFractalIntensity',
       'fractal.fractalLayers': 'uFractalLayers',
       'fractal.fractalIterations': 'uFractalIterations',

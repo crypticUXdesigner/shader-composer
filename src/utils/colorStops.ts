@@ -1,14 +1,42 @@
 import type { ColorConfig, OKLCHColor, CubicBezier } from '../types';
 
-// Evaluate cubic bezier curve at t
-function cubicBezier(t: number, curve: CubicBezier): number {
-  const u = 1.0 - t;
+// Evaluate cubic bezier curve - uses all 4 parameters (x1, y1, x2, y2)
+// Input: x (0-1) - the input value to remap through the curve
+// Returns: y value at the point where x(t) = x
+function cubicBezier(x: number, curve: CubicBezier): number {
+  // Handle edge cases
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+  
+  // Binary search to find t where x(t) = x
+  let t0 = 0;
+  let t1 = 1;
+  
+  // Binary search with 12 iterations for good precision
+  for (let i = 0; i < 12; i++) {
+    const t = (t0 + t1) / 2;
+    const u = 1 - t;
+    const tt = t * t;
+    const uu = u * u;
+    
+    // Evaluate x(t) = 3*(1-t)²*t*x1 + 3*(1-t)*t²*x2 + t³
+    const xt = 3 * uu * t * curve.x1 + 3 * u * tt * curve.x2 + tt * t;
+    
+    if (xt < x) {
+      t0 = t;
+    } else {
+      t1 = t;
+    }
+  }
+  
+  // Use final t value to compute y(t)
+  const t = (t0 + t1) / 2;
+  const u = 1 - t;
   const tt = t * t;
   const uu = u * u;
-  const uuu = uu * u;
-  const ttt = tt * t;
   
-  return uuu * 0.0 + 3.0 * uu * t * curve.y1 + 3.0 * u * tt * curve.y2 + ttt * 1.0;
+  // Evaluate y(t) = 3*(1-t)²*t*y1 + 3*(1-t)*t²*y2 + t³
+  return 3 * uu * t * curve.y1 + 3 * u * tt * curve.y2 + tt * t;
 }
 
 // Interpolate hue with circular wrapping
