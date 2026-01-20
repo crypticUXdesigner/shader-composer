@@ -155,7 +155,7 @@ export class ShaderInstance {
       let loc = this.uniforms.get(name);
       if (!loc) {
         // Fallback: try getUniformLocation directly
-        loc = this.gl.getUniformLocation(this.program!, name);
+        loc = this.gl.getUniformLocation(this.program!, name) ?? undefined;
         if (!loc) {
           console.warn(`Uniform ${name} not found in cache or shader`);
           return;
@@ -168,7 +168,7 @@ export class ShaderInstance {
       let loc = this.uniforms.get(name);
       if (!loc) {
         // Fallback: try getUniformLocation directly
-        loc = this.gl.getUniformLocation(this.program!, name);
+        loc = this.gl.getUniformLocation(this.program!, name) ?? undefined;
         if (!loc) {
           console.warn(`Uniform ${name} not found in cache or shader`);
           return;
@@ -181,7 +181,7 @@ export class ShaderInstance {
       let loc = this.uniforms.get(name);
       if (!loc) {
         // Fallback: try getUniformLocation directly
-        loc = this.gl.getUniformLocation(this.program!, name);
+        loc = this.gl.getUniformLocation(this.program!, name) ?? undefined;
         if (!loc) {
           console.warn(`Uniform ${name} not found in cache or shader`);
           return;
@@ -194,7 +194,7 @@ export class ShaderInstance {
       let loc = this.uniforms.get(name);
       if (!loc) {
         // Fallback: try getUniformLocation directly
-        loc = this.gl.getUniformLocation(this.program!, name);
+        loc = this.gl.getUniformLocation(this.program!, name) ?? undefined;
         if (!loc) {
           console.warn(`Uniform ${name} not found in cache or shader`);
           return;
@@ -285,7 +285,7 @@ export class ShaderInstance {
       let loc = this.uniforms.get(name);
       if (!loc) {
         // Fallback: try getUniformLocation directly
-        loc = this.gl.getUniformLocation(this.program!, name);
+        loc = this.gl.getUniformLocation(this.program!, name) ?? undefined;
         if (!loc) {
           console.warn(`Uniform ${name} not found in cache or shader`);
           return;
@@ -298,7 +298,7 @@ export class ShaderInstance {
       let loc = this.uniforms.get(name);
       if (!loc) {
         // Fallback: try getUniformLocation directly
-        loc = this.gl.getUniformLocation(this.program!, name);
+        loc = this.gl.getUniformLocation(this.program!, name) ?? undefined;
         if (!loc) {
           console.warn(`Uniform ${name} not found in cache or shader`);
           return;
@@ -311,7 +311,7 @@ export class ShaderInstance {
       let loc = this.uniforms.get(name);
       if (!loc) {
         // Fallback: try getUniformLocation directly
-        loc = this.gl.getUniformLocation(this.program!, name);
+        loc = this.gl.getUniformLocation(this.program!, name) ?? undefined;
         if (!loc) {
           console.warn(`Uniform ${name} not found in cache or shader`);
           return;
@@ -332,7 +332,7 @@ export class ShaderInstance {
       let loc = this.uniforms.get(name);
       if (!loc) {
         // Fallback: try getUniformLocation directly
-        loc = this.gl.getUniformLocation(this.program!, name);
+        loc = this.gl.getUniformLocation(this.program!, name) ?? undefined;
         if (!loc) {
           console.warn(`Uniform ${name} not found in cache or shader`);
           return;

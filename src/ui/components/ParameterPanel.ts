@@ -361,7 +361,6 @@ export class ParameterPanel {
           // Prevent text selection
           display.style.userSelect = 'none';
           display.style.webkitUserSelect = 'none';
-          display.style.msUserSelect = 'none';
           display.style.cursor = 'text';
           
           console.log('Creating editable display for:', paramName, 'with value:', displayValue);
@@ -379,8 +378,8 @@ export class ParameterPanel {
             // Capture current value at start of editing
             const editingStartValue = config.type === 'int' ? parseInt(slider.value) : parseFloat(slider.value);
             input.value = String(editingStartValue);
-            input.min = config.min !== undefined ? String(config.min) : undefined;
-            input.max = config.max !== undefined ? String(config.max) : undefined;
+            if (config.min !== undefined) input.min = String(config.min);
+            if (config.max !== undefined) input.max = String(config.max);
             input.step = config.step !== undefined ? String(config.step) : 'any';
             
             // Replace display with input
