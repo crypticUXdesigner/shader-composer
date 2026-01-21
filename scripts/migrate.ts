@@ -8,7 +8,7 @@ const __dirname = dirname(__filename);
 
 // Import element library and types
 import { elementLibrary } from '../src/shaders/elements/index.ts';
-import type { SavedConfig, Layer, FXLayer, ColorConfig, ParameterConfig, VisualElement } from '../src/types/index.ts';
+import type { SavedConfig, Layer, FXLayer, ColorConfig, ParameterConfig } from '../src/types/index.ts';
 
 // Deprecated elements that should be removed
 const DEPRECATED_ELEMENTS = ['bayer-dither'];
@@ -178,8 +178,7 @@ function cleanLayer(
   layer: Layer,
   validElementIds: Set<string>,
   paramMap: ElementParamMap,
-  paramMetadata: ElementParamMetadata,
-  elementMetadata: ElementMetadata
+  paramMetadata: ElementParamMetadata
 ): { layer: Layer; changes: string[] } {
   const changes: string[] = [];
   
@@ -213,7 +212,6 @@ function cleanLayer(
   const allElementIds = Array.from(validElementIds);
   const missingElements = allElementIds.filter(id => !uniqueElementOrder.includes(id));
   if (missingElements.length > 0) {
-    const fullElementOrder = [...uniqueElementOrder, ...missingElements];
     changes.push(`Added missing elements to elementOrder: ${missingElements.join(', ')}`);
     uniqueElementOrder.push(...missingElements);
   }
@@ -400,7 +398,7 @@ function updateConfig(
   if (config.layers && config.layers.length > 0) {
     const cleanedLayers: Layer[] = [];
     for (const layer of config.layers) {
-      const result = cleanLayer(layer, validElementIds, paramMap, paramMetadata, elementMetadata);
+      const result = cleanLayer(layer, validElementIds, paramMap, paramMetadata);
       cleanedLayers.push(result.layer);
       allChanges.push(...result.changes.map(c => `Layer ${layer.id}: ${c}`));
     }
