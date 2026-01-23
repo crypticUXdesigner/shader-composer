@@ -41,9 +41,11 @@ export class NodeEditorCanvas {
   private isConnecting: boolean = false;
   private connectionStartNodeId: string | null = null;
   private connectionStartPort: string | null = null;
+  private connectionStartParameter: string | null = null;
   private connectionStartIsOutput: boolean = false;
   private connectionMouseX: number = 0;
   private connectionMouseY: number = 0;
+  private hoveredPort: { nodeId: string, port: string, isOutput: boolean, parameter?: string } | null = null;
   private isSpacePressed: boolean = false;
   private isDraggingParameter: boolean = false;
   private draggingParameterNodeId: string | null = null;
@@ -60,6 +62,15 @@ export class NodeEditorCanvas {
   private nodeDragThreshold: number = 5; // pixels
   private potentialNodeDrag: boolean = false;
   private potentialNodeDragId: string | null = null;
+  
+  // Edge scrolling state
+  private edgeScrollAnimationFrame: number | null = null;
+  private edgeScrollVelocityX: number = 0;
+  private edgeScrollVelocityY: number = 0;
+  private currentMouseX: number = 0;
+  private currentMouseY: number = 0;
+  private readonly EDGE_SCROLL_ZONE = 0.1; // 10% of width/height
+  private readonly MAX_EDGE_SCROLL_SPEED = 800; // pixels per second
   
   // Callbacks
   private onNodeMoved?: (nodeId: string, x: number, y: number) => void;
@@ -698,9 +709,11 @@ export class NodeEditorCanvas {
       this.isConnecting = true;
       this.connectionStartNodeId = portHit.nodeId;
       this.connectionStartPort = portHit.port;
+      this.connectionStartParameter = portHit.parameter || null;
       this.connectionStartIsOutput = portHit.isOutput;
       this.connectionMouseX = mouseX;
       this.connectionMouseY = mouseY;
+      this.hoveredPort = null;
       this.canvas.style.cursor = 'crosshair';
       return;
     }
@@ -793,6 +806,10 @@ export class NodeEditorCanvas {
     const mouseX = e.clientX;
     const mouseY = e.clientY;
     
+    // Store current mouse position for edge scrolling
+    this.currentMouseX = mouseX;
+    this.currentMouseY = mouseY;
+    
     // Check if we should start background panning
     if (this.potentialBackgroundPan && !this.isPanning) {
       const dx = mouseX - this.backgroundDragStartX;
@@ -843,6 +860,15 @@ export class NodeEditorCanvas {
       }
     }
     
+    // Check for edge scrolling when dragging nodes or connections
+    const shouldEdgeScroll = (this.isDraggingNode || this.isConnecting) && !this.isPanning;
+    if (shouldEdgeScroll) {
+      this.updateEdgeScrollVelocity(mouseX, mouseY);
+      this.startEdgeScrolling();
+    } else {
+      this.stopEdgeScrolling();
+    }
+    
     if (this.isPanning) {
       this.state.panX = mouseX - this.panStartX;
       this.state.panY = mouseY - this.panStartY;
@@ -886,11 +912,135 @@ export class NodeEditorCanvas {
     } else if (this.isConnecting) {
       this.connectionMouseX = mouseX;
       this.connectionMouseY = mouseY;
+      // Check if hovering over a valid input port (only if dragging from output)
+      if (this.connectionStartIsOutput) {
+        const portHit = this.hitTestPort(mouseX, mouseY);
+        // Only highlight input ports (not outputs) and not the same node
+        if (portHit && !portHit.isOutput && portHit.nodeId !== this.connectionStartNodeId) {
+          this.hoveredPort = portHit;
+        } else {
+          this.hoveredPort = null;
+        }
+      } else {
+        this.hoveredPort = null;
+      }
       this.render();
     }
   }
   
+  /**
+   * Calculate edge scroll velocity based on mouse position
+   */
+  private updateEdgeScrollVelocity(mouseX: number, mouseY: number): void {
+    const rect = this.canvas.getBoundingClientRect();
+    const canvasWidth = rect.width;
+    const canvasHeight = rect.height;
+    const scrollZoneWidth = canvasWidth * this.EDGE_SCROLL_ZONE;
+    const scrollZoneHeight = canvasHeight * this.EDGE_SCROLL_ZONE;
+    
+    // Calculate distance from edges
+    const distFromLeft = mouseX - rect.left;
+    const distFromRight = rect.right - mouseX;
+    const distFromTop = mouseY - rect.top;
+    const distFromBottom = rect.bottom - mouseY;
+    
+    // Calculate velocity for X axis
+    let velocityX = 0;
+    if (distFromLeft < scrollZoneWidth) {
+      // Near left edge - scroll right to reveal more content (positive velocity)
+      const proximity = 1 - (distFromLeft / scrollZoneWidth);
+      velocityX = this.MAX_EDGE_SCROLL_SPEED * proximity * proximity; // Quadratic for smoother acceleration
+    } else if (distFromRight < scrollZoneWidth) {
+      // Near right edge - scroll left to reveal more content (negative velocity)
+      const proximity = 1 - (distFromRight / scrollZoneWidth);
+      velocityX = -this.MAX_EDGE_SCROLL_SPEED * proximity * proximity;
+    }
+    
+    // Calculate velocity for Y axis
+    let velocityY = 0;
+    if (distFromTop < scrollZoneHeight) {
+      // Near top edge - scroll down to reveal more content (positive velocity)
+      const proximity = 1 - (distFromTop / scrollZoneHeight);
+      velocityY = this.MAX_EDGE_SCROLL_SPEED * proximity * proximity;
+    } else if (distFromBottom < scrollZoneHeight) {
+      // Near bottom edge - scroll up to reveal more content (negative velocity)
+      const proximity = 1 - (distFromBottom / scrollZoneHeight);
+      velocityY = -this.MAX_EDGE_SCROLL_SPEED * proximity * proximity;
+    }
+    
+    this.edgeScrollVelocityX = velocityX;
+    this.edgeScrollVelocityY = velocityY;
+  }
+  
+  /**
+   * Start edge scrolling animation loop
+   */
+  private startEdgeScrolling(): void {
+    if (this.edgeScrollAnimationFrame !== null) {
+      return; // Already running
+    }
+    
+    let lastTime = performance.now();
+    
+    const animate = (currentTime: number) => {
+      const deltaTime = (currentTime - lastTime) / 1000; // Convert to seconds
+      lastTime = currentTime;
+      
+      // Update velocity based on current mouse position (in case it changed or we panned)
+      this.updateEdgeScrollVelocity(this.currentMouseX, this.currentMouseY);
+      
+      // Only scroll if there's velocity
+      if (this.edgeScrollVelocityX !== 0 || this.edgeScrollVelocityY !== 0) {
+        // Update pan based on velocity and delta time
+        this.state.panX += this.edgeScrollVelocityX * deltaTime;
+        this.state.panY += this.edgeScrollVelocityY * deltaTime;
+        
+        // If dragging a node, update its position to stay under the mouse cursor
+        // The pan changed, so we need to recalculate the node's canvas position
+        if (this.isDraggingNode && this.draggingNodeId) {
+          const node = this.graph.nodes.find(n => n.id === this.draggingNodeId);
+          if (node) {
+            // Convert current mouse position to canvas coordinates
+            const canvasPos = this.screenToCanvas(
+              this.currentMouseX - this.dragOffsetX,
+              this.currentMouseY - this.dragOffsetY
+            );
+            node.position.x = Math.round(canvasPos.x);
+            node.position.y = Math.round(canvasPos.y);
+            this.onNodeMoved?.(this.draggingNodeId, node.position.x, node.position.y);
+          }
+        }
+        
+        this.render();
+      }
+      
+      // Continue animation if still dragging
+      if (this.isDraggingNode || this.isConnecting) {
+        this.edgeScrollAnimationFrame = requestAnimationFrame(animate);
+      } else {
+        this.edgeScrollAnimationFrame = null;
+      }
+    };
+    
+    this.edgeScrollAnimationFrame = requestAnimationFrame(animate);
+  }
+  
+  /**
+   * Stop edge scrolling animation
+   */
+  private stopEdgeScrolling(): void {
+    if (this.edgeScrollAnimationFrame !== null) {
+      cancelAnimationFrame(this.edgeScrollAnimationFrame);
+      this.edgeScrollAnimationFrame = null;
+    }
+    this.edgeScrollVelocityX = 0;
+    this.edgeScrollVelocityY = 0;
+  }
+  
   private handleMouseUp(e: MouseEvent): void {
+    // Stop edge scrolling
+    this.stopEdgeScrolling();
+    
     if (this.isConnecting) {
       // Check if released on a valid port
       const portHit = this.hitTestPort(e.clientX, e.clientY);
@@ -929,6 +1079,8 @@ export class NodeEditorCanvas {
       this.isConnecting = false;
       this.connectionStartNodeId = null;
       this.connectionStartPort = null;
+      this.connectionStartParameter = null;
+      this.hoveredPort = null;
       this.canvas.style.cursor = this.isSpacePressed ? 'grab' : 'default';
       this.render();
     }
@@ -1126,7 +1278,11 @@ export class NodeEditorCanvas {
     }
     
     const isSelected = this.state.selectedNodeIds.has(node.id);
-    this.nodeRenderer.renderNode(node, spec, metrics, isSelected);
+    // Check if this node's port is being hovered
+    const isPortHovered = this.hoveredPort && this.hoveredPort.nodeId === node.id;
+    const hoveredPortName = isPortHovered ? (this.hoveredPort!.parameter || this.hoveredPort!.port) : null;
+    const isHoveredParameter = isPortHovered ? !!this.hoveredPort!.parameter : undefined;
+    this.nodeRenderer.renderNode(node, spec, metrics, isSelected, hoveredPortName, isHoveredParameter);
   }
   
   private renderConnections(): void {
@@ -1202,12 +1358,29 @@ export class NodeEditorCanvas {
     const sourceNode = this.graph.nodes.find(n => n.id === this.connectionStartNodeId);
     if (!sourceNode) return;
     
+    const sourceSpec = this.nodeSpecs.get(sourceNode.type);
+    const sourceMetrics = this.nodeMetrics.get(sourceNode.id);
+    if (!sourceSpec || !sourceMetrics) return;
+    
+    // Get actual port position
+    let sourcePortPos: { x: number; y: number } | undefined;
+    if (this.connectionStartParameter) {
+      // Parameter port
+      sourcePortPos = sourceMetrics.parameterInputPortPositions.get(this.connectionStartParameter);
+    } else if (this.connectionStartPort) {
+      // Regular port
+      const portKey = `${this.connectionStartIsOutput ? 'output' : 'input'}:${this.connectionStartPort}`;
+      sourcePortPos = sourceMetrics.portPositions.get(portKey);
+    }
+    
+    if (!sourcePortPos) return;
+    
     const rect = this.canvas.getBoundingClientRect();
     const targetX = (this.connectionMouseX - rect.left - this.state.panX) / this.state.zoom;
     const targetY = (this.connectionMouseY - rect.top - this.state.panY) / this.state.zoom;
     
-    const sourceX = sourceNode.position.x + 200;
-    const sourceY = sourceNode.position.y + 50;
+    const sourceX = sourcePortPos.x;
+    const sourceY = sourcePortPos.y;
     
     const cp1X = sourceX + 50;
     const cp1Y = sourceY;
@@ -1355,7 +1528,7 @@ export class NodeEditorCanvas {
   /**
    * Handle file parameter click - show file input dialog
    */
-  private handleFileParameterClick(nodeId: string, paramName: string, screenX: number, screenY: number): void {
+  private handleFileParameterClick(nodeId: string, paramName: string, _screenX: number, _screenY: number): void {
     // Create hidden file input
     const fileInput = document.createElement('input');
     fileInput.type = 'file';

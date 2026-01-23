@@ -132,8 +132,31 @@ export class NodeEditor {
           targetParameter
         };
         
-        // Validate connection
-        if (this.validateConnection(connection)) {
+        // Validate connection (but skip duplicate check since we'll replace)
+        if (this.validateConnection(connection, true)) {
+          // Check if target input/parameter already has a connection and remove it
+          if (targetParameter) {
+            // For parameter connections
+            const existingConnection = this.graph.connections.find(
+              c => c.targetNodeId === targetNodeId && 
+                   c.targetParameter === targetParameter
+            );
+            if (existingConnection) {
+              // Remove existing connection
+              this.graph.connections = this.graph.connections.filter(c => c.id !== existingConnection.id);
+            }
+          } else if (targetPort) {
+            // For regular port connections
+            const existingConnection = this.graph.connections.find(
+              c => c.targetNodeId === targetNodeId && c.targetPort === targetPort
+            );
+            if (existingConnection) {
+              // Remove existing connection
+              this.graph.connections = this.graph.connections.filter(c => c.id !== existingConnection.id);
+            }
+          }
+          
+          // Add the new connection
           this.graph.connections.push(connection);
           this.updateViewState();
           this.notifyGraphChanged();
@@ -180,7 +203,7 @@ export class NodeEditor {
     });
   }
   
-  private validateConnection(connection: Connection): boolean {
+  private validateConnection(connection: Connection, skipDuplicateCheck: boolean = false): boolean {
     const sourceNode = this.graph.nodes.find(n => n.id === connection.sourceNodeId);
     const targetNode = this.graph.nodes.find(n => n.id === connection.targetNodeId);
     
@@ -207,14 +230,16 @@ export class NodeEditor {
         return false;
       }
       
-      // Check if parameter already has a connection
-      const existingConnection = this.graph.connections.find(
-        c => c.targetNodeId === connection.targetNodeId && 
-             c.targetParameter === connection.targetParameter
-      );
-      
-      if (existingConnection) {
-        return false; // Parameter already connected
+      // Check if parameter already has a connection (unless we're replacing it)
+      if (!skipDuplicateCheck) {
+        const existingConnection = this.graph.connections.find(
+          c => c.targetNodeId === connection.targetNodeId && 
+               c.targetParameter === connection.targetParameter
+        );
+        
+        if (existingConnection) {
+          return false; // Parameter already connected
+        }
       }
       
       // Type compatibility: source must be float or int (or vec with .x extraction)
@@ -237,13 +262,15 @@ export class NodeEditor {
       return false;
     }
     
-    // Check if target port already has a connection
-    const existingConnection = this.graph.connections.find(
-      c => c.targetNodeId === connection.targetNodeId && c.targetPort === connection.targetPort
-    );
-    
-    if (existingConnection) {
-      return false; // Port already connected
+    // Check if target port already has a connection (unless we're replacing it)
+    if (!skipDuplicateCheck) {
+      const existingConnection = this.graph.connections.find(
+        c => c.targetNodeId === connection.targetNodeId && c.targetPort === connection.targetPort
+      );
+      
+      if (existingConnection) {
+        return false; // Port already connected
+      }
     }
     
     // TODO: Check type compatibility

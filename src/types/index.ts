@@ -1,3 +1,5 @@
+import type { ParameterInputMode } from './nodeSpec';
+
 export interface ParameterConfig {
   type: 'float' | 'int';
   default: number;
@@ -7,6 +9,7 @@ export interface ParameterConfig {
   label?: string;
   readOnly?: boolean; // If true, parameter is read-only (auto-synced from another element)
   disabled?: boolean; // If true, parameter is disabled (unavailable in current mode)
+  inputMode?: ParameterInputMode; // How to combine input with config value (default: 'override')
 }
 
 export interface ParameterGroup {

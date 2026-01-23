@@ -289,6 +289,30 @@ export class NodeEditorLayout {
   }
   
   /**
+   * Set the selected preset in the dropdown
+   * @param presetName - Name of the preset to select (filename without .json extension)
+   */
+  setSelectedPreset(presetName: string | null): void {
+    if (!presetName) {
+      // Reset to default option
+      this.presetSelect.selectedIndex = 0;
+      return;
+    }
+    
+    // Find the option with matching value
+    for (let i = 0; i < this.presetSelect.options.length; i++) {
+      if (this.presetSelect.options[i].value === presetName) {
+        this.presetSelect.selectedIndex = i;
+        return;
+      }
+    }
+    
+    // If preset not found, reset to default
+    console.warn(`[NodeEditorLayout] Preset "${presetName}" not found in dropdown, resetting to default`);
+    this.presetSelect.selectedIndex = 0;
+  }
+  
+  /**
    * Show a toast notification
    */
   private showToast(message: string, type: 'success' | 'error'): void {
@@ -393,8 +417,8 @@ export class NodeEditorLayout {
       const presetName = target.value;
       if (presetName && this.onLoadPreset) {
         await this.onLoadPreset(presetName);
-        // Reset selection to default
-        target.selectedIndex = 0;
+        // Keep the selected preset visible (don't reset to default)
+        // The selection is now managed by setSelectedPreset in the callback
       }
     });
     buttonContainer.appendChild(this.presetSelect);

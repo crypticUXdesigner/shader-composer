@@ -85,6 +85,7 @@ class App {
     
     // Automatically load first available preset
     let initialGraph: NodeGraph | null = null;
+    let loadedPresetName: string | null = null;
     
     try {
       const presets = await listPresets();
@@ -94,6 +95,7 @@ class App {
         console.log(`[App] Loading first preset: ${firstPreset.displayName} (${firstPreset.name})`);
         initialGraph = await loadPreset(firstPreset.name);
         if (initialGraph) {
+          loadedPresetName = firstPreset.name;
           // Generate new IDs to avoid conflicts
           const newGraphId = `graph-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
           initialGraph.id = newGraphId;
@@ -237,13 +239,21 @@ class App {
         // Load the graph into the editor
         this.nodeEditor.setGraph(presetGraph);
         await this.runtimeManager.setGraph(presetGraph);
+        
+        // Update the dropdown to reflect the loaded preset
+        this.layout.setSelectedPreset(presetName);
       } else {
         throw new Error(`Failed to load preset: ${presetName}`);
       }
     });
     
     // Load and populate preset list
-    this.loadPresetList();
+    await this.loadPresetList();
+    
+    // Set the selected preset in the dropdown if a preset was loaded
+    if (loadedPresetName) {
+      this.layout.setSelectedPreset(loadedPresetName);
+    }
     
     // Set initial graph in runtime (await to ensure audio files load)
     await this.runtimeManager.setGraph(initialGraph);

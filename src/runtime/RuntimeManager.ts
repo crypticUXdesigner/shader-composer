@@ -221,7 +221,15 @@ export class RuntimeManager {
             continue;
           }
           
-          const frequencyBands = node.parameters.frequencyBands as number[][] | undefined;
+          // Type guard for frequencyBands: must be array of number arrays
+          let frequencyBands: number[][] | undefined;
+          const freqParam = node.parameters.frequencyBands;
+          if (Array.isArray(freqParam) && freqParam.length > 0 && Array.isArray(freqParam[0])) {
+            const isValid = freqParam.every((item: any) => Array.isArray(item) && item.every((el: any) => typeof el === 'number'));
+            if (isValid) {
+              frequencyBands = freqParam as unknown as number[][];
+            }
+          }
           const smoothing = typeof node.parameters.smoothing === 'number' ? node.parameters.smoothing : 0.8;
           const fftSize = typeof node.parameters.fftSize === 'number' ? node.parameters.fftSize : 4096;
           
@@ -464,7 +472,7 @@ export class RuntimeManager {
   /**
    * Handle audio analyzer parameter change
    */
-  onAudioAnalyzerParameterChange(nodeId: string, paramName: string, value: any): void {
+  onAudioAnalyzerParameterChange(nodeId: string, paramName: string, _value: any): void {
     if (!this.currentGraph) return;
     
     const node = this.currentGraph.nodes.find(n => n.id === nodeId);
@@ -484,7 +492,15 @@ export class RuntimeManager {
       this.audioManager.removeAnalyzerNode(nodeId);
       
       // Get current parameter values
-      const frequencyBands = node.parameters.frequencyBands as number[][] | undefined;
+      // Type guard for frequencyBands: must be array of number arrays
+      let frequencyBands: number[][] | undefined;
+      const freqParam = node.parameters.frequencyBands;
+      if (Array.isArray(freqParam) && freqParam.length > 0 && Array.isArray(freqParam[0])) {
+        const isValid = freqParam.every((item: any) => Array.isArray(item) && item.every((el: any) => typeof el === 'number'));
+        if (isValid) {
+          frequencyBands = freqParam as unknown as number[][];
+        }
+      }
       const smoothing = typeof node.parameters.smoothing === 'number' ? node.parameters.smoothing : 0.8;
       const fftSize = typeof node.parameters.fftSize === 'number' ? node.parameters.fftSize : 4096;
       

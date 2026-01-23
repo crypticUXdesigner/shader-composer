@@ -532,13 +532,24 @@ export class NodeShaderCompiler {
     if (Array.isArray(frequencyBandsParam) && frequencyBandsParam.length > 0) {
       // Validate it's an array of arrays
       if (Array.isArray(frequencyBandsParam[0])) {
-        return frequencyBandsParam as number[][];
+        // Type guard: ensure all elements are number arrays
+        const isValid = frequencyBandsParam.every(item => Array.isArray(item) && item.every(el => typeof el === 'number'));
+        if (isValid) {
+          return frequencyBandsParam as unknown as number[][];
+        }
       }
     }
     // Fall back to default from spec
     const defaultParam = nodeSpec.parameters.frequencyBands;
-    if (defaultParam && Array.isArray(defaultParam.default) && Array.isArray(defaultParam.default[0])) {
-      return defaultParam.default as number[][];
+    if (defaultParam && Array.isArray(defaultParam.default)) {
+      const defaultValue = defaultParam.default;
+      if (Array.isArray(defaultValue[0])) {
+        // Type guard: ensure all elements are number arrays
+        const isValid = defaultValue.every((item: any) => Array.isArray(item) && item.every((el: any) => typeof el === 'number'));
+        if (isValid) {
+          return defaultValue as unknown as number[][];
+        }
+      }
     }
     // Ultimate fallback
     return [[20, 120], [120, 300], [300, 4000], [4000, 20000]];
@@ -799,7 +810,6 @@ export class NodeShaderCompiler {
       // Find the opening brace by looking for '{' after the parameter list
       let parenCount = 0;
       let bracePos = -1;
-      let foundParams = false;
       
       // Skip to the opening parenthesis
       let pos = startPos;
@@ -953,7 +963,7 @@ export class NodeShaderCompiler {
   private generateAudioNodeCode(
     node: NodeInstance,
     nodeSpec: NodeSpec,
-    graph: NodeGraph,
+    _graph: NodeGraph,
     variableNames: Map<string, Map<string, string>>,
     uniformNames: Map<string, string>
   ): string {
@@ -1447,7 +1457,7 @@ export class NodeShaderCompiler {
     configValue: string,
     inputValue: string,
     mode: 'override' | 'add' | 'subtract' | 'multiply',
-    paramType: 'float' | 'int' = 'float'
+    _paramType: 'float' | 'int' = 'float'
   ): string {
     // For override mode, just return the input value
     if (mode === 'override') {

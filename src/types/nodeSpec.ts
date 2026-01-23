@@ -44,7 +44,8 @@ export type ParameterValue =
   | number
   | string
   | [number, number, number, number]
-  | number[];
+  | number[]
+  | number[][];  // For array parameters that are arrays of arrays (e.g., frequency bands)
 
 export interface ParameterGroup {
   id: string;

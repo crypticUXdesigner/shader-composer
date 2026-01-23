@@ -75,3 +75,9 @@
   opacity: 0;
   pointer-events: none;
 }
+
+/* Ensure all icon elements inside layout buttons don't block clicks */
+.layout-button > *,
+.layout-toggle-button > * {
+  pointer-events: none;
+}

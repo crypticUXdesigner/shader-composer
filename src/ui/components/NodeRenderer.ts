@@ -231,7 +231,9 @@ export class NodeRenderer {
     node: NodeInstance,
     spec: NodeSpec,
     metrics: NodeRenderMetrics,
-    isSelected: boolean
+    isSelected: boolean,
+    hoveredPortName?: string | null,
+    isHoveredParameter?: boolean
   ): void {
     const { width, height, headerHeight, portPositions, parameterPositions } = metrics;
     const x = node.position.x;
@@ -319,7 +321,8 @@ export class NodeRenderer {
       const portKey = `input:${port.name}`;
       const pos = portPositions.get(portKey);
       if (pos) {
-        this.renderPort(pos.x, pos.y, port.type);
+        const isHovered = hoveredPortName === port.name && !isHoveredParameter;
+        this.renderPort(pos.x, pos.y, port.type, isHovered);
         
         // Port label with type (parameter name + type, inside node)
         this.ctx.font = '12px sans-serif';
@@ -379,7 +382,6 @@ export class NodeRenderer {
     // Render parameters
     if (!node.collapsed && parameterPositions.size > 0) {
       const paramPadding = 8;
-      const paramHeight = 32;
       const groupHeaderHeight = 24;
       const paramStartY = y + headerHeight + Math.max(spec.inputs.length, spec.outputs.length) * 24;
       
@@ -396,7 +398,6 @@ export class NodeRenderer {
       const { groupedParams, ungroupedParams } = this.organizeParametersByGroups(spec);
       
       // Render grouped parameters
-      let lastRenderedY = paramStartY + paramPadding;
       groupedParams.forEach((group, groupIndex) => {
         if (group.parameters.length === 0) return;
         
@@ -443,14 +444,13 @@ export class NodeRenderer {
           
           // Render numeric parameters (float/int)
           if (paramSpec.type === 'float') {
-            this.renderParameter(paramPos.x, paramPos.y, paramPos.width, paramPos.height, paramName, paramSpec, paramValue as number, node, metrics);
+            const isParamHovered = hoveredPortName === paramName && isHoveredParameter;
+            this.renderParameter(paramPos.x, paramPos.y, paramPos.width, paramPos.height, paramName, paramSpec, paramValue as number, node, metrics, isParamHovered);
           }
           // Render string parameters (e.g., file inputs)
           else if (paramSpec.type === 'string') {
             this.renderStringParameter(paramPos.x, paramPos.y, paramPos.width, paramPos.height, paramName, paramSpec, paramValue as string, node.id);
           }
-          
-          lastRenderedY = paramPos.y + paramHeight;
         });
       });
       
@@ -480,7 +480,8 @@ export class NodeRenderer {
         
         // Render numeric parameters (float/int)
         if (paramSpec.type === 'float') {
-          this.renderParameter(paramPos.x, paramPos.y, paramPos.width, paramPos.height, paramName, paramSpec, paramValue as number, node, metrics);
+          const isParamHovered = hoveredPortName === paramName && isHoveredParameter;
+          this.renderParameter(paramPos.x, paramPos.y, paramPos.width, paramPos.height, paramName, paramSpec, paramValue as number, node, metrics, isParamHovered);
         }
         // Render string parameters (e.g., file inputs)
         else if (paramSpec.type === 'string') {
@@ -493,7 +494,8 @@ export class NodeRenderer {
   private renderParameter(
     x: number, y: number, width: number, height: number,
     paramName: string, paramSpec: import('../../types/nodeSpec').ParameterSpec, value: number,
-    node: NodeInstance, metrics: NodeRenderMetrics
+    node: NodeInstance, metrics: NodeRenderMetrics,
+    isHovered: boolean = false
   ): void {
     const padding = 8;
     const portRadius = getCSSVariableAsNumber('port-radius', 4);
@@ -503,7 +505,7 @@ export class NodeRenderer {
     // Parameter input port (left side, for float/int parameters)
     const paramInputPortPos = metrics.parameterInputPortPositions.get(paramName);
     if (paramInputPortPos && (paramSpec.type === 'float' || paramSpec.type === 'int')) {
-      this.renderPort(paramInputPortPos.x, paramInputPortPos.y, 'float');
+      this.renderPort(paramInputPortPos.x, paramInputPortPos.y, 'float', isHovered);
     }
     
     // Parameter label (after port)
@@ -538,7 +540,7 @@ export class NodeRenderer {
   
   private renderStringParameter(
     x: number, y: number, width: number, height: number,
-    paramName: string, paramSpec: import('../../types/nodeSpec').ParameterSpec, value: string, nodeId: string
+    paramName: string, paramSpec: import('../../types/nodeSpec').ParameterSpec, value: string, _nodeId: string
   ): void {
     const padding = 8;
     const buttonWidth = 100;
@@ -585,12 +587,45 @@ export class NodeRenderer {
     this.ctx.textAlign = 'left';
   }
 
-  private renderPort(x: number, y: number, type: string): void {
+  private renderPort(x: number, y: number, type: string, isHovered: boolean = false): void {
     const radius = getCSSVariableAsNumber('port-radius', 4);
     // Use type color for consistency - same type = same color everywhere
     const color = this.getTypeColor(type);
     
-    this.ctx.fillStyle = color;
+    // Draw highlight circle if hovered (larger, transparent, behind the port)
+    if (isHovered) {
+      const highlightRadius = radius * 3.5; // Larger circle
+      
+      // Parse color to get RGB values for transparency
+      const colorMap: Record<string, string> = {
+        'float': 'port-color-float',
+        'vec2': 'port-color-vec2',
+        'vec3': 'port-color-vec3',
+        'vec4': 'port-color-vec4'
+      };
+      const tokenName = colorMap[type] || 'port-color-default';
+      const colorRGBA = getCSSColorRGBA(tokenName, { r: 102, g: 102, b: 102, a: 1 });
+      
+      // Brighter and transparent - make it very visible
+      const brighterR = Math.min(255, colorRGBA.r + 80);
+      const brighterG = Math.min(255, colorRGBA.g + 80);
+      const brighterB = Math.min(255, colorRGBA.b + 80);
+      
+      // Draw larger transparent circle behind (more opaque for visibility)
+      this.ctx.fillStyle = `rgba(${brighterR}, ${brighterG}, ${brighterB}, 0.6)`;
+      this.ctx.beginPath();
+      this.ctx.arc(x, y, highlightRadius, 0, Math.PI * 2);
+      this.ctx.fill();
+      
+      // Draw brighter port on top
+      const portBrighterR = Math.min(255, colorRGBA.r + 60);
+      const portBrighterG = Math.min(255, colorRGBA.g + 60);
+      const portBrighterB = Math.min(255, colorRGBA.b + 60);
+      this.ctx.fillStyle = `rgb(${portBrighterR}, ${portBrighterG}, ${portBrighterB})`;
+    } else {
+      this.ctx.fillStyle = color;
+    }
+    
     this.ctx.beginPath();
     this.ctx.arc(x, y, radius, 0, Math.PI * 2);
     this.ctx.fill();

@@ -35,3 +35,8 @@
 }
 
 /* Icon color is handled by the SVG element */
+
+/* Ensure all icon elements don't block clicks */
+.plus-button > * {
+  pointer-events: none;
+}

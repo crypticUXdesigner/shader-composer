@@ -2,7 +2,7 @@
 // Draggable numeric input for node parameters
 
 import type { ParameterSpec } from '../../types/nodeSpec';
-import { getCSSColor, getCSSVariable, getCSSVariableAsNumber } from '../../utils/cssTokens';
+import { getCSSColor, getCSSVariable } from '../../utils/cssTokens';
 
 export interface ParameterControlCallbacks {
   onValueChange?: (value: number) => void;

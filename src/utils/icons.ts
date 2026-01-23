@@ -99,6 +99,7 @@ export function createIconElement(
   iconElement.style.display = 'block';
   iconElement.style.flexShrink = '0';
   iconElement.style.verticalAlign = 'middle';
+  iconElement.style.pointerEvents = 'none'; // Allow clicks to pass through to parent button
 
   return iconElement;
 }

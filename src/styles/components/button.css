@@ -16,3 +16,8 @@ button:hover {
 button:active {
   background: var(--button-bg-active);
 }
+
+/* Ensure icon elements inside buttons don't block clicks */
+button svg {
+  pointer-events: none;
+}

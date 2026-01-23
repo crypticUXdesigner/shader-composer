@@ -28,3 +28,8 @@
 }
 
 /* Icon is now added programmatically via JavaScript */
+
+/* Ensure all icon elements don't block clicks */
+.eye-button > * {
+  pointer-events: none;
+}

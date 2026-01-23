@@ -2,7 +2,6 @@
 // Right-click menu for creating nodes
 
 import type { NodeSpec } from '../../types/nodeSpec';
-import { getCSSColor, getCSSVariable } from '../../utils/cssTokens';
 
 export interface ContextMenuCallbacks {
   onCreateNode?: (nodeType: string, x: number, y: number) => void;
@@ -86,13 +85,6 @@ export class NodeContextMenu {
       return;
     }
     
-    const contextMenuItemPadding = getCSSVariable('context-menu-item-padding', '8px 12px');
-    const contextMenuItemColor = getCSSColor('context-menu-item-color', '#e0e0e0');
-    const contextMenuItemBgHover = getCSSColor('context-menu-item-bg-hover', '#3a3a3a');
-    const textMd = getCSSVariable('text-md', '0.9rem');
-    const textSm = getCSSVariable('text-sm', '0.85rem');
-    const spacingXs = getCSSVariable('spacing-xs', '0.25rem');
-    const descColor = getCSSColor('search-result-desc-color', '#999');
     
     for (let i = 0; i < this.filteredSpecs.length; i++) {
       const spec = this.filteredSpecs[i];
