@@ -197,10 +197,6 @@ export class AudioManager {
           );
         }
         
-        // Check content type if available
-        const contentType = response.headers.get('content-type');
-        const contentLength = response.headers.get('content-length');
-        
         arrayBuffer = await response.arrayBuffer();
         
         // Verify we didn't get an HTML error page
@@ -272,6 +268,7 @@ export class AudioManager {
       gain.gain.value = 1.0;
       
       // Create state with all nodes initialized
+      const frequencyDataBuffer = new ArrayBuffer(analyser.frequencyBinCount);
       const state: AudioNodeState = {
         nodeId,
         audioContext: this.audioContext,
@@ -283,7 +280,7 @@ export class AudioManager {
         startTime: 0,
         currentTime: 0,
         duration: audioBuffer.duration,
-        frequencyData: new Uint8Array(analyser.frequencyBinCount),
+        frequencyData: new Uint8Array(frequencyDataBuffer),
         smoothedValues: new Map()
       };
       
@@ -490,7 +487,7 @@ export class AudioManager {
       
       if (state.analyserNode && state.frequencyData) {
         // Get current frequency data
-        state.analyserNode.getByteFrequencyData(state.frequencyData);
+        state.analyserNode.getByteFrequencyData(state.frequencyData as Uint8Array<ArrayBuffer>);
       }
       
       // Update playback state

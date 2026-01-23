@@ -5,6 +5,8 @@
  * including NodeInstance, Connection, and NodeGraph interfaces.
  */
 
+import type { ParameterInputMode } from '../types/nodeSpec';
+
 /**
  * Parameter value types that can be stored in a node instance.
  * These correspond to the parameter types defined in the Node Specification.
@@ -36,6 +38,7 @@ export interface NodeInstance {
   
   // Parameters
   parameters: Record<string, ParameterValue>;  // Parameter name → value
+  parameterInputModes?: Record<string, ParameterInputMode>;  // Parameter name → input mode (overrides spec default)
   
   // Metadata
   label?: string;                 // Optional custom label (overrides displayName)
@@ -55,7 +58,8 @@ export interface Connection {
   
   // Target (input)
   targetNodeId: string;           // Target node ID
-  targetPort: string;              // Target port name (from Node Specification)
+  targetPort?: string;            // Target port name (from Node Specification) - optional if targetParameter is set
+  targetParameter?: string;       // Target parameter name (for parameter input connections)
 }
 
 /**
