@@ -2,25 +2,25 @@
   "format": "shader-composer-node-graph",
   "formatVersion": "2.0",
   "graph": {
-    "id": "graph-1769131529061-x2qn67mcs",
+    "id": "graph-1769238720338-ydm6brbwf",
     "name": "Sphere Shader",
     "version": "2.0",
     "nodes": [
       {
-        "id": "node-1769131529061-bs4fmki4m",
+        "id": "node-1769238720338-28b8pkeb3",
         "type": "uv-coordinates",
         "position": {
-          "x": -49,
-          "y": 1959
+          "x": 413,
+          "y": -329
         },
         "parameters": {}
       },
       {
-        "id": "node-1769131529061-hmrs7uvv7",
+        "id": "node-1769238720338-dv0hytnno",
         "type": "sphere-raymarch",
         "position": {
-          "x": 772,
-          "y": 1353
+          "x": 1901,
+          "y": 680
         },
         "parameters": {
           "sphereRadius": 0.1,
@@ -47,11 +47,11 @@
         }
       },
       {
-        "id": "node-1769131529061-2mathlaly",
+        "id": "node-1769238720338-v39je5hlm",
         "type": "oklch-color",
         "position": {
-          "x": 1113,
-          "y": 256
+          "x": 1587,
+          "y": -509
         },
         "parameters": {
           "l": 0,
@@ -60,11 +60,11 @@
         }
       },
       {
-        "id": "node-1769131529061-fn1374nyp",
+        "id": "node-1769238720338-s37csl832",
         "type": "oklch-color",
         "position": {
-          "x": 1119,
-          "y": 440
+          "x": 2394,
+          "y": -509
         },
         "parameters": {
           "l": 0.93,
@@ -73,11 +73,28 @@
         }
       },
       {
-        "id": "node-1769131529061-7xigzwgre",
+        "id": "node-1769238720338-z0shcj0d6",
         "type": "bezier-curve",
         "position": {
-          "x": 1354,
-          "y": 843
+          "x": 2716,
+          "y": -1082
+        },
+        "parameters": {
+          "x1": 0,
+          "y1": 0,
+          "x2": 1,
+          "y2": 1
+        },
+        "parameterInputModes": {
+          "y2": "add"
+        }
+      },
+      {
+        "id": "node-1769238720338-ubs2xvaqx",
+        "type": "bezier-curve",
+        "position": {
+          "x": 2133,
+          "y": -1082
         },
         "parameters": {
           "x1": 0,
@@ -87,25 +104,11 @@
         }
       },
       {
-        "id": "node-1769131529061-qbz7gy4k7",
+        "id": "node-1769238720338-ag5046cag",
         "type": "bezier-curve",
         "position": {
-          "x": 1357,
-          "y": 1058
-        },
-        "parameters": {
-          "x1": 0,
-          "y1": 0,
-          "x2": 1,
-          "y2": 1
-        }
-      },
-      {
-        "id": "node-1769131529061-f6vw6ogh5",
-        "type": "bezier-curve",
-        "position": {
-          "x": 1353,
-          "y": 1269
+          "x": 1588,
+          "y": -1082
         },
         "parameters": {
           "x1": 0.019999999999999907,
@@ -115,29 +118,29 @@
         }
       },
       {
-        "id": "node-1769131529061-roi7mwklj",
+        "id": "node-1769238720338-cz3eqppql",
         "type": "fragment-coordinates",
         "position": {
-          "x": 1357,
-          "y": 1487
+          "x": 1587,
+          "y": 44
         },
         "parameters": {}
       },
       {
-        "id": "node-1769131529061-dfakfquc0",
+        "id": "node-1769238720338-clfegvz6h",
         "type": "resolution",
         "position": {
-          "x": 1364,
-          "y": 1570
+          "x": 2007,
+          "y": 44
         },
         "parameters": {}
       },
       {
-        "id": "node-1769131529061-q5tjb8cuu",
+        "id": "node-1769238720338-eg3h5avt6",
         "type": "oklch-color-map-threshold",
         "position": {
-          "x": 1986,
-          "y": 1000
+          "x": 3579,
+          "y": 629
         },
         "parameters": {
           "stops": 12,
@@ -150,11 +153,11 @@
         }
       },
       {
-        "id": "node-1769131529061-wffev67eq",
+        "id": "node-1769238720338-xpmrtp6iw",
         "type": "tone-mapping",
         "position": {
-          "x": 2100,
-          "y": 600
+          "x": 4276,
+          "y": 629
         },
         "parameters": {
           "exposure": 1,
@@ -163,20 +166,20 @@
         }
       },
       {
-        "id": "node-1769131529061-4mrl2b4ow",
+        "id": "node-1769238720338-h0hj2rulp",
         "type": "final-output",
         "position": {
-          "x": 2500,
-          "y": 600
+          "x": 5168,
+          "y": 629
         },
         "parameters": {}
       },
       {
-        "id": "node-1769131529061-rryegsolg",
+        "id": "node-1769238720338-4fpkx6wq1",
         "type": "audio-file-input",
         "position": {
-          "x": -285,
-          "y": 1175
+          "x": -1310,
+          "y": 680
         },
         "parameters": {
           "filePath": "po9t - The Quiet Between Us.mp3",
@@ -185,11 +188,11 @@
         "collapsed": false
       },
       {
-        "id": "node-1769131529061-cknbe7u1w",
+        "id": "node-1769238720338-kevurogn6",
         "type": "audio-analyzer",
         "position": {
-          "x": 102,
-          "y": 1137
+          "x": -568,
+          "y": 680
         },
         "parameters": {
           "frequencyBands": [
@@ -216,27 +219,27 @@
         "collapsed": false
       },
       {
-        "id": "node-1769131529061-mbz0zpe65",
+        "id": "node-1769238720338-cyity6c1q",
         "type": "audio-remap",
         "position": {
-          "x": 465,
-          "y": 1393
+          "x": 413,
+          "y": 979
         },
         "parameters": {
           "clamp": 1,
           "outMax": 1,
-          "inMin": 0.2,
+          "inMin": 0,
           "inMax": 1,
           "outMin": 0.08
         },
         "collapsed": false
       },
       {
-        "id": "node-1769131529061-775esqscy",
+        "id": "node-1769238720338-kvi5nly7m",
         "type": "audio-remap",
         "position": {
-          "x": 455,
-          "y": 1113
+          "x": 413,
+          "y": -32
         },
         "parameters": {
           "inMin": 0,
@@ -248,11 +251,11 @@
         "collapsed": false
       },
       {
-        "id": "node-1769131529061-5uhlkx01s",
+        "id": "node-1769238720338-k37vwovzg",
         "type": "audio-remap",
         "position": {
-          "x": 464,
-          "y": 1636
+          "x": 413,
+          "y": 2008
         },
         "parameters": {
           "inMin": 0.19999999999999998,
@@ -264,11 +267,11 @@
         "collapsed": false
       },
       {
-        "id": "node-1769131529061-jkmjhhje5",
+        "id": "node-1769238720338-620vhao07",
         "type": "audio-remap",
         "position": {
-          "x": 463,
-          "y": 1881
+          "x": 413,
+          "y": 3034
         },
         "parameters": {
           "inMin": 0,
@@ -278,168 +281,222 @@
           "clamp": 1
         },
         "collapsed": false
+      },
+      {
+        "id": "node-1769238720338-uvrc8mdhm",
+        "type": "oklch-color-map-bezier",
+        "position": {
+          "x": 3623,
+          "y": -54
+        },
+        "parameters": {
+          "stops": 10
+        },
+        "collapsed": false
       }
     ],
     "connections": [
       {
-        "id": "conn-1769131529061-tagn0z7js",
-        "sourceNodeId": "node-1769131529061-bs4fmki4m",
+        "id": "conn-1769238720338-7b4jwq8ss",
+        "sourceNodeId": "node-1769238720338-28b8pkeb3",
         "sourcePort": "out",
-        "targetNodeId": "node-1769131529061-hmrs7uvv7",
+        "targetNodeId": "node-1769238720338-dv0hytnno",
         "targetPort": "in"
       },
       {
-        "id": "conn-1769131529061-u6h41jfuh",
-        "sourceNodeId": "node-1769131529061-7xigzwgre",
+        "id": "conn-1769238720338-ti59nwzrs",
+        "sourceNodeId": "node-1769238720338-z0shcj0d6",
         "sourcePort": "out",
-        "targetNodeId": "node-1769131529061-q5tjb8cuu",
+        "targetNodeId": "node-1769238720338-eg3h5avt6",
         "targetPort": "lCurve"
       },
       {
-        "id": "conn-1769131529061-guvrl31cl",
-        "sourceNodeId": "node-1769131529061-qbz7gy4k7",
+        "id": "conn-1769238720338-bxsphay4c",
+        "sourceNodeId": "node-1769238720338-ubs2xvaqx",
         "sourcePort": "out",
-        "targetNodeId": "node-1769131529061-q5tjb8cuu",
+        "targetNodeId": "node-1769238720338-eg3h5avt6",
         "targetPort": "cCurve"
       },
       {
-        "id": "conn-1769131529061-j0c5586pa",
-        "sourceNodeId": "node-1769131529061-f6vw6ogh5",
+        "id": "conn-1769238720338-9u8sg7tai",
+        "sourceNodeId": "node-1769238720338-ag5046cag",
         "sourcePort": "out",
-        "targetNodeId": "node-1769131529061-q5tjb8cuu",
+        "targetNodeId": "node-1769238720338-eg3h5avt6",
         "targetPort": "hCurve"
       },
       {
-        "id": "conn-1769131529061-3m2hwpfck",
-        "sourceNodeId": "node-1769131529061-roi7mwklj",
+        "id": "conn-1769238720338-6feqapkso",
+        "sourceNodeId": "node-1769238720338-cz3eqppql",
         "sourcePort": "out",
-        "targetNodeId": "node-1769131529061-q5tjb8cuu",
+        "targetNodeId": "node-1769238720338-eg3h5avt6",
         "targetPort": "fragCoord"
       },
       {
-        "id": "conn-1769131529061-fw4ka4cpw",
-        "sourceNodeId": "node-1769131529061-dfakfquc0",
+        "id": "conn-1769238720338-z3yb2apxv",
+        "sourceNodeId": "node-1769238720338-clfegvz6h",
         "sourcePort": "out",
-        "targetNodeId": "node-1769131529061-q5tjb8cuu",
+        "targetNodeId": "node-1769238720338-eg3h5avt6",
         "targetPort": "resolution"
       },
       {
-        "id": "conn-1769131529061-ql1jpc7zo",
-        "sourceNodeId": "node-1769131529061-q5tjb8cuu",
+        "id": "conn-1769238720338-upr7atrek",
+        "sourceNodeId": "node-1769238720338-xpmrtp6iw",
         "sourcePort": "out",
-        "targetNodeId": "node-1769131529061-wffev67eq",
+        "targetNodeId": "node-1769238720338-h0hj2rulp",
         "targetPort": "in"
       },
       {
-        "id": "conn-1769131529061-0c6d5rzh2",
-        "sourceNodeId": "node-1769131529061-wffev67eq",
+        "id": "conn-1769238720338-3bddmstkj",
+        "sourceNodeId": "node-1769238720338-v39je5hlm",
         "sourcePort": "out",
-        "targetNodeId": "node-1769131529061-4mrl2b4ow",
-        "targetPort": "in"
-      },
-      {
-        "id": "conn-1769131529061-boo4hnb1x",
-        "sourceNodeId": "node-1769131529061-2mathlaly",
-        "sourcePort": "out",
-        "targetNodeId": "node-1769131529061-q5tjb8cuu",
+        "targetNodeId": "node-1769238720338-eg3h5avt6",
         "targetPort": "startColor"
       },
       {
-        "id": "conn-1769131529061-fuc7b20fd",
-        "sourceNodeId": "node-1769131529061-fn1374nyp",
+        "id": "conn-1769238720338-tvotvw5aj",
+        "sourceNodeId": "node-1769238720338-s37csl832",
         "sourcePort": "out",
-        "targetNodeId": "node-1769131529061-q5tjb8cuu",
+        "targetNodeId": "node-1769238720338-eg3h5avt6",
         "targetPort": "endColor"
       },
       {
-        "id": "conn-1769131529061-32mqr7w9l",
-        "sourceNodeId": "node-1769131529061-rryegsolg",
+        "id": "conn-1769238720338-ayp7tzr75",
+        "sourceNodeId": "node-1769238720338-4fpkx6wq1",
         "sourcePort": "currentTime",
-        "targetNodeId": "node-1769131529061-cknbe7u1w",
+        "targetNodeId": "node-1769238720338-kevurogn6",
         "targetPort": "audioFile"
       },
       {
-        "id": "conn-1769131529061-o7b3kn7uy",
-        "sourceNodeId": "node-1769131529061-cknbe7u1w",
+        "id": "conn-1769238720338-yppu8upkf",
+        "sourceNodeId": "node-1769238720338-kevurogn6",
         "sourcePort": "band1",
-        "targetNodeId": "node-1769131529061-mbz0zpe65",
+        "targetNodeId": "node-1769238720338-cyity6c1q",
         "targetPort": "audioValue"
       },
       {
-        "id": "conn-1769131529061-rk70tci88",
-        "sourceNodeId": "node-1769131529061-cknbe7u1w",
+        "id": "conn-1769238720338-tln5pojk5",
+        "sourceNodeId": "node-1769238720338-kevurogn6",
         "sourcePort": "band0",
-        "targetNodeId": "node-1769131529061-775esqscy",
+        "targetNodeId": "node-1769238720338-kvi5nly7m",
         "targetPort": "audioValue"
       },
       {
-        "id": "conn-1769131529061-1okdt568g",
-        "sourceNodeId": "node-1769131529061-cknbe7u1w",
+        "id": "conn-1769238720338-1b8g8hvu3",
+        "sourceNodeId": "node-1769238720338-kevurogn6",
         "sourcePort": "band2",
-        "targetNodeId": "node-1769131529061-5uhlkx01s",
+        "targetNodeId": "node-1769238720338-k37vwovzg",
         "targetPort": "audioValue"
       },
       {
-        "id": "conn-1769131529061-59mk6217x",
-        "sourceNodeId": "node-1769131529061-cknbe7u1w",
+        "id": "conn-1769238720338-qd0kwu42h",
+        "sourceNodeId": "node-1769238720338-kevurogn6",
         "sourcePort": "band3",
-        "targetNodeId": "node-1769131529061-jkmjhhje5",
+        "targetNodeId": "node-1769238720338-620vhao07",
         "targetPort": "audioValue"
       },
       {
-        "id": "conn-1769131529061-tk4svdcbw",
-        "sourceNodeId": "node-1769131529061-5uhlkx01s",
+        "id": "conn-1769238720338-gy79as33c",
+        "sourceNodeId": "node-1769238720338-k37vwovzg",
         "sourcePort": "out",
-        "targetNodeId": "node-1769131529061-hmrs7uvv7",
+        "targetNodeId": "node-1769238720338-dv0hytnno",
         "targetParameter": "vectorFieldHarmonicAmplitude"
       },
       {
-        "id": "conn-1769131529061-ad1kfr1t7",
-        "sourceNodeId": "node-1769131529061-775esqscy",
+        "id": "conn-1769238720338-txhh5qx5m",
+        "sourceNodeId": "node-1769238720338-kvi5nly7m",
         "sourcePort": "out",
-        "targetNodeId": "node-1769131529061-hmrs7uvv7",
+        "targetNodeId": "node-1769238720338-dv0hytnno",
         "targetParameter": "sphereRadius"
       },
       {
-        "id": "conn-1769131529061-0t5pjn2zn",
-        "sourceNodeId": "node-1769131529061-mbz0zpe65",
+        "id": "conn-1769238720338-32syiist4",
+        "sourceNodeId": "node-1769238720338-cyity6c1q",
         "sourcePort": "out",
-        "targetNodeId": "node-1769131529061-hmrs7uvv7",
+        "targetNodeId": "node-1769238720338-dv0hytnno",
         "targetParameter": "sphereBrightness"
       },
       {
-        "id": "conn-1769131529061-tu0lftkn4",
-        "sourceNodeId": "node-1769131529061-mbz0zpe65",
+        "id": "conn-1769238720338-s1e3jyi5i",
+        "sourceNodeId": "node-1769238720338-cyity6c1q",
         "sourcePort": "out",
-        "targetNodeId": "node-1769131529061-hmrs7uvv7",
+        "targetNodeId": "node-1769238720338-dv0hytnno",
         "targetParameter": "sphereGlowIntensity"
       },
       {
-        "id": "conn-1769131529061-hwmwtije2",
-        "sourceNodeId": "node-1769131529061-jkmjhhje5",
+        "id": "conn-1769238720338-bqc6tfmy8",
+        "sourceNodeId": "node-1769238720338-620vhao07",
         "sourcePort": "out",
-        "targetNodeId": "node-1769131529061-hmrs7uvv7",
+        "targetNodeId": "node-1769238720338-dv0hytnno",
         "targetParameter": "vectorFieldComplexity"
       },
       {
-        "id": "conn-1769131529061-r2zd8rzde",
-        "sourceNodeId": "node-1769131529061-hmrs7uvv7",
+        "id": "conn-1769238720338-49851yjwb",
+        "sourceNodeId": "node-1769238720338-dv0hytnno",
         "sourcePort": "out",
-        "targetNodeId": "node-1769131529061-q5tjb8cuu",
+        "targetNodeId": "node-1769238720338-eg3h5avt6",
         "targetPort": "in"
       },
       {
-        "id": "conn-1769131757259-qpopxcnyv",
-        "sourceNodeId": "node-1769131529061-jkmjhhje5",
+        "id": "conn-1769238720338-g561bt99h",
+        "sourceNodeId": "node-1769238720338-620vhao07",
         "sourcePort": "out",
-        "targetNodeId": "node-1769131529061-q5tjb8cuu",
+        "targetNodeId": "node-1769238720338-eg3h5avt6",
         "targetParameter": "ditherStrength"
+      },
+      {
+        "id": "conn-1769238720338-ewajwn085",
+        "sourceNodeId": "node-1769238720338-dv0hytnno",
+        "sourcePort": "out",
+        "targetNodeId": "node-1769238720338-uvrc8mdhm",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1769238720338-u7hjvt09c",
+        "sourceNodeId": "node-1769238720338-v39je5hlm",
+        "sourcePort": "out",
+        "targetNodeId": "node-1769238720338-uvrc8mdhm",
+        "targetPort": "startColor"
+      },
+      {
+        "id": "conn-1769238720338-omqwuay7p",
+        "sourceNodeId": "node-1769238720338-s37csl832",
+        "sourcePort": "out",
+        "targetNodeId": "node-1769238720338-uvrc8mdhm",
+        "targetPort": "endColor"
+      },
+      {
+        "id": "conn-1769238720338-9aqu71wrq",
+        "sourceNodeId": "node-1769238720338-ag5046cag",
+        "sourcePort": "out",
+        "targetNodeId": "node-1769238720338-uvrc8mdhm",
+        "targetPort": "hCurve"
+      },
+      {
+        "id": "conn-1769238720338-wwuas6jn8",
+        "sourceNodeId": "node-1769238720338-ubs2xvaqx",
+        "sourcePort": "out",
+        "targetNodeId": "node-1769238720338-uvrc8mdhm",
+        "targetPort": "cCurve"
+      },
+      {
+        "id": "conn-1769238720338-qj9lrne47",
+        "sourceNodeId": "node-1769238720338-z0shcj0d6",
+        "sourcePort": "out",
+        "targetNodeId": "node-1769238720338-uvrc8mdhm",
+        "targetPort": "lCurve"
+      },
+      {
+        "id": "conn-1769238720338-m1g5cbl8d",
+        "sourceNodeId": "node-1769238720338-eg3h5avt6",
+        "sourcePort": "out",
+        "targetNodeId": "node-1769238720338-xpmrtp6iw",
+        "targetPort": "in"
       }
     ],
     "viewState": {
-      "zoom": 1.5893578377451079,
-      "panX": -2617.637560779753,
-      "panY": -1798.3432070883446,
+      "zoom": 0.1371281254926011,
+      "panX": 170.12465196420862,
+      "panY": 251.27648431874474,
       "selectedNodeIds": []
     }
   }

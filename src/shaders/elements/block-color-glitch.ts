@@ -209,7 +209,7 @@ float calculateEffectAmount(float blockIndex, float blockSize, float minSize, fl
       min: 2,
       max: 100,
       step: 1,
-      label: 'Block Count',
+      label: 'Count',
       readOnly: true,
     },
     blockGlitchMinSize: {
@@ -218,7 +218,7 @@ float calculateEffectAmount(float blockIndex, float blockSize, float minSize, fl
       min: 0.01,
       max: 1.0,
       step: 0.01,
-      label: 'Min Block Size',
+      label: 'Min Size',
       readOnly: true,
     },
     blockGlitchMaxSize: {
@@ -227,7 +227,7 @@ float calculateEffectAmount(float blockIndex, float blockSize, float minSize, fl
       min: 1.0,
       max: 20.0,
       step: 0.1,
-      label: 'Max Block Size',
+      label: 'Max Size',
       readOnly: true,
     },
     blockGlitchSeed: {
@@ -236,7 +236,7 @@ float calculateEffectAmount(float blockIndex, float blockSize, float minSize, fl
       min: 0,
       max: 1000,
       step: 1.0,
-      label: 'Block Seed',
+      label: 'Seed',
       readOnly: true,
     },
     // Mode and effect
@@ -279,7 +279,7 @@ float calculateEffectAmount(float blockIndex, float blockSize, float minSize, fl
       min: 0,
       max: 2,
       step: 1,
-      label: 'Block Selection',
+      label: 'Selection',
     },
     blockGlitchSelectionThreshold: {
       type: 'float',

@@ -102,7 +102,7 @@ float particleSystem(vec2 p, float time, float cellSize, int particlesPerCell) {
       min: 1,
       max: 4,
       step: 1,
-      label: 'Particles Per Cell'
+      label: 'Per Cell'
     },
     particleSize: {
       type: 'float',
@@ -110,7 +110,7 @@ float particleSystem(vec2 p, float time, float cellSize, int particlesPerCell) {
       min: 0.01,
       max: 0.5,
       step: 0.01,
-      label: 'Particle Size'
+      label: 'Size'
     },
     particleIntensity: {
       type: 'float',

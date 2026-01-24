@@ -122,9 +122,9 @@ export class ParameterControl {
     input.type = 'text';
     input.value = this.value.toString();
     
-    const inputBg = getCSSColor('param-input-bg', '#FFFFFF');
-    const inputBorder = getCSSVariable('param-input-border', '2px solid #2196F3');
-    const inputColor = getCSSColor('param-input-color', '#333333');
+    const inputBg = getCSSColor('param-input-bg', getCSSColor('color-gray-20', '#020203'));
+    const inputBorder = getCSSVariable('param-input-border', `2px solid ${getCSSColor('color-blue-90', '#6565dc')}`);
+    const inputColor = getCSSColor('param-input-color', getCSSColor('color-gray-130', '#ebeff0'));
     const inputRadius = getCSSVariable('input-radius', '2px');
     const textSm = getCSSVariable('text-sm', '0.85rem');
     const spacingXs = getCSSVariable('spacing-xs', '0.25rem');

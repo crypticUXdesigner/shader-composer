@@ -259,7 +259,7 @@ vec2 blockDisplacement(vec2 p, int direction, float numBlocks, float maxOffsetX,
       min: 2.0,
       max: 100.0,
       step: 1.0,
-      label: 'Block Count'
+      label: 'Count'
     },
     blockMaxOffsetX: {
       type: 'float',
@@ -283,7 +283,7 @@ vec2 blockDisplacement(vec2 p, int direction, float numBlocks, float maxOffsetX,
       min: 0.01,
       max: 1.0,
       step: 0.01,
-      label: 'Min Block Size (multiplier)'
+      label: 'Min Size (multiplier)'
     },
     blockMaxSize: {
       type: 'float',
@@ -291,7 +291,7 @@ vec2 blockDisplacement(vec2 p, int direction, float numBlocks, float maxOffsetX,
       min: 1.0,
       max: 20.0,
       step: 0.1,
-      label: 'Max Block Size (multiplier)'
+      label: 'Max Size (multiplier)'
     },
     blockTimeSpeed: {
       type: 'float',
@@ -315,7 +315,7 @@ vec2 blockDisplacement(vec2 p, int direction, float numBlocks, float maxOffsetX,
       min: 0.0,
       max: 1000.0,
       step: 0.1,
-      label: 'Block Seed'
+      label: 'Seed'
     }
   },
   

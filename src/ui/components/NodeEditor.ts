@@ -10,6 +10,7 @@ import type { NodeSpec } from '../../types/nodeSpec';
 
 export interface NodeEditorCallbacks {
   onGraphChanged?: (graph: NodeGraph) => void;
+  onConnectionRemoved?: (connectionId: string) => void;
   onParameterChanged?: (nodeId: string, paramName: string, value: number) => void;
   onFileParameterChanged?: (nodeId: string, paramName: string, file: File) => void;
   onError?: (error: { type: string, errors?: string[], error?: string, timestamp: number }) => void;
@@ -54,7 +55,7 @@ export class NodeEditor {
     this.canvas.style.display = 'block';
     this.container.appendChild(this.canvas);
     
-    // Create canvas component
+    // Create canvas component (audioManager will be set later via setAudioManager)
     this.canvasComponent = new NodeEditorCanvas(this.canvas, graph, nodeSpecs);
     
     // Create search dialog (the only menu for adding nodes)
@@ -64,10 +65,16 @@ export class NodeEditor {
       }
     });
     
-    // Setup double-click for search dialog (only if not on parameter)
+    // Setup double-click for search dialog (only if not on parameter or label)
     this.canvas.addEventListener('dblclick', (e) => {
       if (e.target === this.canvas) {
-        // Check if double-click is on a parameter value first
+        // Check if double-click is on a header label first
+        if (this.canvasComponent.showLabelInput(e.clientX, e.clientY)) {
+          // Label input was shown, don't open search dialog
+          return;
+        }
+        
+        // Check if double-click is on a parameter value
         if (this.canvasComponent.showParameterInput(e.clientX, e.clientY)) {
           // Parameter input was shown, don't open search dialog
           return;
@@ -135,24 +142,29 @@ export class NodeEditor {
         // Validate connection (but skip duplicate check since we'll replace)
         if (this.validateConnection(connection, true)) {
           // Check if target input/parameter already has a connection and remove it
+          let existingConnection: Connection | undefined;
           if (targetParameter) {
             // For parameter connections
-            const existingConnection = this.graph.connections.find(
+            existingConnection = this.graph.connections.find(
               c => c.targetNodeId === targetNodeId && 
                    c.targetParameter === targetParameter
             );
             if (existingConnection) {
               // Remove existing connection
-              this.graph.connections = this.graph.connections.filter(c => c.id !== existingConnection.id);
+              this.graph.connections = this.graph.connections.filter(c => c.id !== existingConnection!.id);
+              // Notify about connection removal to ensure recompilation
+              this.callbacks.onConnectionRemoved?.(existingConnection.id);
             }
           } else if (targetPort) {
             // For regular port connections
-            const existingConnection = this.graph.connections.find(
+            existingConnection = this.graph.connections.find(
               c => c.targetNodeId === targetNodeId && c.targetPort === targetPort
             );
             if (existingConnection) {
               // Remove existing connection
-              this.graph.connections = this.graph.connections.filter(c => c.id !== existingConnection.id);
+              this.graph.connections = this.graph.connections.filter(c => c.id !== existingConnection!.id);
+              // Notify about connection removal to ensure recompilation
+              this.callbacks.onConnectionRemoved?.(existingConnection.id);
             }
           }
           
@@ -177,6 +189,8 @@ export class NodeEditor {
       onConnectionDeleted: (connectionId) => {
         this.graph.connections = this.graph.connections.filter(c => c.id !== connectionId);
         this.updateViewState();
+        // Notify about connection removal specifically to ensure recompilation
+        this.callbacks.onConnectionRemoved?.(connectionId);
         this.notifyGraphChanged();
       },
       onParameterChanged: (nodeId, paramName, value) => {
@@ -195,6 +209,27 @@ export class NodeEditor {
             node.parameterInputModes = {};
           }
           node.parameterInputModes[paramName] = mode;
+          this.updateViewState();
+          this.notifyGraphChanged();
+        }
+      },
+      onNodeLabelChanged: (nodeId, label) => {
+        // Update node label in graph
+        const node = this.graph.nodes.find(n => n.id === nodeId);
+        if (node) {
+          if (label === undefined) {
+            // Remove label to revert to original displayName
+            delete node.label;
+          } else {
+            // Set the new label
+            node.label = label;
+          }
+          // Update metrics for the node (label affects width calculation)
+          const spec = this.nodeSpecs.get(node.type);
+          if (spec) {
+            const metrics = this.canvasComponent.getNodeRenderer().calculateMetrics(node, spec);
+            this.canvasComponent.getNodeMetrics().set(node.id, metrics);
+          }
           this.updateViewState();
           this.notifyGraphChanged();
         }

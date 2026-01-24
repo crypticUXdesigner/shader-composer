@@ -12,8 +12,6 @@ export class Renderer {
   private canvas: HTMLCanvasElement;
   private gl: WebGL2RenderingContext;
   private shaderInstance: ShaderInstance | null = null;
-  private animationFrameId: number | null = null;
-  private isAnimating: boolean = false;
   
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -60,35 +58,20 @@ export class Renderer {
   
   /**
    * Start animation loop.
+   * NOTE: Animation loop is handled by main.ts App class, this method is kept for API compatibility
+   * but does not start a separate loop to avoid double rendering.
    */
   startAnimation(): void {
-    if (this.isAnimating) return;
-    this.isAnimating = true;
-    this.animationLoop();
+    // Animation loop is handled by main.ts, do nothing here
+    // This prevents double rendering
   }
   
   /**
    * Stop animation loop.
+   * NOTE: Animation loop is handled by main.ts App class, this method is kept for API compatibility.
    */
   stopAnimation(): void {
-    this.isAnimating = false;
-    if (this.animationFrameId) {
-      cancelAnimationFrame(this.animationFrameId);
-      this.animationFrameId = null;
-    }
-  }
-  
-  /**
-   * Animation loop.
-   */
-  private animationLoop(): void {
-    if (!this.isAnimating) return;
-    
-    this.render();
-    
-    this.animationFrameId = requestAnimationFrame(() => {
-      this.animationLoop();
-    });
+    // Animation loop is handled by main.ts, do nothing here
   }
   
   /**

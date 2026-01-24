@@ -137,7 +137,7 @@ vec2 rotate(vec2 p, float angle) {
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Normal X (Raymarched)'
+      label: 'Normal X'
     },
     planeNormalY: {
       type: 'float',
@@ -145,7 +145,7 @@ vec2 rotate(vec2 p, float angle) {
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Normal Y (Raymarched)'
+      label: 'Normal Y'
     },
     planeNormalZ: {
       type: 'float',
@@ -153,7 +153,7 @@ vec2 rotate(vec2 p, float angle) {
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Normal Z (Raymarched)'
+      label: 'Normal Z'
     },
     planeHeight: {
       type: 'float',
@@ -161,7 +161,7 @@ vec2 rotate(vec2 p, float angle) {
       min: -2.0,
       max: 2.0,
       step: 0.1,
-      label: 'Height (Raymarched)'
+      label: 'Height'
     }
   },
   

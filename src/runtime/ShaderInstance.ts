@@ -37,10 +37,15 @@ export class ShaderInstance {
   private time: number = 0.0;
   private resolution: [number, number] = [0, 0];
   
+  // Cached position buffer (reused every frame for performance)
+  private positionBuffer: WebGLBuffer | null = null;
+  private positionAttribLocation: number = -1;
+  
   constructor(gl: WebGL2RenderingContext, compilationResult: CompilationResult) {
     this.gl = gl;
     this.createProgram(compilationResult);
     this.cacheUniformLocations(compilationResult);
+    this.setupPositionBuffer();
   }
   
   /**
@@ -274,38 +279,62 @@ export class ShaderInstance {
   }
   
   /**
-   * Render fullscreen quad.
+   * Setup position buffer (called once during construction).
    */
-  render(width: number, height: number): void {
-    if (!this.program) return;
+  private setupPositionBuffer(): void {
+    if (!this.program) {
+      console.warn('[ShaderInstance] Cannot setup position buffer: program not created yet');
+      return;
+    }
     
-    this.gl.useProgram(this.program);
+    // Create buffer once
+    this.positionBuffer = this.gl.createBuffer();
+    if (!this.positionBuffer) {
+      console.error('[ShaderInstance] Failed to create position buffer');
+      return;
+    }
     
-    // Set global uniforms
-    this.setTime(this.time);
-    this.setResolution(width, height);
+    // Cache attribute location
+    this.positionAttribLocation = this.gl.getAttribLocation(this.program, 'a_position');
+    if (this.positionAttribLocation === -1) {
+      console.warn('[ShaderInstance] Position attribute location not found');
+    }
     
-    // Render fullscreen quad
-    const positionBuffer = this.gl.createBuffer();
-    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, positionBuffer);
-    
+    // Set buffer data (static, never changes)
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.positionBuffer);
     const positions = new Float32Array([
       -1, -1,  // Bottom-left
        1, -1,  // Bottom-right
       -1,  1,  // Top-left
        1,  1   // Top-right
     ]);
-    
     this.gl.bufferData(this.gl.ARRAY_BUFFER, positions, this.gl.STATIC_DRAW);
+  }
+  
+  /**
+   * Render fullscreen quad.
+   */
+  render(width: number, height: number): void {
+    if (!this.program || !this.positionBuffer) return;
     
-    const positionLoc = this.gl.getAttribLocation(this.program, 'a_position');
-    this.gl.enableVertexAttribArray(positionLoc);
-    this.gl.vertexAttribPointer(positionLoc, 2, this.gl.FLOAT, false, 0, 0);
+    this.gl.useProgram(this.program);
+    
+    // Set global uniforms (only if changed - setResolution checks internally)
+    this.setResolution(width, height);
+    
+    // Ensure time uniform is set (setTime is called every frame from animation loop,
+    // but we set it here too in case render() is called directly from resize/compilation)
+    const timeLocation = this.uniformLocations.get('uTime');
+    if (timeLocation) {
+      this.gl.uniform1f(timeLocation, this.time);
+    }
+    
+    // Use cached position buffer
+    this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.positionBuffer);
+    this.gl.enableVertexAttribArray(this.positionAttribLocation);
+    this.gl.vertexAttribPointer(this.positionAttribLocation, 2, this.gl.FLOAT, false, 0, 0);
     
     this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
-    
-    // Cleanup
-    this.gl.deleteBuffer(positionBuffer);
   }
   
   /**
@@ -323,6 +352,10 @@ export class ShaderInstance {
     if (this.program) {
       this.gl.deleteProgram(this.program);
       this.program = null;
+    }
+    if (this.positionBuffer) {
+      this.gl.deleteBuffer(this.positionBuffer);
+      this.positionBuffer = null;
     }
     this.uniformLocations.clear();
     this.uniformTypes.clear();

@@ -90,7 +90,7 @@ float ellipticalMask(vec2 p, vec2 center, vec2 size, float rotation) {
       min: 0,
       max: 2,
       step: 1,
-      label: 'Mask Type (0=Radial, 1=Linear, 2=Elliptical)'
+      label: 'Type (0=Radial, 1=Linear, 2=Elliptical)'
     },
     maskCenterX: {
       type: 'float',
@@ -114,7 +114,7 @@ float ellipticalMask(vec2 p, vec2 center, vec2 size, float rotation) {
       min: 0.1,
       max: 5.0,
       step: 0.1,
-      label: 'Radius (Radial)'
+      label: 'Radius'
     },
     maskFalloff: {
       type: 'float',
@@ -122,7 +122,7 @@ float ellipticalMask(vec2 p, vec2 center, vec2 size, float rotation) {
       min: 0.0,
       max: 2.0,
       step: 0.1,
-      label: 'Falloff (Radial)'
+      label: 'Falloff'
     },
     maskWidth: {
       type: 'float',
@@ -130,7 +130,7 @@ float ellipticalMask(vec2 p, vec2 center, vec2 size, float rotation) {
       min: 0.1,
       max: 5.0,
       step: 0.1,
-      label: 'Width (Linear)'
+      label: 'Width'
     },
     maskDirection: {
       type: 'float',
@@ -138,7 +138,7 @@ float ellipticalMask(vec2 p, vec2 center, vec2 size, float rotation) {
       min: 0.0,
       max: 360.0,
       step: 1.0,
-      label: 'Direction (Linear, degrees)'
+      label: 'Direction (degrees)'
     },
     maskSizeX: {
       type: 'float',
@@ -146,7 +146,7 @@ float ellipticalMask(vec2 p, vec2 center, vec2 size, float rotation) {
       min: 0.1,
       max: 5.0,
       step: 0.1,
-      label: 'Size X (Elliptical)'
+      label: 'Size X'
     },
     maskSizeY: {
       type: 'float',
@@ -154,7 +154,7 @@ float ellipticalMask(vec2 p, vec2 center, vec2 size, float rotation) {
       min: 0.1,
       max: 5.0,
       step: 0.1,
-      label: 'Size Y (Elliptical)'
+      label: 'Size Y'
     },
     maskRotation: {
       type: 'float',
@@ -162,7 +162,7 @@ float ellipticalMask(vec2 p, vec2 center, vec2 size, float rotation) {
       min: 0.0,
       max: 360.0,
       step: 1.0,
-      label: 'Rotation (Elliptical, degrees)'
+      label: 'Rotation (degrees)'
     },
     maskStrength: {
       type: 'float',

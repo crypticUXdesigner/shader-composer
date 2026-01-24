@@ -1,19 +1,144 @@
 :root {
+/* === BASE FONT SIZE === */
+--base-font-size: 16px; /* Base font size for rem calculations */
+
+/* === REM SCALE === */
+/* Rem-based scale using base font size (16px = 1rem) */
+--scale-1: 0.125rem; /* 2px */
+--scale-2: 0.25rem; /* 4px */
+--scale-3: 0.375rem; /* 6px */
+--scale-4: 0.75rem; /* 12px */
+--scale-5: 1.125rem; /* 18px */
+--scale-6: 1.5rem; /* 24px */
+--scale-7: 1.875rem; /* 30px */
+--scale-8: 2.25rem; /* 36px */
+--scale-9: 2.625rem; /* 42px */
+--scale-10: 3rem; /* 48px */
+--scale-11: 3.375rem; /* 54px */
+--scale-12: 3.75rem; /* 60px */
+
 /* === COLOR SCALES === */
-/* Grayscale palette */
---color-gray-10: #050506;
---color-gray-20: #080809;
---color-gray-30: #0b0b0e;
---color-gray-40: #0f1013;
---color-gray-50: #15151a;
---color-gray-60: #1b1c23;
---color-gray-70: #24252f;
---color-gray-80: #2f313e;
---color-gray-90: #3f4253;
---color-gray-100: #5a5d6e;
---color-gray-110: #878994;
---color-gray-120: #adaeb4;
---color-gray-130: #c4c5c6;
+/* scales */
+    --color-gray-10: #010102;
+    --color-gray-20: #020203;
+    --color-gray-30: #050507;
+    --color-gray-40: #0a0a0e;
+    --color-gray-50: #111317;
+    --color-gray-60: #1b1d22;
+    --color-gray-70: #282b31;
+    --color-gray-80: #393e45;
+    --color-gray-90: #515961;
+    --color-gray-100: #747e87;
+    --color-gray-110: #a3aeb5;
+    --color-gray-120: #d0d7da;
+    --color-gray-130: #ebeff0;
+    --color-blue-10: #000106;
+    --color-blue-20: #000310;
+    --color-blue-30: #01071f;
+    --color-blue-40: #041033;
+    --color-blue-50: #0c1b4c;
+    --color-blue-60: #19286b;
+    --color-blue-70: #2c3792;
+    --color-blue-80: #4448bf;
+    --color-blue-90: #6565dc;
+    --color-blue-100: #8c8ae6;
+    --color-blue-110: #b4aff1;
+    --color-blue-120: #d7d2fa;
+    --color-blue-130: #efebff;
+    --color-leaf-10: #010100;
+    --color-leaf-20: #030400;
+    --color-leaf-30: #080b00;
+    --color-leaf-40: #101600;
+    --color-leaf-50: #1b2500;
+    --color-leaf-60: #283700;
+    --color-leaf-70: #384d00;
+    --color-leaf-80: #49670c;
+    --color-leaf-90: #5b871d;
+    --color-leaf-100: #6eab31;
+    --color-leaf-110: #85cf61;
+    --color-leaf-120: #b7e7b7;
+    --color-leaf-130: #e2f4e5;
+    --color-orange-10: #030100;
+    --color-orange-20: #080201;
+    --color-orange-30: #120602;
+    --color-orange-40: #200e05;
+    --color-orange-50: #311a0b;
+    --color-orange-60: #462814;
+    --color-orange-70: #5f3a1e;
+    --color-orange-80: #7d502a;
+    --color-orange-90: #a06937;
+    --color-orange-100: #c78645;
+    --color-orange-110: #d9b080;
+    --color-orange-120: #e8d5ba;
+    --color-orange-130: #f4eee2;
+    --color-purple-10: #020005;
+    --color-purple-20: #05010e;
+    --color-purple-30: #0e031b;
+    --color-purple-40: #1a092c;
+    --color-purple-50: #2a1141;
+    --color-purple-60: #401c5a;
+    --color-purple-70: #5a2879;
+    --color-purple-80: #7b379c;
+    --color-purple-90: #a347c4;
+    --color-purple-100: #c46fd6;
+    --color-purple-110: #de9ee0;
+    --color-purple-120: #f1c9ec;
+    --color-purple-130: #fce7f7;
+    --color-red-10: #040001;
+    --color-red-20: #0b0102;
+    --color-red-30: #170206;
+    --color-red-40: #27060d;
+    --color-red-50: #3b0e17;
+    --color-red-60: #541922;
+    --color-red-70: #73252e;
+    --color-red-80: #99343b;
+    --color-red-90: #c44748;
+    --color-red-100: #de7367;
+    --color-red-110: #eda393;
+    --color-red-120: #f8cdc0;
+    --color-red-130: #fee9e2;
+    --color-teal-10: #000200;
+    --color-teal-20: #000502;
+    --color-teal-30: #010d05;
+    --color-teal-40: #04180d;
+    --color-teal-50: #092718;
+    --color-teal-60: #113927;
+    --color-teal-70: #1a4f39;
+    --color-teal-80: #246a50;
+    --color-teal-90: #2f8a6b;
+    --color-teal-100: #39ad8b;
+    --color-teal-110: #60cfb3;
+    --color-teal-120: #b0e5db;
+    --color-teal-130: #e1f3f1;
+    --color-violet-10: #020005;
+    --color-violet-20: #06010e;
+    --color-violet-30: #0f031a;
+    --color-violet-40: #1d072a;
+    --color-violet-50: #2e0f3e;
+    --color-violet-60: #441a57;
+    --color-violet-70: #5f2574;
+    --color-violet-80: #813396;
+    --color-violet-90: #aa43bc;
+    --color-violet-100: #ce68d2;
+    --color-violet-110: #e59adc;
+    --color-violet-120: #f6c7e9;
+    --color-violet-130: #fee7f6;
+    --color-yellow-10: #020100;
+    --color-yellow-20: #060300;
+    --color-yellow-30: #0e0800;
+    --color-yellow-40: #1a1300;
+    --color-yellow-50: #282000;
+    --color-yellow-60: #3a3002;
+    --color-yellow-70: #4f4407;
+    --color-yellow-80: #685c11;
+    --color-yellow-90: #84791e;
+    --color-yellow-100: #a39a2c;
+    --color-yellow-110: #c3be3d;
+    --color-yellow-120: #d4dfa5;
+    --color-yellow-130: #ebf1e1;
+
+
+
 
 
 /* Element type colors */

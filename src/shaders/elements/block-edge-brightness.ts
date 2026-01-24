@@ -97,7 +97,7 @@ float blockEdgeBrightnessEffect(float value, vec2 p, int direction, float numBlo
       min: 2.0,
       max: 100.0,
       step: 1.0,
-      label: 'Block Count (match block-displacement)'
+      label: 'Count (match block-displacement)'
     },
     blockEdgeBrightness: {
       type: 'float',
@@ -105,7 +105,7 @@ float blockEdgeBrightnessEffect(float value, vec2 p, int direction, float numBlo
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Edge Brightness'
+      label: 'Brightness'
     },
     blockEdgeWidth: {
       type: 'float',
@@ -113,7 +113,7 @@ float blockEdgeBrightnessEffect(float value, vec2 p, int direction, float numBlo
       min: 0.01,
       max: 0.5,
       step: 0.01,
-      label: 'Edge Width'
+      label: 'Width'
     },
     blockEdgeSpacingChaos: {
       type: 'float',

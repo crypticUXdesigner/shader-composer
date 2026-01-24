@@ -58,6 +58,13 @@ export class NodeEditorLayout {
   private audioUpdateInterval: number | null = null;
   private isDraggingTimeSlider: boolean = false;
   
+  // FPS counter
+  private fpsDisplay!: HTMLElement;
+  private frameTimes: number[] = [];
+  private lastFpsUpdate: number = 0;
+  private readonly FPS_UPDATE_INTERVAL = 500; // Update display every 500ms
+  private readonly FPS_SAMPLE_COUNT = 60; // Track last 60 frames
+  
   constructor(container: HTMLElement) {
     this.container = container;
     
@@ -218,7 +225,7 @@ export class NodeEditorLayout {
   private updatePlayButtonIcon(isPlaying: boolean): void {
     this.globalPlayButton.innerHTML = '';
     const iconName = isPlaying ? 'pause' : 'play';
-    const iconColor = getCSSColor('layout-button-color', '#e0e0e0');
+    const iconColor = getCSSColor('layout-button-color', getCSSColor('color-gray-130', '#ebeff0'));
     const icon = createIconElement(iconName, 16, iconColor);
     this.globalPlayButton.appendChild(icon);
   }
@@ -497,6 +504,21 @@ export class NodeEditorLayout {
     
     buttonContainer.appendChild(audioControlsContainer);
     
+    // FPS counter
+    this.fpsDisplay = document.createElement('div');
+    this.fpsDisplay.className = 'layout-fps-display';
+    this.fpsDisplay.style.cssText = `
+      font-family: monospace;
+      font-size: 12px;
+      color: ${getCSSColor('layout-button-color', '#e0e0e0')};
+      margin-left: 16px;
+      min-width: 50px;
+      text-align: right;
+      opacity: 0.7;
+    `;
+    this.fpsDisplay.textContent = '-- FPS';
+    buttonContainer.appendChild(this.fpsDisplay);
+    
     // Node editor container (left)
     this.nodeEditorContainer = document.createElement('div');
     this.nodeEditorContainer.style.cssText = `
@@ -510,7 +532,7 @@ export class NodeEditorLayout {
     
     // Divider
     this.divider = document.createElement('div');
-    const dividerBg = getCSSColor('layout-divider-bg', '#3a3a3a');
+    const dividerBg = getCSSColor('layout-divider-bg', getCSSColor('color-gray-70', '#282b31'));
     const dividerWidth = getCSSVariable('layout-divider-width', '4px');
     this.divider.style.cssText = `
       position: absolute;
@@ -526,7 +548,7 @@ export class NodeEditorLayout {
     
     // Preview container (right)
     this.previewContainer = document.createElement('div');
-    const previewBg = getCSSColor('layout-preview-bg', '#1a1a1a');
+    const previewBg = getCSSColor('layout-preview-bg', getCSSColor('color-gray-20', '#020203'));
     this.previewContainer.style.cssText = `
       position: absolute;
       top: 0;
@@ -775,7 +797,7 @@ export class NodeEditorLayout {
       this.previewContainer.style.height = `${widgetHeight}px`;
       this.previewContainer.style.display = 'block';
       this.previewContainer.style.position = 'fixed';
-      const previewBorder = getCSSVariable('layout-preview-border', '1px solid #3a3a3a');
+      const previewBorder = getCSSVariable('layout-preview-border', `1px solid ${getCSSColor('color-gray-70', '#282b31')}`);
       const buttonRadius = getCSSVariable('button-radius', '4px');
       this.previewContainer.style.border = previewBorder;
       this.previewContainer.style.borderRadius = buttonRadius;
@@ -797,7 +819,7 @@ export class NodeEditorLayout {
     
     // Show expand icon when collapsed, minimize icon when expanded
     const iconName = this.state.previewState === 'collapsed' ? 'maximize-2' : 'minimize-2';
-    const iconColor = getCSSColor('layout-button-color', '#e0e0e0');
+    const iconColor = getCSSColor('layout-button-color', getCSSColor('color-gray-130', '#ebeff0'));
     const icon = createIconElement(iconName, 18, iconColor);
     toggleButton.appendChild(icon);
   }
@@ -1170,5 +1192,51 @@ export class NodeEditorLayout {
   
   getState(): LayoutState {
     return { ...this.state };
+  }
+  
+  /**
+   * Update FPS counter (called from animation loop)
+   */
+  updateFPS(frameTime: number): void {
+    // Add current frame time
+    this.frameTimes.push(frameTime);
+    
+    // Keep only last N samples
+    if (this.frameTimes.length > this.FPS_SAMPLE_COUNT) {
+      this.frameTimes.shift();
+    }
+    
+    // Update display at intervals (not every frame)
+    const now = performance.now();
+    if (now - this.lastFpsUpdate >= this.FPS_UPDATE_INTERVAL) {
+      this.lastFpsUpdate = now;
+      
+      if (this.frameTimes.length < 2) {
+        this.fpsDisplay.textContent = '-- FPS';
+        return;
+      }
+      
+      // Calculate average frame time
+      const avgFrameTime = this.frameTimes.reduce((a, b) => a + b, 0) / this.frameTimes.length;
+      
+      // Calculate FPS (1000ms / frameTime)
+      const fps = 1000 / avgFrameTime;
+      
+      // Display with 1 decimal place
+      this.fpsDisplay.textContent = `${fps.toFixed(1)} FPS`;
+      
+      // Color code based on performance
+      const goodColor = getCSSColor('fps-color-good', getCSSColor('color-teal-90', '#2f8a6b'));
+      const moderateColor = getCSSColor('fps-color-moderate', getCSSColor('color-yellow-90', '#84791e'));
+      const poorColor = getCSSColor('fps-color-poor', getCSSColor('color-red-90', '#c44748'));
+      
+      if (fps >= 55) {
+        this.fpsDisplay.style.color = goodColor;
+      } else if (fps >= 30) {
+        this.fpsDisplay.style.color = moderateColor;
+      } else {
+        this.fpsDisplay.style.color = poorColor;
+      }
+    }
   }
 }

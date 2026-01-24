@@ -66,7 +66,7 @@ float applyNormalMapping(float baseValue, vec3 normal, vec3 lightDir) {
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Light Direction X'
+      label: 'X'
     },
     normalLightY: {
       type: 'float',
@@ -74,7 +74,7 @@ float applyNormalMapping(float baseValue, vec3 normal, vec3 lightDir) {
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Light Direction Y'
+      label: 'Y'
     },
     normalLightZ: {
       type: 'float',
@@ -82,7 +82,7 @@ float applyNormalMapping(float baseValue, vec3 normal, vec3 lightDir) {
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Light Direction Z'
+      label: 'Z'
     }
   },
   

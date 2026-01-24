@@ -47,7 +47,7 @@ float rgbSeparation(float value, vec2 p, vec2 rOffset, vec2 gOffset, vec2 bOffse
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Red X Offset'
+      label: 'X Offset'
     },
     rgbSeparationRY: {
       type: 'float',
@@ -55,7 +55,7 @@ float rgbSeparation(float value, vec2 p, vec2 rOffset, vec2 gOffset, vec2 bOffse
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Red Y Offset'
+      label: 'Y Offset'
     },
     rgbSeparationGX: {
       type: 'float',
@@ -63,7 +63,7 @@ float rgbSeparation(float value, vec2 p, vec2 rOffset, vec2 gOffset, vec2 bOffse
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Green X Offset'
+      label: 'X Offset'
     },
     rgbSeparationGY: {
       type: 'float',
@@ -71,7 +71,7 @@ float rgbSeparation(float value, vec2 p, vec2 rOffset, vec2 gOffset, vec2 bOffse
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Green Y Offset'
+      label: 'Y Offset'
     },
     rgbSeparationBX: {
       type: 'float',
@@ -79,7 +79,7 @@ float rgbSeparation(float value, vec2 p, vec2 rOffset, vec2 gOffset, vec2 bOffse
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Blue X Offset'
+      label: 'X Offset'
     },
     rgbSeparationBY: {
       type: 'float',
@@ -87,7 +87,7 @@ float rgbSeparation(float value, vec2 p, vec2 rOffset, vec2 gOffset, vec2 bOffse
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Blue Y Offset'
+      label: 'Y Offset'
     },
     rgbSeparationStrength: {
       type: 'float',

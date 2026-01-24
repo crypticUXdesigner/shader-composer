@@ -9,23 +9,7 @@
 @import './typography.css';
 
 /* Import design component styles */
-@import './components/box.css';
-@import './components/header.css';
-@import './components/toggle.css';
-@import './components/type-badge.css';
-@import './components/drag-handle.css';
-@import './components/label.css';
-@import './components/button.css';
-@import './components/step-button.css';
-@import './components/select.css';
-@import './components/input.css';
-@import './components/checkbox.css';
-@import './components/slider.css';
-@import './components/value-display.css';
 @import './components/parameter-controls.css';
-@import './components/power-button.css';
-@import './components/eye-button.css';
-@import './components/plus-button.css';
 @import './components/filter-tag.css';
 @import './components/toast-notification.css';
 @import './components/search-dialog.css';

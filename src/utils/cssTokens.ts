@@ -19,13 +19,28 @@ export function getCSSVariable(propertyName: string, fallback?: string): string 
  * Get a CSS custom property value as a number
  * @param propertyName The CSS variable name (with or without -- prefix)
  * @param fallback Optional fallback value if the property is not found or cannot be parsed
- * @returns The numeric value of the CSS variable
+ * @returns The numeric value of the CSS variable in pixels
  */
 export function getCSSVariableAsNumber(propertyName: string, fallback: number = 0): number {
   const value = getCSSVariable(propertyName);
   if (!value) return fallback;
   
-  // Remove units and parse
+  // Handle rem units - convert to pixels
+  if (value.endsWith('rem')) {
+    const remValue = parseFloat(value);
+    if (isNaN(remValue)) return fallback;
+    // Get base font size from root element (defaults to 16px)
+    const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    return remValue * rootFontSize;
+  }
+  
+  // Handle px units
+  if (value.endsWith('px')) {
+    const pxValue = parseFloat(value);
+    return isNaN(pxValue) ? fallback : pxValue;
+  }
+  
+  // Handle unitless values or fallback to parsing numeric value
   const numericValue = parseFloat(value.replace(/[^\d.-]/g, ''));
   return isNaN(numericValue) ? fallback : numericValue;
 }
@@ -103,13 +118,23 @@ export function getCSSColorRGBA(propertyName: string, fallback: { r: number; g: 
     };
   }
   
-  // Handle hex format
+  // Handle hex format (6-digit or 8-digit with alpha)
   const hex = parseCSSColor(value);
   if (hex.startsWith('#')) {
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    return { r, g, b, a: 1 };
+    if (hex.length === 9) {
+      // 8-digit hex with alpha: #RRGGBBAA
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      const a = parseInt(hex.slice(7, 9), 16) / 255; // Convert 0-255 to 0-1
+      return { r, g, b, a };
+    } else if (hex.length === 7) {
+      // 6-digit hex without alpha: #RRGGBB
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return { r, g, b, a: 1 };
+    }
   }
   
   return fallback;

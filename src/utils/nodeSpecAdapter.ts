@@ -76,6 +76,8 @@ export function visualElementToNodeSpec(element: VisualElement): NodeSpec {
       min: paramConfig.min,
       max: paramConfig.max,
       step: paramConfig.step,
+      // Preserve label if it exists
+      label: paramConfig.label,
       // Preserve inputMode if it exists (for elements that support it)
       inputMode: (paramConfig as any).inputMode
     };
@@ -206,18 +208,157 @@ export function getNodeColorByCategory(category: string): string {
     }
   }
   
-  // Fallback to hardcoded values if CSS variables aren't available (e.g., SSR)
+  // Fallback to scale color values if CSS variables aren't available (e.g., SSR)
+  // These match the --category-color-* tokens which use color-*-130 scale values
   const fallbackColors: Record<string, string> = {
-    'Inputs': '#E3F2FD',
-    'Patterns': '#E8F5E9',
-    'Shapes': '#FFF3E0',
-    'Math': '#FFF9C4',
-    'Utilities': '#E1F5FE',
-    'Distort': '#F5F5F5',
-    'Blend': '#F3E5F5',
-    'Mask': '#FFF3E0',
-    'Effects': '#FCE4EC',
-    'Output': '#FFEBEE'
+    'Inputs': '#efebff',    // blue-130
+    'Patterns': '#e2f4e5',  // leaf-130
+    'Shapes': '#f4eee2',    // orange-130
+    'Math': '#ebf1e1',      // yellow-130
+    'Utilities': '#e1f3f1', // teal-130
+    'Distort': '#ebeff0',  // gray-130
+    'Blend': '#fce7f7',    // purple-130
+    'Mask': '#f4eee2',     // orange-130
+    'Effects': '#fee9e2',  // red-130
+    'Output': '#fee9e2'    // red-130
   };
-  return fallbackColors[category] || '#F5F5F5';
+  return fallbackColors[category] || '#ebeff0'; // gray-130
+}
+
+// Node-specific icon mapping
+// Maps node IDs to specific icons for better visual recognition
+const nodeSpecificIconMap: Record<string, string> = {
+  // Input nodes
+  'time': 'time-clock',
+  'uv-coordinates': 'grid',
+  'resolution': 'monitor',
+  'fragment-coordinates': 'grid',
+  'constant-float': 'constant',
+  'constant-vec2': 'constant',
+  'constant-vec3': 'constant',
+  'constant-vec4': 'constant',
+  'bezier-curve': 'bezier',
+  
+  // Audio nodes
+  'audio-file-input': 'audio-waveform',
+  'audio-analyzer': 'audio-waveform',
+  'audio-remap': 'audio-waveform',
+  
+  // Pattern/Noise nodes
+  'fbm-noise': 'noise',
+  'fbm-value-noise': 'noise',
+  'simplex-noise': 'noise',
+  'voronoi-noise': 'noise',
+  'hexagonal-grid': 'hexagon',
+  'plane-grid': 'grid',
+  'rings': 'ring',
+  'wave-patterns': 'wave',
+  'particle-system': 'particle',
+  
+  // Shape/Geometry nodes
+  'sphere-raymarch': 'sphere',
+  'box-torus-sdf': 'circle',
+  'fractal': 'circle',
+  
+  // Transform/Distort nodes
+  'translate': 'arrow-right',
+  'rotate': 'rotate',
+  'scale': 'resize',
+  'kaleidoscope': 'kaleidoscope',
+  'twist-distortion': 'twist',
+  'polar-coordinates': 'circle',
+  'turbulence': 'wave',
+  'vector-field': 'move',
+  
+  // Math nodes - Basic arithmetic
+  'add': 'plus',
+  'subtract': 'minus',
+  'multiply': 'multiply-x',
+  'divide': 'divide',
+  'power': 'power',
+  'square-root': 'sqrt',
+  
+  // Math nodes - Trigonometry
+  'sine': 'trig-wave',
+  'cosine': 'trig-wave',
+  'tangent': 'trig-wave',
+  'arc-sine': 'trig-wave',
+  'arc-cosine': 'trig-wave',
+  'arc-tangent': 'trig-wave',
+  'arc-tangent-2': 'trig-wave',
+  
+  // Math nodes - Vector operations
+  'length': 'ruler',
+  'distance': 'ruler',
+  'dot-product': 'vector-dot',
+  'cross-product': 'vector-cross',
+  'normalize': 'normalize',
+  'reflect': 'reflect',
+  'refract': 'refract',
+  
+  // Effect nodes
+  'blur': 'blur-circle',
+  'glow-bloom': 'glow',
+  'edge-detection': 'grid',
+  'chromatic-aberration': 'rgb-split',
+  'rgb-separation': 'rgb-split',
+  'scanlines': 'scanline',
+  'block-color-glitch': 'glitch-block',
+  'block-displacement': 'glitch-block',
+  'block-edge-brightness': 'glitch-block',
+  'color-grading': 'color-palette',
+  'normal-mapping': 'normal-map',
+  'lighting-shading': 'light',
+  
+  // Mask nodes
+  'gradient-mask': 'gradient',
+  'compare': 'compare',
+  'select': 'select',
+  
+  // Color nodes
+  'oklch-color': 'color-wheel',
+  'color-map': 'layers',
+  'bayer-dither': 'dither',
+  'tone-mapping': 'tone-curve',
+  'oklch-color-map-bezier': 'bezier',
+  'oklch-color-map-threshold': 'layers',
+  
+  // Output nodes
+  'final-output': 'monitor',
+};
+
+// Get icon identifier for node category (default icons)
+// Returns a simple identifier that can be used for icon rendering
+export function getNodeIconByCategory(category: string): string {
+  const categoryIconMap: Record<string, string> = {
+    'Inputs': 'audio-waveform',
+    'Patterns': 'grid',
+    'Shapes': 'circle',
+    'Math': 'calculator',
+    'Utilities': 'settings',
+    'Distort': 'move',
+    'Blend': 'layers',
+    'Mask': 'square',
+    'Effects': 'sparkles',
+    'Output': 'monitor',
+    'Audio': 'audio-waveform'
+  };
+  
+  return categoryIconMap[category] || 'circle';
+}
+
+// Get icon identifier for a node (node-specific override or category default)
+export function getNodeIcon(spec: import('../types/nodeSpec').NodeSpec): string {
+  // First check if node has explicit icon property
+  if (spec.icon) {
+    return spec.icon;
+  }
+  
+  // Then check node-specific icon mapping
+  if (nodeSpecificIconMap[spec.id]) {
+    return nodeSpecificIconMap[spec.id];
+  }
+  
+  // Finally fall back to category default
+  return getNodeIconByCategory(spec.category);
 }

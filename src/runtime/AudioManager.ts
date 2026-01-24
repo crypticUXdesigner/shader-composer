@@ -103,28 +103,58 @@ export class AudioManager {
       if (file instanceof File) {
         // Read file as ArrayBuffer
         arrayBuffer = await file.arrayBuffer();
+        
+        // Validate File buffer immediately
+        if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+          console.error(`[AudioManager] File is empty or invalid:`, {
+            fileName: file.name,
+            fileSize: file.size,
+            arrayBufferSize: arrayBuffer?.byteLength ?? 'null/undefined'
+          });
+          throw new Error(`Audio file is empty or invalid: ${file.name} (size: ${file.size} bytes)`);
+        }
+        
+        console.log(`[AudioManager] File loaded successfully:`, {
+          fileName: file.name,
+          fileSize: file.size,
+          arrayBufferSize: arrayBuffer.byteLength
+        });
       } else {
         // Load from URL - encode the URL properly (handle spaces and special characters)
         let urlToFetch = file;
         
+        // If it's a relative path (doesn't start with / or http), add a leading /
+        if (!file.startsWith('/') && !file.startsWith('http://') && !file.startsWith('https://') && !file.startsWith('//')) {
+          urlToFetch = '/' + file;
+        }
+        
         // If it's a relative path starting with /, we need to handle the base path
-        if (file.startsWith('/') && !file.startsWith('//')) {
+        if (urlToFetch.startsWith('/') && !urlToFetch.startsWith('//')) {
           // Get base path from import.meta.env.BASE_URL (Vite provides this)
           // During dev, BASE_URL is usually '/', in production it's '/shader-composer/'
+          let baseUrl: string | undefined;
           try {
             // @ts-ignore - import.meta.env is provided by Vite
-            const baseUrl = import.meta.env?.BASE_URL;
-            if (baseUrl && baseUrl !== '/' && baseUrl !== '') {
-              // Remove trailing slash from baseUrl and add the file path
-              const cleanBase = baseUrl.replace(/\/$/, '');
-              urlToFetch = cleanBase + file;
-            }
+            baseUrl = import.meta.env?.BASE_URL;
           } catch (e) {
-            // Fallback: check if we're in production by looking at the current path
+            // Ignore - will use fallback
+          }
+          
+          // Fallback: check if we're in production by looking at the current path
+          if (!baseUrl || baseUrl === '/' || baseUrl === '') {
             const currentPath = window.location.pathname;
             if (currentPath.startsWith('/shader-composer/')) {
-              urlToFetch = '/shader-composer' + file;
+              baseUrl = '/shader-composer';
+            } else {
+              baseUrl = '/';
             }
+          }
+          
+          // Apply base URL if it's not just '/'
+          if (baseUrl && baseUrl !== '/' && baseUrl !== '') {
+            // Remove trailing slash from baseUrl and add the file path
+            const cleanBase = baseUrl.replace(/\/$/, '');
+            urlToFetch = cleanBase + urlToFetch;
           }
         }
         
@@ -140,6 +170,14 @@ export class AudioManager {
           return encodeURIComponent(part);
         });
         urlToFetch = encodedParts.join('/');
+        
+        // Log the URL we're trying to fetch (for debugging)
+        console.log(`[AudioManager] Attempting to load audio file:`, {
+          original: file,
+          resolved: urlToFetch,
+          baseUrl: import.meta.env?.BASE_URL || 'detected from pathname',
+          currentPath: window.location.pathname
+        });
         
         // Try to fetch the file with timeout
         const controller = new AbortController();
@@ -160,14 +198,20 @@ export class AudioManager {
         }
         clearTimeout(timeoutId);
         
-        // If that fails and we added a base path, try without it (for development)
-        if (!response.ok && urlToFetch !== file && file.startsWith('/')) {
+        // If response is not OK, or if response is OK but body is empty, try fallback URLs
+        // Vite serves public folder files at root, so we may need to try different paths
+        const shouldTryFallback = !response.ok || (response.ok && response.headers.get('content-length') === '0');
+        
+        if (shouldTryFallback && urlToFetch !== file && file.startsWith('/')) {
+          // Try 1: Original file path without base URL (for Vite dev server)
           const fallbackParts = file.split('/');
           const fallbackEncoded = fallbackParts.map((part, index) => {
             if (index === 0 && part === '') return '';
             return encodeURIComponent(part);
           });
           const fallbackUrl = fallbackEncoded.join('/');
+          
+          console.log(`[AudioManager] First attempt ${response.ok ? 'returned empty body' : `failed (${response.status})`}, trying fallback URL: ${fallbackUrl}`);
           
           const fallbackController = new AbortController();
           const fallbackTimeoutId = setTimeout(() => fallbackController.abort(), 30000);
@@ -177,15 +221,36 @@ export class AudioManager {
               cache: 'no-cache'
             });
             clearTimeout(fallbackTimeoutId);
-            if (fallbackResponse.ok) {
+            
+            // Check if fallback response is better (OK and has content)
+            const fallbackContentLength = fallbackResponse.headers.get('content-length');
+            const isFallbackBetter = fallbackResponse.ok && 
+              fallbackContentLength !== '0' && 
+              (!response.ok || (response.ok && response.headers.get('content-length') === '0'));
+            
+            if (isFallbackBetter) {
               response = fallbackResponse;
               urlToFetch = fallbackUrl;
+              console.log(`[AudioManager] Fallback URL succeeded: ${fallbackUrl}`);
             }
           } catch (e) {
             clearTimeout(fallbackTimeoutId);
             // Ignore fallback errors, use original response
+            console.warn(`[AudioManager] Fallback URL failed:`, e);
           }
         }
+        
+        // Log response details immediately
+        const contentLength = response.headers.get('content-length');
+        const contentType = response.headers.get('content-type');
+        console.log(`[AudioManager] Response received:`, {
+          status: response.status,
+          statusText: response.statusText,
+          ok: response.ok,
+          contentType,
+          contentLength,
+          url: urlToFetch
+        });
         
         if (!response.ok) {
           // Try to read error body for more info
@@ -197,22 +262,211 @@ export class AudioManager {
           );
         }
         
-        arrayBuffer = await response.arrayBuffer();
+        // Check content length if available - this is an early warning
+        if (contentLength && parseInt(contentLength, 10) === 0) {
+          console.error(`[AudioManager] Content-Length header indicates 0 bytes`);
+          throw new Error(`Audio file is empty (0 bytes): ${file} (tried: ${urlToFetch}). Make sure the file exists and is not corrupted.`);
+        }
         
-        // Verify we didn't get an HTML error page
+        // Check content type to ensure it's an audio file
+        if (contentType && !contentType.startsWith('audio/') && !contentType.includes('octet-stream')) {
+          console.warn(`[AudioManager] Unexpected content type for audio file: ${contentType} (URL: ${urlToFetch})`);
+        }
+        
+        // CRITICAL: Ensure response body hasn't been consumed
+        if (response.bodyUsed) {
+          console.error(`[AudioManager] Response body already consumed! This should not happen.`);
+          throw new Error(`Response body was already consumed before reading. This indicates a bug in the code.`);
+        }
+        
+        // Read the array buffer - this consumes the response body
+        // IMPORTANT: We must read the body immediately and only once
+        try {
+          // Check if body is already used (shouldn't happen, but defensive)
+          if (response.bodyUsed) {
+            throw new Error('Response body was already consumed');
+          }
+          
+          arrayBuffer = await response.arrayBuffer();
+          
+          // Verify we actually got data
+          if (!arrayBuffer) {
+            throw new Error('response.arrayBuffer() returned null/undefined');
+          }
+          
+        } catch (arrayBufferError: any) {
+          console.error(`[AudioManager] Failed to read response.arrayBuffer():`, {
+            error: arrayBufferError?.message || String(arrayBufferError),
+            errorStack: arrayBufferError?.stack,
+            responseStatus: response.status,
+            responseOk: response.ok,
+            bodyUsed: response.bodyUsed,
+            contentType,
+            contentLength,
+            url: urlToFetch
+          });
+          
+          // If we got a response but can't read the body, it might be a CORS or network issue
+          throw new Error(
+            `Failed to read audio file response body: ${arrayBufferError?.message || String(arrayBufferError)}. ` +
+            `File: ${file}, URL: ${urlToFetch}, Status: ${response.status}. ` +
+            `This might be a CORS issue, network error, or the response body was already consumed. ` +
+            `Check browser console and network tab for more details.`
+          );
+        }
+        
+        // Log immediately after getting arrayBuffer for debugging
+        const actualBufferSize = arrayBuffer?.byteLength ?? 0;
+        console.log(`[AudioManager] Response arrayBuffer received:`, {
+          file,
+          urlToFetch,
+          status: response.status,
+          statusText: response.statusText,
+          contentType,
+          contentLength,
+          expectedSize: contentLength ? parseInt(contentLength, 10) : 'unknown',
+          arrayBufferExists: arrayBuffer !== null && arrayBuffer !== undefined,
+          arrayBufferSize: actualBufferSize,
+          arrayBufferType: typeof arrayBuffer,
+          arrayBufferConstructor: arrayBuffer?.constructor?.name,
+          bodyUsed: response.bodyUsed,
+          sizeMismatch: contentLength && parseInt(contentLength, 10) !== actualBufferSize
+        });
+        
+        // CRITICAL: Check if we got an empty response - this must happen immediately after arrayBuffer()
+        // and before any other operations that might modify or consume the buffer
+        if (!arrayBuffer) {
+          console.error(`[AudioManager] arrayBuffer is null or undefined`);
+          throw new Error(
+            `Audio file fetch returned null/undefined ArrayBuffer: ${file} (tried: ${urlToFetch}). ` +
+            `Status: ${response.status} ${response.statusText}. ` +
+            `This indicates a serious fetch error.`
+          );
+        }
+        
+        // Explicit check for 0 bytes - this MUST throw if buffer is empty
+        const bufferSize = arrayBuffer.byteLength;
+        const expectedSize = contentLength ? parseInt(contentLength, 10) : null;
+        
+        // Log the values we're checking - use console.log with separate statements to ensure they're visible
+        console.log(`[AudioManager] Validating buffer size - bufferSize:`, bufferSize);
+        console.log(`[AudioManager] Validating buffer size - expectedSize:`, expectedSize);
+        console.log(`[AudioManager] Validating buffer size - contentLength:`, contentLength);
+        console.log(`[AudioManager] Validating buffer size - arrayBuffer.byteLength (direct):`, arrayBuffer.byteLength);
+        
+        // ABSOLUTE CHECK: If buffer is 0, throw immediately - no conditions, no exceptions
+        if (arrayBuffer.byteLength === 0) {
+          console.error(`[AudioManager] IMMEDIATE THROW: arrayBuffer.byteLength is 0`);
+          throw new Error(`ArrayBuffer is 0 bytes - immediate throw: ${file}`);
+        }
+        
+        // Check for size mismatch - if Content-Length says one thing but buffer is different, something is wrong
+        if (expectedSize !== null && bufferSize !== expectedSize) {
+          console.error(`[AudioManager] Size mismatch detected:`, {
+            file,
+            urlToFetch,
+            expectedSize,
+            actualSize: bufferSize,
+            status: response.status,
+            contentType,
+            difference: expectedSize - bufferSize
+          });
+          
+          // If expected size is > 0 but buffer is 0, this is a critical error
+          if (expectedSize > 0 && bufferSize === 0) {
+            const error = new Error(
+              `Audio file response size mismatch: Content-Length header says ${expectedSize} bytes, but ArrayBuffer is ${bufferSize} bytes. ` +
+              `This usually means the response body couldn't be read (CORS issue, network error, or response body was consumed). ` +
+              `File: ${file}, URL: ${urlToFetch}, Status: ${response.status}. ` +
+              `Check browser network tab and console for CORS or other errors.`
+            );
+            console.error(`[AudioManager] THROWING size mismatch error:`, error);
+            throw error;
+          }
+        }
+        
+        // CRITICAL: Check for 0 bytes - this MUST throw
+        // This check is ABSOLUTE - if bufferSize is 0, we MUST throw, no exceptions
+        if (bufferSize === 0) {
+          // Log detailed information for debugging
+          const errorDetails = {
+            file,
+            urlToFetch,
+            status: response.status,
+            statusText: response.statusText,
+            contentType,
+            contentLength,
+            expectedSize,
+            arrayBufferSize: bufferSize,
+            arrayBufferType: typeof arrayBuffer,
+            arrayBufferConstructor: arrayBuffer.constructor.name,
+            arrayBufferIsArrayBuffer: arrayBuffer instanceof ArrayBuffer,
+            bodyUsed: response.bodyUsed,
+            arrayBufferDirectCheck: arrayBuffer.byteLength,
+            bufferSizeVariable: bufferSize
+          };
+          console.error(`[AudioManager] Empty response detected (0 bytes) - THROWING ERROR:`, errorDetails);
+          
+          // This error MUST be thrown - if we reach decodeAudioData with 0 bytes, something is very wrong
+          const error = new Error(
+            `Audio file fetch returned empty response (0 bytes): ${file} (tried: ${urlToFetch}). ` +
+            `Status: ${response.status} ${response.statusText}, Content-Type: ${contentType || 'unknown'}, Content-Length: ${contentLength || 'unknown'}. ` +
+            `Expected size: ${expectedSize || 'unknown'} bytes, Actual size: ${bufferSize} bytes. ` +
+            `Direct arrayBuffer.byteLength check: ${arrayBuffer.byteLength}. ` +
+            `This usually means the file doesn't exist at that path, the server returned an empty response, ` +
+            `or the response body couldn't be read (CORS issue). Check the browser network tab to see what the server actually returned.`
+          );
+          console.error(`[AudioManager] THROWING empty buffer error (this should prevent decodeAudioData from being called):`, error);
+          console.error(`[AudioManager] Error stack:`, error.stack);
+          throw error;
+        }
+        
+        // Additional explicit check using direct property access
+        if (arrayBuffer.byteLength === 0) {
+          console.error(`[AudioManager] SECOND CHECK: Direct arrayBuffer.byteLength is 0 - THROWING`);
+          throw new Error(`ArrayBuffer is 0 bytes (direct check): ${file}`);
+        }
+        
+        // Final sanity check - if we somehow got here with 0 bytes, something is very broken
+        if (arrayBuffer.byteLength === 0) {
+          console.error(`[AudioManager] CRITICAL BUG: Buffer is 0 bytes after all validation checks!`);
+          throw new Error(`CRITICAL BUG: ArrayBuffer validation failed - buffer is 0 bytes but all checks passed. This should be impossible.`);
+        }
+        
+        // Additional sanity check - if we somehow got here with 0 bytes, something is broken
+        if (arrayBuffer.byteLength === 0) {
+          console.error(`[AudioManager] CRITICAL: Buffer is 0 bytes after validation check - this should be impossible!`);
+          throw new Error(`CRITICAL BUG: ArrayBuffer validation failed - buffer is 0 bytes but check didn't catch it`);
+        }
+        
+        // Verify we didn't get an HTML error page (only if buffer is not empty)
         if (arrayBuffer.byteLength > 0) {
           const view = new Uint8Array(arrayBuffer, 0, Math.min(100, arrayBuffer.byteLength));
           const textDecoder = new TextDecoder('utf-8', { fatal: false });
           const preview = textDecoder.decode(view);
           if (preview.trim().toLowerCase().startsWith('<!doctype') || preview.trim().toLowerCase().startsWith('<html')) {
-            throw new Error(`Server returned HTML instead of audio file. URL: ${urlToFetch}`);
+            throw new Error(`Server returned HTML instead of audio file. URL: ${urlToFetch}. This usually means the file doesn't exist and the server returned a 404 page.`);
           }
         }
       }
       
-      // Validate ArrayBuffer
-      if (!arrayBuffer || arrayBuffer.byteLength === 0) {
-        throw new Error(`Audio file is empty or invalid: ${file instanceof File ? file.name : file}`);
+      // CRITICAL: Final validation before decodeAudioData - this is a last line of defense
+      // Double-check that arrayBuffer is valid and not empty
+      if (!arrayBuffer) {
+        throw new Error(`Audio file ArrayBuffer is null or undefined: ${file instanceof File ? file.name : file}`);
+      }
+      
+      if (arrayBuffer.byteLength === 0) {
+        console.error(`[AudioManager] ArrayBuffer is empty before decodeAudioData:`, {
+          file: file instanceof File ? file.name : file,
+          arrayBufferType: typeof arrayBuffer,
+          arrayBufferConstructor: arrayBuffer.constructor.name,
+          byteLength: arrayBuffer.byteLength
+        });
+        throw new Error(
+          `Audio file is empty (0 bytes) before decoding: ${file instanceof File ? file.name : file}. ` +
+          `This should have been caught earlier - there may be a bug in the validation logic.`
+        );
       }
       
       // Ensure AudioContext is in a valid state
@@ -236,6 +490,15 @@ export class AudioManager {
       }
       
       // Decode audio data - use the original ArrayBuffer directly (no need to slice)
+      // Add one more check right before decoding as absolute final defense
+      if (arrayBuffer.byteLength === 0) {
+        throw new Error(
+          `CRITICAL: ArrayBuffer became empty right before decodeAudioData. ` +
+          `This indicates a serious bug - the buffer was validated but became empty. ` +
+          `File: ${file instanceof File ? file.name : file}, Size: ${arrayBuffer.byteLength} bytes`
+        );
+      }
+      
       let audioBuffer: AudioBuffer;
       try {
         audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
@@ -244,12 +507,34 @@ export class AudioManager {
         const contextState = this.audioContext.state;
         const bufferSize = arrayBuffer.byteLength;
         
-        // Provide detailed error information
+        // Log detailed error information for debugging
+        console.error(`[AudioManager] decodeAudioData failed:`, {
+          error: errorMessage,
+          contextState,
+          bufferSize,
+          file: file instanceof File ? file.name : file,
+          arrayBufferType: typeof arrayBuffer,
+          arrayBufferValid: arrayBuffer !== null && arrayBuffer !== undefined
+        });
+        
+        // If buffer is empty, this is a critical error that should have been caught earlier
+        if (bufferSize === 0) {
+          throw new Error(
+            `CRITICAL: Attempted to decode empty audio buffer (0 bytes). ` +
+            `This should have been caught by validation checks. ` +
+            `File: ${file instanceof File ? file.name : file}, ` +
+            `AudioContext state: ${contextState}. ` +
+            `This usually means the file fetch returned an empty response or the file doesn't exist.`
+          );
+        }
+        
+        // Provide detailed error information for other decode errors
         throw new Error(
           `Failed to decode audio data: ${errorMessage}. ` +
           `AudioContext state: ${contextState}, ` +
           `ArrayBuffer size: ${bufferSize} bytes, ` +
-          `File: ${file instanceof File ? file.name : file}`
+          `File: ${file instanceof File ? file.name : file}. ` +
+          `The file may be corrupted, in an unsupported format, or the AudioContext may be in an invalid state.`
         );
       }
       
@@ -479,15 +764,20 @@ export class AudioManager {
     setUniform: (nodeId: string, paramName: string, value: number) => void,
     setUniforms: (updates: Array<{ nodeId: string, paramName: string, value: number }>) => void
   ): void {
-    // Update audio file node uniforms
+    // First pass: Get frequency data for all audio file nodes (FFT is expensive, do it once per node)
+    // Map audio file node ID to its frequency data for reuse by analyzer nodes
+    const audioFileFrequencyData = new Map<string, Uint8Array>();
+    
     for (const [nodeId, state] of this.audioNodes.entries()) {
       if (!state.audioBuffer) {
         continue;
       }
       
+      // Get frequency data once per audio file node (FFT is expensive)
       if (state.analyserNode && state.frequencyData) {
-        // Get current frequency data
         state.analyserNode.getByteFrequencyData(state.frequencyData as Uint8Array<ArrayBuffer>);
+        // Store for reuse by analyzer nodes that share this analyserNode
+        audioFileFrequencyData.set(nodeId, state.frequencyData as Uint8Array);
       }
       
       // Update playback state
@@ -511,15 +801,32 @@ export class AudioManager {
       setUniform(nodeId, 'isPlaying', state.isPlaying ? 1.0 : 0.0);
     }
     
-    // Update analyzer node uniforms
+    // Second pass: Update analyzer node uniforms (reuse frequency data from audio file nodes)
     const analyzerUpdates: Array<{ nodeId: string, paramName: string, value: number }> = [];
     
     for (const [nodeId, analyzerState] of this.analyzerNodes.entries()) {
       if (!analyzerState.analyserNode) continue;
       
-      // Get frequency data
-      const frequencyData = new Uint8Array(analyzerState.analyserNode.frequencyBinCount);
-      analyzerState.analyserNode.getByteFrequencyData(frequencyData);
+      // Find the audio file node that shares this analyserNode
+      // Analyzer nodes share the analyserNode with their connected audio file node
+      let frequencyData: Uint8Array | null = null;
+      
+      // Try to find frequency data from the connected audio file node
+      for (const [audioNodeId, audioState] of this.audioNodes.entries()) {
+        if (audioState.analyserNode === analyzerState.analyserNode) {
+          frequencyData = audioFileFrequencyData.get(audioNodeId) || null;
+          break;
+        }
+      }
+      
+      // Fallback: if we couldn't find shared data, get it directly (shouldn't happen)
+      if (!frequencyData) {
+        // This should be rare - analyzer nodes should share analyserNode with audio file nodes
+        const buffer = new ArrayBuffer(analyzerState.analyserNode.frequencyBinCount);
+        const tempFrequencyData = new Uint8Array(buffer);
+        analyzerState.analyserNode.getByteFrequencyData(tempFrequencyData);
+        frequencyData = tempFrequencyData;
+      }
       
       // Extract frequency bands
       analyzerState.bandValues = this.extractFrequencyBands(

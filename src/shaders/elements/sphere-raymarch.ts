@@ -207,7 +207,7 @@ export const sphereRaymarchElement: VisualElement = {
       min: 0.0,
       max: 2.0,
       step: 0.1,
-      label: 'Vector Field Speed',
+      label: 'Speed',
       inputMode: 'override'
     },
     animationSpeed: {

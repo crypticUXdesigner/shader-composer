@@ -77,7 +77,7 @@ float applyLevels(float value, float inMin, float inMax, float outMin, float out
       min: 0.0,
       max: 2.0,
       step: 0.01,
-      label: 'Shadows R'
+      label: 'R'
     },
     colorShadowsG: {
       type: 'float',
@@ -85,7 +85,7 @@ float applyLevels(float value, float inMin, float inMax, float outMin, float out
       min: 0.0,
       max: 2.0,
       step: 0.01,
-      label: 'Shadows G'
+      label: 'G'
     },
     colorShadowsB: {
       type: 'float',
@@ -93,7 +93,7 @@ float applyLevels(float value, float inMin, float inMax, float outMin, float out
       min: 0.0,
       max: 2.0,
       step: 0.01,
-      label: 'Shadows B'
+      label: 'B'
     },
     colorMidtonesR: {
       type: 'float',
@@ -101,7 +101,7 @@ float applyLevels(float value, float inMin, float inMax, float outMin, float out
       min: 0.0,
       max: 2.0,
       step: 0.01,
-      label: 'Midtones R'
+      label: 'R'
     },
     colorMidtonesG: {
       type: 'float',
@@ -109,7 +109,7 @@ float applyLevels(float value, float inMin, float inMax, float outMin, float out
       min: 0.0,
       max: 2.0,
       step: 0.01,
-      label: 'Midtones G'
+      label: 'G'
     },
     colorMidtonesB: {
       type: 'float',
@@ -117,7 +117,7 @@ float applyLevels(float value, float inMin, float inMax, float outMin, float out
       min: 0.0,
       max: 2.0,
       step: 0.01,
-      label: 'Midtones B'
+      label: 'B'
     },
     colorHighlightsR: {
       type: 'float',
@@ -125,7 +125,7 @@ float applyLevels(float value, float inMin, float inMax, float outMin, float out
       min: 0.0,
       max: 2.0,
       step: 0.01,
-      label: 'Highlights R'
+      label: 'R'
     },
     colorHighlightsG: {
       type: 'float',
@@ -133,7 +133,7 @@ float applyLevels(float value, float inMin, float inMax, float outMin, float out
       min: 0.0,
       max: 2.0,
       step: 0.01,
-      label: 'Highlights G'
+      label: 'G'
     },
     colorHighlightsB: {
       type: 'float',
@@ -141,7 +141,7 @@ float applyLevels(float value, float inMin, float inMax, float outMin, float out
       min: 0.0,
       max: 2.0,
       step: 0.01,
-      label: 'Highlights B'
+      label: 'B'
     },
     levelsInMin: {
       type: 'float',

@@ -4,7 +4,9 @@
 import type { NodeGraph, NodeInstance, Connection } from '../../types/nodeGraph';
 import type { NodeSpec } from '../../types/nodeSpec';
 import { NodeRenderer, type NodeRenderMetrics } from './NodeRenderer';
-import { getCSSColor, getCSSVariableAsNumber, getCSSVariable } from '../../utils/cssTokens';
+import { getCSSColor, getCSSVariableAsNumber, getCSSVariable, getCSSColorRGBA } from '../../utils/cssTokens';
+import { computeEffectiveParameterValue } from '../../utils/parameterValueCalculator';
+import type { AudioManager } from '../../runtime/AudioManager';
 
 export interface CanvasState {
   zoom: number;
@@ -38,6 +40,8 @@ export class NodeEditorCanvas {
   private draggingNodeId: string | null = null;
   private dragOffsetX: number = 0;
   private dragOffsetY: number = 0;
+  private draggingNodeInitialPos: { x: number; y: number } | null = null;
+  private selectedNodesInitialPositions: Map<string, { x: number; y: number }> = new Map();
   private isConnecting: boolean = false;
   private connectionStartNodeId: string | null = null;
   private connectionStartPort: string | null = null;
@@ -50,9 +54,14 @@ export class NodeEditorCanvas {
   private isDraggingParameter: boolean = false;
   private draggingParameterNodeId: string | null = null;
   private draggingParameterName: string | null = null;
-  private dragParamStartY: number = 0;
+  private dragParamStartY: number = 0; // Screen-space Y position
   private dragParamStartValue: number = 0;
+  private isDraggingBezierControl: boolean = false;
+  private draggingBezierNodeId: string | null = null;
+  private draggingBezierControlIndex: number | null = null; // 0 for cp1 (x1,y1), 1 for cp2 (x2,y2)
+  private dragBezierStartValues: { x1: number; y1: number; x2: number; y2: number } | null = null;
   private parameterInputElement: HTMLInputElement | null = null;
+  private labelInputElement: HTMLInputElement | null = null;
   private backgroundDragStartX: number = 0;
   private backgroundDragStartY: number = 0;
   private backgroundDragThreshold: number = 5; // pixels
@@ -62,6 +71,13 @@ export class NodeEditorCanvas {
   private nodeDragThreshold: number = 5; // pixels
   private potentialNodeDrag: boolean = false;
   private potentialNodeDragId: string | null = null;
+  
+  // Smart guides state
+  private smartGuides: {
+    vertical: Array<{ x: number; startY: number; endY: number }>;
+    horizontal: Array<{ y: number; startX: number; endX: number }>;
+  } = { vertical: [], horizontal: [] };
+  private readonly SNAP_THRESHOLD = 3; // pixels (in canvas space, before zoom) - reduced for less aggressive snapping
   
   // Edge scrolling state
   private edgeScrollAnimationFrame: number | null = null;
@@ -82,9 +98,12 @@ export class NodeEditorCanvas {
   private onParameterChanged?: (nodeId: string, paramName: string, value: number) => void;
   private onFileParameterChanged?: (nodeId: string, paramName: string, file: File) => void;
   private onParameterInputModeChanged?: (nodeId: string, paramName: string, mode: import('../../types/nodeSpec').ParameterInputMode) => void;
+  private onNodeLabelChanged?: (nodeId: string, label: string | undefined) => void;
   private isDialogVisible?: () => boolean;
+  private audioManager?: AudioManager;
+  private effectiveValueUpdateInterval: number | null = null;
   
-  constructor(canvas: HTMLCanvasElement, graph: NodeGraph, nodeSpecs: NodeSpec[] = []) {
+  constructor(canvas: HTMLCanvasElement, graph: NodeGraph, nodeSpecs: NodeSpec[] = [], audioManager?: AudioManager) {
     this.canvas = canvas;
     const ctx = canvas.getContext('2d');
     if (!ctx) {
@@ -98,6 +117,12 @@ export class NodeEditorCanvas {
     for (const spec of nodeSpecs) {
       this.nodeSpecs.set(spec.id, spec);
     }
+    
+    // Store audio manager reference
+    this.audioManager = audioManager;
+    
+    // Start periodic updates for effective parameter values
+    this.startEffectiveValueUpdates();
     
     // Initialize state from graph viewState or defaults
     this.state = {
@@ -148,6 +173,7 @@ export class NodeEditorCanvas {
     this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
     this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
     this.canvas.addEventListener('mouseup', (e) => this.handleMouseUp(e));
+    this.canvas.addEventListener('mouseleave', () => this.handleMouseLeave());
     this.canvas.addEventListener('wheel', (e) => this.handleWheel(e));
     this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     
@@ -221,8 +247,8 @@ export class NodeEditorCanvas {
   
   private hitTestPort(mouseX: number, mouseY: number): { nodeId: string, port: string, isOutput: boolean, parameter?: string } | null {
     const canvasPos = this.screenToCanvas(mouseX, mouseY);
-    const portRadius = 4;
-    const hitMargin = 4;
+    const portRadius = getCSSVariableAsNumber('port-radius', 12); // Visual radius (matches CSS)
+    const hitMargin = 10; // Increased from 4 to 10 for easier interaction
     const hitRadius = portRadius + hitMargin;
     
     for (const node of this.graph.nodes) {
@@ -346,7 +372,8 @@ export class NodeEditorCanvas {
     return null;
   }
   
-  private hitTestParameter(mouseX: number, mouseY: number): { nodeId: string, paramName: string, isString?: boolean } | null {
+  // Special hit test for range editor slider handles
+  private hitTestRangeEditorSlider(mouseX: number, mouseY: number): { nodeId: string, paramName: string } | null {
     const canvasPos = this.screenToCanvas(mouseX, mouseY);
     
     for (const node of this.graph.nodes) {
@@ -354,29 +381,338 @@ export class NodeEditorCanvas {
       const metrics = this.nodeMetrics.get(node.id);
       if (!spec || !metrics || node.collapsed) continue;
       
-      for (const [paramName, paramPos] of metrics.parameterPositions.entries()) {
+      // Check if this is a range editor node
+      const rangeParams = ['inMin', 'inMax', 'outMin', 'outMax'];
+      const hasRangeParams = rangeParams.every(p => spec.parameters[p]?.type === 'float');
+      if (!hasRangeParams) continue;
+      
+      // Get parameter values to calculate handle positions
+      const inMin = (node.parameters.inMin ?? spec.parameters.inMin?.default ?? 0) as number;
+      const inMax = (node.parameters.inMax ?? spec.parameters.inMax?.default ?? 1) as number;
+      const outMin = (node.parameters.outMin ?? spec.parameters.outMin?.default ?? 0) as number;
+      const outMax = (node.parameters.outMax ?? spec.parameters.outMax?.default ?? 1) as number;
+      
+      // Get parameter specs for min/max constraints
+      const inMinSpec = spec.parameters.inMin;
+      const inMaxSpec = spec.parameters.inMax;
+      const outMinSpec = spec.parameters.outMin;
+      const outMaxSpec = spec.parameters.outMax;
+      const inMinValue = inMinSpec?.min ?? 0;
+      const inMaxValue = inMaxSpec?.max ?? 1;
+      const outMinValue = outMinSpec?.min ?? 0;
+      const outMaxValue = outMaxSpec?.max ?? 1;
+      
+      // Normalize values to 0-1 range
+      const normalizeIn = (v: number) => (inMaxValue - inMinValue > 0) ? (v - inMinValue) / (inMaxValue - inMinValue) : 0;
+      const normalizeOut = (v: number) => (outMaxValue - outMinValue > 0) ? (v - outMinValue) / (outMaxValue - outMinValue) : 0;
+      const inMinNorm = Math.max(0, Math.min(1, normalizeIn(inMin)));
+      const inMaxNorm = Math.max(0, Math.min(1, normalizeIn(inMax)));
+      const outMinNorm = Math.max(0, Math.min(1, normalizeOut(outMin)));
+      const outMaxNorm = Math.max(0, Math.min(1, normalizeOut(outMax)));
+      
+      // Calculate slider UI area (same as in renderRangeEditor)
+      const gridPadding = getCSSVariableAsNumber('node-body-padding', 18);
+      const sliderUIHeight = getCSSVariableAsNumber('range-editor-height', 260);
+      const sliderUIPadding = 12;
+      const editorPadding = getCSSVariableAsNumber('range-editor-padding', 12);
+      const sliderWidth = getCSSVariableAsNumber('range-editor-slider-width', 18);
+      const handleSize = getCSSVariableAsNumber('range-editor-handle-size', 12);
+      const topMargin = 12;
+      const bottomMargin = 12;
+      
+      const sliderUIX = node.position.x + gridPadding;
+      const sliderUIY = node.position.y + metrics.headerHeight + gridPadding;
+      const sliderUIWidth = metrics.width - gridPadding * 2;
+      const sliderUIEditorX = sliderUIX + sliderUIPadding;
+      const sliderUIEditorY = sliderUIY + sliderUIPadding;
+      const sliderUIEditorWidth = sliderUIWidth - sliderUIPadding * 2;
+      const sliderHeight = sliderUIHeight - sliderUIPadding * 2 - topMargin - bottomMargin;
+      
+      // Calculate slider positions
+      const inputSliderLeftEdge = sliderUIEditorX + editorPadding;
+      const inputSliderCenter = inputSliderLeftEdge + sliderWidth / 2;
+      const outputSliderRightEdge = sliderUIEditorX + sliderUIEditorWidth - editorPadding;
+      const outputSliderCenter = outputSliderRightEdge - sliderWidth / 2;
+      // sliderUIEditorY already includes sliderUIPadding, so we only add topMargin
+      const sliderY = sliderUIEditorY + topMargin;
+      
+      // Check if click is within slider area
+      // Make interaction areas zoom-aware so they match visual size
+      const handleInteractionRadius = (handleSize / 2 + 10) / this.state.zoom; // Add margin for easier clicking
+      const sliderInteractionWidth = (sliderWidth + 20) / this.state.zoom; // Add margin for easier clicking
+      
+      // Calculate distances to slider centers to determine which slider
+      const distToInputSlider = Math.abs(canvasPos.x - inputSliderCenter);
+      const distToOutputSlider = Math.abs(canvasPos.x - outputSliderCenter);
+      
+      // Check if click is near either slider
+      const isNearInputSlider = distToInputSlider <= sliderInteractionWidth / 2;
+      const isNearOutputSlider = distToOutputSlider <= sliderInteractionWidth / 2;
+      
+      // Check input slider (left side) - only if closer to input than output
+      if (isNearInputSlider && (!isNearOutputSlider || distToInputSlider < distToOutputSlider)) {
+        const handleYMin = sliderY + (1 - inMinNorm) * sliderHeight; // Bottom handle (min)
+        const handleYMax = sliderY + (1 - inMaxNorm) * sliderHeight; // Top handle (max)
+        
+        // Check distance to each handle
+        const distToMin = Math.abs(canvasPos.y - handleYMin);
+        const distToMax = Math.abs(canvasPos.y - handleYMax);
+        
+        // Determine which handle is closer
+        // Top handle (max) should return inMax, bottom handle (min) should return inMin
+        if (distToMax <= handleInteractionRadius && distToMax <= distToMin) {
+          return { nodeId: node.id, paramName: 'inMax' };
+        } else if (distToMin <= handleInteractionRadius && distToMin <= distToMax) {
+          return { nodeId: node.id, paramName: 'inMin' };
+        }
+      }
+      
+      // Check output slider (right side) - only if closer to output than input
+      if (isNearOutputSlider && (!isNearInputSlider || distToOutputSlider < distToInputSlider)) {
+        const handleYMin = sliderY + (1 - outMinNorm) * sliderHeight; // Bottom handle (min)
+        const handleYMax = sliderY + (1 - outMaxNorm) * sliderHeight; // Top handle (max)
+        
+        // Check distance to each handle
+        const distToMin = Math.abs(canvasPos.y - handleYMin);
+        const distToMax = Math.abs(canvasPos.y - handleYMax);
+        
+        // Determine which handle is closer
+        // Top handle (max) should return outMax, bottom handle (min) should return outMin
+        if (distToMax <= handleInteractionRadius && distToMax <= distToMin) {
+          return { nodeId: node.id, paramName: 'outMax' };
+        } else if (distToMin <= handleInteractionRadius && distToMin <= distToMax) {
+          return { nodeId: node.id, paramName: 'outMin' };
+        }
+      }
+    }
+    
+    return null;
+  }
+
+  private hitTestParameter(mouseX: number, mouseY: number): { nodeId: string, paramName: string, isString?: boolean } | null {
+    // First check for range editor slider handles (priority)
+    const rangeSliderHit = this.hitTestRangeEditorSlider(mouseX, mouseY);
+    if (rangeSliderHit) {
+      return { nodeId: rangeSliderHit.nodeId, paramName: rangeSliderHit.paramName, isString: false };
+    }
+    
+    const canvasPos = this.screenToCanvas(mouseX, mouseY);
+    
+    for (const node of this.graph.nodes) {
+      const spec = this.nodeSpecs.get(node.type);
+      const metrics = this.nodeMetrics.get(node.id);
+      if (!spec || !metrics || node.collapsed) continue;
+      
+      // Use parameterGridPositions for the new grid layout
+      for (const [paramName, gridPos] of metrics.parameterGridPositions.entries()) {
         const paramSpec = spec.parameters[paramName];
         if (!paramSpec) continue;
         
-        // Check if click is in parameter button/value area (right side)
-        const padding = 8;
-        const buttonWidth = paramSpec.type === 'string' ? 100 : 80;
-        const buttonX = paramPos.x + paramPos.width - buttonWidth - padding;
-        const buttonY = paramPos.y;
-        const buttonHeight = paramPos.height;
-        
-        if (
-          canvasPos.x >= buttonX &&
-          canvasPos.x <= buttonX + buttonWidth &&
-          canvasPos.y >= buttonY &&
-          canvasPos.y <= buttonY + buttonHeight
-        ) {
-          return { 
-            nodeId: node.id, 
-            paramName,
-            isString: paramSpec.type === 'string'
-          };
+        // Check if this is a toggle parameter (int with min 0, max 1) - handle separately
+        // This matches the logic in NodeRenderer.isToggleNode
+        if (paramSpec.type === 'int' && paramSpec.min === 0 && paramSpec.max === 1) {
+          // For toggle parameters, check if click is within the toggle switch area
+          // Calculate toggle switch position (matches renderToggle logic - vertically centered)
+          const toggleWidth = getCSSVariableAsNumber('toggle-width', 48);
+          const toggleHeight = getCSSVariableAsNumber('toggle-height', 24);
+          
+          const toggleY = gridPos.cellY + gridPos.cellHeight / 2 - toggleHeight / 2;
+          const toggleX = gridPos.cellX + gridPos.cellWidth / 2 - toggleWidth / 2; // Centered
+          
+          // Check if click is within toggle switch area
+          if (
+            canvasPos.x >= toggleX &&
+            canvasPos.x <= toggleX + toggleWidth &&
+            canvasPos.y >= toggleY &&
+            canvasPos.y <= toggleY + toggleHeight
+          ) {
+            return { 
+              nodeId: node.id, 
+              paramName,
+              isString: false
+            };
+          }
+        } else if (paramSpec.type === 'float' || paramSpec.type === 'int') {
+          const knobSize = getCSSVariableAsNumber('knob-size', 45);
+          // Make interaction area larger - use the full knob size plus extra margin
+          // This creates a circular area that surrounds the entire knob
+          const interactionRadius = knobSize / 2 + 10; // Add 10px margin around the knob
+          
+          // Check if click is within knob circle
+          const dx = canvasPos.x - gridPos.knobX;
+          const dy = canvasPos.y - gridPos.knobY;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          if (distance <= interactionRadius) {
+            return { 
+              nodeId: node.id, 
+              paramName,
+              isString: false
+            };
+          }
+          
+          // Also check if click is within the value element area (below the knob)
+          const valueFontSize = getCSSVariableAsNumber('knob-value-font-size', 11);
+          const valuePaddingH = getCSSVariableAsNumber('knob-value-padding-horizontal', 4);
+          const valuePaddingV = getCSSVariableAsNumber('knob-value-padding-vertical', 4);
+          
+          // Calculate value element position (matches rendering code)
+          const valueX = gridPos.valueX;
+          const valueY = gridPos.valueY;
+          
+          // Estimate maximum value element width (for typical float values like "-1.000" or "0.000")
+          // Using a generous estimate to cover most cases
+          const estimatedTextWidth = valueFontSize * 6; // Rough estimate for "0.000" format
+          const valueWidth = estimatedTextWidth + valuePaddingH * 2;
+          const valueHeight = valueFontSize + valuePaddingV * 2;
+          
+          // Check if click is within value element rectangle
+          if (
+            canvasPos.x >= valueX - valueWidth / 2 &&
+            canvasPos.x <= valueX + valueWidth / 2 &&
+            canvasPos.y >= valueY &&
+            canvasPos.y <= valueY + valueHeight
+          ) {
+            return { 
+              nodeId: node.id, 
+              paramName,
+              isString: false
+            };
+          }
+        } else if (paramSpec.type === 'string') {
+          // For string parameters, check if click is in the cell area
+          // (string parameters may have file input buttons, etc.)
+          if (
+            canvasPos.x >= gridPos.cellX &&
+            canvasPos.x <= gridPos.cellX + gridPos.cellWidth &&
+            canvasPos.y >= gridPos.cellY &&
+            canvasPos.y <= gridPos.cellY + gridPos.cellHeight
+          ) {
+            return { 
+              nodeId: node.id, 
+              paramName,
+              isString: true
+            };
+          }
         }
+      }
+    }
+    
+    return null;
+  }
+  
+  private hitTestBezierControlPoint(mouseX: number, mouseY: number): { nodeId: string, controlIndex: number } | null {
+    const canvasPos = this.screenToCanvas(mouseX, mouseY);
+    
+    for (const node of this.graph.nodes) {
+      const spec = this.nodeSpecs.get(node.type);
+      const metrics = this.nodeMetrics.get(node.id);
+      if (!spec || !metrics) continue;
+      
+      // Check if this is a bezier curve node
+      const isBezierNode = spec.id === 'bezier-curve' || (
+        spec.parameters.x1 !== undefined &&
+        spec.parameters.y1 !== undefined &&
+        spec.parameters.x2 !== undefined &&
+        spec.parameters.y2 !== undefined
+      );
+      
+      if (!isBezierNode) continue;
+      
+      // Get bezier editor position from metrics (use x1 parameter position as reference)
+      const x1Pos = metrics.parameterGridPositions.get('x1');
+      if (!x1Pos) continue;
+      
+      const bezierEditorX = x1Pos.cellX;
+      const bezierEditorY = x1Pos.cellY;
+      const bezierEditorWidth = x1Pos.cellWidth;
+      const bezierEditorHeight = x1Pos.cellHeight;
+      const bezierEditorPadding = getCSSVariableAsNumber('bezier-editor-padding', 12);
+      const controlPointSize = getCSSVariableAsNumber('bezier-editor-control-point-size', 8);
+      const controlPointHoverSize = getCSSVariableAsNumber('bezier-editor-control-point-hover-size', 12);
+      const hitRadius = Math.max(controlPointSize, controlPointHoverSize) / 2 + 4; // Add padding for easier clicking
+      
+      // Calculate drawing area
+      const drawX = bezierEditorX + bezierEditorPadding;
+      const drawY = bezierEditorY + bezierEditorPadding;
+      const drawWidth = bezierEditorWidth - bezierEditorPadding * 2;
+      const drawHeight = bezierEditorHeight - bezierEditorPadding * 2;
+      
+      // Get parameter values
+      const x1 = (node.parameters.x1 ?? spec.parameters.x1?.default ?? 0) as number;
+      const y1 = (node.parameters.y1 ?? spec.parameters.y1?.default ?? 0) as number;
+      const x2 = (node.parameters.x2 ?? spec.parameters.x2?.default ?? 1) as number;
+      const y2 = (node.parameters.y2 ?? spec.parameters.y2?.default ?? 1) as number;
+      
+      // Convert to screen coordinates (flip Y for screen space)
+      const cp1X = drawX + x1 * drawWidth;
+      const cp1Y = drawY + (1 - y1) * drawHeight;
+      const cp2X = drawX + x2 * drawWidth;
+      const cp2Y = drawY + (1 - y2) * drawHeight;
+      
+      // Check if mouse is near control point 1 (x1, y1)
+      const dx1 = canvasPos.x - cp1X;
+      const dy1 = canvasPos.y - cp1Y;
+      const dist1 = Math.sqrt(dx1 * dx1 + dy1 * dy1);
+      if (dist1 <= hitRadius) {
+        return { nodeId: node.id, controlIndex: 0 };
+      }
+      
+      // Check if mouse is near control point 2 (x2, y2)
+      const dx2 = canvasPos.x - cp2X;
+      const dy2 = canvasPos.y - cp2Y;
+      const dist2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+      if (dist2 <= hitRadius) {
+        return { nodeId: node.id, controlIndex: 1 };
+      }
+    }
+    
+    return null;
+  }
+  
+  private hitTestHeaderLabel(mouseX: number, mouseY: number): { nodeId: string } | null {
+    const canvasPos = this.screenToCanvas(mouseX, mouseY);
+    
+    for (const node of this.graph.nodes) {
+      const spec = this.nodeSpecs.get(node.type);
+      const metrics = this.nodeMetrics.get(node.id);
+      if (!spec || !metrics) continue;
+      
+      // Get header dimensions and label position
+      const headerHeight = metrics.headerHeight;
+      const iconBoxHeight = getCSSVariableAsNumber('node-icon-box-height', 48);
+      const iconBoxNameSpacing = getCSSVariableAsNumber('node-icon-box-name-spacing', 4);
+      const nameSize = getCSSVariableAsNumber('node-header-name-size', 14);
+      const nameWeight = getCSSVariableAsNumber('node-header-name-weight', 600);
+      
+      // Calculate label position (same as in renderHeader)
+      const groupHeight = iconBoxHeight + iconBoxNameSpacing + nameSize;
+      const iconBoxY = node.position.y + (headerHeight - groupHeight) / 2;
+      const nameY = iconBoxY + iconBoxHeight + iconBoxNameSpacing;
+      const iconX = node.position.x + metrics.width / 2;
+      
+      // Measure text to get label bounds
+      this.ctx.font = `${nameWeight} ${nameSize}px sans-serif`;
+      const labelText = node.label || spec.displayName;
+      const textMetrics = this.ctx.measureText(labelText);
+      const textWidth = textMetrics.width;
+      const textHeight = nameSize;
+      
+      // Create hit area around the label (with some padding for easier clicking)
+      const padding = 4;
+      const labelLeft = iconX - textWidth / 2 - padding;
+      const labelRight = iconX + textWidth / 2 + padding;
+      const labelTop = nameY - padding;
+      const labelBottom = nameY + textHeight + padding;
+      
+      // Check if click is within label bounds
+      if (
+        canvasPos.x >= labelLeft &&
+        canvasPos.x <= labelRight &&
+        canvasPos.y >= labelTop &&
+        canvasPos.y <= labelBottom
+      ) {
+        return { nodeId: node.id };
       }
     }
     
@@ -391,29 +727,26 @@ export class NodeEditorCanvas {
       const metrics = this.nodeMetrics.get(node.id);
       if (!spec || !metrics || node.collapsed) continue;
       
-      for (const [paramName, paramPos] of metrics.parameterPositions.entries()) {
+      // Use parameterGridPositions for the new grid layout
+      for (const [paramName, gridPos] of metrics.parameterGridPositions.entries()) {
         const paramSpec = spec.parameters[paramName];
         if (!paramSpec) continue;
         
         // Only check mode selector for float/int parameters (they can have input connections)
         if (paramSpec.type !== 'float' && paramSpec.type !== 'int') continue;
         
-        // Check if click is in mode selector area (right before value display, very close)
-        const padding = 8;
-        const valueWidth = 50;
-        const modeWidth = 20; // Reduced width to match rendering
-        const modeGap = 1; // Small gap to keep it visually distinct but close
-        const valueX = paramPos.x + paramPos.width - valueWidth - padding;
-        const modeX = valueX - modeWidth - modeGap;
-        const modeY = paramPos.y;
-        const modeHeight = paramPos.height;
+        // Mode button is on the left side of the knob, vertically centered with knob, horizontally aligned with port
+        const modeButtonSize = getCSSVariableAsNumber('param-mode-button-size', 20);
+        const modeButtonX = gridPos.portX; // Same X as port (horizontally aligned with port)
+        const modeButtonY = gridPos.knobY; // Same Y as knob center (vertically centered with knob)
+        const modeButtonRadius = modeButtonSize / 2;
         
-        if (
-          canvasPos.x >= modeX &&
-          canvasPos.x <= modeX + modeWidth &&
-          canvasPos.y >= modeY &&
-          canvasPos.y <= modeY + modeHeight
-        ) {
+        // Check if click is within the circular mode button area
+        const dx = canvasPos.x - modeButtonX;
+        const dy = canvasPos.y - modeButtonY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance <= modeButtonRadius) {
           return { 
             nodeId: node.id, 
             paramName
@@ -474,15 +807,15 @@ export class NodeEditorCanvas {
     input.style.height = `${paramPos.height * this.state.zoom}px`;
     input.style.fontSize = `${12 * this.state.zoom}px`;
     input.style.fontFamily = 'monospace';
-    const inputBorder = getCSSVariable('param-input-border', '2px solid #2196F3');
+    const inputBorder = getCSSVariable('param-input-border', `2px solid ${getCSSColor('color-blue-90', '#6565dc')}`);
     input.style.border = inputBorder;
     const inputRadius = getCSSVariable('input-radius', '2px');
     input.style.borderRadius = inputRadius;
     input.style.padding = '2px 4px';
     input.style.zIndex = '10000';
-    const inputBg = getCSSColor('param-input-bg', '#FFFFFF');
+    const inputBg = getCSSColor('param-input-bg', getCSSColor('color-gray-20', '#020203'));
     input.style.background = inputBg;
-    const inputColor = getCSSColor('param-input-color', '#333333');
+    const inputColor = getCSSColor('param-input-color', getCSSColor('color-gray-130', '#ebeff0'));
     input.style.color = inputColor;
     input.value = paramSpec.type === 'int' ? Math.round(numValue).toString() : numValue.toString();
     
@@ -522,6 +855,7 @@ export class NodeEditorCanvas {
       }
       
       this.hideParameterInput();
+      this.hideLabelInput();
     };
     
     // Handle cancel
@@ -529,6 +863,7 @@ export class NodeEditorCanvas {
       if (isCommitted) return; // Prevent double-removal
       isCommitted = true;
       this.hideParameterInput();
+      this.hideLabelInput();
     };
     
     const blurHandler = commitValue;
@@ -577,16 +912,167 @@ export class NodeEditorCanvas {
     }
   }
   
+  // Show text input overlay for label editing
+  public showLabelInput(screenX: number, screenY: number): boolean {
+    const labelHit = this.hitTestHeaderLabel(screenX, screenY);
+    if (!labelHit) return false;
+    
+    const node = this.graph.nodes.find(n => n.id === labelHit.nodeId);
+    const spec = this.nodeSpecs.get(node?.type || '');
+    const metrics = this.nodeMetrics.get(node?.id || '');
+    if (!node || !spec || !metrics) return false;
+    
+    // Get header dimensions and label position (same as in hitTestHeaderLabel)
+    const headerHeight = metrics.headerHeight;
+    const iconBoxHeight = getCSSVariableAsNumber('node-icon-box-height', 48);
+    const iconBoxNameSpacing = getCSSVariableAsNumber('node-icon-box-name-spacing', 4);
+    const nameSize = getCSSVariableAsNumber('node-header-name-size', 14);
+    const nameWeight = getCSSVariableAsNumber('node-header-name-weight', 600);
+    
+    // Calculate label position (same as in renderHeader)
+    const groupHeight = iconBoxHeight + iconBoxNameSpacing + nameSize;
+    const iconBoxY = node.position.y + (headerHeight - groupHeight) / 2;
+    const nameY = iconBoxY + iconBoxHeight + iconBoxNameSpacing;
+    const iconX = node.position.x + metrics.width / 2;
+    
+    // Measure text to get label bounds
+    this.ctx.font = `${nameWeight} ${nameSize}px sans-serif`;
+    const currentLabelText = node.label || spec.displayName;
+    const textMetrics = this.ctx.measureText(currentLabelText);
+    const textWidth = Math.max(textMetrics.width, 100); // Minimum width for input
+    const textHeight = nameSize;
+    
+    // Convert canvas position to screen position
+    const rect = this.canvas.getBoundingClientRect();
+    const labelLeft = iconX - textWidth / 2;
+    const screenXPos = rect.left + labelLeft * this.state.zoom + this.state.panX;
+    const screenYPos = rect.top + nameY * this.state.zoom + this.state.panY;
+    
+    // Remove existing input if any
+    this.hideLabelInput();
+    
+    // Create input element
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.style.position = 'fixed';
+    input.style.left = `${screenXPos}px`;
+    input.style.top = `${screenYPos}px`;
+    input.style.width = `${textWidth * this.state.zoom}px`;
+    input.style.height = `${(textHeight + 8) * this.state.zoom}px`;
+    input.style.fontSize = `${nameSize * this.state.zoom}px`;
+    input.style.fontWeight = `${nameWeight}`;
+    input.style.fontFamily = 'sans-serif';
+    input.style.textAlign = 'center';
+    const inputBorder = getCSSVariable('param-input-border', `2px solid ${getCSSColor('color-blue-90', '#6565dc')}`);
+    input.style.border = inputBorder;
+    const inputRadius = getCSSVariable('input-radius', '2px');
+    input.style.borderRadius = inputRadius;
+    input.style.padding = `${4 * this.state.zoom}px ${8 * this.state.zoom}px`;
+    input.style.zIndex = '10000';
+    const inputBg = getCSSColor('param-input-bg', getCSSColor('color-gray-20', '#020203'));
+    input.style.background = inputBg;
+    const inputColor = getCSSColor('param-input-color', getCSSColor('color-gray-130', '#ebeff0'));
+    input.style.color = inputColor;
+    input.value = node.label || ''; // Show current label or empty if using default
+    
+    // Add to document
+    document.body.appendChild(input);
+    this.labelInputElement = input;
+    
+    // Focus and select
+    setTimeout(() => {
+      input.focus();
+      input.select();
+    }, 0);
+    
+    // Track if we've already committed to prevent double-removal
+    let isCommitted = false;
+    
+    // Handle commit
+    const commitValue = () => {
+      if (isCommitted) return; // Prevent double-commit
+      isCommitted = true;
+      
+      const newLabel = input.value.trim();
+      
+      // Notify that the node label changed (callback will handle the update)
+      this.onNodeLabelChanged?.(node.id, newLabel === '' ? undefined : newLabel);
+      
+      // Update metrics and render (after callback updates the node)
+      this.updateNodeMetrics();
+      this.render();
+      
+      this.hideLabelInput();
+    };
+    
+    // Handle cancel
+    const cancelEdit = () => {
+      if (isCommitted) return; // Prevent double-removal
+      isCommitted = true;
+      this.hideLabelInput();
+    };
+    
+    const blurHandler = commitValue;
+    const keydownHandler = (e: KeyboardEvent) => {
+      // Stop propagation to prevent canvas keyboard shortcuts (like Delete/Backspace) from firing
+      e.stopPropagation();
+      
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        commitValue();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        cancelEdit();
+      }
+      // Allow Delete and Backspace to work normally in the input field
+      // (they won't bubble up to canvas due to stopPropagation)
+    };
+    
+    input.addEventListener('blur', blurHandler);
+    input.addEventListener('keydown', keydownHandler);
+    
+    // Store handlers for cleanup
+    (input as any)._blurHandler = blurHandler;
+    (input as any)._keydownHandler = keydownHandler;
+    
+    return true;
+  }
+  
+  // Hide label input overlay
+  public hideLabelInput(): void {
+    if (this.labelInputElement) {
+      const input = this.labelInputElement;
+      
+      // Remove event listeners first to prevent them from firing during removal
+      const blurHandler = (input as any)._blurHandler;
+      const keydownHandler = (input as any)._keydownHandler;
+      
+      if (blurHandler) {
+        input.removeEventListener('blur', blurHandler);
+      }
+      if (keydownHandler) {
+        input.removeEventListener('keydown', keydownHandler);
+      }
+      
+      // Only remove if the element is still in the DOM
+      if (input.parentNode) {
+        input.remove();
+      }
+      
+      this.labelInputElement = null;
+    }
+  }
+  
   private isPointNearBezier(
     px: number, py: number,
     x0: number, y0: number,
     x3: number, y3: number,
     threshold: number
   ): boolean {
-    // Bezier control points (50px horizontal offset)
-    const cp1X = x0 + 50;
+    // Bezier control points (strong horizontal movement: 100px offset)
+    const cp1X = x0 + 100;
     const cp1Y = y0;
-    const cp2X = x3 - 50;
+    const cp2X = x3 - 100;
     const cp2Y = y3;
     
     // Calculate curve length to determine appropriate number of samples
@@ -636,6 +1122,7 @@ export class NodeEditorCanvas {
     // Hide parameter input if clicking on canvas (but not on the input itself)
     if (this.parameterInputElement && e.target === this.canvas) {
       this.hideParameterInput();
+      this.hideLabelInput();
     }
     const mouseX = e.clientX;
     const mouseY = e.clientY;
@@ -678,6 +1165,28 @@ export class NodeEditorCanvas {
       }
     }
     
+    // Check for bezier control point hit (before parameter hit to prioritize)
+    const bezierHit = this.hitTestBezierControlPoint(mouseX, mouseY);
+    if (bezierHit && !this.isSpacePressed) {
+      const node = this.graph.nodes.find(n => n.id === bezierHit.nodeId);
+      const spec = this.nodeSpecs.get(node?.type || '');
+      if (node && spec) {
+        this.isDraggingBezierControl = true;
+        this.draggingBezierNodeId = bezierHit.nodeId;
+        this.draggingBezierControlIndex = bezierHit.controlIndex;
+        
+        // Store initial parameter values
+        const x1 = (node.parameters.x1 ?? spec.parameters.x1?.default ?? 0) as number;
+        const y1 = (node.parameters.y1 ?? spec.parameters.y1?.default ?? 0) as number;
+        const x2 = (node.parameters.x2 ?? spec.parameters.x2?.default ?? 1) as number;
+        const y2 = (node.parameters.y2 ?? spec.parameters.y2?.default ?? 1) as number;
+        this.dragBezierStartValues = { x1, y1, x2, y2 };
+        
+        this.canvas.style.cursor = 'move';
+        return;
+      }
+    }
+    
     // Check for parameter hit (for dragging or file input)
     const paramHit = this.hitTestParameter(mouseX, mouseY);
     if (paramHit && !this.isSpacePressed) {
@@ -691,10 +1200,29 @@ export class NodeEditorCanvas {
       const spec = this.nodeSpecs.get(node?.type || '');
       if (node && spec) {
         const paramSpec = spec.parameters[paramHit.paramName];
-        if (paramSpec && (paramSpec.type === 'float' || paramSpec.type === 'int')) {
+        if (!paramSpec) return;
+        
+        // Check if this is a toggle parameter (int with min 0, max 1)
+        // This matches the logic in NodeRenderer.isToggleNode
+        const isToggle = paramSpec.type === 'int' && 
+          paramSpec.min === 0 && 
+          paramSpec.max === 1;
+        
+        // Handle toggle parameters - toggle on click instead of drag
+        if (isToggle) {
+          const currentValue = (node.parameters[paramHit.paramName] ?? paramSpec.default) as number;
+          const newValue = currentValue === 1 ? 0 : 1;
+          this.onParameterChanged?.(paramHit.nodeId, paramHit.paramName, newValue);
+          this.render();
+          return;
+        }
+        
+        // Handle float/int parameters - drag to adjust
+        if (paramSpec.type === 'float' || paramSpec.type === 'int') {
           this.isDraggingParameter = true;
           this.draggingParameterNodeId = paramHit.nodeId;
           this.draggingParameterName = paramHit.paramName;
+          // Store screen-space position for consistent drag feel at all zoom levels
           this.dragParamStartY = mouseY;
           this.dragParamStartValue = (node.parameters[paramHit.paramName] ?? paramSpec.default) as number;
           this.canvas.style.cursor = 'ns-resize';
@@ -731,6 +1259,26 @@ export class NodeEditorCanvas {
       
       if (canvasPos.y - node.position.y < headerHeight) {
         // Clicked on header - prepare for potential drag (with threshold)
+        // Handle selection first (for multi-select with shift-click)
+        const multiSelect = e.shiftKey;
+        if (!multiSelect) {
+          // Single click: clear selection and select only this node
+          if (!this.state.selectedNodeIds.has(nodeHit)) {
+            this.state.selectedNodeIds.clear();
+            this.state.selectedConnectionIds.clear();
+            this.state.selectedNodeIds.add(nodeHit);
+            this.onNodeSelected?.(nodeHit, false);
+          }
+        } else {
+          // Shift-click: toggle selection
+          if (this.state.selectedNodeIds.has(nodeHit)) {
+            this.state.selectedNodeIds.delete(nodeHit);
+          } else {
+            this.state.selectedNodeIds.add(nodeHit);
+          }
+          this.onNodeSelected?.(nodeHit, true);
+        }
+        
         this.potentialNodeDrag = true;
         this.potentialNodeDragId = nodeHit;
         this.nodeDragStartX = mouseX;
@@ -739,6 +1287,7 @@ export class NodeEditorCanvas {
         this.dragOffsetX = mouseX - nodeScreenPos.x;
         this.dragOffsetY = mouseY - nodeScreenPos.y;
         this.canvas.style.cursor = 'grab';
+        this.render();
       } else {
         // Clicked on node body - select node
         const multiSelect = e.shiftKey;
@@ -838,24 +1387,77 @@ export class NodeEditorCanvas {
         this.draggingNodeId = this.potentialNodeDragId;
         this.potentialNodeDrag = false;
         this.canvas.style.cursor = 'grabbing';
+        
+        // Store initial positions for multi-node dragging
+        const draggedNode = this.graph.nodes.find(n => n.id === this.draggingNodeId);
+        if (draggedNode) {
+          this.draggingNodeInitialPos = { x: draggedNode.position.x, y: draggedNode.position.y };
+          
+          // Store initial positions of all selected nodes (including the dragged one)
+          this.selectedNodesInitialPositions.clear();
+          for (const selectedNodeId of this.state.selectedNodeIds) {
+            const selectedNode = this.graph.nodes.find(n => n.id === selectedNodeId);
+            if (selectedNode) {
+              this.selectedNodesInitialPositions.set(selectedNodeId, {
+                x: selectedNode.position.x,
+                y: selectedNode.position.y
+              });
+            }
+          }
+        }
       }
     }
     
-    // Update cursor based on hover state (when not actively dragging)
-    if (!this.isPanning && !this.isDraggingNode && !this.isConnecting && !this.isDraggingParameter && !this.potentialBackgroundPan && !this.potentialNodeDrag) {
-      // Check for parameter mode selector hover (highest priority)
-      const modeHit = this.hitTestParameterMode(mouseX, mouseY);
-      if (modeHit) {
-        this.canvas.style.cursor = 'pointer';
+    // Update cursor and port hover state (when not actively dragging)
+    if (!this.isPanning && !this.isDraggingNode && !this.isConnecting && !this.isDraggingParameter && !this.isDraggingBezierControl && !this.potentialBackgroundPan && !this.potentialNodeDrag) {
+      // Check for port hover (for highlighting)
+      const portHit = this.hitTestPort(mouseX, mouseY);
+      const previousHoveredPort = this.hoveredPort;
+      
+      if (portHit) {
+        this.hoveredPort = portHit;
+        this.canvas.style.cursor = 'crosshair';
       } else {
-        // Check for parameter value hover
-        const paramHit = this.hitTestParameter(mouseX, mouseY);
-        if (paramHit) {
-          this.canvas.style.cursor = 'ns-resize';
-        } else if (this.isSpacePressed) {
-          this.canvas.style.cursor = 'grab';
+        this.hoveredPort = null;
+      }
+      
+      // Render if hover state changed
+      if (previousHoveredPort !== this.hoveredPort) {
+        this.render();
+      }
+      
+      // Check for bezier control point hover (high priority)
+      const bezierHit = this.hitTestBezierControlPoint(mouseX, mouseY);
+      if (bezierHit) {
+        this.canvas.style.cursor = 'move';
+      } else {
+        // Check for parameter mode selector hover
+        const modeHit = this.hitTestParameterMode(mouseX, mouseY);
+        if (modeHit) {
+          this.canvas.style.cursor = 'pointer';
+        } else if (portHit) {
+          // Port hover already set cursor to crosshair above
         } else {
-          this.canvas.style.cursor = 'default';
+          // Check for parameter value hover
+          const paramHit = this.hitTestParameter(mouseX, mouseY);
+          if (paramHit) {
+            // Check if this is a toggle parameter - use pointer cursor for toggles
+            const node = this.graph.nodes.find(n => n.id === paramHit.nodeId);
+            const spec = this.nodeSpecs.get(node?.type || '');
+            if (node && spec) {
+              const paramSpec = spec.parameters[paramHit.paramName];
+              const isToggle = paramSpec && paramSpec.type === 'int' && 
+                paramSpec.min === 0 && 
+                paramSpec.max === 1;
+              this.canvas.style.cursor = isToggle ? 'pointer' : 'ns-resize';
+            } else {
+              this.canvas.style.cursor = 'ns-resize';
+            }
+          } else if (this.isSpacePressed) {
+            this.canvas.style.cursor = 'grab';
+          } else {
+            this.canvas.style.cursor = 'default';
+          }
         }
       }
     }
@@ -873,12 +1475,28 @@ export class NodeEditorCanvas {
       this.state.panX = mouseX - this.panStartX;
       this.state.panY = mouseY - this.panStartY;
       this.render();
-    } else if (this.isDraggingNode && this.draggingNodeId) {
+    } else if (this.isDraggingNode && this.draggingNodeId && this.draggingNodeInitialPos) {
       const node = this.graph.nodes.find(n => n.id === this.draggingNodeId)!;
       const canvasPos = this.screenToCanvas(mouseX - this.dragOffsetX, mouseY - this.dragOffsetY);
-      node.position.x = Math.round(canvasPos.x);
-      node.position.y = Math.round(canvasPos.y);
-      this.onNodeMoved?.(this.draggingNodeId, node.position.x, node.position.y);
+      
+      // Calculate smart guides and snap position for the primary dragged node
+      const { snappedX, snappedY, guides } = this.calculateSmartGuides(node, canvasPos.x, canvasPos.y);
+      
+      // Calculate the delta from initial position
+      const deltaX = snappedX - this.draggingNodeInitialPos.x;
+      const deltaY = snappedY - this.draggingNodeInitialPos.y;
+      
+      // Move all selected nodes by the same delta
+      for (const [nodeId, initialPos] of this.selectedNodesInitialPositions.entries()) {
+        const selectedNode = this.graph.nodes.find(n => n.id === nodeId);
+        if (selectedNode) {
+          selectedNode.position.x = Math.round(initialPos.x + deltaX);
+          selectedNode.position.y = Math.round(initialPos.y + deltaY);
+          this.onNodeMoved?.(nodeId, selectedNode.position.x, selectedNode.position.y);
+        }
+      }
+      
+      this.smartGuides = guides;
       this.render();
     } else if (this.isDraggingParameter && this.draggingParameterNodeId && this.draggingParameterName) {
       const node = this.graph.nodes.find(n => n.id === this.draggingParameterNodeId);
@@ -886,14 +1504,33 @@ export class NodeEditorCanvas {
       if (node && spec) {
         const paramSpec = spec.parameters[this.draggingParameterName];
         if (paramSpec && (paramSpec.type === 'float' || paramSpec.type === 'int')) {
-          const deltaY = this.dragParamStartY - mouseY; // Up = increase, down = decrease
+          // Calculate delta in screen space (Up = increase, down = decrease)
+          const deltaY = this.dragParamStartY - mouseY;
           const modifier = e.shiftKey ? 'fine' : (e.ctrlKey || e.metaKey ? 'coarse' : 'normal');
           
           const min = paramSpec.min ?? 0;
           const max = paramSpec.max ?? 1;
           const range = max - min;
           
-          const baseSensitivity = 100; // pixels per full range
+          // For range slider parameters, use the actual visual slider height in screen pixels
+          // This ensures that dragging the full height of the slider = full range
+          const isRangeSliderParam = ['inMin', 'inMax', 'outMin', 'outMax'].includes(this.draggingParameterName || '');
+          let baseSensitivity: number;
+          
+          if (isRangeSliderParam) {
+            // Calculate the visual slider height in screen pixels
+            const sliderUIHeight = getCSSVariableAsNumber('range-editor-height', 260);
+            const sliderUIPadding = 12;
+            const topMargin = 12;
+            const bottomMargin = 12;
+            const sliderHeight = sliderUIHeight - sliderUIPadding * 2 - topMargin - bottomMargin;
+            // Convert canvas height to screen pixels
+            baseSensitivity = sliderHeight * this.state.zoom;
+          } else {
+            // For regular parameters, use a default sensitivity
+            baseSensitivity = 100;
+          }
+          
           const multipliers = {
             'normal': 1.0,
             'fine': 0.1,
@@ -908,6 +1545,55 @@ export class NodeEditorCanvas {
           this.onParameterChanged?.(this.draggingParameterNodeId, this.draggingParameterName, newValue);
           this.render();
         }
+      }
+    } else if (this.isDraggingBezierControl && this.draggingBezierNodeId !== null && this.draggingBezierControlIndex !== null && this.dragBezierStartValues) {
+      const node = this.graph.nodes.find(n => n.id === this.draggingBezierNodeId);
+      const spec = this.nodeSpecs.get(node?.type || '');
+      const metrics = this.nodeMetrics.get(node?.id || '');
+      if (node && spec && metrics) {
+        // Get bezier editor position
+        const x1Pos = metrics.parameterGridPositions.get('x1');
+        if (!x1Pos) return;
+        
+        const bezierEditorX = x1Pos.cellX;
+        const bezierEditorY = x1Pos.cellY;
+        const bezierEditorWidth = x1Pos.cellWidth;
+        const bezierEditorHeight = x1Pos.cellHeight;
+        const bezierEditorPadding = getCSSVariableAsNumber('bezier-editor-padding', 12);
+        
+        // Calculate drawing area
+        const drawX = bezierEditorX + bezierEditorPadding;
+        const drawY = bezierEditorY + bezierEditorPadding;
+        const drawWidth = bezierEditorWidth - bezierEditorPadding * 2;
+        const drawHeight = bezierEditorHeight - bezierEditorPadding * 2;
+        
+        // Convert mouse position to canvas coordinates
+        const canvasPos = this.screenToCanvas(mouseX, mouseY);
+        
+        // Calculate new control point position (clamped to editor bounds)
+        let newX = (canvasPos.x - drawX) / drawWidth;
+        let newY = 1 - (canvasPos.y - drawY) / drawHeight; // Flip Y for parameter space
+        
+        // Clamp to [0, 1]
+        newX = Math.max(0, Math.min(1, newX));
+        newY = Math.max(0, Math.min(1, newY));
+        
+        // Update the appropriate parameters based on control index
+        if (this.draggingBezierControlIndex === 0) {
+          // Control point 1 (x1, y1)
+          node.parameters.x1 = newX;
+          node.parameters.y1 = newY;
+          this.onParameterChanged?.(this.draggingBezierNodeId, 'x1', newX);
+          this.onParameterChanged?.(this.draggingBezierNodeId, 'y1', newY);
+        } else if (this.draggingBezierControlIndex === 1) {
+          // Control point 2 (x2, y2)
+          node.parameters.x2 = newX;
+          node.parameters.y2 = newY;
+          this.onParameterChanged?.(this.draggingBezierNodeId, 'x2', newX);
+          this.onParameterChanged?.(this.draggingBezierNodeId, 'y2', newY);
+        }
+        
+        this.render();
       }
     } else if (this.isConnecting) {
       this.connectionMouseX = mouseX;
@@ -997,7 +1683,7 @@ export class NodeEditorCanvas {
         
         // If dragging a node, update its position to stay under the mouse cursor
         // The pan changed, so we need to recalculate the node's canvas position
-        if (this.isDraggingNode && this.draggingNodeId) {
+        if (this.isDraggingNode && this.draggingNodeId && this.draggingNodeInitialPos) {
           const node = this.graph.nodes.find(n => n.id === this.draggingNodeId);
           if (node) {
             // Convert current mouse position to canvas coordinates
@@ -1005,9 +1691,23 @@ export class NodeEditorCanvas {
               this.currentMouseX - this.dragOffsetX,
               this.currentMouseY - this.dragOffsetY
             );
-            node.position.x = Math.round(canvasPos.x);
-            node.position.y = Math.round(canvasPos.y);
-            this.onNodeMoved?.(this.draggingNodeId, node.position.x, node.position.y);
+            
+            // Calculate smart guides and snap position
+            const { snappedX, snappedY } = this.calculateSmartGuides(node, canvasPos.x, canvasPos.y);
+            
+            // Calculate the delta from initial position
+            const deltaX = snappedX - this.draggingNodeInitialPos.x;
+            const deltaY = snappedY - this.draggingNodeInitialPos.y;
+            
+            // Move all selected nodes by the same delta
+            for (const [nodeId, initialPos] of this.selectedNodesInitialPositions.entries()) {
+              const selectedNode = this.graph.nodes.find(n => n.id === nodeId);
+              if (selectedNode) {
+                selectedNode.position.x = Math.round(initialPos.x + deltaX);
+                selectedNode.position.y = Math.round(initialPos.y + deltaY);
+                this.onNodeMoved?.(nodeId, selectedNode.position.x, selectedNode.position.y);
+              }
+            }
           }
         }
         
@@ -1037,9 +1737,275 @@ export class NodeEditorCanvas {
     this.edgeScrollVelocityY = 0;
   }
   
+  /**
+   * Check if a node is visible in the viewport (fully or partially)
+   */
+  private isNodeVisible(node: NodeInstance, metrics: NodeRenderMetrics): boolean {
+    const rect = this.canvas.getBoundingClientRect();
+    
+    // Calculate viewport bounds in canvas coordinates
+    const viewportLeft = -this.state.panX / this.state.zoom;
+    const viewportTop = -this.state.panY / this.state.zoom;
+    const viewportRight = (rect.width - this.state.panX) / this.state.zoom;
+    const viewportBottom = (rect.height - this.state.panY) / this.state.zoom;
+    
+    // Calculate node bounds
+    const nodeLeft = node.position.x;
+    const nodeTop = node.position.y;
+    const nodeRight = node.position.x + metrics.width;
+    const nodeBottom = node.position.y + metrics.height;
+    
+    // Check if node overlaps with viewport
+    return !(
+      nodeRight < viewportLeft ||
+      nodeLeft > viewportRight ||
+      nodeBottom < viewportTop ||
+      nodeTop > viewportBottom
+    );
+  }
+  
+  /**
+   * Calculate smart guides and snap position for a node being dragged
+   */
+  private calculateSmartGuides(
+    draggingNode: NodeInstance,
+    proposedX: number,
+    proposedY: number
+  ): {
+    snappedX: number;
+    snappedY: number;
+    guides: { vertical: Array<{ x: number; startY: number; endY: number }>; horizontal: Array<{ y: number; startX: number; endX: number }> };
+  } {
+    const draggingMetrics = this.nodeMetrics.get(draggingNode.id);
+    if (!draggingMetrics) {
+      return { snappedX: proposedX, snappedY: proposedY, guides: { vertical: [], horizontal: [] } };
+    }
+    
+    const draggingLeft = proposedX;
+    const draggingRight = proposedX + draggingMetrics.width;
+    const draggingTop = proposedY;
+    const draggingBottom = proposedY + draggingMetrics.height;
+    
+    const verticalGuides: Array<{ x: number; startY: number; endY: number }> = [];
+    const horizontalGuides: Array<{ y: number; startX: number; endX: number }> = [];
+    
+    let snappedX = proposedX;
+    let snappedY = proposedY;
+    let bestSnapX: { pos: number; distance: number; alignType: string } | null = null;
+    let bestSnapY: { pos: number; distance: number; alignType: string } | null = null;
+    
+    const snapThreshold = this.SNAP_THRESHOLD / this.state.zoom;
+    
+    // Check alignment with other visible nodes
+    for (const node of this.graph.nodes) {
+      if (node.id === draggingNode.id) continue;
+      
+      const metrics = this.nodeMetrics.get(node.id);
+      if (!metrics) continue;
+      
+      // Only consider nodes that are at least partially visible
+      if (!this.isNodeVisible(node, metrics)) continue;
+      
+      const nodeLeft = node.position.x;
+      const nodeRight = node.position.x + metrics.width;
+      const nodeTop = node.position.y;
+      const nodeBottom = node.position.y + metrics.height;
+      
+      // Vertical alignment checks (left, right)
+      const alignmentsX = [
+        { pos: nodeLeft, alignType: 'left' },
+        { pos: nodeRight, alignType: 'right' }
+      ];
+      
+      for (const align of alignmentsX) {
+        // Check if dragging node's left edge aligns
+        const distLeft = Math.abs(draggingLeft - align.pos);
+        // Calculate what the position change would be if we snap
+        const positionChangeLeft = Math.abs(align.pos - proposedX);
+        if (distLeft < snapThreshold && positionChangeLeft <= snapThreshold && (!bestSnapX || distLeft < bestSnapX.distance)) {
+          bestSnapX = { pos: align.pos, distance: distLeft, alignType: align.alignType };
+        }
+        
+        // Check if dragging node's right edge aligns
+        const distRight = Math.abs(draggingRight - align.pos);
+        // Calculate what the position change would be if we snap (right edge alignment)
+        const positionChangeRight = Math.abs((align.pos - draggingMetrics.width) - proposedX);
+        if (distRight < snapThreshold && positionChangeRight <= snapThreshold && (!bestSnapX || distRight < bestSnapX.distance)) {
+          bestSnapX = { pos: align.pos, distance: distRight, alignType: align.alignType };
+        }
+        
+        // Only add guide if we're actually close enough to potentially snap (within threshold)
+        if ((distLeft < snapThreshold && positionChangeLeft <= snapThreshold) || 
+            (distRight < snapThreshold && positionChangeRight <= snapThreshold)) {
+          const guideStartY = Math.min(draggingTop, nodeTop);
+          const guideEndY = Math.max(draggingBottom, nodeBottom);
+          verticalGuides.push({ x: align.pos, startY: guideStartY, endY: guideEndY });
+        }
+      }
+      
+      // Horizontal alignment checks (top, bottom)
+      const alignmentsY = [
+        { pos: nodeTop, alignType: 'top' },
+        { pos: nodeBottom, alignType: 'bottom' }
+      ];
+      
+      for (const align of alignmentsY) {
+        // Check if dragging node's top edge aligns
+        const distTop = Math.abs(draggingTop - align.pos);
+        // Calculate what the position change would be if we snap
+        const positionChangeTop = Math.abs(align.pos - proposedY);
+        if (distTop < snapThreshold && positionChangeTop <= snapThreshold && (!bestSnapY || distTop < bestSnapY.distance)) {
+          bestSnapY = { pos: align.pos, distance: distTop, alignType: align.alignType };
+        }
+        
+        // Check if dragging node's bottom edge aligns
+        const distBottom = Math.abs(draggingBottom - align.pos);
+        // Calculate what the position change would be if we snap (bottom edge alignment)
+        const positionChangeBottom = Math.abs((align.pos - draggingMetrics.height) - proposedY);
+        if (distBottom < snapThreshold && positionChangeBottom <= snapThreshold && (!bestSnapY || distBottom < bestSnapY.distance)) {
+          bestSnapY = { pos: align.pos, distance: distBottom, alignType: align.alignType };
+        }
+        
+        // Only add guide if we're actually close enough to potentially snap (within threshold)
+        if ((distTop < snapThreshold && positionChangeTop <= snapThreshold) || 
+            (distBottom < snapThreshold && positionChangeBottom <= snapThreshold)) {
+          const guideStartX = Math.min(draggingLeft, nodeLeft);
+          const guideEndX = Math.max(draggingRight, nodeRight);
+          horizontalGuides.push({ y: align.pos, startX: guideStartX, endX: guideEndX });
+        }
+      }
+    }
+    
+    // Apply snapping based on best matches, but only if the position change is small
+    if (bestSnapX) {
+      let candidateSnappedX: number;
+      if (bestSnapX.alignType === 'left') {
+        candidateSnappedX = bestSnapX.pos;
+      } else if (bestSnapX.alignType === 'right') {
+        candidateSnappedX = bestSnapX.pos - draggingMetrics.width;
+      } else {
+        candidateSnappedX = proposedX;
+      }
+      
+      // Only snap if the resulting position change is small (within threshold)
+      const positionChangeX = Math.abs(candidateSnappedX - proposedX);
+      if (positionChangeX <= snapThreshold) {
+        snappedX = candidateSnappedX;
+      }
+    }
+    
+    if (bestSnapY) {
+      let candidateSnappedY: number;
+      if (bestSnapY.alignType === 'top') {
+        candidateSnappedY = bestSnapY.pos;
+      } else if (bestSnapY.alignType === 'bottom') {
+        candidateSnappedY = bestSnapY.pos - draggingMetrics.height;
+      } else {
+        candidateSnappedY = proposedY;
+      }
+      
+      // Only snap if the resulting position change is small (within threshold)
+      const positionChangeY = Math.abs(candidateSnappedY - proposedY);
+      if (positionChangeY <= snapThreshold) {
+        snappedY = candidateSnappedY;
+      }
+    }
+    
+    // Filter duplicate guides and clamp to viewport
+    const uniqueVerticalGuides = new Map<number, { x: number; startY: number; endY: number }>();
+    for (const guide of verticalGuides) {
+      const existing = uniqueVerticalGuides.get(guide.x);
+      if (!existing) {
+        uniqueVerticalGuides.set(guide.x, guide);
+      } else {
+        // Merge guide extents
+        existing.startY = Math.min(existing.startY, guide.startY);
+        existing.endY = Math.max(existing.endY, guide.endY);
+      }
+    }
+    
+    const uniqueHorizontalGuides = new Map<number, { y: number; startX: number; endX: number }>();
+    for (const guide of horizontalGuides) {
+      const existing = uniqueHorizontalGuides.get(guide.y);
+      if (!existing) {
+        uniqueHorizontalGuides.set(guide.y, guide);
+      } else {
+        // Merge guide extents
+        existing.startX = Math.min(existing.startX, guide.startX);
+        existing.endX = Math.max(existing.endX, guide.endX);
+      }
+    }
+    
+    return {
+      snappedX,
+      snappedY,
+      guides: {
+        vertical: Array.from(uniqueVerticalGuides.values()),
+        horizontal: Array.from(uniqueHorizontalGuides.values())
+      }
+    };
+  }
+  
+  /**
+   * Render smart guide lines
+   */
+  private renderSmartGuides(): void {
+    if (this.smartGuides.vertical.length === 0 && this.smartGuides.horizontal.length === 0) {
+      return;
+    }
+    
+    const rect = this.canvas.getBoundingClientRect();
+    const viewportLeft = -this.state.panX / this.state.zoom;
+    const viewportTop = -this.state.panY / this.state.zoom;
+    const viewportRight = (rect.width - this.state.panX) / this.state.zoom;
+    const viewportBottom = (rect.height - this.state.panY) / this.state.zoom;
+    
+    const guideColor = getCSSColor('smart-guide-color', getCSSColor('color-blue-90', '#6565dc'));
+    const guideWidth = 1;
+    
+    this.ctx.strokeStyle = guideColor;
+    this.ctx.lineWidth = guideWidth / this.state.zoom;
+    this.ctx.setLineDash([4 / this.state.zoom, 4 / this.state.zoom]);
+    this.ctx.globalAlpha = 0.8;
+    
+    // Render vertical guides
+    for (const guide of this.smartGuides.vertical) {
+      // Clamp guide to viewport
+      const startY = Math.max(viewportTop, Math.min(viewportBottom, guide.startY));
+      const endY = Math.max(viewportTop, Math.min(viewportBottom, guide.endY));
+      
+      if (endY > startY) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(guide.x, startY);
+        this.ctx.lineTo(guide.x, endY);
+        this.ctx.stroke();
+      }
+    }
+    
+    // Render horizontal guides
+    for (const guide of this.smartGuides.horizontal) {
+      // Clamp guide to viewport
+      const startX = Math.max(viewportLeft, Math.min(viewportRight, guide.startX));
+      const endX = Math.max(viewportLeft, Math.min(viewportRight, guide.endX));
+      
+      if (endX > startX) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(startX, guide.y);
+        this.ctx.lineTo(endX, guide.y);
+        this.ctx.stroke();
+      }
+    }
+    
+    this.ctx.setLineDash([]);
+    this.ctx.globalAlpha = 1.0;
+  }
+  
   private handleMouseUp(e: MouseEvent): void {
     // Stop edge scrolling
     this.stopEdgeScrolling();
+    
+    // Clear smart guides
+    this.smartGuides = { vertical: [], horizontal: [] };
     
     if (this.isConnecting) {
       // Check if released on a valid port
@@ -1085,20 +2051,11 @@ export class NodeEditorCanvas {
       this.render();
     }
     
-    // If we had a potential node drag but didn't actually drag, select the node
+    // If we had a potential node drag but didn't actually drag, the selection was already handled in mouseDown
+    // So we don't need to do anything here - just clean up
     if (this.potentialNodeDrag && !this.isDraggingNode && this.potentialNodeDragId) {
-      const multiSelect = e.shiftKey;
-      if (!multiSelect) {
-        this.state.selectedNodeIds.clear();
-        this.state.selectedConnectionIds.clear();
-      }
-      if (this.state.selectedNodeIds.has(this.potentialNodeDragId)) {
-        this.state.selectedNodeIds.delete(this.potentialNodeDragId);
-      } else {
-        this.state.selectedNodeIds.add(this.potentialNodeDragId);
-      }
-      this.onNodeSelected?.(this.potentialNodeDragId, multiSelect);
-      this.render();
+      // Selection was already handled in mouseDown, so we just clean up the drag state
+      // No need to change selection here
     }
     
     // Handle double-click on parameter value for text input
@@ -1113,9 +2070,15 @@ export class NodeEditorCanvas {
     this.isPanning = false;
     this.isDraggingNode = false;
     this.draggingNodeId = null;
+    this.draggingNodeInitialPos = null;
+    this.selectedNodesInitialPositions.clear();
     this.isDraggingParameter = false;
     this.draggingParameterNodeId = null;
     this.draggingParameterName = null;
+    this.isDraggingBezierControl = false;
+    this.draggingBezierNodeId = null;
+    this.draggingBezierControlIndex = null;
+    this.dragBezierStartValues = null;
     this.potentialBackgroundPan = false;
     this.potentialNodeDrag = false;
     this.potentialNodeDragId = null;
@@ -1199,13 +2162,21 @@ export class NodeEditorCanvas {
     }
   }
   
+  private handleMouseLeave(): void {
+    // Clear port hover when mouse leaves canvas
+    if (this.hoveredPort && !this.isConnecting) {
+      this.hoveredPort = null;
+      this.render();
+    }
+  }
+  
   // Rendering
   public render(): void {
     const { width, height } = this.canvas;
     this.ctx.clearRect(0, 0, width, height);
     
     // Fill canvas background
-    const canvasBg = getCSSColor('canvas-bg', '#0f1013');
+    const canvasBg = getCSSColor('canvas-bg', getCSSColor('color-gray-40', '#0a0a0e'));
     this.ctx.fillStyle = canvasBg;
     this.ctx.fillRect(0, 0, width, height);
     
@@ -1219,15 +2190,26 @@ export class NodeEditorCanvas {
     // Render grid
     this.renderGrid();
     
-    // Render connections (behind nodes)
-    this.renderConnections();
+    // Render regular connections (behind nodes)
+    this.renderRegularConnections();
     
-    // Render nodes
-    this.renderNodes();
+    // Render nodes (without ports)
+    this.renderNodes(true);
+    
+    // Render parameter port connections (on top of nodes)
+    this.renderParameterConnections();
+    
+    // Render ports (on top of all connections)
+    this.renderNodePorts();
     
     // Render temporary connection line (if connecting)
     if (this.isConnecting) {
       this.renderTemporaryConnection();
+    }
+    
+    // Render smart guides (if dragging node)
+    if (this.isDraggingNode && this.draggingNodeId) {
+      this.renderSmartGuides();
     }
     
     // Restore context
@@ -1236,7 +2218,7 @@ export class NodeEditorCanvas {
   
   private renderGrid(): void {
     const gridSize = getCSSVariableAsNumber('canvas-grid-size', 50);
-    const gridColor = getCSSColor('canvas-grid-color', '#2A2A2A');
+    const gridColor = getCSSColor('canvas-grid-color', getCSSColor('color-gray-50', '#111317'));
     const dotRadius = getCSSVariableAsNumber('canvas-grid-dot-radius', 1.5);
     
     this.ctx.fillStyle = gridColor;
@@ -1258,13 +2240,13 @@ export class NodeEditorCanvas {
     this.ctx.fill();
   }
   
-  private renderNodes(): void {
+  private renderNodes(skipPorts: boolean = false): void {
     for (const node of this.graph.nodes) {
-      this.renderNode(node);
+      this.renderNode(node, skipPorts);
     }
   }
   
-  private renderNode(node: NodeInstance): void {
+  private renderNode(node: NodeInstance, skipPorts: boolean = false): void {
     const spec = this.nodeSpecs.get(node.type);
     if (!spec) return;
     
@@ -1273,7 +2255,7 @@ export class NodeEditorCanvas {
       // Calculate metrics if missing
       const newMetrics = this.nodeRenderer.calculateMetrics(node, spec);
       this.nodeMetrics.set(node.id, newMetrics);
-      this.renderNode(node); // Recursive call with metrics
+      this.renderNode(node, skipPorts); // Recursive call with metrics
       return;
     }
     
@@ -1282,12 +2264,128 @@ export class NodeEditorCanvas {
     const isPortHovered = this.hoveredPort && this.hoveredPort.nodeId === node.id;
     const hoveredPortName = isPortHovered ? (this.hoveredPort!.parameter || this.hoveredPort!.port) : null;
     const isHoveredParameter = isPortHovered ? !!this.hoveredPort!.parameter : undefined;
-    this.nodeRenderer.renderNode(node, spec, metrics, isSelected, hoveredPortName, isHoveredParameter);
+    
+    // Check if this node's port is the source of a connection being dragged
+    let connectingPortName: string | null = null;
+    let isConnectingParameter: boolean | undefined = undefined;
+    if (this.isConnecting && this.connectionStartNodeId === node.id) {
+      connectingPortName = this.connectionStartParameter || this.connectionStartPort || null;
+      isConnectingParameter = !!this.connectionStartParameter;
+    }
+    
+    // Compute effective parameter values for parameters with input connections
+    const effectiveParameterValues = new Map<string, number | null>();
+    const connectedParameters = new Set<string>();
+    
+    if (!node.collapsed) {
+      for (const [paramName, paramSpec] of Object.entries(spec.parameters)) {
+        if (paramSpec.type === 'float') {
+          const effectiveValue = computeEffectiveParameterValue(
+            node,
+            paramName,
+            paramSpec,
+            this.graph,
+            this.nodeSpecs,
+            this.audioManager
+          );
+          effectiveParameterValues.set(paramName, effectiveValue);
+          
+          // Check if this parameter has a connection
+          const hasConnection = this.graph.connections.some(
+            conn => conn.targetNodeId === node.id && conn.targetParameter === paramName
+          );
+          if (hasConnection) {
+            connectedParameters.add(paramName);
+          }
+        }
+      }
+    }
+    
+    this.nodeRenderer.renderNode(node, spec, metrics, isSelected, hoveredPortName, isHoveredParameter, effectiveParameterValues, connectingPortName, isConnectingParameter, connectedParameters, skipPorts);
   }
   
-  private renderConnections(): void {
+  private renderNodePorts(): void {
+    for (const node of this.graph.nodes) {
+      const spec = this.nodeSpecs.get(node.type);
+      const metrics = this.nodeMetrics.get(node.id);
+      if (!spec || !metrics) continue;
+      
+      const isPortHovered = this.hoveredPort && this.hoveredPort.nodeId === node.id;
+      const hoveredPortName = isPortHovered ? (this.hoveredPort!.parameter || this.hoveredPort!.port) : null;
+      const isHoveredParameter = isPortHovered ? !!this.hoveredPort!.parameter : undefined;
+      
+      let connectingPortName: string | null = null;
+      let isConnectingParameter: boolean | undefined = undefined;
+      if (this.isConnecting && this.connectionStartNodeId === node.id) {
+        connectingPortName = this.connectionStartParameter || this.connectionStartPort || null;
+        isConnectingParameter = !!this.connectionStartParameter;
+      }
+      
+      // Calculate connected parameters for this node
+      const connectedParameters = new Set<string>();
+      if (!node.collapsed) {
+        for (const [paramName, paramSpec] of Object.entries(spec.parameters)) {
+          if (paramSpec.type === 'float' || paramSpec.type === 'int') {
+            const hasConnection = this.graph.connections.some(
+              conn => conn.targetNodeId === node.id && conn.targetParameter === paramName
+            );
+            if (hasConnection) {
+              connectedParameters.add(paramName);
+            }
+          }
+        }
+      }
+      
+      this.nodeRenderer.renderNodePorts(node, spec, metrics, hoveredPortName, isHoveredParameter, connectingPortName, isConnectingParameter, connectedParameters);
+    }
+  }
+  
+  private startEffectiveValueUpdates(): void {
+    // Update effective values periodically (every 100ms for smooth animation)
+    if (this.effectiveValueUpdateInterval) {
+      clearInterval(this.effectiveValueUpdateInterval);
+    }
+    
+    this.effectiveValueUpdateInterval = window.setInterval(() => {
+      // Trigger a render to update the display
+      this.render();
+    }, 100);
+  }
+  
+  private stopEffectiveValueUpdates(): void {
+    if (this.effectiveValueUpdateInterval) {
+      clearInterval(this.effectiveValueUpdateInterval);
+      this.effectiveValueUpdateInterval = null;
+    }
+  }
+  
+  public destroy(): void {
+    this.stopEffectiveValueUpdates();
+    // Cleanup edge scrolling
+    if (this.edgeScrollAnimationFrame !== null) {
+      cancelAnimationFrame(this.edgeScrollAnimationFrame);
+    }
+  }
+  
+  public setAudioManager(audioManager: AudioManager | undefined): void {
+    this.audioManager = audioManager;
+  }
+  
+  private renderRegularConnections(): void {
+    // Render connections that are NOT connected to parameter ports
     for (const conn of this.graph.connections) {
-      this.renderConnection(conn);
+      if (!conn.targetParameter) {
+        this.renderConnection(conn);
+      }
+    }
+  }
+  
+  private renderParameterConnections(): void {
+    // Render connections that ARE connected to parameter ports (on top of nodes)
+    for (const conn of this.graph.connections) {
+      if (conn.targetParameter) {
+        this.renderConnection(conn);
+      }
     }
   }
   
@@ -1324,15 +2422,29 @@ export class NodeEditorCanvas {
     const targetX = targetPortPos.x;
     const targetY = targetPortPos.y;
     
-    // Bezier curve
-    const cp1X = sourceX + 50;
+    // Bezier curve with strong horizontal movement
+    // Output connections: move straight right first (100px)
+    // Input connections: come in straight from left (100px)
+    const cp1X = sourceX + 100;
     const cp1Y = sourceY;
-    const cp2X = targetX - 50;
+    const cp2X = targetX - 100;
     const cp2Y = targetY;
     
-    const connectionColor = isSelected 
-      ? getCSSColor('connection-color-selected', '#2196F3')
-      : getCSSColor('connection-color', '#999999');
+    // Get connection color based on source node category
+    const categoryMap: Record<string, string> = {
+      'Inputs': 'connection-color-inputs',
+      'Patterns': 'connection-color-patterns',
+      'Shapes': 'connection-color-shapes',
+      'Math': 'connection-color-math',
+      'Utilities': 'connection-color-utilities',
+      'Distort': 'connection-color-distort',
+      'Blend': 'connection-color-blend',
+      'Mask': 'connection-color-mask',
+      'Effects': 'connection-color-effects',
+      'Output': 'connection-color-output'
+    };
+    const connectionColorToken = categoryMap[sourceSpec.category] || 'connection-color-default';
+    const connectionColor = getCSSColor(connectionColorToken, getCSSColor('connection-color-default', getCSSColor('color-gray-100', '#747e87')));
     const connectionWidth = isSelected
       ? getCSSVariableAsNumber('connection-width-selected', 3)
       : getCSSVariableAsNumber('connection-width', 2);
@@ -1364,6 +2476,7 @@ export class NodeEditorCanvas {
     
     // Get actual port position
     let sourcePortPos: { x: number; y: number } | undefined;
+    
     if (this.connectionStartParameter) {
       // Parameter port
       sourcePortPos = sourceMetrics.parameterInputPortPositions.get(this.connectionStartParameter);
@@ -1376,29 +2489,117 @@ export class NodeEditorCanvas {
     if (!sourcePortPos) return;
     
     const rect = this.canvas.getBoundingClientRect();
-    const targetX = (this.connectionMouseX - rect.left - this.state.panX) / this.state.zoom;
-    const targetY = (this.connectionMouseY - rect.top - this.state.panY) / this.state.zoom;
+    let targetX = (this.connectionMouseX - rect.left - this.state.panX) / this.state.zoom;
+    let targetY = (this.connectionMouseY - rect.top - this.state.panY) / this.state.zoom;
+    
+    let isSnapped = false;
+    
+    // Check if we're near a valid port and snap to it
+    const portHit = this.hitTestPort(this.connectionMouseX, this.connectionMouseY);
+    if (portHit && portHit.nodeId !== this.connectionStartNodeId) {
+      // Check if this is a valid target port
+      const isValidTarget = this.connectionStartIsOutput 
+        ? !portHit.isOutput  // Dragging from output: can connect to input ports or parameters
+        : portHit.isOutput;  // Dragging from input: can connect to output ports
+      
+      if (isValidTarget) {
+        // Get the port position and snap to it
+        const targetNode = this.graph.nodes.find(n => n.id === portHit.nodeId);
+        const targetSpec = this.nodeSpecs.get(targetNode?.type || '');
+        const targetMetrics = this.nodeMetrics.get(portHit.nodeId);
+        
+        if (targetNode && targetSpec && targetMetrics) {
+          let snappedPortPos: { x: number; y: number } | undefined;
+          
+          if (portHit.parameter) {
+            // Parameter port
+            snappedPortPos = targetMetrics.parameterInputPortPositions.get(portHit.parameter);
+          } else {
+            // Regular port
+            const portKey = `${portHit.isOutput ? 'output' : 'input'}:${portHit.port}`;
+            snappedPortPos = targetMetrics.portPositions.get(portKey);
+          }
+          
+          if (snappedPortPos) {
+            targetX = snappedPortPos.x;
+            targetY = snappedPortPos.y;
+            isSnapped = true;
+          }
+        }
+      }
+    }
     
     const sourceX = sourcePortPos.x;
     const sourceY = sourcePortPos.y;
     
-    const cp1X = sourceX + 50;
+    // Bezier curve with strong horizontal movement
+    // Output connections: move straight right first (100px), then come in from left
+    // Input connections: move straight left first (100px), then come in from right
+    const cp1X = this.connectionStartIsOutput ? sourceX + 100 : sourceX - 100;
     const cp1Y = sourceY;
-    const cp2X = targetX - 50;
+    const cp2X = this.connectionStartIsOutput ? targetX - 100 : targetX + 100;
     const cp2Y = targetY;
     
-    const tempConnectionColor = getCSSColor('connection-color', '#999999');
+    // Get connection color based on source node category
+    const categoryMap: Record<string, string> = {
+      'Inputs': 'connection-color-inputs',
+      'Patterns': 'connection-color-patterns',
+      'Shapes': 'connection-color-shapes',
+      'Math': 'connection-color-math',
+      'Utilities': 'connection-color-utilities',
+      'Distort': 'connection-color-distort',
+      'Blend': 'connection-color-blend',
+      'Mask': 'connection-color-mask',
+      'Effects': 'connection-color-effects',
+      'Output': 'connection-color-output'
+    };
+    const connectionColorToken = categoryMap[sourceSpec.category] || 'connection-color-default';
+    const connectionColor = getCSSColor(connectionColorToken, getCSSColor('connection-color-default', getCSSColor('color-gray-100', '#747e87')));
+    
+    // Draw preview port at cursor position first (smaller, slightly transparent)
+    // We'll render it directly here since renderPort is private
+    const previewScale = 0.8; // 80% size
+    const previewOpacity = 0.7; // 70% opacity
+    const previewRadius = getCSSVariableAsNumber('port-radius', 4) * previewScale;
+    
+    // Draw highlight circle (connecting state) - use green color from token
+    const highlightRadius = previewRadius * 3.5;
+    const draggingColorRGBA = getCSSColorRGBA('port-dragging-color', { r: 0, g: 255, b: 136, a: 1 });
+    const draggingOuterOpacity = getCSSVariableAsNumber('port-dragging-outer-opacity', 0.6);
+    
+    // Calculate actual opacity value (multiply before using in string)
+    const actualOuterOpacity = draggingOuterOpacity * previewOpacity;
+    
+    // Draw larger transparent circle behind (outer highlight)
+    this.ctx.fillStyle = `rgba(${draggingColorRGBA.r}, ${draggingColorRGBA.g}, ${draggingColorRGBA.b}, ${actualOuterOpacity})`;
+    this.ctx.beginPath();
+    this.ctx.arc(targetX, targetY, highlightRadius, 0, Math.PI * 2);
+    this.ctx.fill();
+    
+    // Draw solid green port on top (inner circle)
+    this.ctx.fillStyle = `rgba(${draggingColorRGBA.r}, ${draggingColorRGBA.g}, ${draggingColorRGBA.b}, ${previewOpacity})`;
+    this.ctx.beginPath();
+    this.ctx.arc(targetX, targetY, previewRadius, 0, Math.PI * 2);
+    this.ctx.fill();
+    
     const tempConnectionWidth = getCSSVariableAsNumber('connection-width', 2);
-    this.ctx.strokeStyle = tempConnectionColor;
+    this.ctx.strokeStyle = connectionColor;
     this.ctx.lineWidth = tempConnectionWidth;
-    this.ctx.setLineDash([5, 5]);
+    
+    // Use dotted line when not snapped, solid when snapped
+    if (isSnapped) {
+      // Solid line when snapped
+      this.ctx.setLineDash([]);
+    } else {
+      // Dotted line when not snapped
+      const dashPattern = [2, 18]; // 2px dash, 10px gap
+      this.ctx.setLineDash(dashPattern);
+    }
     
     this.ctx.beginPath();
     this.ctx.moveTo(sourceX, sourceY);
     this.ctx.bezierCurveTo(cp1X, cp1Y, cp2X, cp2Y, targetX, targetY);
     this.ctx.stroke();
-    
-    this.ctx.setLineDash([]);
   }
   
   // Public API
@@ -1511,6 +2712,7 @@ export class NodeEditorCanvas {
     onParameterChanged?: (nodeId: string, paramName: string, value: number) => void;
     onFileParameterChanged?: (nodeId: string, paramName: string, file: File) => void;
     onParameterInputModeChanged?: (nodeId: string, paramName: string, mode: import('../../types/nodeSpec').ParameterInputMode) => void;
+    onNodeLabelChanged?: (nodeId: string, label: string | undefined) => void;
     isDialogVisible?: () => boolean;
   }): void {
     this.onNodeMoved = callbacks.onNodeMoved;
@@ -1522,6 +2724,7 @@ export class NodeEditorCanvas {
     this.onParameterChanged = callbacks.onParameterChanged;
     this.onFileParameterChanged = callbacks.onFileParameterChanged;
     this.onParameterInputModeChanged = callbacks.onParameterInputModeChanged;
+    this.onNodeLabelChanged = callbacks.onNodeLabelChanged;
     this.isDialogVisible = callbacks.isDialogVisible;
   }
 

@@ -14,6 +14,7 @@ export interface NodeSpec {
   displayName: string;            // Human-readable name
   description?: string;           // Node description
   category: string;               // Category (Input, Transform, Generator, etc.)
+  icon?: string;                  // Optional node-specific icon identifier (overrides category icon)
   
   // Ports
   inputs: PortSpec[];            // Input ports

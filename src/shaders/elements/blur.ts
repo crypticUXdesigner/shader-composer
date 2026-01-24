@@ -37,7 +37,7 @@ float soften(float value, float amount) {
       min: 0.0,
       max: 1.0,
       step: 0.01,
-      label: 'Blur Amount'
+      label: 'Amount'
     },
     blurRadius: {
       type: 'float',

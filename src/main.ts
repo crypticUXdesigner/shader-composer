@@ -154,6 +154,9 @@ class App {
         onGraphChanged: async (graph) => {
           await this.runtimeManager.setGraph(graph);
         },
+        onConnectionRemoved: (connectionId) => {
+          this.runtimeManager.onConnectionRemoved(connectionId);
+        },
         onParameterChanged: (nodeId, paramName, value) => {
           this.runtimeManager.updateParameter(nodeId, paramName, value);
         },
@@ -162,6 +165,9 @@ class App {
         }
       }
     );
+    
+    // Set audio manager reference in canvas for real-time value display
+    this.nodeEditor.getCanvasComponent().setAudioManager(this.runtimeManager.getAudioManager());
     
     // Setup global audio controls
     this.layout.setGlobalAudioCallbacks({
@@ -263,7 +269,15 @@ class App {
   }
   
   private startAnimation(): void {
+    let lastFrameTime = performance.now();
+    
     const animate = (currentTime: number) => {
+      // Calculate frame time for FPS tracking
+      const frameTime = currentTime - lastFrameTime;
+      lastFrameTime = currentTime;
+      
+      // Update FPS counter
+      this.layout.updateFPS(frameTime);
       
       // Update time uniform
       const time = (currentTime / 1000.0) % 1000.0;

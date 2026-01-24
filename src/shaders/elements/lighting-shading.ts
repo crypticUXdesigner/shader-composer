@@ -89,7 +89,7 @@ vec3 surfaceNormal(vec2 p) {
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Direction X (Directional)'
+      label: 'X'
     },
     lightDirY: {
       type: 'float',
@@ -97,7 +97,7 @@ vec3 surfaceNormal(vec2 p) {
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Direction Y (Directional)'
+      label: 'Y'
     },
     lightDirZ: {
       type: 'float',
@@ -105,7 +105,7 @@ vec3 surfaceNormal(vec2 p) {
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Direction Z (Directional)'
+      label: 'Z'
     },
     lightPosX: {
       type: 'float',
@@ -113,7 +113,7 @@ vec3 surfaceNormal(vec2 p) {
       min: -5.0,
       max: 5.0,
       step: 0.1,
-      label: 'Position X (Point)'
+      label: 'X'
     },
     lightPosY: {
       type: 'float',
@@ -121,7 +121,7 @@ vec3 surfaceNormal(vec2 p) {
       min: -5.0,
       max: 5.0,
       step: 0.1,
-      label: 'Position Y (Point)'
+      label: 'Y'
     },
     lightPosZ: {
       type: 'float',
@@ -153,7 +153,7 @@ vec3 surfaceNormal(vec2 p) {
       min: 0.0,
       max: 5.0,
       step: 0.1,
-      label: 'Falloff (Point)'
+      label: 'Falloff'
     },
     lightColorR: {
       type: 'float',
@@ -161,7 +161,7 @@ vec3 surfaceNormal(vec2 p) {
       min: 0.0,
       max: 2.0,
       step: 0.01,
-      label: 'Light Color R'
+      label: 'R'
     },
     lightColorG: {
       type: 'float',
@@ -169,7 +169,7 @@ vec3 surfaceNormal(vec2 p) {
       min: 0.0,
       max: 2.0,
       step: 0.01,
-      label: 'Light Color G'
+      label: 'G'
     },
     lightColorB: {
       type: 'float',
@@ -177,7 +177,7 @@ vec3 surfaceNormal(vec2 p) {
       min: 0.0,
       max: 2.0,
       step: 0.01,
-      label: 'Light Color B'
+      label: 'B'
     }
   },
   
