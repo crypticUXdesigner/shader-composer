@@ -164,6 +164,30 @@ export const audioRemapNodeSpec: NodeSpec = {
       max: 1
     }
   },
+  parameterLayout: {
+    elements: [
+      {
+        type: 'slider-ui',
+        height: 180
+      },
+      {
+        type: 'grid',
+        parameters: ['inMax', 'outMax', 'inMin', 'outMin', 'clamp'],
+        layout: {
+          columns: 2,
+          cellHeight: 120,
+          respectMinWidth: true  // Fixes the bug - respects param-cell-min-width
+        },
+        parameterUI: {
+          inMin: 'input',   // Simple draggable input (no knob)
+          inMax: 'input',   // Simple draggable input (no knob)
+          outMin: 'input',  // Simple draggable input (no knob)
+          outMax: 'input',  // Simple draggable input (no knob)
+          clamp: 'toggle'   // clamp uses toggle UI
+        }
+      }
+    ]
+  },
   mainCode: `
     float t = ($input.audioValue - $param.inMin) / max($param.inMax - $param.inMin, 0.0001);
     float remapped = mix($param.outMin, $param.outMax, t);

@@ -2,17 +2,32 @@
 @import './scales.css';
 
 /* Import tokens - component-specific tokens that reference scales */
-@import './tokens.css';
+@import './tokens-dom.css';
+@import './tokens-canvas.css';
 
 /* Import reset and typography */
 @import './reset.css';
 @import './typography.css';
 
+/* Import layout styles */
+@import './layout/top-bar.css';
+@import './layout/bottom-bar.css';
+@import './layout/frequency-bands-editor.css';
+@import './layout/node-panel.css';
+
 /* Import design component styles */
-@import './components/parameter-controls.css';
-@import './components/filter-tag.css';
-@import './components/toast-notification.css';
-@import './components/search-dialog.css';
-@import './components/parameter-control.css';
-@import './components/layout-controls.css';
-@import './components/context-menu.css';
+@import './components/icon.css';
+@import './components/button.css';
+@import './components/input.css';
+@import './components/controls-wrapper.css';
+@import './components/tag.css';
+@import './components/message.css';
+@import './components/menu-wrapper.css';
+@import './components/menu-item.css';
+@import './components/menu-header.css';
+@import './components/menu-separator.css';
+@import './components/menu-input.css';
+@import './components/menu-results.css';
+@import './components/menu-no-results.css';
+@import './components/slider.css';
+@import './components/help-popover.css';

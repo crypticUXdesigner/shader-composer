@@ -11,8 +11,7 @@ export const blendModeNodeSpec: NodeSpec = {
   description: 'Applies blending mode between two values',
   inputs: [
     { name: 'base', type: 'float' },
-    { name: 'blend', type: 'float' },
-    { name: 'opacity', type: 'float' }
+    { name: 'blend', type: 'float' }
   ],
   outputs: [
     { name: 'out', type: 'float' }
@@ -22,7 +21,16 @@ export const blendModeNodeSpec: NodeSpec = {
       type: 'int',
       default: 0,
       min: 0,
-      max: 11
+      max: 11,
+      label: 'Blend Mode'
+    },
+    opacity: {
+      type: 'float',
+      default: 1.0,
+      min: 0.0,
+      max: 1.0,
+      step: 0.01,
+      label: 'Opacity'
     }
   },
   functions: `
@@ -94,6 +102,6 @@ export const blendModeNodeSpec: NodeSpec = {
   `,
   mainCode: `
     float blended = applyBlendMode($input.base, $input.blend, $param.mode);
-    $output.out = mix($input.base, blended, $input.opacity);
+    $output.out = mix($input.base, blended, $param.opacity);
   `
 };

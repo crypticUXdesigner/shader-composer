@@ -1,0 +1,25 @@
+/* Icon Component Styles */
+
+.icon {
+  /* Layout */
+  display: block;
+  flex-shrink: 0;
+  vertical-align: middle;
+
+  /* Visual */
+  color: currentColor;
+  fill: currentColor;
+  stroke: currentColor;
+
+  /* Other */
+  pointer-events: none;
+
+  /* Only apply fill/stroke inheritance to paths that don't have explicit attributes */
+  /* This allows line icons to use fill: 'none' and filled icons to use fill: color */
+  path:not([fill]) {
+    fill: inherit;
+  }
+  path:not([stroke]) {
+    stroke: inherit;
+  }
+}

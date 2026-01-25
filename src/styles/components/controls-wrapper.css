@@ -1,0 +1,7 @@
+/* Controls Wrapper Component Styles */
+
+.controls-wrapper {
+  border: 1px solid var(--color-gray-60);
+  border-radius: calc(var(--radius-md) + var(--pd-xs));
+  background: var(--color-gray-50);
+}

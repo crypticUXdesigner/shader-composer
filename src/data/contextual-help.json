@@ -1,0 +1,112 @@
+{
+  "helpItems": {
+    "type:float": {
+      "title": "float",
+      "titleType": "type",
+      "category": "scalar",
+      "description": "A single floating-point number representing a scalar value. Used for numeric calculations, time-based animations, and intensity values.",
+      "examples": [
+        "Time-based animations (0.0 to infinity)",
+        "Intensity values (typically 0.0 to 1.0)",
+        "Mathematical operations and calculations",
+        "Parameter values and constants"
+      ],
+      "relatedItems": [
+        "node:constant-float",
+        "node:time",
+        "node:add",
+        "node:multiply",
+        "node:divide"
+      ]
+    },
+    "type:vec2": {
+      "title": "vec2",
+      "titleType": "type",
+      "category": "vector",
+      "description": "A 2-component vector (x, y) typically representing 2D coordinates, UV coordinates, or 2D positions.",
+      "examples": [
+        "UV coordinates for texture sampling",
+        "2D positions and translations",
+        "Gradient directions and offsets",
+        "Screen-space coordinates"
+      ],
+      "relatedItems": [
+        "node:constant-vec2",
+        "node:uv-coordinates",
+        "node:translate",
+        "node:rotate",
+        "node:scale"
+      ]
+    },
+    "type:vec3": {
+      "title": "vec3",
+      "titleType": "type",
+      "category": "vector",
+      "description": "A 3-component vector (x, y, z) typically representing 3D positions, directions, or RGB color values.",
+      "examples": [
+        "3D positions and translations",
+        "Direction vectors and normals",
+        "RGB color values",
+        "3D rotations and transformations"
+      ],
+      "relatedItems": [
+        "node:constant-vec3",
+        "node:fragment-coordinates"
+      ]
+    },
+    "type:vec4": {
+      "title": "vec4",
+      "titleType": "type",
+      "category": "vector",
+      "description": "A 4-component vector (x, y, z, w) typically representing RGBA color values, homogeneous coordinates, or 4D data.",
+      "examples": [
+        "RGBA color values",
+        "Homogeneous coordinates for 3D transformations",
+        "Bezier curve control points",
+        "Full color with alpha channel"
+      ],
+      "relatedItems": [
+        "node:constant-vec4",
+        "node:oklch-color",
+        "node:bezier-curve"
+      ]
+    },
+    "type:int": {
+      "title": "int",
+      "titleType": "type",
+      "category": "scalar",
+      "description": "An integer value used for discrete counts, indices, and mode selections.",
+      "examples": [
+        "Array indices and counts",
+        "Mode selections (blend modes, etc.)",
+        "Discrete parameter values",
+        "Enum-like selections"
+      ],
+      "relatedItems": [
+        "node:blend-mode"
+      ]
+    },
+    "type:bool": {
+      "title": "bool",
+      "titleType": "type",
+      "category": "scalar",
+      "description": "A boolean value (true/false) used for conditional logic and flags.",
+      "examples": [
+        "Conditional operations",
+        "Enable/disable flags",
+        "Binary state indicators"
+      ],
+      "relatedItems": []
+    }
+  },
+  "categories": {
+    "scalar": {
+      "icon": "hash",
+      "color": "gray"
+    },
+    "vector": {
+      "icon": "vector-dot",
+      "color": "leaf"
+    }
+  }
+}

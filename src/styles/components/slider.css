@@ -1,0 +1,149 @@
+/* Slider Component Styles */
+
+.slider {
+  /* Layout */
+  flex: 1;
+  overflow: hidden;
+
+  /* Box model */
+  height: var(--size-xs);
+  border-radius: var(--radius-md);
+
+  /* Visual */
+  background: transparent;
+  box-shadow: 0 0 0 var(--pd-xs) var(--color-gray-50);
+
+  /* Other */
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+/* ========================================
+   Track - Default
+   ======================================== */
+
+/* Common track properties */
+.slider::-webkit-slider-runnable-track,
+.slider::-moz-range-track {
+  /* Box model */
+  width: 100%;
+  border: none;
+  border-radius: var(--radius-sm);
+}
+
+/* Webkit/Blink Track - specific */
+.slider::-webkit-slider-runnable-track {
+  /* Box model */
+  height: var(--size-xs);
+  border-radius: var(--radius-md);
+
+  /* Visual */
+  background: linear-gradient(
+    to right,
+    var(--color-yellow-70) 0,
+    var(--color-yellow-90) var(--slider-progress, 0%),
+    var(--color-gray-50) var(--slider-progress, 0%),
+    var(--color-gray-50) 100%
+  );
+}
+
+/* Firefox Track - specific */
+.slider::-moz-range-track,
+.slider::-moz-range-progress {
+  /* Box model */
+  height: var(--size-xs);
+  border-radius: var(--radius-md);
+
+  /* Visual */
+  background: linear-gradient(
+    to right,
+    var(--color-yellow-70) 0,
+    var(--color-yellow-90) 100%
+  );
+}
+
+/* ========================================
+   Thumb - Default
+   ======================================== */
+
+/* Common thumb properties */
+.slider::-webkit-slider-thumb,
+.slider::-moz-range-thumb {
+  /* Box model */
+  border-radius: 50%;
+
+  /* Other */
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+}
+
+/* Webkit/Blink Thumb - specific */
+.slider::-webkit-slider-thumb {
+  /* Box model */
+  width: var(--size-xs);
+  height: var(--size-xs);
+  margin-top: calc((var(--size-xs) - var(--size-xs)) / -2);
+  border: var(--scale-1) solid var(--color-gray-100);
+  border-radius: 50%;
+
+  /* Visual */
+  background: var(--color-gray-80);
+
+  /* Other */
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Firefox Thumb - specific */
+.slider::-moz-range-thumb {
+  /* Box model */
+  width: var(--size-xs);
+  height: var(--size-xs);
+  border: var(--scale-1) solid var(--color-gray-130);
+  border-radius: 50%;
+
+  /* Visual */
+  background: var(--color-blue-90);
+}
+
+/* ========================================
+   Thumb - Hover
+   ======================================== */
+
+.slider::-webkit-slider-thumb:hover,
+.slider::-moz-range-thumb:hover {
+  /* Visual */
+  background: var(--color-blue-100);
+
+  /* Other */
+  transform: scale(1.1);
+}
+
+/* ========================================
+   Thumb - Active
+   ======================================== */
+
+.slider::-webkit-slider-thumb:active,
+.slider::-moz-range-thumb:active {
+  /* Visual */
+  background: var(--color-blue-110);
+
+  /* Other */
+  transform: scale(1.15);
+}
+
+/* ========================================
+   Thumb - Focus
+   ======================================== */
+
+.slider:focus::-webkit-slider-thumb,
+.slider:focus::-moz-range-thumb {
+  /* Visual */
+  /* Focus ring using --color-blue-90 with 0.3 opacity */
+  box-shadow: 0 0 0 calc(var(--scale-1) + var(--scale-1) / 2) rgba(101, 101, 220, 0.3);
+}

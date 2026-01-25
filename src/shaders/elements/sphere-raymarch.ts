@@ -135,7 +135,7 @@ export const sphereRaymarchElement: VisualElement = {
       min: 20.0,
       max: 200.0,
       step: 1.0,
-      label: 'Raymarch Steps'
+      label: 'Raymarch'
     },
     vectorFieldFrequencyX: {
       type: 'float',
@@ -183,7 +183,7 @@ export const sphereRaymarchElement: VisualElement = {
       min: 0.0,
       max: 3.0,
       step: 0.1,
-      label: 'Harmonic Amplitude'
+      label: 'Harmonics'
     },
     vectorFieldComplexity: {
       type: 'float',
@@ -199,7 +199,7 @@ export const sphereRaymarchElement: VisualElement = {
       min: 0.0,
       max: 0.2,
       step: 0.01,
-      label: 'Distance Contribution'
+      label: 'Distance Contr.'
     },
     vectorFieldSpeed: {
       type: 'float',
@@ -216,7 +216,7 @@ export const sphereRaymarchElement: VisualElement = {
       min: 0.0,
       max: 2.0,
       step: 0.1,
-      label: 'Animation Speed'
+      label: 'Speed'
     }
   },
   

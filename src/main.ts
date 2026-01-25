@@ -8,18 +8,20 @@ import { elementLibrary } from './shaders/elements/index';
 import { NodeShaderCompiler } from './shaders/NodeShaderCompiler';
 import { NodeEditor } from './ui/components/NodeEditor';
 import { NodeEditorLayout } from './ui/components/NodeEditorLayout';
+import { BottomBar } from './ui/components/BottomBar';
 import { RuntimeManager } from './runtime/RuntimeManager';
 import { visualElementToNodeSpec } from './utils/nodeSpecAdapter';
 import { nodeSystemSpecs } from './shaders/nodes/index';
-import { saveDefaultState } from './utils/defaultState';
 import { listPresets, loadPreset, copyGraphToClipboard } from './utils/presetManager';
 import { exportImage } from './utils/export';
 import { getCSSColor } from './utils/cssTokens';
+import { loadTablerIconData } from './utils/tabler-icons-loader';
 import type { NodeGraph } from './data-model/types';
 import type { NodeSpec } from './types';
 
 class App {
   private layout!: NodeEditorLayout;
+  private bottomBar!: BottomBar;
   private nodeEditor!: NodeEditor;
   private runtimeManager!: RuntimeManager;
   private compiler!: NodeShaderCompiler;
@@ -31,6 +33,9 @@ class App {
   }
   
   private async initialize(): Promise<void> {
+    // Wait for icon data to load before creating UI components
+    await loadTablerIconData();
+    
     // Get main container
     const mainContainer = document.getElementById('main');
     if (!mainContainer) {
@@ -52,6 +57,12 @@ class App {
     
     // Create layout
     this.layout = new NodeEditorLayout(mainContainer);
+    
+    // Create bottom bar
+    this.bottomBar = new BottomBar(mainContainer);
+    
+    // Connect bottom bar to layout for panel offset
+    this.layout.setBottomBar(this.bottomBar);
     
     // Convert visual elements to node specs and add node system specific specs
     const elementSpecs = elementLibrary.map(visualElementToNodeSpec);
@@ -169,8 +180,8 @@ class App {
     // Set audio manager reference in canvas for real-time value display
     this.nodeEditor.getCanvasComponent().setAudioManager(this.runtimeManager.getAudioManager());
     
-    // Setup global audio controls
-    this.layout.setGlobalAudioCallbacks({
+    // Setup bottom bar callbacks
+    this.bottomBar.setCallbacks({
       onPlayToggle: () => {
         this.runtimeManager.toggleGlobalAudioPlayback();
       },
@@ -179,19 +190,16 @@ class App {
       },
       getState: () => {
         return this.runtimeManager.getGlobalAudioState();
+      },
+      onToolChange: (tool) => {
+        // Pass tool change to canvas
+        this.nodeEditor.getCanvasComponent().setActiveTool(tool);
       }
     });
     
-    // Setup save as default callback
-    this.layout.setSaveAsDefaultCallback(() => {
-      const currentGraph = this.nodeEditor.getGraph();
-      try {
-        saveDefaultState(currentGraph);
-        // Success feedback is handled by the layout's toast system
-      } catch (error) {
-        // Error feedback is handled by the layout's toast system
-        throw error;
-      }
+    // Connect spacebar state changes to bottom bar for visual feedback
+    this.nodeEditor.getCanvasComponent().setSpacebarStateChangeCallback((isPressed) => {
+      this.bottomBar.setSpacebarPressed(isPressed);
     });
     
     // Setup copy preset callback (must be after nodeEditor is created)
@@ -209,6 +217,19 @@ class App {
         quality: 1.0
       });
     });
+    
+    // Setup panel toggle callback and add panel to layout
+    const panel = this.nodeEditor.getNodePanel();
+    const panelContainer = this.layout.getPanelContainer();
+    panelContainer.appendChild(panel.getPanelElement());
+    
+    this.layout.setPanelToggleCallback(() => {
+      panel.toggle();
+      this.layout.setPanelToggleActive(panel.isPanelVisible());
+    });
+    
+    // Set initial panel state to match default (panel is visible by default)
+    this.layout.setPanelToggleActive(panel.isPanelVisible());
     
     // Setup load preset callback
     this.layout.setLoadPresetCallback(async (presetName: string) => {
@@ -253,6 +274,18 @@ class App {
       }
     });
     
+    // Setup zoom callbacks
+    this.layout.setZoomCallbacks({
+      onZoomChange: (zoom: number) => {
+        const canvas = this.nodeEditor.getCanvasComponent();
+        // setZoom will use canvas center if no coordinates provided
+        canvas.setZoom(zoom);
+      },
+      getZoom: () => {
+        return this.nodeEditor.getCanvasComponent().getViewState().zoom;
+      }
+    });
+    
     // Load and populate preset list
     await this.loadPresetList();
     
@@ -270,6 +303,8 @@ class App {
   
   private startAnimation(): void {
     let lastFrameTime = performance.now();
+    let lastZoomUpdate = performance.now();
+    const ZOOM_UPDATE_INTERVAL = 100; // Update zoom display every 100ms
     
     const animate = (currentTime: number) => {
       // Calculate frame time for FPS tracking
@@ -278,6 +313,13 @@ class App {
       
       // Update FPS counter
       this.layout.updateFPS(frameTime);
+      
+      // Update zoom display periodically
+      if (currentTime - lastZoomUpdate >= ZOOM_UPDATE_INTERVAL) {
+        lastZoomUpdate = currentTime;
+        const zoom = this.nodeEditor.getCanvasComponent().getViewState().zoom;
+        this.layout.updateZoomDisplay(zoom);
+      }
       
       // Update time uniform
       const time = (currentTime / 1000.0) % 1000.0;

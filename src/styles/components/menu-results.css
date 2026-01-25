@@ -1,0 +1,20 @@
+/* Menu Results Component */
+
+.menu-results {
+  /* Layout */
+  flex: 1;
+
+  /* Box model */
+  padding: var(--pd-xs) 0;
+  max-height: var(--menu-max-height);
+
+  /* Other */
+  overflow-y: auto;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+
+  &::-webkit-scrollbar {
+    /* Layout */
+    display: none; /* Chrome, Safari, Opera */
+  }
+}

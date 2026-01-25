@@ -115,30 +115,50 @@ export const scaleNodeSpec: NodeSpec = {
       default: 1.0,
       min: 0.1,
       max: 10.0,
-      step: 0.01
+      step: 0.01,
+      label: 'X'
     },
     scaleY: {
       type: 'float',
       default: 1.0,
       min: 0.1,
       max: 10.0,
-      step: 0.01
+      step: 0.01,
+      label: 'Y'
     },
     centerX: {
       type: 'float',
       default: 0.0,
       min: -10.0,
       max: 10.0,
-      step: 0.01
+      step: 0.01,
+      label: 'X'
     },
     centerY: {
       type: 'float',
       default: 0.0,
       min: -10.0,
       max: 10.0,
-      step: 0.01
+      step: 0.01,
+      label: 'Y'
     }
   },
+  parameterGroups: [
+    {
+      id: 'scale',
+      label: 'Scale',
+      parameters: ['scaleX', 'scaleY'],
+      collapsible: false,
+      defaultCollapsed: false
+    },
+    {
+      id: 'center',
+      label: 'Center',
+      parameters: ['centerX', 'centerY'],
+      collapsible: false,
+      defaultCollapsed: false
+    }
+  ],
   mainCode: `
     vec2 center = vec2($param.centerX, $param.centerY);
     $output.out = center + ($input.in - center) * vec2($param.scaleX, $param.scaleY);

@@ -316,6 +316,19 @@ export class CompilationManager {
         
         // Handle different parameter value types
         if (typeof value === 'number') {
+          // Debug logging for turbulence strength
+          if (node.type === 'turbulence' && paramName === 'turbulenceStrength') {
+            const isConnected = this.graph.connections.some(
+              conn => conn.targetNodeId === node.id && conn.targetParameter === paramName
+            );
+            const inputMode = node.parameterInputModes?.[paramName];
+            console.log(`[Turbulence Uniform] Setting uniform for ${node.id}.${paramName}:`, {
+              value,
+              isConnected,
+              inputMode,
+              nodeId: node.id
+            });
+          }
           shaderInstance.setParameter(node.id, paramName, value);
         }
         // Note: Other types (string, arrays, etc.) are not handled here as they're not uniforms

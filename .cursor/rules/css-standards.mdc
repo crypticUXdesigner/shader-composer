@@ -1,0 +1,402 @@
+---
+description: CSS code quality and formatting standards for shader-composer
+globs: **/*.css
+alwaysApply: false
+---
+
+# CSS Code Quality and Formatting Standards
+
+## Key Principles (Quick Reference)
+
+**CRITICAL RULES:**
+1. **Always nest CSS to match HTML structure** - If HTML is nested, CSS must be nested
+2. **Use shorter class names when nested** - Prefer `.menu { .item { } }` over `.menu { .menu-item { } }`. Shorter names are preferred over full BEM-style names when nesting provides context.
+3. **Use design tokens, not hardcoded values** - Colors, spacing, sizes from `scales.css` or component tokens
+4. **Create tokens only when reusable** - Don't tokenize one-off values; hardcode them with comments
+5. **Separate canvas and DOM tokens** - Canvas tokens in `tokens-canvas.css`, DOM tokens in `tokens-dom.css`
+6. **Use `--opacity-disabled` for disabled states** - Never hardcode `opacity: 0.5` for disabled elements
+
+**File Organization:**
+- `scales.css` → Base design scales (shared by DOM & Canvas)
+- `tokens-dom.css` → DOM UI tokens (CSS classes)
+- `tokens-canvas.css` → Canvas tokens (JavaScript access)
+- Component files → Hardcode one-off dimensions with comments
+
+---
+
+## Design Token Usage
+
+Always use CSS custom properties (variables) from the design system instead of hardcoded values.
+
+```css
+/* ❌ BAD */
+.button {
+  padding: 12px 24px;
+  background: #6565dc;
+  border-radius: 18px;
+}
+
+/* ✅ GOOD */
+.button {
+  padding: var(--pd-md) var(--pd-xl);
+  background: var(--color-blue-90);
+  border-radius: var(--radius-lg);
+}
+```
+
+### Token Hierarchy
+
+1. **Base scales** (`scales.css`): Use `--scale-*`, `--color-*`, `--size-*`, `--pd-*`, `--radius-*`, `--text-*` (DOM), `--canvas-text-*` (Canvas), `--opacity-disabled`
+2. **Component tokens** (`tokens-dom.css` and `tokens-canvas.css`): Use semantic tokens like `--primary-bg`, `--menu-item-padding`, etc.
+3. **Never hardcode**: Colors, spacing, sizes, or other design values that are part of the design system
+
+### When to Create Tokens vs. Hardcode
+
+**Create a token when:**
+- It's used by 2+ components/layouts (reusable)
+- It's part of the design system (even if unused now)
+- It's consumed by JavaScript (canvas rendering) - needs token for JS access
+- It's a semantic design value (e.g., `--primary-bg`, `--disabled-opacity`)
+
+**Don't create a token when:**
+- It's a one-off layout value (e.g., `width: 450px` for a specific dialog)
+- It's only used in one component CSS class
+- It's a hardcoded rgba/opacity that's not standardized (except disabled state)
+
+**File Organization:**
+- `scales.css`: Base design scales (used by both DOM & Canvas)
+- `tokens-dom.css`: DOM UI tokens (consumed by CSS classes)
+- `tokens-canvas.css`: Canvas rendering tokens (consumed by JavaScript)
+- Component CSS files: Hardcode one-off dimensions directly in the class
+
+## File Organization
+
+### File Structure
+
+- **`scales.css`**: Base design scales (colors, sizes, spacing, font sizes for DOM and Canvas, opacity)
+- **`tokens-dom.css`**: DOM UI component-specific semantic tokens (consumed by CSS classes)
+- **`tokens-canvas.css`**: Canvas rendering tokens (consumed by JavaScript via `getCSSVariable*`)
+- **`reset.css`**: CSS reset and base styles
+- **`layout/*.css`**: Layout-specific styles (top-bar, bottom-bar, etc.)
+- **`components/*.css`**: Reusable component styles
+
+### File Headers
+
+Every CSS file must start with a descriptive comment header:
+
+```css
+/* Component Name Styles */
+
+/* or */
+
+/* Layout Name Styles */
+```
+
+## Formatting Standards
+
+### Indentation
+
+- Use **2 spaces** for indentation
+- Never use tabs
+
+### Selector Nesting
+
+**IMPORTANT: Always nest CSS selectors to match the HTML structure.** This ensures maintainability and prevents style conflicts.
+
+Use CSS nesting (supported in modern browsers) to reflect the component hierarchy:
+
+```css
+/* ✅ GOOD - Nesting matches HTML structure */
+.bottom-bar {
+  position: fixed;
+  bottom: 0;
+
+  .bottom-bar-section {
+    display: flex;
+    align-items: center;
+
+    .bottom-bar-play-button {
+      width: var(--size-xl);
+      height: var(--size-xl);
+    }
+  }
+}
+```
+
+**Nesting Rules:**
+- Nest child selectors inside their parent component
+- Match the nesting depth to the HTML structure
+- Use nesting for all component relationships, not just for organization
+- **Always use shorter class names when nested** - The parent name is implicit from nesting context, so avoid repeating it (e.g., use `.section` not `.bottom-bar-section` when nested inside `.bottom-bar`)
+- This prevents accidental style leakage and makes the component hierarchy clear
+
+```css
+/* ❌ BAD - Flat selectors ignore HTML structure */
+.bottom-bar { }
+.bottom-bar-section { }
+.bottom-bar-play-button { }
+
+/* ❌ BAD - Nested but repeating parent names unnecessarily */
+.bottom-bar {
+  .bottom-bar-section {
+    .bottom-bar-play-button { }
+  }
+}
+
+/* ✅ GOOD - Nested selectors match HTML structure, shorter names preferred */
+.bottom-bar {
+  .section {
+    .play-button { }
+  }
+}
+```
+
+### Property Ordering
+
+Group properties logically:
+1. Layout (position, display, flex, grid)
+2. Box model (width, height, padding, margin, border)
+3. Visual (background, color, box-shadow)
+4. Typography (font-*, text-*, line-height)
+5. Other (transition, cursor, z-index, etc.)
+
+```css
+/* ✅ GOOD */
+.button {
+  /* Layout */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  /* Box model */
+  padding: var(--pd-sm) var(--pd-lg);
+  border: none;
+  border-radius: var(--radius-lg);
+
+  /* Visual */
+  background: var(--primary-bg);
+  color: var(--primary-print);
+
+  /* Typography */
+  font-family: inherit;
+  font-weight: 500;
+
+  /* Other */
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+```
+
+### Section Organization
+
+Use clear section separators for major groupings:
+
+```css
+/* ========================================
+   Style Variants
+   ======================================== */
+
+/* Primary Style */
+.button.primary {
+  /* ... */
+}
+
+/* Secondary Style */
+.button.secondary {
+  /* ... */
+}
+```
+
+Or use simpler separators:
+
+```css
+/* === NODE TOKENS === */
+--node-bg: var(--color-gray-80);
+--node-border: #ffffff4e;
+```
+
+## Naming Conventions
+
+### BEM-like Naming
+
+Use component-based naming with clear hierarchy. **Prefer shorter class names when nesting** - the parent name is implicit from the nesting context.
+
+```css
+/* ✅ GOOD - Flat selectors (when not nested, use full names for clarity) */
+.bottom-bar { }
+.bottom-bar-section { }
+.bottom-bar-play-button { }
+
+/* ✅ GOOD - Nested selectors (preferred when HTML is nested, shorter names) */
+.bottom-bar {
+  .section { }
+  .play-button { }
+  .tool-selector { }
+}
+```
+
+**Key Principle:** When selectors are nested, use shorter names (e.g., `section`, `play-button`) rather than full BEM-style names (e.g., `bottom-bar-section`, `bottom-bar-play-button`). The nesting context makes the parent component clear, so repeating the parent name is unnecessary and verbose. Only use full BEM-style names when selectors are flat/global and need to be self-documenting.
+
+### Modifier Classes
+
+Use descriptive modifier classes:
+
+```css
+/* ✅ GOOD */
+.button.primary { }
+.button.secondary { }
+.button.ghost { }
+.button.is-active { }
+.button.is-disabled { }
+```
+
+## Code Quality
+
+### HTML Structure Alignment
+
+**CRITICAL: CSS nesting must always reflect the HTML component structure.** This is a fundamental requirement for maintainability and preventing style conflicts.
+
+- Every nested selector should correspond to a parent-child relationship in the HTML
+- If a component is nested in HTML, its styles must be nested in CSS
+- Flat selectors that ignore HTML structure are not acceptable
+- Review HTML structure before writing CSS to ensure proper nesting
+
+```css
+/* ❌ BAD - Ignores HTML nesting structure */
+.menu { }
+.menu-item { }
+.menu-item-icon { }
+
+/* ❌ BAD - Nested but repeating parent names unnecessarily */
+.menu {
+  .menu-item {
+    .menu-item-icon { }
+  }
+}
+
+/* ✅ GOOD - Matches HTML nesting structure, no name repetition */
+.menu {
+  .item {
+    .item-icon { }
+  }
+}
+```
+
+**Key Principle:** When a child is nested inside a parent, the parent name is implicit. **Always use shorter, semantic names** (e.g., `item`, `button`, `section`) rather than full BEM-style names (e.g., `menu-item`, `bottom-bar-button`, `bottom-bar-section`) when nesting provides the context. This is the preferred approach in this codebase.
+
+### Avoid Magic Numbers
+
+Use design tokens for reusable values. Hardcode one-off dimensions directly in component CSS:
+
+```css
+/* ❌ BAD - Magic number that should be a token */
+.element {
+  margin-top: 7px;
+  font-size: 13.5px;
+}
+
+/* ✅ GOOD - Using tokens */
+.element {
+  margin-top: var(--pd-sm);
+  font-size: var(--text-sm);
+}
+
+/* ✅ GOOD - One-off dimension hardcoded with comment */
+.search-dialog {
+  width: 450px; /* One-off dimension - specific to search dialog */
+}
+```
+
+### Consistent Transitions
+
+Use consistent transition durations from tokens or standardize to `0.15s`:
+
+```css
+/* ✅ GOOD */
+.button {
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+```
+
+### Disabled State Opacity
+
+Always use the `--opacity-disabled` token for disabled UI elements:
+
+```css
+/* ❌ BAD */
+.button:disabled {
+  opacity: 0.5;
+}
+
+/* ✅ GOOD */
+.button:disabled {
+  opacity: var(--opacity-disabled);
+}
+```
+
+### Pointer Events
+
+When creating interactive elements with child content, disable pointer events on children:
+
+```css
+/* ✅ GOOD */
+.button > * {
+  pointer-events: none;
+}
+```
+
+### Comments
+
+- Use comments to explain complex logic or non-obvious decisions
+- Use section comments to organize large files
+- Keep comments concise and meaningful
+
+```css
+/* ✅ GOOD */
+/* Port Type Background Colors (per type) */
+--port-type-bg-float: var(--color-gray-40);
+--port-type-bg-vec2: var(--color-leaf-40);
+```
+
+## Browser Compatibility
+
+### Vendor Prefixes
+
+Only include vendor prefixes when necessary (e.g., `-webkit-appearance` for sliders):
+
+```css
+/* ✅ GOOD */
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+}
+```
+
+### Modern CSS Features
+
+- Use CSS nesting (native support in modern browsers)
+- Use CSS custom properties (widely supported)
+- Use `calc()` for dynamic calculations
+
+## Spacing and Line Breaks
+
+- Add blank lines between logical sections
+- Add blank lines between major selector blocks
+- No blank lines between related properties
+- Single blank line before closing brace of nested selectors
+
+```css
+/* ✅ GOOD */
+.button {
+  display: flex;
+  padding: var(--pd-md);
+
+  &:hover {
+    background: var(--primary-bg-hover);
+  }
+
+  &.is-active {
+    background: var(--primary-bg-active);
+  }
+}
+```

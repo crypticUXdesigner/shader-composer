@@ -12,6 +12,8 @@ export class Renderer {
   private canvas: HTMLCanvasElement;
   private gl: WebGL2RenderingContext;
   private shaderInstance: ShaderInstance | null = null;
+  private resizeObserver: ResizeObserver | null = null;
+  private pendingResize: boolean = false;
   
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -41,6 +43,12 @@ export class Renderer {
    * Render a single frame.
    */
   render(): void {
+    // Process pending resize before rendering
+    if (this.pendingResize) {
+      this.setupViewport();
+      this.pendingResize = false;
+    }
+    
     if (!this.shaderInstance) return;
     
     // Update resolution if changed
@@ -89,12 +97,34 @@ export class Renderer {
   
   /**
    * Setup resize handler.
+   * Uses ResizeObserver for more accurate resize detection and throttles to render loop.
    */
   private setupResizeHandler(): void {
-    window.addEventListener('resize', () => {
-      this.setupViewport();
-      this.render();
+    // Use ResizeObserver for accurate canvas size changes
+    this.resizeObserver = new ResizeObserver(() => {
+      this.handleResize();
     });
+    this.resizeObserver.observe(this.canvas);
+  }
+  
+  /**
+   * Handle resize event - marks resize as pending for processing in render loop.
+   */
+  private handleResize(): void {
+    if (!this.pendingResize) {
+      this.pendingResize = true;
+      // Viewport will be updated in next render() call
+    }
+  }
+  
+  /**
+   * Cleanup resize observer.
+   */
+  destroy(): void {
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
+    }
   }
   
   /**

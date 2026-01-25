@@ -316,7 +316,7 @@ export function validateGraph(
   if (graph.viewState) {
     if (typeof graph.viewState.zoom !== 'number') {
       errors.push('View state zoom must be a number');
-    } else if (graph.viewState.zoom < 0.1 || graph.viewState.zoom > 10.0) {
+    } else if (graph.viewState.zoom < 0.10 || graph.viewState.zoom > 10.0) {
       warnings.push(`View state zoom is out of recommended range: ${graph.viewState.zoom}`);
     }
     if (typeof graph.viewState.panX !== 'number') {

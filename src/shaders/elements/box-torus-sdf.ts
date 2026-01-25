@@ -146,7 +146,7 @@ float calculateGlow(vec3 ro, vec3 rd, int steps) {
       min: 0,
       max: 2,
       step: 1,
-      label: 'Type (0=Box, 1=Torus, 2=Capsule)'
+      label: 'Shape'
     },
     primitiveCenterX: {
       type: 'float',
@@ -154,7 +154,7 @@ float calculateGlow(vec3 ro, vec3 rd, int steps) {
       min: -2.0,
       max: 2.0,
       step: 0.1,
-      label: 'Center X'
+      label: 'X'
     },
     primitiveCenterY: {
       type: 'float',
@@ -162,7 +162,7 @@ float calculateGlow(vec3 ro, vec3 rd, int steps) {
       min: -2.0,
       max: 2.0,
       step: 0.1,
-      label: 'Center Y'
+      label: 'Y'
     },
     primitiveCenterZ: {
       type: 'float',
@@ -170,7 +170,7 @@ float calculateGlow(vec3 ro, vec3 rd, int steps) {
       min: -2.0,
       max: 2.0,
       step: 0.1,
-      label: 'Center Z'
+      label: 'Z'
     },
     primitiveSizeX: {
       type: 'float',
@@ -202,7 +202,7 @@ float calculateGlow(vec3 ro, vec3 rd, int steps) {
       min: -6.28,
       max: 6.28,
       step: 0.05,
-      label: 'Rotation X (radians)'
+      label: 'Rotation X'
     },
     primitiveRotationY: {
       type: 'float',
@@ -210,7 +210,7 @@ float calculateGlow(vec3 ro, vec3 rd, int steps) {
       min: -6.28,
       max: 6.28,
       step: 0.05,
-      label: 'Rotation Y (radians)'
+      label: 'Rotation Y'
     },
     primitiveRotationZ: {
       type: 'float',
@@ -218,7 +218,7 @@ float calculateGlow(vec3 ro, vec3 rd, int steps) {
       min: -6.28,
       max: 6.28,
       step: 0.05,
-      label: 'Rotation Z (radians)'
+      label: 'Rotation Z'
     },
     primitiveGlowIntensity: {
       type: 'float',
@@ -234,7 +234,7 @@ float calculateGlow(vec3 ro, vec3 rd, int steps) {
       min: 10,
       max: 200,
       step: 1,
-      label: 'Raymarch Steps'
+      label: 'Raymarch'
     }
   },
   

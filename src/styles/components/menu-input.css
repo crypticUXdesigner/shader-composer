@@ -1,0 +1,11 @@
+/* Menu Input Component */
+
+.menu-input {
+  /* Box model */
+  margin: var(--pd-sm);
+
+  &::placeholder {
+    /* Visual */
+    color: var(--search-result-desc-color);
+  }
+}

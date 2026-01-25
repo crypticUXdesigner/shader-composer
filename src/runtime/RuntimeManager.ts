@@ -38,13 +38,24 @@ export class RuntimeManager {
   
   /**
    * Check if only node positions changed (not structure, connections, or parameters)
+   * 
+   * IMPORTANT: This method compares graph objects that may be the same reference.
+   * If the graph is mutated in place, we need to compare the actual state, not references.
    */
   private isOnlyPositionChange(oldGraph: NodeGraph | null, newGraph: NodeGraph): boolean {
     if (!oldGraph) return false;
     
     // Check if node count changed
     if (oldGraph.nodes.length !== newGraph.nodes.length) return false;
-    if (oldGraph.connections.length !== newGraph.connections.length) return false;
+    
+    // CRITICAL: Compare connection counts - if they differ, structure definitely changed
+    // This check must happen even if oldGraph and newGraph are the same object reference
+    // because the connections array may have been mutated
+    const oldConnCount = oldGraph.connections?.length || 0;
+    const newConnCount = newGraph.connections?.length || 0;
+    if (oldConnCount !== newConnCount) {
+      return false;
+    }
     
     // Check if any nodes were added/removed (by ID)
     const oldNodeIds = new Set(oldGraph.nodes.map(n => n.id));
@@ -105,10 +116,35 @@ export class RuntimeManager {
       return;
     }
     
-    // Check if only positions changed - if so, skip expensive operations
-    // IMPORTANT: Must check BEFORE setting this.currentGraph, otherwise we compare graph to itself!
+    // CRITICAL: Check for changes BEFORE updating this.currentGraph
+    // The graph object may be mutated in place, so we need to compare the current state
+    // to the previous state, not the same object reference
     const oldGraph = this.currentGraph;
-    const onlyPositionsChanged = this.isOnlyPositionChange(oldGraph, graph);
+    
+    // CRITICAL FIX: If oldGraph and graph are the same object reference,
+    // we can't reliably compare them because mutations affect both.
+    // In this case, we need to track connection count separately or always recompile.
+    // For now, if they're the same reference, we'll assume structure changed
+    // (safer to recompile than to miss a change)
+    const isSameReference = oldGraph === graph;
+    
+    // Compare connection counts first (fast check)
+    const oldConnCount = oldGraph?.connections?.length || 0;
+    const newConnCount = graph.connections?.length || 0;
+    const connectionsChanged = oldConnCount !== newConnCount;
+    
+    // If connection count changed, definitely not just position change
+    let onlyPositionsChanged = false;
+    if (isSameReference) {
+      // Same object reference - can't reliably compare, assume structure changed
+      // This happens when NodeEditor mutates the graph in place
+      onlyPositionsChanged = false;
+    } else if (connectionsChanged) {
+      onlyPositionsChanged = false;
+    } else {
+      // Only do full comparison if connection counts match and different references
+      onlyPositionsChanged = this.isOnlyPositionChange(oldGraph, graph);
+    }
     
     // Always update current graph reference (after checking position changes)
     // This ensures the graph is available even if audio loading fails

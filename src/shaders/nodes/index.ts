@@ -55,23 +55,11 @@ import {
 } from './math-operations';
 import { blendModeNodeSpec } from './blending-nodes';
 import {
-  gradientMaskNodeSpec,
   compareNodeSpec,
   selectNodeSpec
 } from './masking-nodes';
-import {
-  glowBloomNodeSpec,
-  blurNodeSpec,
-  edgeDetectionNodeSpec,
-  chromaticAberrationNodeSpec,
-  colorGradingNodeSpec,
-  rgbSeparationNodeSpec,
-  scanlinesNodeSpec,
-  blockEdgeBrightnessNodeSpec,
-  blockColorGlitchNodeSpec,
-  normalMappingNodeSpec,
-  lightingShadingNodeSpec
-} from './post-processing-nodes';
+// Post-processing nodes are now provided by VisualElements (converted via visualElementToNodeSpec)
+// See post-processing-nodes.ts for details
 import {
   oneMinusNodeSpec,
   negateNodeSpec,
@@ -158,22 +146,13 @@ export const nodeSystemSpecs: NodeSpec[] = [
   blendModeNodeSpec,
   
   // Masking/Control nodes
-  gradientMaskNodeSpec,
+  // Note: gradient-mask is provided by gradientMaskElement (converted via visualElementToNodeSpec)
   compareNodeSpec,
   selectNodeSpec,
   
   // Post-Processing nodes
-  glowBloomNodeSpec,
-  blurNodeSpec,
-  edgeDetectionNodeSpec,
-  chromaticAberrationNodeSpec,
-  colorGradingNodeSpec,
-  rgbSeparationNodeSpec,
-  scanlinesNodeSpec,
-  blockEdgeBrightnessNodeSpec,
-  blockColorGlitchNodeSpec,
-  normalMappingNodeSpec,
-  lightingShadingNodeSpec,
+  // Note: All post-processing nodes are now provided by VisualElements (converted via visualElementToNodeSpec)
+  // See post-processing-nodes.ts for details on removed duplicates
   
   // Utility nodes
   oneMinusNodeSpec,

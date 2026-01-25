@@ -7,6 +7,38 @@ import { NodeRenderer, type NodeRenderMetrics } from './NodeRenderer';
 import { getCSSColor, getCSSVariableAsNumber, getCSSVariable, getCSSColorRGBA } from '../../utils/cssTokens';
 import { computeEffectiveParameterValue } from '../../utils/parameterValueCalculator';
 import type { AudioManager } from '../../runtime/AudioManager';
+import { RenderState, RenderLayer } from './rendering/RenderState';
+// Feature flags removed - all refactored features are now always enabled
+import { isRectVisible, type Viewport } from '../../utils/viewport';
+import { NodeComponent } from './node/NodeComponent';
+import { LayerManager } from './rendering/LayerManager';
+import {
+  GridLayerRenderer,
+  ConnectionLayerRenderer,
+  ParameterConnectionLayerRenderer,
+  NodeLayerRenderer,
+  PortLayerRenderer,
+  OverlayLayerRenderer
+} from './rendering/layers';
+import type { HandlerContext } from '../interactions/HandlerContext';
+import { InteractionManager } from '../interactions/InteractionManager';
+import { InteractionType } from '../interactions/InteractionTypes';
+import type { InteractionEvent } from '../interactions/InteractionHandler';
+import {
+  CanvasPanHandler,
+  CanvasZoomHandler,
+  NodeDragHandler,
+  PortConnectHandler,
+  ParameterDragHandler,
+  BezierControlDragHandler,
+  ConnectionSelectHandler,
+  HandToolHandler,
+  SelectionToolHandler
+} from '../interactions/handlers';
+import type { ToolType } from './BottomBar';
+import { DropdownMenu, type DropdownMenuItem } from './DropdownMenu';
+import { getParameterUIRegistry } from './rendering/ParameterUIRegistry';
+import { FrequencyBandsEditor } from './FrequencyBandsEditor';
 
 export interface CanvasState {
   zoom: number;
@@ -31,11 +63,31 @@ export class NodeEditorCanvas {
   private nodeSpecs: Map<string, NodeSpec> = new Map();
   private nodeRenderer: NodeRenderer;
   private nodeMetrics: Map<string, NodeRenderMetrics> = new Map();
+  private nodeComponents: Map<string, NodeComponent> = new Map(); // Phase 2.2: Component system
+  private renderState: RenderState;
+  private layerManager: LayerManager | null = null; // Phase 2.3: Layer system
+  private connectionLayerRenderer: ConnectionLayerRenderer | null = null; // Phase 3.3: For cache invalidation
+  private parameterConnectionLayerRenderer: ParameterConnectionLayerRenderer | null = null; // Phase 3.3: For cache invalidation
+  private interactionManager: InteractionManager | null = null; // Phase 2.4: Interaction handler system
+  private renderRequested: boolean = false;
+  private pendingRenderFrame: number | null = null;
+  // Frame buffer removed - getImageData/putImageData was too expensive
+  // Phase 3.1: Track previous pan/zoom to detect viewport changes (require full redraw)
+  private previousPanX: number = 0;
+  private previousPanY: number = 0;
+  private previousZoom: number = 1.0;
+  
+  // Resize handling - throttle to animation frame for smooth updates
+  private pendingResize: boolean = false;
+  private cachedViewportWidth: number = 0;
+  private cachedViewportHeight: number = 0;
   
   // Interaction state
   private isPanning: boolean = false;
-  private panStartX: number = 0;
-  private panStartY: number = 0;
+  // @ts-expect-error - Part of state interface for persistence, but not currently read
+  private _panStartX: number = 0;
+  // @ts-expect-error - Part of state interface for persistence, but not currently read
+  private _panStartY: number = 0;
   private isDraggingNode: boolean = false;
   private draggingNodeId: string | null = null;
   private dragOffsetX: number = 0;
@@ -51,6 +103,8 @@ export class NodeEditorCanvas {
   private connectionMouseY: number = 0;
   private hoveredPort: { nodeId: string, port: string, isOutput: boolean, parameter?: string } | null = null;
   private isSpacePressed: boolean = false;
+  private spacePressTimeout: number | null = null;
+  private readonly SPACE_PAN_DELAY = 200; // ms - delay before activating pan mode
   private isDraggingParameter: boolean = false;
   private draggingParameterNodeId: string | null = null;
   private draggingParameterName: string | null = null;
@@ -62,6 +116,8 @@ export class NodeEditorCanvas {
   private dragBezierStartValues: { x1: number; y1: number; x2: number; y2: number } | null = null;
   private parameterInputElement: HTMLInputElement | null = null;
   private labelInputElement: HTMLInputElement | null = null;
+  private enumDropdown: DropdownMenu | null = null;
+  private frequencyBandsEditor: FrequencyBandsEditor | null = null;
   private backgroundDragStartX: number = 0;
   private backgroundDragStartY: number = 0;
   private backgroundDragThreshold: number = 5; // pixels
@@ -79,6 +135,9 @@ export class NodeEditorCanvas {
   } = { vertical: [], horizontal: [] };
   private readonly SNAP_THRESHOLD = 3; // pixels (in canvas space, before zoom) - reduced for less aggressive snapping
   
+  // Phase 3.4: Track dragged nodes for metrics recalculation before connection rendering
+  private draggedNodeIds: Set<string> = new Set();
+  
   // Edge scrolling state
   private edgeScrollAnimationFrame: number | null = null;
   private edgeScrollVelocityX: number = 0;
@@ -87,6 +146,10 @@ export class NodeEditorCanvas {
   private currentMouseY: number = 0;
   private readonly EDGE_SCROLL_ZONE = 0.1; // 10% of width/height
   private readonly MAX_EDGE_SCROLL_SPEED = 800; // pixels per second
+  
+  // Tool state
+  private activeTool: ToolType = 'cursor';
+  private selectionRectangle: { x: number; y: number; width: number; height: number } | null = null;
   
   // Callbacks
   private onNodeMoved?: (nodeId: string, x: number, y: number) => void;
@@ -99,7 +162,9 @@ export class NodeEditorCanvas {
   private onFileParameterChanged?: (nodeId: string, paramName: string, file: File) => void;
   private onParameterInputModeChanged?: (nodeId: string, paramName: string, mode: import('../../types/nodeSpec').ParameterInputMode) => void;
   private onNodeLabelChanged?: (nodeId: string, label: string | undefined) => void;
+  private onSpacebarStateChange?: (isPressed: boolean) => void;
   private isDialogVisible?: () => boolean;
+  private onTypeLabelClick?: (portType: string, screenX: number, screenY: number) => void;
   private audioManager?: AudioManager;
   private effectiveValueUpdateInterval: number | null = null;
   
@@ -112,6 +177,9 @@ export class NodeEditorCanvas {
     this.ctx = ctx;
     this.graph = graph;
     this.nodeRenderer = new NodeRenderer(ctx);
+    
+    // Initialize render state for dirty tracking
+    this.renderState = new RenderState(graph);
     
     // Store node specs
     for (const spec of nodeSpecs) {
@@ -133,6 +201,16 @@ export class NodeEditorCanvas {
       selectedConnectionIds: new Set()
     };
     
+    // Initialize refactored systems
+    this.setupLayerSystem();
+    this.setupInteractionHandlers();
+    
+    // Initialize previous pan/zoom values
+    // Note: FrameBuffer removed - getImageData/putImageData was too expensive
+    this.previousPanX = this.state.panX;
+    this.previousPanY = this.state.panY;
+    this.previousZoom = this.state.zoom;
+    
     // Calculate node metrics
     this.updateNodeMetrics();
     
@@ -151,7 +229,7 @@ export class NodeEditorCanvas {
         this.fitToView();
       });
     } else {
-      this.render();
+      this.markFullRedraw();
     }
   }
   
@@ -166,7 +244,212 @@ export class NodeEditorCanvas {
     }
   }
   
+  /**
+   * Setup layer system (Phase 2.3)
+   */
+  private setupLayerSystem(): void {
+    this.layerManager = new LayerManager();
+    
+    // Register grid layer
+    this.layerManager.register(new GridLayerRenderer({
+      canvas: this.canvas,
+      getState: () => ({
+        panX: this.state.panX,
+        panY: this.state.panY,
+        zoom: this.state.zoom
+      })
+    }));
+    
+    // Register connection layer
+    this.connectionLayerRenderer = new ConnectionLayerRenderer({
+      graph: this.graph,
+      nodeSpecs: this.nodeSpecs,
+      nodeMetrics: this.nodeMetrics,
+      selectedConnectionIds: this.state.selectedConnectionIds,
+      isConnectionVisible: (conn) => this.isConnectionVisible(conn),
+      // Phase 3.4: Recalculate metrics for dragged nodes before rendering connections
+      recalculateMetricsForNodes: (nodeIds) => {
+        for (const nodeId of nodeIds) {
+          const node = this.graph.nodes.find(n => n.id === nodeId);
+          if (node) {
+            const spec = this.nodeSpecs.get(node.type);
+            if (spec) {
+              // Recalculate metrics for this node
+              const metrics = this.nodeRenderer.calculateMetrics(node, spec);
+              this.nodeMetrics.set(nodeId, metrics);
+              
+              // Update component metrics
+              const component = this.nodeComponents.get(nodeId);
+              if (component) {
+                component.invalidateMetrics();
+                component.calculateMetrics();
+                this.nodeMetrics.set(nodeId, component.getNodeMetrics());
+              }
+            }
+          }
+        }
+      },
+      getDraggedNodeIds: () => Array.from(this.draggedNodeIds),
+      getPanZoom: () => ({ panX: this.state.panX, panY: this.state.panY, zoom: this.state.zoom }),
+      renderState: this.renderState
+    });
+    this.layerManager.register(this.connectionLayerRenderer);
+    
+    // Register parameter connection layer
+    this.parameterConnectionLayerRenderer = new ParameterConnectionLayerRenderer({
+      graph: this.graph,
+      nodeSpecs: this.nodeSpecs,
+      nodeMetrics: this.nodeMetrics,
+      selectedConnectionIds: this.state.selectedConnectionIds,
+      isConnectionVisible: (conn) => this.isConnectionVisible(conn),
+      // Phase 3.4: Recalculate metrics for dragged nodes before rendering connections
+      recalculateMetricsForNodes: (nodeIds) => {
+        for (const nodeId of nodeIds) {
+          const node = this.graph.nodes.find(n => n.id === nodeId);
+          if (node) {
+            const spec = this.nodeSpecs.get(node.type);
+            if (spec) {
+              // Recalculate metrics for this node
+              const metrics = this.nodeRenderer.calculateMetrics(node, spec);
+              this.nodeMetrics.set(nodeId, metrics);
+              
+              // Update component metrics
+              const component = this.nodeComponents.get(nodeId);
+              if (component) {
+                component.invalidateMetrics();
+                component.calculateMetrics();
+                this.nodeMetrics.set(nodeId, component.getNodeMetrics());
+              }
+            }
+          }
+        }
+      },
+      getDraggedNodeIds: () => Array.from(this.draggedNodeIds),
+      getPanZoom: () => ({ panX: this.state.panX, panY: this.state.panY, zoom: this.state.zoom }),
+      renderState: this.renderState
+    });
+    this.layerManager.register(this.parameterConnectionLayerRenderer);
+    
+    // Register node layer
+    this.layerManager.register(new NodeLayerRenderer({
+      graph: this.graph,
+      nodeSpecs: this.nodeSpecs,
+      nodeMetrics: this.nodeMetrics,
+      selectedNodeIds: this.state.selectedNodeIds,
+      hoveredPort: this.hoveredPort,
+      isConnecting: this.isConnecting,
+      connectionStartNodeId: this.connectionStartNodeId,
+      connectionStartPort: this.connectionStartPort,
+      connectionStartParameter: this.connectionStartParameter,
+      audioManager: this.audioManager,
+      renderNode: (node, skipPorts) => this.renderNode(node, skipPorts),
+      isNodeVisible: (node, metrics) => this.isNodeVisible(node, metrics),
+      getPanZoom: () => ({ panX: this.state.panX, panY: this.state.panY, zoom: this.state.zoom }),
+      renderState: this.renderState
+    }));
+    
+    // Register port layer
+    this.layerManager.register(new PortLayerRenderer({
+      graph: this.graph,
+      nodeSpecs: this.nodeSpecs,
+      nodeMetrics: this.nodeMetrics,
+      hoveredPort: this.hoveredPort,
+      isConnecting: this.isConnecting,
+      connectionStartNodeId: this.connectionStartNodeId,
+      connectionStartPort: this.connectionStartPort,
+      connectionStartParameter: this.connectionStartParameter,
+      renderNodePorts: () => this.renderNodePorts(),
+      isNodeVisible: (node, metrics) => this.isNodeVisible(node, metrics)
+    }));
+    
+    // Register overlay layer
+    this.layerManager.register(new OverlayLayerRenderer({
+      getIsConnecting: () => this.isConnecting,
+      getIsDraggingNode: () => {
+        // Check both old state and handler state (Phase 2.4)
+        // Check if any handler is currently dragging a node
+        // Check if smart guides exist (indicates dragging)
+        if (this.interactionManager) {
+          return this.smartGuides.vertical.length > 0 || this.smartGuides.horizontal.length > 0 || this.isDraggingNode;
+        }
+        return this.isDraggingNode;
+      },
+      getSelectionRectangle: () => this.selectionRectangle,
+      renderTemporaryConnection: () => this.renderTemporaryConnection(),
+      renderSmartGuides: () => this.renderSmartGuides(),
+      renderSelectionRectangle: () => this.renderSelectionRectangle()
+    }));
+  }
+  
+  /**
+   * Setup interaction handler system (Phase 2.4)
+   */
+  private setupInteractionHandlers(): void {
+    this.interactionManager = new InteractionManager();
+    const context = this.createHandlerContext();
+    
+    // Register handlers in priority order (higher priority = checked first)
+    // Register node drag handler (priority 50 - highest, most specific)
+    this.interactionManager.register(InteractionType.NodeDrag, new NodeDragHandler(context));
+    
+    // Register port connect handler (priority 45)
+    this.interactionManager.register(InteractionType.PortConnect, new PortConnectHandler(context));
+    
+    // Register parameter drag handler (priority 40)
+    this.interactionManager.register(InteractionType.ParameterDrag, new ParameterDragHandler(context));
+    
+    // Register bezier control drag handler (priority 35)
+    this.interactionManager.register(InteractionType.BezierControlDrag, new BezierControlDragHandler(context));
+    
+    // Register connection select handler (priority 30)
+    this.interactionManager.register(InteractionType.NodeSelect, new ConnectionSelectHandler(context));
+    
+    // Register canvas zoom handler (priority 20)
+    this.interactionManager.register(InteractionType.CanvasZoom, new CanvasZoomHandler(context));
+    
+    // Register hand tool handler (priority 15)
+    this.interactionManager.register(InteractionType.CanvasPan, new HandToolHandler(context));
+    
+    // Register selection tool handler (priority 25)
+    this.interactionManager.register(InteractionType.RectangleSelection, new SelectionToolHandler(context));
+    
+    // Register canvas pan handler (priority 10 - lowest, fallback for empty canvas)
+    this.interactionManager.register(InteractionType.CanvasPan, new CanvasPanHandler(context));
+  }
+  
+  /**
+   * Convert native mouse/wheel event to InteractionEvent
+   */
+  private createInteractionEvent(
+    type: InteractionType,
+    e: MouseEvent | WheelEvent,
+    target: any = null
+  ): InteractionEvent {
+    const rect = this.canvas.getBoundingClientRect();
+    const screenX = 'clientX' in e ? e.clientX : rect.left + rect.width / 2;
+    const screenY = 'clientY' in e ? e.clientY : rect.top + rect.height / 2;
+    
+    return {
+      type,
+      target,
+      position: this.screenToCanvas(screenX, screenY),
+      screenPosition: { x: screenX, y: screenY },
+      modifiers: {
+        shift: e.shiftKey,
+        ctrl: e.ctrlKey,
+        alt: e.altKey,
+        meta: e.metaKey
+      },
+      button: 'button' in e ? e.button : undefined,
+      deltaY: 'deltaY' in e ? e.deltaY : undefined,
+      originalEvent: e
+    };
+  }
+  
   private resizeObserver: ResizeObserver | null = null;
+
+  private documentMouseMoveHandler: ((e: MouseEvent) => void) | null = null;
+  private documentMouseUpHandler: ((e: MouseEvent) => void) | null = null;
 
   private setupEventListeners(): void {
     // Pan with middle mouse or space + left mouse
@@ -183,35 +466,130 @@ export class NodeEditorCanvas {
     
     // Resize - use ResizeObserver to watch canvas container size changes
     // This handles both window resize and layout changes (e.g., when preview is collapsed)
+    // Throttle to animation frame to prevent excessive updates during rapid resizing
     this.resizeObserver = new ResizeObserver(() => {
-      this.resize();
-      this.render();
+      this.handleResize();
     });
     this.resizeObserver.observe(this.canvas);
     
-    // Also listen to window resize as fallback
-    window.addEventListener('resize', () => {
-      this.resize();
-      this.render();
-    });
+    // Initialize cached viewport dimensions
+    const initialRect = this.canvas.getBoundingClientRect();
+    this.cachedViewportWidth = initialRect.width;
+    this.cachedViewportHeight = initialRect.height;
   }
   
+  /**
+   * Attach document-level mouse listeners for dragging outside canvas
+   */
+  private attachDocumentListeners(): void {
+    if (this.documentMouseMoveHandler || this.documentMouseUpHandler) {
+      return; // Already attached
+    }
+    
+    this.documentMouseMoveHandler = (e: MouseEvent) => this.handleMouseMove(e);
+    this.documentMouseUpHandler = (e: MouseEvent) => this.handleMouseUp(e);
+    
+    document.addEventListener('mousemove', this.documentMouseMoveHandler);
+    document.addEventListener('mouseup', this.documentMouseUpHandler);
+  }
+  
+  /**
+   * Detach document-level mouse listeners
+   */
+  private detachDocumentListeners(): void {
+    if (this.documentMouseMoveHandler) {
+      document.removeEventListener('mousemove', this.documentMouseMoveHandler);
+      this.documentMouseMoveHandler = null;
+    }
+    
+    if (this.documentMouseUpHandler) {
+      document.removeEventListener('mouseup', this.documentMouseUpHandler);
+      this.documentMouseUpHandler = null;
+    }
+  }
+  
+  /**
+   * Handle resize event - marks resize as pending for processing in render loop
+   */
+  private handleResize(): void {
+    // Mark resize as pending - will be processed in next render
+    if (!this.pendingResize) {
+      this.pendingResize = true;
+      this.requestRender();
+    }
+  }
+  
+  /**
+   * Resize canvas and update viewport
+   * Maintains visual center during resize for better UX
+   */
   private resize(): void {
     const dpr = window.devicePixelRatio || 1;
     const rect = this.canvas.getBoundingClientRect();
-    // Setting width/height resets the context, so we need to reapply scale
-    this.canvas.width = rect.width * dpr;
-    this.canvas.height = rect.height * dpr;
-    // Reset transform and apply device pixel ratio scaling
-    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
-    this.ctx.scale(dpr, dpr);
+    const oldWidth = this.canvas.width;
+    const oldHeight = this.canvas.height;
+    
+    // Initialize cached dimensions if not set (first resize)
+    if (this.cachedViewportWidth === 0 && this.cachedViewportHeight === 0) {
+      this.cachedViewportWidth = rect.width;
+      this.cachedViewportHeight = rect.height;
+    }
+    
+    const oldViewportWidth = this.cachedViewportWidth;
+    const oldViewportHeight = this.cachedViewportHeight;
+    
+    // Calculate new dimensions
+    const newWidth = rect.width * dpr;
+    const newHeight = rect.height * dpr;
+    const newViewportWidth = rect.width;
+    const newViewportHeight = rect.height;
+    
+    // Cache viewport dimensions for consistent calculations
+    this.cachedViewportWidth = newViewportWidth;
+    this.cachedViewportHeight = newViewportHeight;
+    
+    // Optional: Adjust pan to maintain visual center during resize
+    // This keeps the content visually centered when window resizes
+    if (oldViewportWidth > 0 && oldViewportHeight > 0 && 
+        (oldViewportWidth !== newViewportWidth || oldViewportHeight !== newViewportHeight)) {
+      // Calculate the canvas point that was at the center of the old viewport
+      const oldCenterX = oldViewportWidth / 2;
+      const oldCenterY = oldViewportHeight / 2;
+      const canvasCenterX = (oldCenterX - this.state.panX) / this.state.zoom;
+      const canvasCenterY = (oldCenterY - this.state.panY) / this.state.zoom;
+      
+      // Calculate new pan to keep same canvas point at center of new viewport
+      const newCenterX = newViewportWidth / 2;
+      const newCenterY = newViewportHeight / 2;
+      this.state.panX = newCenterX - canvasCenterX * this.state.zoom;
+      this.state.panY = newCenterY - canvasCenterY * this.state.zoom;
+    }
+    
+    // Only resize if dimensions actually changed
+    if (oldWidth !== newWidth || oldHeight !== newHeight) {
+      // Setting width/height resets the context, so we need to reapply scale
+      this.canvas.width = newWidth;
+      this.canvas.height = newHeight;
+      // Reset transform and apply device pixel ratio scaling
+      this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+      this.ctx.scale(dpr, dpr);
+      
+      // Canvas resize requires full redraw (context was reset)
+      this.renderState.markFullRedraw();
+    }
+    
+    this.pendingResize = false;
   }
   
   // Coordinate conversion
   private screenToCanvas(screenX: number, screenY: number): { x: number, y: number } {
     const rect = this.canvas.getBoundingClientRect();
-    const x = (screenX - rect.left - this.state.panX) / this.state.zoom;
-    const y = (screenY - rect.top - this.state.panY) / this.state.zoom;
+    // Use cached dimensions for consistency during resize
+    const offsetX = screenX - rect.left;
+    const offsetY = screenY - rect.top;
+    
+    const x = (offsetX - this.state.panX) / this.state.zoom;
+    const y = (offsetY - this.state.panY) / this.state.zoom;
     return { x, y };
   }
   
@@ -260,7 +638,7 @@ export class NodeEditorCanvas {
       if (!node.collapsed) {
         for (const [paramName, paramPortPos] of metrics.parameterInputPortPositions.entries()) {
           const paramSpec = spec.parameters[paramName];
-          if (paramSpec && paramSpec.type === 'float') {
+          if (paramSpec && (paramSpec.type === 'float' || paramSpec.type === 'int')) {
             const dx = canvasPos.x - paramPortPos.x;
             const dy = canvasPos.y - paramPortPos.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
@@ -410,9 +788,8 @@ export class NodeEditorCanvas {
       const outMinNorm = Math.max(0, Math.min(1, normalizeOut(outMin)));
       const outMaxNorm = Math.max(0, Math.min(1, normalizeOut(outMax)));
       
-      // Calculate slider UI area (same as in renderRangeEditor)
+      // Calculate slider UI area - use layout system elementMetrics if available
       const gridPadding = getCSSVariableAsNumber('node-body-padding', 18);
-      const sliderUIHeight = getCSSVariableAsNumber('range-editor-height', 260);
       const sliderUIPadding = 12;
       const editorPadding = getCSSVariableAsNumber('range-editor-padding', 12);
       const sliderWidth = getCSSVariableAsNumber('range-editor-slider-width', 18);
@@ -420,9 +797,43 @@ export class NodeEditorCanvas {
       const topMargin = 12;
       const bottomMargin = 12;
       
-      const sliderUIX = node.position.x + gridPadding;
-      const sliderUIY = node.position.y + metrics.headerHeight + gridPadding;
-      const sliderUIWidth = metrics.width - gridPadding * 2;
+      let sliderUIX: number;
+      let sliderUIY: number;
+      let sliderUIWidth: number;
+      let sliderUIHeight: number;
+      
+      // Check if node uses layout system
+      if (spec.parameterLayout && metrics.elementMetrics) {
+        // Find slider-ui element in elementMetrics
+        let sliderUIElementMetrics = null;
+        for (const [element, elementMetrics] of metrics.elementMetrics.entries()) {
+          if (element.type === 'slider-ui') {
+            sliderUIElementMetrics = elementMetrics;
+            break;
+          }
+        }
+        
+        if (sliderUIElementMetrics) {
+          // Use elementMetrics positions (already in absolute coordinates)
+          sliderUIX = sliderUIElementMetrics.x;
+          sliderUIY = sliderUIElementMetrics.y;
+          sliderUIWidth = sliderUIElementMetrics.width;
+          sliderUIHeight = sliderUIElementMetrics.height;
+        } else {
+          // Fallback to legacy calculation if element not found
+          sliderUIHeight = getCSSVariableAsNumber('range-editor-height', 260);
+          sliderUIX = node.position.x + gridPadding;
+          sliderUIY = node.position.y + metrics.headerHeight + gridPadding;
+          sliderUIWidth = metrics.width - gridPadding * 2;
+        }
+      } else {
+        // Legacy calculation for nodes without layout system
+        sliderUIHeight = getCSSVariableAsNumber('range-editor-height', 260);
+        sliderUIX = node.position.x + gridPadding;
+        sliderUIY = node.position.y + metrics.headerHeight + gridPadding;
+        sliderUIWidth = metrics.width - gridPadding * 2;
+      }
+      
       const sliderUIEditorX = sliderUIX + sliderUIPadding;
       const sliderUIEditorY = sliderUIY + sliderUIPadding;
       const sliderUIEditorWidth = sliderUIWidth - sliderUIPadding * 2;
@@ -489,7 +900,7 @@ export class NodeEditorCanvas {
     return null;
   }
 
-  private hitTestParameter(mouseX: number, mouseY: number): { nodeId: string, paramName: string, isString?: boolean } | null {
+  private hitTestParameter(mouseX: number, mouseY: number): { nodeId: string, paramName: string, isString?: boolean, isArray?: boolean } | null {
     // First check for range editor slider handles (priority)
     const rangeSliderHit = this.hitTestRangeEditorSlider(mouseX, mouseY);
     if (rangeSliderHit) {
@@ -507,6 +918,42 @@ export class NodeEditorCanvas {
       for (const [paramName, gridPos] of metrics.parameterGridPositions.entries()) {
         const paramSpec = spec.parameters[paramName];
         if (!paramSpec) continue;
+        
+        // Check if this is an enum parameter - handle before toggle/knob checks
+        if (paramSpec.type === 'int') {
+          const parameterRegistry = getParameterUIRegistry();
+          const renderer = parameterRegistry.getRenderer(spec, paramName);
+          if (renderer.getUIType() === 'enum') {
+            // For enum parameters, check if click is within the enum selector area
+            // Calculate selector position (matching EnumParameterRenderer logic)
+            const cellPadding = getCSSVariableAsNumber('param-cell-padding', 12);
+            const labelFontSize = getCSSVariableAsNumber('param-label-font-size', 11);
+            const selectorHeight = getCSSVariableAsNumber('enum-selector-height', 32);
+            const selectorSpacing = getCSSVariableAsNumber('param-label-knob-spacing', 20);
+            
+            // Position selector below label
+            const labelBottom = gridPos.labelY + labelFontSize;
+            const selectorY = labelBottom + selectorSpacing;
+            const selectorX = gridPos.cellX + cellPadding;
+            const selectorWidth = gridPos.cellWidth - cellPadding * 2;
+            
+            // Check if click is within enum selector area
+            if (
+              canvasPos.x >= selectorX &&
+              canvasPos.x <= selectorX + selectorWidth &&
+              canvasPos.y >= selectorY &&
+              canvasPos.y <= selectorY + selectorHeight
+            ) {
+              return { 
+                nodeId: node.id, 
+                paramName,
+                isString: false
+              };
+            }
+            // If it's an enum parameter but click wasn't in selector, continue to next parameter
+            continue;
+          }
+        }
         
         // Check if this is a toggle parameter (int with min 0, max 1) - handle separately
         // This matches the logic in NodeRenderer.isToggleNode
@@ -592,6 +1039,20 @@ export class NodeEditorCanvas {
               nodeId: node.id, 
               paramName,
               isString: true
+            };
+          }
+        } else if (paramSpec.type === 'array') {
+          // For array parameters (like frequencyBands), check if click is in the cell area
+          if (
+            canvasPos.x >= gridPos.cellX &&
+            canvasPos.x <= gridPos.cellX + gridPos.cellWidth &&
+            canvasPos.y >= gridPos.cellY &&
+            canvasPos.y <= gridPos.cellY + gridPos.cellHeight
+          ) {
+            return { 
+              nodeId: node.id, 
+              paramName,
+              isArray: true
             };
           }
         }
@@ -692,7 +1153,7 @@ export class NodeEditorCanvas {
       const iconX = node.position.x + metrics.width / 2;
       
       // Measure text to get label bounds
-      this.ctx.font = `${nameWeight} ${nameSize}px sans-serif`;
+      this.ctx.font = `${nameWeight} ${nameSize}px "Space Grotesk", sans-serif`;
       const labelText = node.label || spec.displayName;
       const textMetrics = this.ctx.measureText(labelText);
       const textWidth = textMetrics.width;
@@ -758,9 +1219,127 @@ export class NodeEditorCanvas {
     return null;
   }
   
+  /**
+   * Hit test for type labels on ports
+   * Returns type information if click is on a type badge
+   */
+  private hitTestTypeLabel(mouseX: number, mouseY: number): { 
+    nodeId: string; 
+    portName: string; 
+    portType: string; 
+    isOutput: boolean;
+    screenX: number;
+    screenY: number;
+  } | null {
+    const canvasPos = this.screenToCanvas(mouseX, mouseY);
+    
+    // Get type label dimensions from CSS tokens
+    const typeFontSize = getCSSVariableAsNumber('port-type-font-size', 19);
+    const typeFontWeight = getCSSVariableAsNumber('port-type-font-weight', 600);
+    const typePaddingH = getCSSVariableAsNumber('port-type-padding-horizontal', 8);
+    const typePaddingV = getCSSVariableAsNumber('port-type-padding-vertical', 4);
+    const portRadius = getCSSVariableAsNumber('port-radius', 12);
+    const labelSpacing = getCSSVariableAsNumber('port-label-spacing', 12);
+    
+    // Set font for text measurement
+    this.ctx.font = `${typeFontWeight} ${typeFontSize}px "Space Grotesk", sans-serif`;
+    
+    for (const node of this.graph.nodes) {
+      const spec = this.nodeSpecs.get(node.type);
+      const metrics = this.nodeMetrics.get(node.id);
+      if (!spec || !metrics) continue;
+      
+      // Check input ports
+      for (const port of spec.inputs) {
+        const pos = metrics.portPositions.get(`input:${port.name}`);
+        if (!pos) continue;
+        
+        // Calculate type label position (same as in NodePortRenderer)
+        const typeStartX = pos.x + portRadius + labelSpacing;
+        const typeWidth = this.ctx.measureText(port.type).width;
+        const typeBgWidth = typeWidth + typePaddingH * 2;
+        const typeBgHeight = typeFontSize + typePaddingV * 2;
+        const typeBgX = typeStartX;
+        const typeBgY = pos.y - typeBgHeight / 2;
+        
+        // Check if click is within type badge bounds
+        if (
+          canvasPos.x >= typeBgX &&
+          canvasPos.x <= typeBgX + typeBgWidth &&
+          canvasPos.y >= typeBgY &&
+          canvasPos.y <= typeBgY + typeBgHeight
+        ) {
+          // Convert to screen coordinates for callout positioning
+          const rect = this.canvas.getBoundingClientRect();
+          const screenX = rect.left + (typeBgX + typeBgWidth / 2) * this.state.zoom + this.state.panX;
+          const screenY = rect.top + pos.y * this.state.zoom + this.state.panY;
+          
+          return {
+            nodeId: node.id,
+            portName: port.name,
+            portType: port.type,
+            isOutput: false,
+            screenX,
+            screenY
+          };
+        }
+      }
+      
+      // Check output ports
+      for (const port of spec.outputs) {
+        const pos = metrics.portPositions.get(`output:${port.name}`);
+        if (!pos) continue;
+        
+        // Calculate type label position (output ports have type on the left side)
+        const typeEndX = pos.x - portRadius - labelSpacing;
+        const typeWidth = this.ctx.measureText(port.type).width;
+        const typeBgWidth = typeWidth + typePaddingH * 2;
+        const typeBgHeight = typeFontSize + typePaddingV * 2;
+        const typeBgX = typeEndX - typeBgWidth;
+        const typeBgY = pos.y - typeBgHeight / 2;
+        
+        // Check if click is within type badge bounds
+        if (
+          canvasPos.x >= typeBgX &&
+          canvasPos.x <= typeBgX + typeBgWidth &&
+          canvasPos.y >= typeBgY &&
+          canvasPos.y <= typeBgY + typeBgHeight
+        ) {
+          // Convert to screen coordinates for callout positioning
+          const rect = this.canvas.getBoundingClientRect();
+          const screenX = rect.left + (typeBgX + typeBgWidth / 2) * this.state.zoom + this.state.panX;
+          const screenY = rect.top + pos.y * this.state.zoom + this.state.panY;
+          
+          return {
+            nodeId: node.id,
+            portName: port.name,
+            portType: port.type,
+            isOutput: true,
+            screenX,
+            screenY
+          };
+        }
+      }
+    }
+    
+    return null;
+  }
+
   // Public method to check if a click is on a parameter (for double-click handling)
   public hitTestParameterAtScreen(screenX: number, screenY: number): { nodeId: string, paramName: string } | null {
     return this.hitTestParameter(screenX, screenY);
+  }
+  
+  // Public method to check if a click is on a type label
+  public hitTestTypeLabelAtScreen(screenX: number, screenY: number): { 
+    nodeId: string; 
+    portName: string; 
+    portType: string; 
+    isOutput: boolean;
+    screenX: number;
+    screenY: number;
+  } | null {
+    return this.hitTestTypeLabel(screenX, screenY);
   }
   
   // Show text input overlay for parameter editing
@@ -806,7 +1385,7 @@ export class NodeEditorCanvas {
     input.style.width = `${valueWidth * this.state.zoom}px`;
     input.style.height = `${paramPos.height * this.state.zoom}px`;
     input.style.fontSize = `${12 * this.state.zoom}px`;
-    input.style.fontFamily = 'monospace';
+    input.style.fontFamily = '"JetBrains Mono", "Courier New", Courier, monospace';
     const inputBorder = getCSSVariable('param-input-border', `2px solid ${getCSSColor('color-blue-90', '#6565dc')}`);
     input.style.border = inputBorder;
     const inputRadius = getCSSVariable('input-radius', '2px');
@@ -936,7 +1515,7 @@ export class NodeEditorCanvas {
     const iconX = node.position.x + metrics.width / 2;
     
     // Measure text to get label bounds
-    this.ctx.font = `${nameWeight} ${nameSize}px sans-serif`;
+    this.ctx.font = `${nameWeight} ${nameSize}px "Space Grotesk", sans-serif`;
     const currentLabelText = node.label || spec.displayName;
     const textMetrics = this.ctx.measureText(currentLabelText);
     const textWidth = Math.max(textMetrics.width, 100); // Minimum width for input
@@ -961,7 +1540,7 @@ export class NodeEditorCanvas {
     input.style.height = `${(textHeight + 8) * this.state.zoom}px`;
     input.style.fontSize = `${nameSize * this.state.zoom}px`;
     input.style.fontWeight = `${nameWeight}`;
-    input.style.fontFamily = 'sans-serif';
+    input.style.fontFamily = '"Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif';
     input.style.textAlign = 'center';
     const inputBorder = getCSSVariable('param-input-border', `2px solid ${getCSSColor('color-blue-90', '#6565dc')}`);
     input.style.border = inputBorder;
@@ -1130,8 +1709,23 @@ export class NodeEditorCanvas {
     // Check for delete button hit first (highest priority)
     const deleteHit = this.hitTestDeleteButton(mouseX, mouseY);
     if (deleteHit) {
+      // Clean up NodeComponent if feature flag is enabled (Phase 2.2)
+      const component = this.nodeComponents.get(deleteHit);
+      if (component) {
+        component.unmount();
+        this.nodeComponents.delete(deleteHit);
+      }
       this.onNodeDeleted?.(deleteHit);
       this.render();
+      return;
+    }
+    
+    // Check for type label hit (before port connections to allow clicking type labels)
+    const typeLabelHit = this.hitTestTypeLabel(mouseX, mouseY);
+    if (typeLabelHit && !this.isSpacePressed && this.activeTool === 'cursor') {
+      e.preventDefault();
+      e.stopPropagation();
+      this.onTypeLabelClick?.(typeLabelHit.portType, typeLabelHit.screenX, typeLabelHit.screenY);
       return;
     }
     
@@ -1165,189 +1759,193 @@ export class NodeEditorCanvas {
       }
     }
     
-    // Check for bezier control point hit (before parameter hit to prioritize)
-    const bezierHit = this.hitTestBezierControlPoint(mouseX, mouseY);
-    if (bezierHit && !this.isSpacePressed) {
-      const node = this.graph.nodes.find(n => n.id === bezierHit.nodeId);
-      const spec = this.nodeSpecs.get(node?.type || '');
-      if (node && spec) {
-        this.isDraggingBezierControl = true;
-        this.draggingBezierNodeId = bezierHit.nodeId;
-        this.draggingBezierControlIndex = bezierHit.controlIndex;
-        
-        // Store initial parameter values
-        const x1 = (node.parameters.x1 ?? spec.parameters.x1?.default ?? 0) as number;
-        const y1 = (node.parameters.y1 ?? spec.parameters.y1?.default ?? 0) as number;
-        const x2 = (node.parameters.x2 ?? spec.parameters.x2?.default ?? 1) as number;
-        const y2 = (node.parameters.y2 ?? spec.parameters.y2?.default ?? 1) as number;
-        this.dragBezierStartValues = { x1, y1, x2, y2 };
-        
-        this.canvas.style.cursor = 'move';
-        return;
+    // Use interaction handler system for tool-specific interactions (check early for priority)
+    // Selection tool should work everywhere, even when clicking on nodes/ports
+    if (this.interactionManager && this.activeTool === 'select') {
+      const event = this.createInteractionEvent(InteractionType.RectangleSelection, e);
+      if (this.interactionManager.start(event)) {
+        // Attach document-level listeners for dragging outside canvas
+        this.attachDocumentListeners();
+        return; // Event handled by handler
       }
     }
     
-    // Check for parameter hit (for dragging or file input)
-    const paramHit = this.hitTestParameter(mouseX, mouseY);
-    if (paramHit && !this.isSpacePressed) {
-      // Handle string parameters (file inputs) specially
-      if (paramHit.isString) {
-        this.handleFileParameterClick(paramHit.nodeId, paramHit.paramName, mouseX, mouseY);
-        return;
+    // Hand tool should also work everywhere
+    if (this.interactionManager && this.activeTool === 'hand') {
+      const event = this.createInteractionEvent(InteractionType.CanvasPan, e);
+      if (this.interactionManager.start(event)) {
+        // Attach document-level listeners for dragging outside canvas
+        this.attachDocumentListeners();
+        return; // Event handled by handler
       }
-      
-      const node = this.graph.nodes.find(n => n.id === paramHit.nodeId);
-      const spec = this.nodeSpecs.get(node?.type || '');
-      if (node && spec) {
-        const paramSpec = spec.parameters[paramHit.paramName];
-        if (!paramSpec) return;
-        
-        // Check if this is a toggle parameter (int with min 0, max 1)
-        // This matches the logic in NodeRenderer.isToggleNode
-        const isToggle = paramSpec.type === 'int' && 
-          paramSpec.min === 0 && 
-          paramSpec.max === 1;
-        
-        // Handle toggle parameters - toggle on click instead of drag
-        if (isToggle) {
-          const currentValue = (node.parameters[paramHit.paramName] ?? paramSpec.default) as number;
-          const newValue = currentValue === 1 ? 0 : 1;
-          this.onParameterChanged?.(paramHit.nodeId, paramHit.paramName, newValue);
-          this.render();
-          return;
-        }
-        
-        // Handle float/int parameters - drag to adjust
-        if (paramSpec.type === 'float' || paramSpec.type === 'int') {
-          this.isDraggingParameter = true;
-          this.draggingParameterNodeId = paramHit.nodeId;
-          this.draggingParameterName = paramHit.paramName;
-          // Store screen-space position for consistent drag feel at all zoom levels
-          this.dragParamStartY = mouseY;
-          this.dragParamStartValue = (node.parameters[paramHit.paramName] ?? paramSpec.default) as number;
-          this.canvas.style.cursor = 'ns-resize';
-          return;
+    }
+    
+    // Use interaction handler system for bezier control dragging (only for cursor tool)
+    if (this.interactionManager && this.activeTool === 'cursor') {
+      const bezierHit = this.hitTestBezierControlPoint(mouseX, mouseY);
+      if (bezierHit && !this.isSpacePressed) {
+        const event = this.createInteractionEvent(InteractionType.BezierControlDrag, e, bezierHit);
+        if (this.interactionManager.start(event)) {
+          return; // Event handled by handler
         }
       }
     }
     
-    // Check for port hit
-    const portHit = this.hitTestPort(mouseX, mouseY);
-    if (portHit) {
-      this.isConnecting = true;
-      this.connectionStartNodeId = portHit.nodeId;
-      this.connectionStartPort = portHit.port;
-      this.connectionStartParameter = portHit.parameter || null;
-      this.connectionStartIsOutput = portHit.isOutput;
-      this.connectionMouseX = mouseX;
-      this.connectionMouseY = mouseY;
-      this.hoveredPort = null;
-      this.canvas.style.cursor = 'crosshair';
+    // Check if dropdown is open - if so, don't handle other interactions
+    if (this.enumDropdown && this.enumDropdown.isVisible()) {
+      // Let the dropdown handle clicks (it will close on outside click)
       return;
     }
     
-    // Check for node hit (but allow panning if spacebar is pressed)
-    const nodeHit = this.hitTestNode(mouseX, mouseY);
-    if (nodeHit && !this.isSpacePressed) {
-      // Check if clicking on node header (for dragging)
-      const node = this.graph.nodes.find(n => n.id === nodeHit)!;
-      const metrics = this.nodeMetrics.get(nodeHit);
-      if (!metrics) return;
+    // Check if frequency bands editor is open - if so, don't handle other interactions
+    if (this.frequencyBandsEditor && this.frequencyBandsEditor.isVisible()) {
+      // Let the editor handle clicks (it will close on outside click)
+      return;
+    }
+    
+    // Use interaction handler system for parameter dragging (only for cursor tool)
+    if (this.interactionManager && this.activeTool === 'cursor') {
+      const paramHit = this.hitTestParameter(mouseX, mouseY);
+      if (paramHit && !this.isSpacePressed) {
+        // Handle string parameters (file inputs) specially - not handled by handler
+        if (paramHit.isString) {
+          this.handleFileParameterClick(paramHit.nodeId, paramHit.paramName, mouseX, mouseY);
+          return;
+        }
+        
+        // Handle array parameters (frequency bands) specially - not handled by handler
+        if (paramHit.isArray) {
+          this.handleFrequencyBandsParameterClick(paramHit.nodeId, paramHit.paramName, mouseX, mouseY);
+          return;
+        }
+        
+        // Check if this is an enum parameter - handle dropdown before drag handler
+        const node = this.graph.nodes.find(n => n.id === paramHit.nodeId);
+        const spec = this.nodeSpecs.get(node?.type || '');
+        if (node && spec) {
+          const paramSpec = spec.parameters[paramHit.paramName];
+          if (paramSpec) {
+            const parameterRegistry = getParameterUIRegistry();
+            const renderer = parameterRegistry.getRenderer(spec, paramHit.paramName);
+            if (renderer.getUIType() === 'enum') {
+              // Handle enum parameter - open dropdown menu
+              e.preventDefault(); // Prevent default behavior
+              e.stopPropagation(); // Prevent other handlers from interfering
+              this.handleEnumParameterClick(paramHit.nodeId, paramHit.paramName, mouseX, mouseY);
+              return;
+            }
+          }
+        }
+        
+        const event = this.createInteractionEvent(InteractionType.ParameterDrag, e, paramHit);
+        if (this.interactionManager.start(event)) {
+          return; // Event handled by handler
+        }
+        
+        // Fallback: legacy parameter handling when interaction manager doesn't handle it
+        if (node && spec) {
+          const paramSpec = spec.parameters[paramHit.paramName];
+          if (!paramSpec) return;
+          
+          // Check if this is a toggle parameter (int with min 0, max 1)
+          // This matches the logic in NodeRenderer.isToggleNode
+          const isToggle = paramSpec.type === 'int' && 
+            paramSpec.min === 0 && 
+            paramSpec.max === 1;
+          
+          // Handle toggle parameters - toggle on click instead of drag
+          if (isToggle) {
+            const currentValue = (node.parameters[paramHit.paramName] ?? paramSpec.default) as number;
+            const newValue = currentValue === 1 ? 0 : 1;
+            this.onParameterChanged?.(paramHit.nodeId, paramHit.paramName, newValue);
+            this.render();
+            return;
+          }
+          
+          // Handle float/int parameters - drag to adjust
+          if (paramSpec.type === 'float' || paramSpec.type === 'int') {
+            this.isDraggingParameter = true;
+            this.draggingParameterNodeId = paramHit.nodeId;
+            this.draggingParameterName = paramHit.paramName;
+            // Store screen-space position for consistent drag feel at all zoom levels
+            this.dragParamStartY = mouseY;
+            this.dragParamStartValue = (node.parameters[paramHit.paramName] ?? paramSpec.default) as number;
+            this.canvas.style.cursor = 'ns-resize';
+            return;
+          }
+        }
+      }
+    }
+    
+    // Use interaction handler system for port connection (only for cursor tool)
+    if (this.interactionManager && this.activeTool === 'cursor') {
+      const portHit = this.hitTestPort(mouseX, mouseY);
+      if (portHit) {
+        const event = this.createInteractionEvent(InteractionType.PortConnect, e, portHit);
+        if (this.interactionManager.start(event)) {
+          return; // Event handled by handler
+        }
+      }
+    }
+    
+    // Use interaction handler system for node dragging (only for cursor tool)
+    if (this.interactionManager && this.activeTool === 'cursor') {
+      const nodeHit = this.hitTestNode(mouseX, mouseY);
+      if (nodeHit && !this.isSpacePressed) {
+        const event = this.createInteractionEvent(InteractionType.NodeDrag, e, nodeHit);
+        if (this.interactionManager.start(event)) {
+          // Attach document-level listeners for dragging outside canvas
+          this.attachDocumentListeners();
+          return; // Event handled by handler
+        }
+      }
+    }
+    
+    // Use interaction handler system for connection selection (only for cursor tool)
+    if (this.interactionManager && this.activeTool === 'cursor') {
+      const connHit = this.hitTestConnection(mouseX, mouseY);
+      if (connHit) {
+        const event = this.createInteractionEvent(InteractionType.NodeSelect, e, connHit);
+        if (this.interactionManager.start(event)) {
+          return; // Event handled by handler
+        }
+      }
+    }
+    
+    // Use interaction handler system for canvas panning (fallback for cursor tool)
+    if (this.interactionManager && this.activeTool === 'cursor') {
+      // Check for panning scenarios: spacebar+drag, middle mouse, or background drag
+      const isSpacePressed = this.isSpacePressed;
+      const isMiddleMouse = e.button === 1;
+      const isLeftClickOnEmpty = e.button === 0;
       
-      const canvasPos = this.screenToCanvas(mouseX, mouseY);
-      const headerHeight = metrics.headerHeight;
-      
-      if (canvasPos.y - node.position.y < headerHeight) {
-        // Clicked on header - prepare for potential drag (with threshold)
-        // Handle selection first (for multi-select with shift-click)
-        const multiSelect = e.shiftKey;
-        if (!multiSelect) {
-          // Single click: clear selection and select only this node
-          if (!this.state.selectedNodeIds.has(nodeHit)) {
+      if (isSpacePressed || isMiddleMouse || isLeftClickOnEmpty) {
+        const event = this.createInteractionEvent(InteractionType.CanvasPan, e);
+        if (this.interactionManager.start(event)) {
+          // Attach document-level listeners for dragging outside canvas
+          this.attachDocumentListeners();
+          // If spacebar or middle mouse, panning started immediately
+          // If left click on empty, potential background pan is set up
+          if (isLeftClickOnEmpty && !isSpacePressed) {
+            // Deselect all immediately for background pan
+            // Mark connections as dirty before clearing so they re-render correctly
+            if (this.state.selectedConnectionIds.size > 0) {
+              const previouslySelected = Array.from(this.state.selectedConnectionIds);
+              this.renderState.markConnectionsDirty(previouslySelected);
+            }
+            // Mark previously selected nodes as dirty so they re-render without selection border
+            if (this.state.selectedNodeIds.size > 0) {
+              const previouslySelectedNodes = Array.from(this.state.selectedNodeIds);
+              this.renderState.markNodesDirty(previouslySelectedNodes);
+            }
             this.state.selectedNodeIds.clear();
             this.state.selectedConnectionIds.clear();
-            this.state.selectedNodeIds.add(nodeHit);
-            this.onNodeSelected?.(nodeHit, false);
+            this.onNodeSelected?.(null, false);
+            this.render();
           }
-        } else {
-          // Shift-click: toggle selection
-          if (this.state.selectedNodeIds.has(nodeHit)) {
-            this.state.selectedNodeIds.delete(nodeHit);
-          } else {
-            this.state.selectedNodeIds.add(nodeHit);
-          }
-          this.onNodeSelected?.(nodeHit, true);
+          return; // Event handled by handler
         }
-        
-        this.potentialNodeDrag = true;
-        this.potentialNodeDragId = nodeHit;
-        this.nodeDragStartX = mouseX;
-        this.nodeDragStartY = mouseY;
-        const nodeScreenPos = this.canvasToScreen(node.position.x, node.position.y);
-        this.dragOffsetX = mouseX - nodeScreenPos.x;
-        this.dragOffsetY = mouseY - nodeScreenPos.y;
-        this.canvas.style.cursor = 'grab';
-        this.render();
-      } else {
-        // Clicked on node body - select node
-        const multiSelect = e.shiftKey;
-        if (!multiSelect) {
-          this.state.selectedNodeIds.clear();
-          this.state.selectedConnectionIds.clear();
-        }
-        if (this.state.selectedNodeIds.has(nodeHit)) {
-          this.state.selectedNodeIds.delete(nodeHit);
-        } else {
-          this.state.selectedNodeIds.add(nodeHit);
-        }
-        this.onNodeSelected?.(nodeHit, multiSelect);
-        this.render();
       }
-      return;
-    }
-    
-    // Check for connection hit
-    const connHit = this.hitTestConnection(mouseX, mouseY);
-    if (connHit) {
-      const multiSelect = e.shiftKey;
-      if (!multiSelect) {
-        this.state.selectedNodeIds.clear();
-        this.state.selectedConnectionIds.clear();
-      }
-      if (this.state.selectedConnectionIds.has(connHit)) {
-        this.state.selectedConnectionIds.delete(connHit);
-      } else {
-        this.state.selectedConnectionIds.add(connHit);
-      }
-      this.onConnectionSelected?.(connHit, multiSelect);
-      this.render();
-      return;
-    }
-    
-    // Clicked on empty canvas
-    if (e.button === 0) { // Left click
-      // Start panning if space is held
-      if (this.isSpacePressed) {
-        this.isPanning = true;
-        this.panStartX = mouseX - this.state.panX;
-        this.panStartY = mouseY - this.state.panY;
-        this.canvas.style.cursor = 'grabbing';
-      } else {
-        // Set up potential background pan (will start if user drags)
-        this.potentialBackgroundPan = true;
-        this.backgroundDragStartX = mouseX;
-        this.backgroundDragStartY = mouseY;
-        // Deselect all immediately
-        this.state.selectedNodeIds.clear();
-        this.state.selectedConnectionIds.clear();
-        this.onNodeSelected?.(null, false);
-        this.render();
-      }
-    } else if (e.button === 1) { // Middle mouse
-      this.isPanning = true;
-      this.panStartX = mouseX - this.state.panX;
-      this.panStartY = mouseY - this.state.panY;
-      this.canvas.style.cursor = 'grabbing';
     }
   }
   
@@ -1355,10 +1953,120 @@ export class NodeEditorCanvas {
     const mouseX = e.clientX;
     const mouseY = e.clientY;
     
+    // If dropdown is open, don't process other interactions
+    if (this.enumDropdown && this.enumDropdown.isVisible()) {
+      return;
+    }
+    
     // Store current mouse position for edge scrolling
     this.currentMouseX = mouseX;
     this.currentMouseY = mouseY;
     
+    // Use interaction handler system for interaction updates
+    if (this.interactionManager) {
+      // Always try to update all interaction types in priority order
+      // Handlers will check their own state via canHandle() to determine if they're active
+      let eventHandled = false;
+      
+      // Try handlers in priority order (highest first)
+      // Node dragging (priority 50)
+      const nodeHit = this.hitTestNode(mouseX, mouseY);
+      const eventNodeDrag = this.createInteractionEvent(InteractionType.NodeDrag, e, nodeHit);
+      if (this.interactionManager.update(eventNodeDrag)) {
+        eventHandled = true;
+      }
+      
+      // Port connection (priority 45)
+      const portHit = this.hitTestPort(mouseX, mouseY);
+      const eventPortConnect = this.createInteractionEvent(InteractionType.PortConnect, e, portHit);
+      if (this.interactionManager.update(eventPortConnect)) {
+        eventHandled = true;
+      }
+      
+      // Parameter dragging (priority 40)
+      const paramHit = this.hitTestParameter(mouseX, mouseY);
+      const eventParamDrag = this.createInteractionEvent(InteractionType.ParameterDrag, e, paramHit);
+      if (this.interactionManager.update(eventParamDrag)) {
+        eventHandled = true;
+      }
+      
+      // Bezier control dragging (priority 35)
+      const bezierHit = this.hitTestBezierControlPoint(mouseX, mouseY);
+      const eventBezierDrag = this.createInteractionEvent(InteractionType.BezierControlDrag, e, bezierHit);
+      if (this.interactionManager.update(eventBezierDrag)) {
+        eventHandled = true;
+      }
+      
+      // Rectangle selection (priority 25)
+      if (this.activeTool === 'select') {
+        const eventSelection = this.createInteractionEvent(InteractionType.RectangleSelection, e);
+        if (this.interactionManager.update(eventSelection)) {
+          eventHandled = true;
+        }
+      }
+      
+      // Panning (priority 10-15)
+      const eventPan = this.createInteractionEvent(InteractionType.CanvasPan, e);
+      if (this.interactionManager.update(eventPan)) {
+        eventHandled = true;
+      }
+      
+      // Update hover states when no active interaction is consuming mouse events
+      // This provides visual feedback for ports and parameters
+      if (!eventHandled) {
+        // Check for port hover (for highlighting)
+        const previousHoveredPort = this.hoveredPort;
+        if (portHit) {
+          this.hoveredPort = portHit;
+          this.canvas.style.cursor = 'crosshair';
+        } else {
+          this.hoveredPort = null;
+        }
+        
+        // Render if hover state changed
+        if (previousHoveredPort !== this.hoveredPort) {
+          this.requestRender();
+        }
+        
+        // Update cursor based on what's under the mouse
+        const bezierHitHover = this.hitTestBezierControlPoint(mouseX, mouseY);
+        if (bezierHitHover) {
+          this.canvas.style.cursor = 'move';
+        } else {
+          const modeHit = this.hitTestParameterMode(mouseX, mouseY);
+          if (modeHit) {
+            this.canvas.style.cursor = 'pointer';
+          } else if (portHit) {
+            // Port hover already set cursor to crosshair above
+          } else if (paramHit) {
+            // Check if this is a toggle parameter
+            const node = this.graph.nodes.find(n => n.id === paramHit.nodeId);
+            const spec = this.nodeSpecs.get(node?.type || '');
+            if (node && spec) {
+              const paramSpec = spec.parameters[paramHit.paramName];
+              const isToggle = paramSpec && paramSpec.type === 'int' && 
+                paramSpec.min === 0 && 
+                paramSpec.max === 1;
+              this.canvas.style.cursor = isToggle ? 'pointer' : 'ns-resize';
+            } else {
+              this.canvas.style.cursor = 'ns-resize';
+            }
+          } else if (this.activeTool === 'hand') {
+            this.canvas.style.cursor = 'grab';
+          } else if (this.activeTool === 'select') {
+            this.canvas.style.cursor = 'crosshair';
+          } else if (this.isSpacePressed) {
+            this.canvas.style.cursor = 'grab';
+          } else {
+            this.canvas.style.cursor = 'default';
+          }
+        }
+      }
+      
+      // Continue with edge scrolling and other logic below
+    }
+    
+    // Fallback to old implementation
     // Check if we should start background panning
     if (this.potentialBackgroundPan && !this.isPanning) {
       const dx = mouseX - this.backgroundDragStartX;
@@ -1369,8 +2077,8 @@ export class NodeEditorCanvas {
         // Start panning
         this.isPanning = true;
         this.potentialBackgroundPan = false;
-        this.panStartX = this.backgroundDragStartX - this.state.panX;
-        this.panStartY = this.backgroundDragStartY - this.state.panY;
+        this._panStartX = this.backgroundDragStartX - this.state.panX;
+        this._panStartY = this.backgroundDragStartY - this.state.panY;
         this.canvas.style.cursor = 'grabbing';
       }
     }
@@ -1453,6 +2161,10 @@ export class NodeEditorCanvas {
             } else {
               this.canvas.style.cursor = 'ns-resize';
             }
+          } else if (this.activeTool === 'hand') {
+            this.canvas.style.cursor = 'grab';
+          } else if (this.activeTool === 'select') {
+            this.canvas.style.cursor = 'crosshair';
           } else if (this.isSpacePressed) {
             this.canvas.style.cursor = 'grab';
           } else {
@@ -1471,11 +2183,9 @@ export class NodeEditorCanvas {
       this.stopEdgeScrolling();
     }
     
-    if (this.isPanning) {
-      this.state.panX = mouseX - this.panStartX;
-      this.state.panY = mouseY - this.panStartY;
-      this.render();
-    } else if (this.isDraggingNode && this.draggingNodeId && this.draggingNodeInitialPos) {
+    // Panning and node dragging are handled by InteractionManager
+    // Old fallback code removed - handlers are always used
+    if (this.isDraggingNode && this.draggingNodeId && this.draggingNodeInitialPos) {
       const node = this.graph.nodes.find(n => n.id === this.draggingNodeId)!;
       const canvasPos = this.screenToCanvas(mouseX - this.dragOffsetX, mouseY - this.dragOffsetY);
       
@@ -1487,17 +2197,57 @@ export class NodeEditorCanvas {
       const deltaY = snappedY - this.draggingNodeInitialPos.y;
       
       // Move all selected nodes by the same delta
+      const movedNodeIds: string[] = [];
       for (const [nodeId, initialPos] of this.selectedNodesInitialPositions.entries()) {
         const selectedNode = this.graph.nodes.find(n => n.id === nodeId);
         if (selectedNode) {
           selectedNode.position.x = Math.round(initialPos.x + deltaX);
           selectedNode.position.y = Math.round(initialPos.y + deltaY);
+          
+          // Invalidate metrics cache for moved node (port positions depend on node position)
+          // Need to invalidate both the local cache and the metrics calculator cache
+          this.nodeMetrics.delete(nodeId);
+          this.nodeRenderer.invalidateMetrics(nodeId);
+          
+          // Invalidate NodeComponent metrics cache if component system is enabled (Phase 2.2)
+          const component = this.nodeComponents.get(nodeId);
+          if (component) {
+            component.invalidateMetrics();
+          }
+          
           this.onNodeMoved?.(nodeId, selectedNode.position.x, selectedNode.position.y);
+          movedNodeIds.push(nodeId);
         }
       }
       
       this.smartGuides = guides;
-      this.render();
+      // Mark moved nodes and all related elements as dirty
+      this.renderState.markNodesDirty(movedNodeIds);
+      this.renderState.markLayerDirty(RenderLayer.Overlays); // Smart guides render in overlay layer
+      
+      // Mark all connections connected to moved nodes as dirty (connections need to redraw when endpoints move)
+      const connectionsToUpdate: string[] = [];
+      for (const nodeId of movedNodeIds) {
+        for (const conn of this.graph.connections) {
+          if (conn.sourceNodeId === nodeId || conn.targetNodeId === nodeId) {
+            connectionsToUpdate.push(conn.id);
+          }
+        }
+      }
+      if (connectionsToUpdate.length > 0) {
+        this.renderState.markConnectionsDirty(connectionsToUpdate);
+      }
+      
+      // Clear connection path caches when nodes move (port positions change)
+      this.connectionLayerRenderer?.clearCache();
+      this.parameterConnectionLayerRenderer?.clearCache();
+      
+      // Mark ports layer as dirty (ports are rendered separately and need to move with nodes)
+      this.renderState.markLayerDirty(RenderLayer.Ports);
+      this.renderState.markLayerDirty(RenderLayer.Connections);
+      this.renderState.markLayerDirty(RenderLayer.ParameterConnections);
+      
+      this.requestRender();
     } else if (this.isDraggingParameter && this.draggingParameterNodeId && this.draggingParameterName) {
       const node = this.graph.nodes.find(n => n.id === this.draggingParameterNodeId);
       const spec = this.nodeSpecs.get(node?.type || '');
@@ -1542,6 +2292,15 @@ export class NodeEditorCanvas {
           const newValue = Math.max(min, Math.min(max, this.dragParamStartValue + valueDelta));
           
           node.parameters[this.draggingParameterName] = newValue;
+          
+          // Invalidate metrics cache so controls update during drag
+          this.nodeMetrics.delete(this.draggingParameterNodeId);
+          this.nodeRenderer.invalidateMetrics(this.draggingParameterNodeId);
+          const component = this.nodeComponents.get(this.draggingParameterNodeId);
+          if (component) {
+            component.invalidateMetrics();
+          }
+          
           this.onParameterChanged?.(this.draggingParameterNodeId, this.draggingParameterName, newValue);
           this.render();
         }
@@ -1738,30 +2497,56 @@ export class NodeEditorCanvas {
   }
   
   /**
+   * Get current viewport information
+   */
+  private getViewport(): Viewport {
+    // Use cached dimensions if available, fallback to getBoundingClientRect
+    // This ensures consistent viewport calculations during resize
+    const width = this.cachedViewportWidth || this.canvas.getBoundingClientRect().width;
+    const height = this.cachedViewportHeight || this.canvas.getBoundingClientRect().height;
+    
+    return {
+      x: this.state.panX,
+      y: this.state.panY,
+      width,
+      height,
+      zoom: this.state.zoom
+    };
+  }
+
+  /**
    * Check if a node is visible in the viewport (fully or partially)
    */
   private isNodeVisible(node: NodeInstance, metrics: NodeRenderMetrics): boolean {
-    const rect = this.canvas.getBoundingClientRect();
     
-    // Calculate viewport bounds in canvas coordinates
-    const viewportLeft = -this.state.panX / this.state.zoom;
-    const viewportTop = -this.state.panY / this.state.zoom;
-    const viewportRight = (rect.width - this.state.panX) / this.state.zoom;
-    const viewportBottom = (rect.height - this.state.panY) / this.state.zoom;
-    
-    // Calculate node bounds
-    const nodeLeft = node.position.x;
-    const nodeTop = node.position.y;
-    const nodeRight = node.position.x + metrics.width;
-    const nodeBottom = node.position.y + metrics.height;
-    
-    // Check if node overlaps with viewport
-    return !(
-      nodeRight < viewportLeft ||
-      nodeLeft > viewportRight ||
-      nodeBottom < viewportTop ||
-      nodeTop > viewportBottom
+    const viewport = this.getViewport();
+    return isRectVisible(
+      node.position.x,
+      node.position.y,
+      metrics.width,
+      metrics.height,
+      viewport
     );
+  }
+
+  /**
+   * Check if a connection is visible in the viewport
+   * A connection is visible if at least one of its endpoints is visible
+   */
+  private isConnectionVisible(conn: Connection): boolean {
+    const sourceNode = this.graph.nodes.find(n => n.id === conn.sourceNodeId);
+    const targetNode = this.graph.nodes.find(n => n.id === conn.targetNodeId);
+    
+    if (!sourceNode || !targetNode) return false;
+    
+    const sourceMetrics = this.nodeMetrics.get(sourceNode.id);
+    const targetMetrics = this.nodeMetrics.get(targetNode.id);
+    
+    // If we don't have metrics yet, render the connection (it will be calculated)
+    if (!sourceMetrics || !targetMetrics) return true;
+    
+    // Connection is visible if either node is visible
+    return this.isNodeVisible(sourceNode, sourceMetrics) || this.isNodeVisible(targetNode, targetMetrics);
   }
   
   /**
@@ -1947,12 +2732,41 @@ export class NodeEditorCanvas {
   }
   
   /**
+   * Render selection rectangle
+   * Note: This is called from renderContent() which already applies pan/zoom transform,
+   * so we render directly in canvas space.
+   */
+  private renderSelectionRectangle(): void {
+    if (!this.selectionRectangle) return;
+    
+    const { x, y, width, height } = this.selectionRectangle;
+    
+    // Get selection rectangle color from CSS
+    const fillColor = getCSSColor('selection-rectangle-fill', 'rgba(100, 150, 255, 0.1)');
+    const strokeColor = getCSSColor('selection-rectangle-stroke', getCSSColor('color-blue-60', '#4a9eff'));
+    
+    // Draw fill
+    this.ctx.fillStyle = fillColor;
+    this.ctx.fillRect(x, y, width, height);
+    
+    // Draw stroke
+    this.ctx.strokeStyle = strokeColor;
+    this.ctx.lineWidth = 1 / this.state.zoom; // Scale line width with zoom
+    this.ctx.setLineDash([4 / this.state.zoom, 4 / this.state.zoom]); // Scale dash with zoom
+    this.ctx.strokeRect(x, y, width, height);
+    this.ctx.setLineDash([]);
+  }
+  
+  /**
    * Render smart guide lines
    */
   private renderSmartGuides(): void {
     if (this.smartGuides.vertical.length === 0 && this.smartGuides.horizontal.length === 0) {
       return;
     }
+    
+    // Save context state to avoid affecting other renderers
+    this.ctx.save();
     
     const rect = this.canvas.getBoundingClientRect();
     const viewportLeft = -this.state.panX / this.state.zoom;
@@ -1996,11 +2810,49 @@ export class NodeEditorCanvas {
       }
     }
     
-    this.ctx.setLineDash([]);
-    this.ctx.globalAlpha = 1.0;
+    // Restore context state
+    this.ctx.restore();
+  }
+  
+  /**
+   * Set the active tool
+   */
+  public setActiveTool(tool: ToolType): void {
+    this.activeTool = tool;
+    
+    // Update cursor based on tool
+    if (tool === 'hand') {
+      this.canvas.style.cursor = 'grab';
+    } else if (tool === 'select') {
+      this.canvas.style.cursor = 'crosshair';
+    } else {
+      this.canvas.style.cursor = 'default';
+    }
   }
   
   private handleMouseUp(e: MouseEvent): void {
+    // Detach document-level listeners when drag ends
+    this.detachDocumentListeners();
+    
+    // Try new interaction handler system for interaction end (Phase 2.4)
+    if (this.interactionManager) {
+      // Always try to end all interaction types - handlers will check if they're active
+      // This ensures handlers can clean up their state even if old instance variables aren't set
+      const eventTypes = [
+        InteractionType.NodeDrag,
+        InteractionType.ParameterDrag,
+        InteractionType.BezierControlDrag,
+        InteractionType.PortConnect,
+        InteractionType.CanvasPan,
+        InteractionType.RectangleSelection
+      ];
+      
+      for (const eventType of eventTypes) {
+        const event = this.createInteractionEvent(eventType, e);
+        this.interactionManager.end(event);
+      }
+    }
+    
     // Stop edge scrolling
     this.stopEdgeScrolling();
     
@@ -2089,13 +2941,22 @@ export class NodeEditorCanvas {
   private handleWheel(e: WheelEvent): void {
     e.preventDefault();
     
+    // Try new interaction handler system first (Phase 2.4)
+    if (this.interactionManager) {
+      const event = this.createInteractionEvent(InteractionType.CanvasZoom, e);
+      if (this.interactionManager.handle(event)) {
+        return; // Event handled by handler
+      }
+    }
+    
+    // Fallback to old implementation
     const rect = this.canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
     
     // Zoom at mouse position
     const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-    const newZoom = Math.max(0.1, Math.min(10, this.state.zoom * zoomFactor));
+    const newZoom = Math.max(0.10, Math.min(10, this.state.zoom * zoomFactor));
     
     // Adjust pan to keep mouse position fixed
     const zoomRatio = newZoom / this.state.zoom;
@@ -2103,42 +2964,73 @@ export class NodeEditorCanvas {
     this.state.panY = mouseY - (mouseY - this.state.panY) * zoomRatio;
     
     this.state.zoom = newZoom;
-    this.render();
+    // Zoom changes viewport - everything needs to be redrawn
+    this.renderState.markFullRedraw();
+    this.requestRender();
   }
   
   private handleKeyDown(e: KeyboardEvent): void {
+    // Check if user is typing in an input field - don't handle shortcuts in that case
+    const target = e.target as HTMLElement;
+    const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+    
     // If dialog is visible, don't handle keyboard shortcuts (except spacebar for panning)
     if (this.isDialogVisible?.()) {
       // Only allow spacebar for panning when dialog is open
       if (e.key === ' ' || e.key === 'Space') {
-        if (!this.isSpacePressed) {
+        if (!this.isSpacePressed && this.spacePressTimeout === null) {
+          // Activate panning immediately when dialog is open (no delay needed)
           this.isSpacePressed = true;
           // Update cursor if not already panning/dragging
           if (!this.isPanning && !this.isDraggingNode && !this.isConnecting) {
             this.canvas.style.cursor = 'grab';
           }
+          // Notify that spacebar is now active for panning (visual feedback)
+          this.onSpacebarStateChange?.(true);
         }
         e.preventDefault(); // Prevent page scroll
       }
       return;
     }
     
-    // Track spacebar for panning
+    // Track spacebar for panning - but only activate after a delay
+    // This allows quick presses to trigger playback without activating pan mode
     if (e.key === ' ' || e.key === 'Space') {
-      if (!this.isSpacePressed) {
-        this.isSpacePressed = true;
-        // Update cursor if not already panning/dragging
-        if (!this.isPanning && !this.isDraggingNode && !this.isConnecting) {
-          this.canvas.style.cursor = 'grab';
-        }
+      if (!this.isSpacePressed && this.spacePressTimeout === null) {
+        // Set a timeout to activate panning mode only if spacebar is held
+        this.spacePressTimeout = window.setTimeout(() => {
+          this.isSpacePressed = true;
+          this.spacePressTimeout = null;
+          // Update cursor if not already panning/dragging
+          if (!this.isPanning && !this.isDraggingNode && !this.isConnecting) {
+            this.canvas.style.cursor = 'grab';
+          }
+          // Notify that spacebar is now active for panning (visual feedback)
+          this.onSpacebarStateChange?.(true);
+        }, this.SPACE_PAN_DELAY);
       }
-      e.preventDefault(); // Prevent page scroll
+      // Don't prevent default here - let BottomBar handle playback toggle
+      // Only prevent default if we're already in pan mode
+      if (this.isSpacePressed) {
+        e.preventDefault(); // Prevent page scroll
+      }
+      return;
+    }
+    
+    // Don't handle Delete/Backspace when user is typing in an input field
+    if (isInput) {
       return;
     }
     
     // Delete selected nodes/connections
     if ((e.key === 'Delete' || e.key === 'Backspace') && !e.ctrlKey && !e.metaKey) {
       for (const nodeId of this.state.selectedNodeIds) {
+        // Clean up NodeComponent if feature flag is enabled (Phase 2.2)
+        const component = this.nodeComponents.get(nodeId);
+        if (component) {
+          component.unmount();
+          this.nodeComponents.delete(nodeId);
+        }
         this.onNodeDeleted?.(nodeId);
       }
       for (const connId of this.state.selectedConnectionIds) {
@@ -2153,10 +3045,20 @@ export class NodeEditorCanvas {
   private handleKeyUp(e: KeyboardEvent): void {
     // Track spacebar release
     if (e.key === ' ' || e.key === 'Space') {
+      // Cancel the timeout if spacebar was released before pan mode activated
+      if (this.spacePressTimeout !== null) {
+        clearTimeout(this.spacePressTimeout);
+        this.spacePressTimeout = null;
+      }
+      const wasSpacePressed = this.isSpacePressed;
       this.isSpacePressed = false;
       // Reset cursor if not panning/dragging
       if (!this.isPanning && !this.isDraggingNode && !this.isConnecting) {
         this.canvas.style.cursor = 'default';
+      }
+      // Notify that spacebar is no longer active (visual feedback)
+      if (wasSpacePressed) {
+        this.onSpacebarStateChange?.(false);
       }
       e.preventDefault();
     }
@@ -2171,49 +3073,368 @@ export class NodeEditorCanvas {
   }
   
   // Rendering
-  public render(): void {
-    const { width, height } = this.canvas;
-    this.ctx.clearRect(0, 0, width, height);
+  /**
+   * Request a render on the next animation frame
+   * Batches multiple render requests into a single frame
+   */
+  private requestRender(): void {
+    if (this.renderRequested) {
+      return; // Already scheduled
+    }
     
-    // Fill canvas background
+    this.renderRequested = true;
+    this.pendingRenderFrame = requestAnimationFrame(() => {
+      this.render();
+      this.renderRequested = false;
+      this.pendingRenderFrame = null;
+    });
+  }
+
+  /**
+   * Mark full redraw needed and request render
+   */
+  private markFullRedraw(): void {
+    this.renderState.markFullRedraw();
+    this.requestRender();
+  }
+
+  public render(): void {
+    // Process pending resize before rendering
+    // This ensures resize is handled in sync with the render loop
+    if (this.pendingResize) {
+      this.resize();
+    }
+    
+    const { width, height } = this.canvas;
+    
+    // Detect pan/zoom changes (require full redraw for incremental rendering)
+    const panChanged = this.state.panX !== this.previousPanX || this.state.panY !== this.previousPanY;
+    const zoomChanged = this.state.zoom !== this.previousZoom;
+    
+    // PERFORMANCE OPTIMIZATION: Check if this is a pan-only update (no content changes)
+    const dirtyNodes = this.renderState.getDirtyNodes();
+    const dirtyConnections = this.renderState.getDirtyConnections();
+    const isPanOnly = panChanged && !zoomChanged && dirtyNodes.size === 0 && dirtyConnections.size === 0;
+    
+    if (panChanged || zoomChanged) {
+      // Viewport changed - require full redraw
+      this.renderState.markFullRedraw();
+      
+      // Update previous values
+      this.previousPanX = this.state.panX;
+      this.previousPanY = this.state.panY;
+      this.previousZoom = this.state.zoom;
+    }
+    
+    // PERFORMANCE OPTIMIZATION: Skip unnecessary recalculations during pan-only updates
+    // When only panning (no nodes/connections changed), we don't need to recalculate
+    // metrics or dirty regions - just render with the new pan offset
+    if (!isPanOnly) {
+      // Recalculate metrics for dirty nodes before calculating dirty regions
+      // This ensures metrics are up-to-date when parameters change
+      this.recalculateMetricsForDirtyNodes();
+      
+      // Update dirty regions before rendering (calculate screen-space regions)
+      this.updateDirtyRegions();
+    }
+    
+    // Standard rendering: always clear and render everything
+    // FrameBuffer removed - getImageData/putImageData was too expensive
+    this.ctx.clearRect(0, 0, width, height);
+    this.fillBackground();
+    
+    // Always render all visible content
+    // Note: Without FrameBuffer, we can't do true incremental rendering (restore previous frame)
+    // So we always render everything visible, but layers can use dirty regions as optimization hints
+    this.renderContent();
+    
+    // Clear dirty state after rendering
+    this.renderState.clear();
+  }
+  
+  /**
+   * Fill canvas background
+   */
+  private fillBackground(): void {
     const canvasBg = getCSSColor('canvas-bg', getCSSColor('color-gray-40', '#0a0a0e'));
     this.ctx.fillStyle = canvasBg;
-    this.ctx.fillRect(0, 0, width, height);
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+  }
+  
+  /**
+   * Render all content (grid, nodes, connections, etc.)
+   */
+  private renderContent(): void {
+    // Use layer system
+    if (this.layerManager) {
+      // Save context
+      this.ctx.save();
+      
+      // Apply pan/zoom transform
+      this.ctx.translate(this.state.panX, this.state.panY);
+      this.ctx.scale(this.state.zoom, this.state.zoom);
+      
+      // Render layers
+      this.layerManager.render(this.ctx, this.renderState);
+      
+      // Restore context
+      this.ctx.restore();
+    } else {
+      // Fallback to old rendering path
+      // Save context
+      this.ctx.save();
+      
+      // Apply pan/zoom transform
+      this.ctx.translate(this.state.panX, this.state.panY);
+      this.ctx.scale(this.state.zoom, this.state.zoom);
+      
+      // Render grid (always render - grid position changes with pan/zoom)
+      // Note: With dirty tracking, we could optimize this, but panning changes grid position
+      // so we render it every frame for now. Future optimization: only re-render grid when pan/zoom changes.
+      this.renderGrid();
+      
+      // Always render all connections, nodes, and ports
+      // Dirty tracking determines WHEN to render (via requestRender), not WHAT to render
+      // We still need to render all visible items every frame
+      this.renderRegularConnections();
+      this.renderNodes(true);
+      this.renderParameterConnections();
+      this.renderNodePorts();
+      
+      // Render temporary connection line (if connecting)
+      if (this.isConnecting) {
+        this.renderTemporaryConnection();
+      }
+      
+      // Render smart guides (if dragging node - check guides exist or old dragging state)
+      if (this.smartGuides.vertical.length > 0 || this.smartGuides.horizontal.length > 0 || (this.isDraggingNode && this.draggingNodeId)) {
+        this.renderSmartGuides();
+      }
+      
+      // Render selection rectangle (if selection tool is active)
+      if (this.selectionRectangle) {
+        this.renderSelectionRectangle();
+      }
+      
+      // Restore context
+      this.ctx.restore();
+    }
+  }
+  
+  /**
+   * Phase 3.1: Calculate screen-space dirty region for a node
+   * Converts node bounds from canvas space to screen space
+   */
+  private calculateNodeDirtyRegion(nodeId: string): { x: number; y: number; width: number; height: number } | null {
+    const node = this.graph.nodes.find(n => n.id === nodeId);
+    if (!node) return null;
     
-    // Save context
-    this.ctx.save();
+    const metrics = this.nodeMetrics.get(nodeId);
+    if (!metrics) return null;
     
-    // Apply pan/zoom transform
-    this.ctx.translate(this.state.panX, this.state.panY);
-    this.ctx.scale(this.state.zoom, this.state.zoom);
+    // Node bounds in canvas space
+    const canvasX = node.position.x;
+    const canvasY = node.position.y;
+    const canvasWidth = metrics.width;
+    const canvasHeight = metrics.height;
     
-    // Render grid
-    this.renderGrid();
+    // Convert to screen space
+    // Screen X = canvasX * zoom + panX
+    // Screen Y = canvasY * zoom + panY
+    const screenX = canvasX * this.state.zoom + this.state.panX;
+    const screenY = canvasY * this.state.zoom + this.state.panY;
+    const screenWidth = canvasWidth * this.state.zoom;
+    const screenHeight = canvasHeight * this.state.zoom;
     
-    // Render regular connections (behind nodes)
-    this.renderRegularConnections();
+    // Add padding to account for connections, ports, parameter ports, mode buttons, etc.
+    // Nodes with connected parameter ports need extra padding for parameter UI elements
+    const hasConnectedParams = this.graph.connections.some(
+      conn => conn.targetNodeId === nodeId && conn.targetParameter
+    );
+    const padding = hasConnectedParams ? 100 : 50; // More padding for nodes with parameter connections
     
-    // Render nodes (without ports)
-    this.renderNodes(true);
+    return {
+      x: Math.max(0, screenX - padding),
+      y: Math.max(0, screenY - padding),
+      width: Math.min(this.canvas.width, screenWidth + padding * 2),
+      height: Math.min(this.canvas.height, screenHeight + padding * 2)
+    };
+  }
+  
+  /**
+   * Phase 3.1: Calculate screen-space dirty region for a connection
+   * Estimates connection bounds based on source and target node positions
+   */
+  private calculateConnectionDirtyRegion(connection: Connection): { x: number; y: number; width: number; height: number } | null {
+    const sourceNode = this.graph.nodes.find(n => n.id === connection.sourceNodeId);
+    const targetNode = this.graph.nodes.find(n => n.id === connection.targetNodeId);
     
-    // Render parameter port connections (on top of nodes)
-    this.renderParameterConnections();
+    if (!sourceNode || !targetNode) return null;
     
-    // Render ports (on top of all connections)
-    this.renderNodePorts();
+    const sourceMetrics = this.nodeMetrics.get(connection.sourceNodeId);
+    const targetMetrics = this.nodeMetrics.get(connection.targetNodeId);
     
-    // Render temporary connection line (if connecting)
-    if (this.isConnecting) {
-      this.renderTemporaryConnection();
+    if (!sourceMetrics || !targetMetrics) return null;
+    
+    // Get actual port positions (not node centers)
+    let sourcePortPos: { x: number; y: number } | undefined;
+    let targetPortPos: { x: number; y: number } | undefined;
+    
+    if (connection.targetParameter) {
+      // Parameter connection
+      sourcePortPos = sourceMetrics.portPositions.get(`output:${connection.sourcePort}`);
+      targetPortPos = targetMetrics.parameterInputPortPositions.get(connection.targetParameter);
+    } else {
+      // Regular connection
+      sourcePortPos = sourceMetrics.portPositions.get(`output:${connection.sourcePort}`);
+      targetPortPos = targetMetrics.portPositions.get(`input:${connection.targetPort}`);
     }
     
-    // Render smart guides (if dragging node)
-    if (this.isDraggingNode && this.draggingNodeId) {
-      this.renderSmartGuides();
+    if (!sourcePortPos || !targetPortPos) return null;
+    
+    const sourceX = sourcePortPos.x;
+    const sourceY = sourcePortPos.y;
+    const targetX = targetPortPos.x;
+    const targetY = targetPortPos.y;
+    
+    // Calculate bezier curve control points (matches connection rendering)
+    const cp1X = sourceX + 100;
+    const cp1Y = sourceY;
+    const cp2X = targetX - 100;
+    const cp2Y = targetY;
+    
+    // Convert to screen space
+    const sourceScreenX = sourceX * this.state.zoom + this.state.panX;
+    const sourceScreenY = sourceY * this.state.zoom + this.state.panY;
+    const targetScreenX = targetX * this.state.zoom + this.state.panX;
+    const targetScreenY = targetY * this.state.zoom + this.state.panY;
+    const cp1ScreenX = cp1X * this.state.zoom + this.state.panX;
+    const cp1ScreenY = cp1Y * this.state.zoom + this.state.panY;
+    const cp2ScreenX = cp2X * this.state.zoom + this.state.panX;
+    const cp2ScreenY = cp2Y * this.state.zoom + this.state.panY;
+    
+    // Calculate bounding box including all bezier curve points
+    const minX = Math.min(sourceScreenX, targetScreenX, cp1ScreenX, cp2ScreenX);
+    const maxX = Math.max(sourceScreenX, targetScreenX, cp1ScreenX, cp2ScreenX);
+    const minY = Math.min(sourceScreenY, targetScreenY, cp1ScreenY, cp2ScreenY);
+    const maxY = Math.max(sourceScreenY, targetScreenY, cp1ScreenY, cp2ScreenY);
+    
+    // Add padding for line width (selected connections are thicker) and anti-aliasing
+    const maxLineWidth = getCSSVariableAsNumber('connection-width-selected', 3);
+    const padding = Math.max(50, maxLineWidth * 2); // At least 50px, or 2x line width
+    
+    return {
+      x: Math.max(0, minX - padding),
+      y: Math.max(0, minY - padding),
+      width: Math.min(this.canvas.width, maxX - minX + padding * 2),
+      height: Math.min(this.canvas.height, maxY - minY + padding * 2)
+    };
+  }
+  
+  /**
+   * Recalculate metrics for dirty nodes before calculating dirty regions
+   * This ensures metrics are up-to-date when parameters change
+   * 
+   * When parameters change, the metrics cache is invalidated, but we need
+   * fresh metrics to calculate the correct dirty region bounds.
+   */
+  private recalculateMetricsForDirtyNodes(): void {
+    const dirtyNodes = this.renderState.getDirtyNodes();
+    
+    for (const nodeId of dirtyNodes) {
+      const node = this.graph.nodes.find(n => n.id === nodeId);
+      if (!node) continue;
+      
+      const spec = this.nodeSpecs.get(node.type);
+      if (!spec) continue;
+      
+      // Invalidate node cache (metrics or content may have changed)
+      // The cache will be regenerated on next render with new metrics
+      const oldMetrics = this.nodeMetrics.get(nodeId);
+      if (oldMetrics) {
+        this.nodeRenderer.clearNodeCache(node, spec, oldMetrics);
+      }
+      
+      // Always recalculate metrics for dirty nodes to ensure they're up-to-date
+      // The NodeMetricsCalculator cache will handle optimization internally
+      const metrics = this.nodeRenderer.calculateMetrics(node, spec);
+      this.nodeMetrics.set(nodeId, metrics);
+      
+      // Also update component metrics if component exists
+      const component = this.nodeComponents.get(nodeId);
+      if (component) {
+        component.invalidateMetrics();
+        this.nodeMetrics.set(nodeId, component.getNodeMetrics());
+      }
+    }
+  }
+  
+  /**
+   * Phase 3.1: Update dirty regions based on dirty nodes and connections
+   * Called before rendering to calculate screen-space regions
+   */
+  private updateDirtyRegions(): void {
+    // Clear existing regions (will recalculate)
+    const dirtyNodes = this.renderState.getDirtyNodes();
+    const dirtyConnections = this.renderState.getDirtyConnections();
+    
+    // Check if any dirty nodes have parameter connections - if so, we need to be more careful
+    const nodesWithParamConnections = new Set<string>();
+    for (const nodeId of dirtyNodes) {
+      const hasParamConnections = this.graph.connections.some(
+        conn => conn.targetNodeId === nodeId && conn.targetParameter
+      );
+      if (hasParamConnections) {
+        nodesWithParamConnections.add(nodeId);
+        // Also mark parameter connections layer as dirty to ensure proper rendering
+        this.renderState.markLayerDirty(RenderLayer.ParameterConnections);
+      }
     }
     
-    // Restore context
-    this.ctx.restore();
+    // Calculate regions for dirty nodes
+    for (const nodeId of dirtyNodes) {
+      const region = this.calculateNodeDirtyRegion(nodeId);
+      if (region) {
+        // Validate region is reasonable (not way too large)
+        const maxRegionSize = Math.max(this.canvas.width, this.canvas.height) * 2;
+        if (region.width <= maxRegionSize && region.height <= maxRegionSize) {
+          this.renderState.addDirtyRegion(region);
+        } else {
+          // Region is suspiciously large - trigger full redraw instead
+          this.renderState.markFullRedraw();
+          return;
+        }
+      }
+    }
+    
+    // Calculate regions for dirty connections
+    for (const connId of dirtyConnections) {
+      const connection = this.graph.connections.find(c => c.id === connId);
+      if (connection) {
+        const region = this.calculateConnectionDirtyRegion(connection);
+        if (region) {
+          // Validate region is reasonable
+          const maxRegionSize = Math.max(this.canvas.width, this.canvas.height) * 2;
+          if (region.width <= maxRegionSize && region.height <= maxRegionSize) {
+            this.renderState.addDirtyRegion(region);
+          } else {
+            // Region is suspiciously large - trigger full redraw instead
+            this.renderState.markFullRedraw();
+            return;
+          }
+        }
+      }
+    }
+    
+    // If grid layer is dirty, mark entire viewport as dirty (grid covers everything)
+    if (this.renderState.isLayerDirty(RenderLayer.Grid)) {
+      this.renderState.addDirtyRegion({
+        x: 0,
+        y: 0,
+        width: this.canvas.width,
+        height: this.canvas.height
+      });
+    }
   }
   
   private renderGrid(): void {
@@ -2241,7 +3462,17 @@ export class NodeEditorCanvas {
   }
   
   private renderNodes(skipPorts: boolean = false): void {
+    // Always render all visible nodes - dirty tracking controls when to trigger renders, not what to render
+    // Viewport culling filters out off-screen nodes for performance
     for (const node of this.graph.nodes) {
+      // Get metrics to check visibility (will be recalculated in renderNode if needed)
+      const metrics = this.nodeMetrics.get(node.id);
+      
+      // Check visibility before rendering (viewport culling)
+      if (metrics && !this.isNodeVisible(node, metrics)) {
+        continue; // Skip off-screen nodes
+      }
+      
       this.renderNode(node, skipPorts);
     }
   }
@@ -2250,22 +3481,28 @@ export class NodeEditorCanvas {
     const spec = this.nodeSpecs.get(node.type);
     if (!spec) return;
     
-    const metrics = this.nodeMetrics.get(node.id);
-    if (!metrics) {
-      // Calculate metrics if missing
-      const newMetrics = this.nodeRenderer.calculateMetrics(node, spec);
-      this.nodeMetrics.set(node.id, newMetrics);
-      this.renderNode(node, skipPorts); // Recursive call with metrics
-      return;
+    // Use NodeComponent system
+    this.renderNodeWithComponent(node, spec, skipPorts);
+  }
+  
+  /**
+   * Render node using NodeComponent (Phase 2.2)
+   */
+  private renderNodeWithComponent(node: NodeInstance, spec: NodeSpec, skipPorts: boolean = false): void {
+    // Get or create NodeComponent for this node
+    let component = this.nodeComponents.get(node.id);
+    if (!component) {
+      component = new NodeComponent(this.ctx, node, spec, this.nodeRenderer);
+      this.nodeComponents.set(node.id, component);
+      component.mount();
     }
     
+    // Update component state
     const isSelected = this.state.selectedNodeIds.has(node.id);
-    // Check if this node's port is being hovered
     const isPortHovered = this.hoveredPort && this.hoveredPort.nodeId === node.id;
     const hoveredPortName = isPortHovered ? (this.hoveredPort!.parameter || this.hoveredPort!.port) : null;
     const isHoveredParameter = isPortHovered ? !!this.hoveredPort!.parameter : undefined;
     
-    // Check if this node's port is the source of a connection being dragged
     let connectingPortName: string | null = null;
     let isConnectingParameter: boolean | undefined = undefined;
     if (this.isConnecting && this.connectionStartNodeId === node.id) {
@@ -2301,15 +3538,57 @@ export class NodeEditorCanvas {
       }
     }
     
-    this.nodeRenderer.renderNode(node, spec, metrics, isSelected, hoveredPortName, isHoveredParameter, effectiveParameterValues, connectingPortName, isConnectingParameter, connectedParameters, skipPorts);
+    // Update component state
+    component.setState({
+      isSelected,
+      hoveredPortName,
+      isHoveredParameter,
+      effectiveParameterValues,
+      connectingPortName,
+      isConnectingParameter,
+      connectedParameters,
+      skipPorts
+    });
+    
+    // Always invalidate and recalculate metrics - they depend on node.position which changes when dragging
+    // The component's cache will handle optimization for non-position changes
+    component.invalidateMetrics();
+    
+    // Recalculate component metrics (bounds) to reflect current node position
+    // This ensures the component's bounds are up-to-date for hit testing and viewport culling
+    component.calculateMetrics();
+    
+    // Store metrics for viewport culling (component will recalculate on next getNodeMetrics call)
+    const metrics = component.getNodeMetrics();
+    this.nodeMetrics.set(node.id, metrics);
+    
+    // Render the component
+    component.render();
   }
   
   private renderNodePorts(): void {
+    // Use NodeComponent system
+    this.renderNodePortsWithComponent();
+  }
+  
+  /**
+   * Render node ports using NodeComponent (Phase 2.2)
+   */
+  private renderNodePortsWithComponent(): void {
+    // Always render all visible node ports - dirty tracking controls when to trigger renders
+    // Viewport culling filters out off-screen nodes for performance
     for (const node of this.graph.nodes) {
-      const spec = this.nodeSpecs.get(node.type);
-      const metrics = this.nodeMetrics.get(node.id);
-      if (!spec || !metrics) continue;
+      const component = this.nodeComponents.get(node.id);
+      if (!component) continue;
       
+      const metrics = component.getNodeMetrics();
+      
+      // Check visibility before rendering (viewport culling)
+      if (!this.isNodeVisible(node, metrics)) {
+        continue; // Skip off-screen nodes
+      }
+      
+      // Update component state for port rendering
       const isPortHovered = this.hoveredPort && this.hoveredPort.nodeId === node.id;
       const hoveredPortName = isPortHovered ? (this.hoveredPort!.parameter || this.hoveredPort!.port) : null;
       const isHoveredParameter = isPortHovered ? !!this.hoveredPort!.parameter : undefined;
@@ -2323,6 +3602,7 @@ export class NodeEditorCanvas {
       
       // Calculate connected parameters for this node
       const connectedParameters = new Set<string>();
+      const spec = component.getSpec();
       if (!node.collapsed) {
         for (const [paramName, paramSpec] of Object.entries(spec.parameters)) {
           if (paramSpec.type === 'float' || paramSpec.type === 'int') {
@@ -2336,7 +3616,19 @@ export class NodeEditorCanvas {
         }
       }
       
-      this.nodeRenderer.renderNodePorts(node, spec, metrics, hoveredPortName, isHoveredParameter, connectingPortName, isConnectingParameter, connectedParameters);
+      // Update component state for ports
+      const currentState = component.getState();
+      component.setState({
+        ...currentState,
+        hoveredPortName,
+        isHoveredParameter,
+        connectingPortName,
+        isConnectingParameter,
+        connectedParameters
+      });
+      
+      // Render ports
+      component.renderPorts();
     }
   }
   
@@ -2347,8 +3639,28 @@ export class NodeEditorCanvas {
     }
     
     this.effectiveValueUpdateInterval = window.setInterval(() => {
-      // Trigger a render to update the display
-      this.render();
+      // Mark all nodes with animated parameters as dirty
+      // Find all nodes with connected float parameters (which may have animated values)
+      const nodesWithAnimatedParams = new Set<string>();
+      for (const node of this.graph.nodes) {
+        const spec = this.nodeSpecs.get(node.type);
+        if (!spec) continue;
+        for (const [paramName, paramSpec] of Object.entries(spec.parameters)) {
+          if (paramSpec.type === 'float') {
+            const hasConnection = this.graph.connections.some(
+              conn => conn.targetNodeId === node.id && conn.targetParameter === paramName
+            );
+            if (hasConnection) {
+              nodesWithAnimatedParams.add(node.id);
+              break;
+            }
+          }
+        }
+      }
+      if (nodesWithAnimatedParams.size > 0) {
+        this.renderState.markNodesDirty(Array.from(nodesWithAnimatedParams));
+        this.requestRender();
+      }
     }, 100);
   }
   
@@ -2365,6 +3677,12 @@ export class NodeEditorCanvas {
     if (this.edgeScrollAnimationFrame !== null) {
       cancelAnimationFrame(this.edgeScrollAnimationFrame);
     }
+    // Cancel pending render frame
+    if (this.pendingRenderFrame !== null) {
+      cancelAnimationFrame(this.pendingRenderFrame);
+      this.pendingRenderFrame = null;
+      this.renderRequested = false;
+    }
   }
   
   public setAudioManager(audioManager: AudioManager | undefined): void {
@@ -2373,8 +3691,15 @@ export class NodeEditorCanvas {
   
   private renderRegularConnections(): void {
     // Render connections that are NOT connected to parameter ports
+    // Always render all visible connections - dirty tracking controls when to trigger renders
+    // Viewport culling filters out connections where both nodes are off-screen
     for (const conn of this.graph.connections) {
       if (!conn.targetParameter) {
+        // If viewport culling is enabled, check if connection is visible
+        // Check visibility before rendering (viewport culling)
+        if (!this.isConnectionVisible(conn)) {
+          continue; // Skip off-screen connections
+        }
         this.renderConnection(conn);
       }
     }
@@ -2382,8 +3707,15 @@ export class NodeEditorCanvas {
   
   private renderParameterConnections(): void {
     // Render connections that ARE connected to parameter ports (on top of nodes)
+    // Always render all visible connections - dirty tracking controls when to trigger renders
+    // Viewport culling filters out connections where both nodes are off-screen
     for (const conn of this.graph.connections) {
       if (conn.targetParameter) {
+        // If viewport culling is enabled, check if connection is visible
+        // Check visibility before rendering (viewport culling)
+        if (!this.isConnectionVisible(conn)) {
+          continue; // Skip off-screen connections
+        }
         this.renderConnection(conn);
       }
     }
@@ -2430,20 +3762,20 @@ export class NodeEditorCanvas {
     const cp2X = targetX - 100;
     const cp2Y = targetY;
     
-    // Get connection color based on source node category
-    const categoryMap: Record<string, string> = {
-      'Inputs': 'connection-color-inputs',
-      'Patterns': 'connection-color-patterns',
-      'Shapes': 'connection-color-shapes',
-      'Math': 'connection-color-math',
-      'Utilities': 'connection-color-utilities',
-      'Distort': 'connection-color-distort',
-      'Blend': 'connection-color-blend',
-      'Mask': 'connection-color-mask',
-      'Effects': 'connection-color-effects',
-      'Output': 'connection-color-output'
+    // Get connection color based on source port type
+    const sourcePortSpec = sourceSpec.outputs.find(p => p.name === conn.sourcePort);
+    const portType = sourcePortSpec?.type || 'float';
+    
+    // Map port type to connection color token
+    const connectionColorMap: Record<string, string> = {
+      'float': 'connection-color-float',
+      'vec2': 'connection-color-vec2',
+      'vec3': 'connection-color-vec3',
+      'vec4': 'connection-color-vec4',
+      'int': 'connection-color-int',
+      'bool': 'connection-color-bool'
     };
-    const connectionColorToken = categoryMap[sourceSpec.category] || 'connection-color-default';
+    const connectionColorToken = connectionColorMap[portType] || 'connection-color-default';
     const connectionColor = getCSSColor(connectionColorToken, getCSSColor('connection-color-default', getCSSColor('color-gray-100', '#747e87')));
     const connectionWidth = isSelected
       ? getCSSVariableAsNumber('connection-width-selected', 3)
@@ -2494,8 +3826,9 @@ export class NodeEditorCanvas {
     
     let isSnapped = false;
     
-    // Check if we're near a valid port and snap to it
-    const portHit = this.hitTestPort(this.connectionMouseX, this.connectionMouseY);
+    // Use hoveredPort if available (set by PortConnectHandler) - this is more reliable than hit testing again
+    // Fallback to hitTestPort if hoveredPort is not set (for old code path)
+    const portHit = this.hoveredPort || this.hitTestPort(this.connectionMouseX, this.connectionMouseY);
     if (portHit && portHit.nodeId !== this.connectionStartNodeId) {
       // Check if this is a valid target port
       const isValidTarget = this.connectionStartIsOutput 
@@ -2540,20 +3873,37 @@ export class NodeEditorCanvas {
     const cp2X = this.connectionStartIsOutput ? targetX - 100 : targetX + 100;
     const cp2Y = targetY;
     
-    // Get connection color based on source node category
-    const categoryMap: Record<string, string> = {
-      'Inputs': 'connection-color-inputs',
-      'Patterns': 'connection-color-patterns',
-      'Shapes': 'connection-color-shapes',
-      'Math': 'connection-color-math',
-      'Utilities': 'connection-color-utilities',
-      'Distort': 'connection-color-distort',
-      'Blend': 'connection-color-blend',
-      'Mask': 'connection-color-mask',
-      'Effects': 'connection-color-effects',
-      'Output': 'connection-color-output'
+    // Get connection color based on source port type
+    let portType: string = 'float';
+    if (this.connectionStartParameter) {
+      // For parameter connections, get type from parameter spec
+      const paramSpec = sourceSpec.parameters[this.connectionStartParameter];
+      if (paramSpec) {
+        // Map parameter types to port types (some parameter types match port types)
+        portType = paramSpec.type === 'vec4' ? 'vec4' : 
+                   paramSpec.type === 'float' || paramSpec.type === 'int' ? 'float' : 'float';
+      }
+    } else if (this.connectionStartPort) {
+      // For regular port connections, get type from port spec
+      if (this.connectionStartIsOutput) {
+        const portSpec = sourceSpec.outputs.find(p => p.name === this.connectionStartPort);
+        portType = portSpec?.type || 'float';
+      } else {
+        const portSpec = sourceSpec.inputs.find(p => p.name === this.connectionStartPort);
+        portType = portSpec?.type || 'float';
+      }
+    }
+    
+    // Map port type to connection color token
+    const connectionColorMap: Record<string, string> = {
+      'float': 'connection-color-float',
+      'vec2': 'connection-color-vec2',
+      'vec3': 'connection-color-vec3',
+      'vec4': 'connection-color-vec4',
+      'int': 'connection-color-int',
+      'bool': 'connection-color-bool'
     };
-    const connectionColorToken = categoryMap[sourceSpec.category] || 'connection-color-default';
+    const connectionColorToken = connectionColorMap[portType] || 'connection-color-default';
     const connectionColor = getCSSColor(connectionColorToken, getCSSColor('connection-color-default', getCSSColor('color-gray-100', '#747e87')));
     
     // Draw preview port at cursor position first (smaller, slightly transparent)
@@ -2600,20 +3950,53 @@ export class NodeEditorCanvas {
     this.ctx.moveTo(sourceX, sourceY);
     this.ctx.bezierCurveTo(cp1X, cp1Y, cp2X, cp2Y, targetX, targetY);
     this.ctx.stroke();
+    
+    // Reset line dash pattern to prevent state leakage
+    this.ctx.setLineDash([]);
   }
   
   // Public API
   setGraph(graph: NodeGraph): void {
+    // Phase 3.3: Invalidate connection path caches when graph structure changes
+    // Check if connections changed and invalidate caches
+    const oldConnectionIds = new Set(this.graph.connections.map(c => c.id));
+    const newConnectionIds = new Set(graph.connections.map(c => c.id));
+    
+    // Invalidate caches for removed connections
+    for (const connId of oldConnectionIds) {
+      if (!newConnectionIds.has(connId)) {
+        this.connectionLayerRenderer?.invalidateConnection(connId);
+        this.parameterConnectionLayerRenderer?.invalidateConnection(connId);
+      }
+    }
+    
+    // Clear all caches if connection count changed significantly (indicates major change)
+    if (Math.abs(this.graph.connections.length - graph.connections.length) > 5) {
+      this.connectionLayerRenderer?.clearCache();
+      this.parameterConnectionLayerRenderer?.clearCache();
+    }
+    
+    // Clean up NodeComponents for nodes that no longer exist (Phase 2.2)
+    const currentNodeIds = new Set(graph.nodes.map(n => n.id));
+    for (const [nodeId, component] of this.nodeComponents) {
+      if (!currentNodeIds.has(nodeId)) {
+        component.unmount();
+        this.nodeComponents.delete(nodeId);
+      }
+    }
     this.graph = graph;
     // Update state from graph viewState
     if (graph.viewState) {
-      this.state.zoom = graph.viewState.zoom ?? this.state.zoom;
+      this.state.zoom = Math.max(0.10, graph.viewState.zoom ?? this.state.zoom);
       this.state.panX = graph.viewState.panX ?? this.state.panX;
       this.state.panY = graph.viewState.panY ?? this.state.panY;
       this.state.selectedNodeIds = new Set(graph.viewState.selectedNodeIds ?? []);
     }
     this.updateNodeMetrics();
-    this.render();
+    // Update render state with new graph
+    this.renderState.updateGraph(graph);
+    this.renderState.markFullRedraw();
+    this.requestRender();
   }
   
   setNodeSpecs(nodeSpecs: NodeSpec[]): void {
@@ -2671,7 +4054,7 @@ export class NodeEditorCanvas {
     // Calculate zoom to fit content
     const zoomX = canvasWidth / paddedWidth;
     const zoomY = canvasHeight / paddedHeight;
-    const zoom = Math.min(zoomX, zoomY, 2.0); // Cap zoom at 2.0 to avoid too much zoom
+    const zoom = Math.max(0.10, Math.min(zoomX, zoomY, 2.0)); // Cap zoom at 2.0 to avoid too much zoom, minimum 0.10
     
     // Calculate pan to center content
     const panX = (canvasWidth / 2) - (centerX * zoom);
@@ -2682,7 +4065,9 @@ export class NodeEditorCanvas {
     this.state.panX = panX;
     this.state.panY = panY;
     
-    this.render();
+    // View state change affects everything
+    this.renderState.markFullRedraw();
+    this.requestRender();
   }
   
   getViewState() {
@@ -2694,12 +4079,148 @@ export class NodeEditorCanvas {
     };
   }
   
+  /**
+   * Set zoom to a specific value, optionally centering on a point
+   * @param zoom - Zoom level (1.0 = 100%)
+   * @param centerX - Optional screen X coordinate to center on (default: canvas center)
+   * @param centerY - Optional screen Y coordinate to center on (default: canvas center)
+   */
+  setZoom(zoom: number, centerX?: number, centerY?: number): void {
+    const newZoom = Math.max(0.10, Math.min(5.0, zoom));
+    const rect = this.canvas.getBoundingClientRect();
+    
+    // Default to canvas center if no center point provided
+    const screenX = centerX ?? rect.width / 2;
+    const screenY = centerY ?? rect.height / 2;
+    
+    // Get mouse position in canvas coordinates before zoom
+    const canvasPos = this.screenToCanvas(screenX, screenY);
+    
+    // Calculate new pan to keep the center point fixed in canvas space
+    const newPanX = screenX - canvasPos.x * newZoom;
+    const newPanY = screenY - canvasPos.y * newZoom;
+    
+    // Update state
+    this.state.zoom = newZoom;
+    this.state.panX = newPanX;
+    this.state.panY = newPanY;
+    
+    // View state change affects everything
+    this.renderState.markFullRedraw();
+    this.requestRender();
+  }
+  
   getNodeRenderer(): NodeRenderer {
     return this.nodeRenderer;
   }
   
   getNodeMetrics(): Map<string, NodeRenderMetrics> {
     return this.nodeMetrics;
+  }
+  
+  /**
+   * Create a HandlerContext for interaction handlers (Phase 2.4)
+   * This allows handlers to access canvas state and methods without tight coupling
+   */
+  public createHandlerContext(): HandlerContext {
+    return {
+      getState: () => ({ ...this.state }),
+      setState: (updater) => {
+        this.state = updater(this.state);
+      },
+      getGraph: () => this.graph,
+      getNodeSpecs: () => this.nodeSpecs,
+      screenToCanvas: (screenX, screenY) => this.screenToCanvas(screenX, screenY),
+      canvasToScreen: (canvasX, canvasY) => this.canvasToScreen(canvasX, canvasY),
+      requestRender: () => this.requestRender(),
+      render: () => this.render(),
+      setCursor: (cursor) => { this.canvas.style.cursor = cursor; },
+      onNodeMoved: this.onNodeMoved,
+      onNodeSelected: this.onNodeSelected,
+      onConnectionCreated: (...args) => {
+        // Access callback dynamically (it may be set after HandlerContext creation)
+        if (this.onConnectionCreated) {
+          this.onConnectionCreated(...args);
+        } else {
+          console.warn('[NodeEditorCanvas] onConnectionCreated callback not set yet');
+        }
+      },
+      onParameterChanged: (nodeId, paramName, value) => {
+        // Access callback dynamically (it may be set after HandlerContext creation)
+        if (this.onParameterChanged) {
+          this.onParameterChanged(nodeId, paramName, value);
+        } else {
+          console.warn('[NodeEditorCanvas] onParameterChanged callback not set yet');
+        }
+      },
+      onParameterInputModeChanged: (nodeId, paramName, mode) => {
+        // Access callback dynamically (it may be set after HandlerContext creation)
+        if (this.onParameterInputModeChanged) {
+          this.onParameterInputModeChanged(nodeId, paramName, mode);
+        } else {
+          console.warn('[NodeEditorCanvas] onParameterInputModeChanged callback not set yet');
+        }
+      },
+      isFeatureEnabled: () => true, // All features enabled
+      isSpacePressed: () => this.isSpacePressed,
+      hitTestNode: (screenX, screenY) => this.hitTestNode(screenX, screenY),
+      getNodeMetrics: (nodeId) => this.nodeMetrics.get(nodeId),
+      calculateSmartGuides: (draggingNode, proposedX, proposedY) => this.calculateSmartGuides(draggingNode, proposedX, proposedY),
+      invalidateNodeMetrics: (nodeId) => {
+        this.nodeMetrics.delete(nodeId);
+        this.nodeRenderer.invalidateMetrics(nodeId);
+        const component = this.nodeComponents.get(nodeId);
+        if (component) {
+          component.invalidateMetrics();
+        }
+      },
+      setSmartGuides: (guides) => {
+        this.smartGuides = guides;
+      },
+      setDraggedNodeIds: (nodeIds: string[]) => {
+        // Phase 3.4: Track dragged nodes for metrics recalculation before connection rendering
+        this.draggedNodeIds = new Set(nodeIds);
+      },
+      markNodesDirty: (nodeIds) => {
+        this.renderState.markNodesDirty(nodeIds);
+      },
+      markConnectionsDirty: (connectionIds) => {
+        this.renderState.markConnectionsDirty(connectionIds);
+      },
+      markLayerDirty: (layer) => {
+        this.renderState.markLayerDirty(layer);
+      },
+      hitTestPort: (screenX, screenY) => this.hitTestPort(screenX, screenY),
+      hitTestParameter: (screenX, screenY) => this.hitTestParameter(screenX, screenY),
+      hitTestBezierControlPoint: (screenX, screenY) => this.hitTestBezierControlPoint(screenX, screenY),
+      hitTestConnection: (screenX, screenY) => this.hitTestConnection(screenX, screenY),
+      onConnectionSelected: this.onConnectionSelected,
+      setConnectionState: (state) => {
+        this.isConnecting = state.isConnecting;
+        this.connectionStartNodeId = state.connectionStartNodeId;
+        this.connectionStartPort = state.connectionStartPort;
+        this.connectionStartParameter = state.connectionStartParameter;
+        this.connectionStartIsOutput = state.connectionStartIsOutput;
+        this.connectionMouseX = state.connectionMouseX;
+        this.connectionMouseY = state.connectionMouseY;
+        this.hoveredPort = state.hoveredPort;
+      },
+      setPanState: (state) => {
+        this.isPanning = state.isPanning;
+        this.potentialBackgroundPan = state.potentialBackgroundPan;
+        this._panStartX = state.panStartX;
+        this._panStartY = state.panStartY;
+        this.backgroundDragStartX = state.backgroundDragStartX;
+        this.backgroundDragStartY = state.backgroundDragStartY;
+      },
+      getCanvasRect: () => this.canvas.getBoundingClientRect(),
+      getActiveTool: () => this.activeTool,
+      setSelectionRectangle: (rect) => {
+        this.selectionRectangle = rect;
+        this.renderState.markLayerDirty(RenderLayer.Overlays);
+        this.requestRender();
+      }
+    };
   }
   
   setCallbacks(callbacks: {
@@ -2713,7 +4234,9 @@ export class NodeEditorCanvas {
     onFileParameterChanged?: (nodeId: string, paramName: string, file: File) => void;
     onParameterInputModeChanged?: (nodeId: string, paramName: string, mode: import('../../types/nodeSpec').ParameterInputMode) => void;
     onNodeLabelChanged?: (nodeId: string, label: string | undefined) => void;
+    onSpacebarStateChange?: (isPressed: boolean) => void;
     isDialogVisible?: () => boolean;
+    onTypeLabelClick?: (portType: string, screenX: number, screenY: number) => void;
   }): void {
     this.onNodeMoved = callbacks.onNodeMoved;
     this.onNodeSelected = callbacks.onNodeSelected;
@@ -2725,7 +4248,16 @@ export class NodeEditorCanvas {
     this.onFileParameterChanged = callbacks.onFileParameterChanged;
     this.onParameterInputModeChanged = callbacks.onParameterInputModeChanged;
     this.onNodeLabelChanged = callbacks.onNodeLabelChanged;
+    this.onSpacebarStateChange = callbacks.onSpacebarStateChange;
     this.isDialogVisible = callbacks.isDialogVisible;
+    this.onTypeLabelClick = callbacks.onTypeLabelClick;
+  }
+  
+  /**
+   * Set the spacebar state change callback (for visual feedback)
+   */
+  public setSpacebarStateChangeCallback(callback: (isPressed: boolean) => void): void {
+    this.onSpacebarStateChange = callback;
   }
 
   /**
@@ -2749,5 +4281,129 @@ export class NodeEditorCanvas {
     // Position and trigger
     document.body.appendChild(fileInput);
     fileInput.click();
+  }
+
+  /**
+   * Handle frequency bands parameter click - show frequency bands editor modal
+   */
+  private handleFrequencyBandsParameterClick(nodeId: string, paramName: string, _screenX: number, _screenY: number): void {
+    const node = this.graph.nodes.find(n => n.id === nodeId);
+    const spec = this.nodeSpecs.get(node?.type || '');
+    if (!node || !spec) return;
+
+    const paramSpec = spec.parameters[paramName];
+    if (!paramSpec || paramSpec.type !== 'array') return;
+
+    // Get current value or default
+    const currentValue = node.parameters[paramName] ?? paramSpec.default;
+    const bandsArray = Array.isArray(currentValue) ? currentValue : paramSpec.default as number[][];
+    
+    // Ensure it's an array of arrays
+    if (!Array.isArray(bandsArray) || (bandsArray.length > 0 && !Array.isArray(bandsArray[0]))) {
+      console.warn('Invalid frequency bands format');
+      return;
+    }
+
+    // Initialize editor if needed
+    if (!this.frequencyBandsEditor) {
+      this.frequencyBandsEditor = new FrequencyBandsEditor({
+        onApply: (bands) => {
+          // Convert FrequencyBand[] to number[][]
+          const bandsArray = bands.map(band => [band.minHz, band.maxHz]);
+          // Type cast needed because callback signature expects number, but frequencyBands is an array
+          this.onParameterChanged?.(nodeId, paramName, bandsArray as any);
+          this.render();
+        },
+        onCancel: () => {
+          // Nothing to do on cancel
+        }
+      });
+    }
+
+    // Show the editor with current bands
+    this.frequencyBandsEditor.show(bandsArray as number[][]);
+  }
+
+  /**
+   * Handle enum parameter click - show dropdown menu
+   */
+  private handleEnumParameterClick(nodeId: string, paramName: string, screenX: number, screenY: number): void {
+    const node = this.graph.nodes.find(n => n.id === nodeId);
+    const spec = this.nodeSpecs.get(node?.type || '');
+    if (!node || !spec) return;
+
+    const paramSpec = spec.parameters[paramName];
+    if (!paramSpec || paramSpec.type !== 'int') return;
+
+    // Get enum mappings from NodeRenderer
+    const enumMappings = this.nodeRenderer.getEnumMappings(spec.id, paramName);
+    if (!enumMappings) return;
+
+    // Initialize dropdown if needed
+    if (!this.enumDropdown) {
+      this.enumDropdown = new DropdownMenu();
+    }
+
+    // If dropdown is already open, close it (toggle behavior)
+    if (this.enumDropdown.isVisible()) {
+      this.enumDropdown.hide();
+      return;
+    }
+
+    // Get current value
+    const currentValue = (node.parameters[paramName] ?? paramSpec.default) as number;
+
+    // Create dropdown items
+    const items: DropdownMenuItem[] = Object.entries(enumMappings)
+      .sort(([a], [b]) => parseInt(a) - parseInt(b))
+      .map(([valueStr, label]) => {
+        const value = parseInt(valueStr);
+        return {
+          label,
+          disabled: false,
+          action: () => {
+            if (value !== currentValue) {
+              this.onParameterChanged?.(nodeId, paramName, value);
+              this.render();
+            }
+          }
+        };
+      });
+
+    // Calculate dropdown position based on enum selector position
+    const metrics = this.nodeMetrics.get(nodeId);
+    if (!metrics) {
+      // Fallback to click position if metrics not available
+      this.enumDropdown.show(screenX, screenY, items);
+      return;
+    }
+
+    const gridPos = metrics.parameterGridPositions.get(paramName);
+    if (!gridPos) {
+      // Fallback to click position if grid position not available
+      this.enumDropdown.show(screenX, screenY, items);
+      return;
+    }
+
+    // Calculate enum selector position (matching EnumParameterRenderer logic)
+    const cellPadding = getCSSVariableAsNumber('param-cell-padding', 12);
+    const labelFontSize = getCSSVariableAsNumber('param-label-font-size', 11);
+    const selectorHeight = getCSSVariableAsNumber('enum-selector-height', 32);
+    const selectorSpacing = getCSSVariableAsNumber('param-label-knob-spacing', 20);
+    
+    // Position selector below label
+    const labelBottom = gridPos.labelY + labelFontSize;
+    const selectorY = labelBottom + selectorSpacing;
+    const selectorX = gridPos.cellX + cellPadding;
+
+    // Convert canvas coordinates to screen coordinates
+    const selectorBottomScreen = this.canvasToScreen(selectorX, selectorY + selectorHeight);
+    const selectorLeftScreen = this.canvasToScreen(selectorX, selectorY);
+
+    // Position dropdown below the selector, aligned with left edge
+    const dropdownY = selectorBottomScreen.y + 4; // 4px gap
+    const dropdownX = selectorLeftScreen.x;
+
+    this.enumDropdown.show(dropdownX, dropdownY, items);
   }
 }

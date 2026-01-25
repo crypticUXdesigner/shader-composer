@@ -1,0 +1,283 @@
+/* Tag Component Styles */
+
+.tag {
+  /* Layout */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  /* Box model */
+  padding: 0 var(--pd-sm);
+  border: 1px solid var(--tag-border);
+  border-radius: var(--radius-md);
+  box-sizing: border-box;
+
+  /* Visual */
+  background: var(--tag-bg);
+  color: var(--tag-color);
+
+  /* Typography */
+  font-family: inherit;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  font-size: var(--text-xs);
+  line-height: 1;
+
+  /* Other */
+  outline: none;
+  transition: all 0.15s;
+
+  /* Default colors - fallback for tags without category/type */
+  --tag-color: var(--color-gray-120);
+  --tag-color-hover: var(--color-gray-130);
+  --tag-color-active: var(--color-gray-130);
+  --tag-border: transparent;
+  --tag-border-hover: var(--color-gray-90);
+  --tag-border-active: var(--color-gray-100);
+  --tag-bg: var(--color-gray-60);
+  --tag-bg-hover: var(--color-gray-70);
+  --tag-bg-active: var(--color-gray-80);
+}
+
+/* === SIZE VARIANTS === */
+
+.tag.xs {
+  padding: 0 var(--pd-sm);
+  font-size: var(--text-2xs);
+  height: var(--size-xs);
+}
+
+.tag.sm {
+  padding: 0 calc(var(--pd-sm) + var(--pd-2xs));
+  font-size: var(--text-xs);
+  height: var(--size-sm);
+}
+
+.tag.md {
+  padding: var(--pd-xs) var(--pd-md);
+  font-size: var(--text-sm);
+  height: var(--size-md);
+}
+
+/* === INTERACTIVE VARIANTS === */
+
+.tag.interactive {
+  cursor: default;
+}
+
+.tag.interactive:hover {
+  background: var(--tag-bg-hover);
+  color: var(--tag-color-hover);
+  border-color: var(--tag-border-hover);
+}
+
+.tag.interactive:active {
+  background: var(--tag-bg-active);
+  color: var(--tag-color-active);
+  border-color: var(--tag-border-active);
+}
+
+/* === SELECTED STATE === */
+
+.tag.is-selected,
+.tag.is-selected:hover,
+.tag.interactive.is-selected:hover {
+  background: var(--tag-bg-active);
+  color: var(--tag-color-active);
+  border-color: var(--tag-border-active);
+}
+
+/* === CATEGORY-SPECIFIC COLORS === */
+/* All color definitions reference color scales directly */
+
+.tag[data-category="Inputs"] {
+  --tag-color: var(--color-blue-120);
+  --tag-color-hover: var(--color-blue-130);
+  --tag-color-active: var(--color-blue-130);
+  --tag-border: transparent;
+  --tag-border-hover: var(--color-blue-90);
+  --tag-border-active: var(--color-blue-100);
+  --tag-bg: var(--color-blue-60);
+  --tag-bg-hover: var(--color-blue-70);
+  --tag-bg-active: var(--color-blue-90);
+}
+
+.tag[data-category="Patterns"] {
+  --tag-color: var(--color-leaf-120);
+  --tag-color-hover: var(--color-leaf-130);
+  --tag-color-active: var(--color-leaf-130);
+  --tag-border: transparent;
+  --tag-border-hover: var(--color-leaf-90);
+  --tag-border-active: var(--color-leaf-100);
+  --tag-bg: var(--color-leaf-60);
+  --tag-bg-hover: var(--color-leaf-70);
+  --tag-bg-active: var(--color-leaf-90);
+}
+
+.tag[data-category="Shapes"] {
+  --tag-color: var(--color-teal-120);
+  --tag-color-hover: var(--color-teal-130);
+  --tag-color-active: var(--color-teal-130);
+  --tag-border: transparent;
+  --tag-border-hover: var(--color-teal-90);
+  --tag-border-active: var(--color-teal-100);
+  --tag-bg: var(--color-teal-60);
+  --tag-bg-hover: var(--color-teal-70);
+  --tag-bg-active: var(--color-teal-90);
+}
+
+.tag[data-category="Math"] {
+  --tag-color: var(--color-orange-120);
+  --tag-color-hover: var(--color-orange-130);
+  --tag-color-active: var(--color-orange-130);
+  --tag-border: transparent;
+  --tag-border-hover: var(--color-orange-90);
+  --tag-border-active: var(--color-orange-100);
+  --tag-bg: var(--color-orange-60);
+  --tag-bg-hover: var(--color-orange-70);
+  --tag-bg-active: var(--color-orange-90);
+}
+
+.tag[data-category="Utilities"] {
+  --tag-color: var(--color-yellow-120);
+  --tag-color-hover: var(--color-yellow-130);
+  --tag-color-active: var(--color-yellow-130);
+  --tag-border: transparent;
+  --tag-border-hover: var(--color-yellow-90);
+  --tag-border-active: var(--color-yellow-100);
+  --tag-bg: var(--color-yellow-60);
+  --tag-bg-hover: var(--color-yellow-70);
+  --tag-bg-active: var(--color-yellow-90);
+}
+
+.tag[data-category="Distort"] {
+  --tag-color: var(--color-orange-red-120);
+  --tag-color-hover: var(--color-orange-red-130);
+  --tag-color-active: var(--color-orange-red-130);
+  --tag-border: transparent;
+  --tag-border-hover: var(--color-orange-red-90);
+  --tag-border-active: var(--color-orange-red-100);
+  --tag-bg: var(--color-orange-red-60);
+  --tag-bg-hover: var(--color-orange-red-70);
+  --tag-bg-active: var(--color-orange-red-90);
+}
+
+.tag[data-category="Blend"] {
+  --tag-color: var(--color-purple-120);
+  --tag-color-hover: var(--color-purple-130);
+  --tag-color-active: var(--color-purple-130);
+  --tag-border: transparent;
+  --tag-border-hover: var(--color-purple-90);
+  --tag-border-active: var(--color-purple-100);
+  --tag-bg: var(--color-purple-60);
+  --tag-bg-hover: var(--color-purple-70);
+  --tag-bg-active: var(--color-purple-90);
+}
+
+.tag[data-category="Mask"] {
+  --tag-color: var(--color-violet-120);
+  --tag-color-hover: var(--color-violet-130);
+  --tag-color-active: var(--color-violet-130);
+  --tag-border: transparent;
+  --tag-border-hover: var(--color-violet-90);
+  --tag-border-active: var(--color-violet-100);
+  --tag-bg: var(--color-violet-60);
+  --tag-bg-hover: var(--color-violet-70);
+  --tag-bg-active: var(--color-violet-90);
+}
+
+.tag[data-category="Effects"] {
+  --tag-color: var(--color-red-purple-120);
+  --tag-color-hover: var(--color-red-purple-130);
+  --tag-color-active: var(--color-red-purple-130);
+  --tag-border: transparent;
+  --tag-border-hover: var(--color-red-purple-90);
+  --tag-border-active: var(--color-red-purple-100);
+  --tag-bg: var(--color-red-purple-60);
+  --tag-bg-hover: var(--color-red-purple-70);
+  --tag-bg-active: var(--color-red-purple-90);
+}
+
+.tag[data-category="Output"] {
+  --tag-color: var(--color-red-120);
+  --tag-color-hover: var(--color-red-130);
+  --tag-color-active: var(--color-red-130);
+  --tag-border: transparent;
+  --tag-border-hover: var(--color-red-90);
+  --tag-border-active: var(--color-red-100);
+  --tag-bg: var(--color-red-60);
+  --tag-bg-hover: var(--color-red-70);
+  --tag-bg-active: var(--color-red-90);
+}
+
+.tag[data-category="Audio"] {
+  --tag-color: var(--color-cyan-120);
+  --tag-color-hover: var(--color-cyan-130);
+  --tag-color-active: var(--color-cyan-130);
+  --tag-border: transparent;
+  --tag-border-hover: var(--color-cyan-90);
+  --tag-border-active: var(--color-cyan-100);
+  --tag-bg: var(--color-cyan-60);
+  --tag-bg-hover: var(--color-cyan-70);
+  --tag-bg-active: var(--color-cyan-90);
+}
+
+/* === TYPE-SPECIFIC COLORS === */
+/* All color definitions reference color scales directly */
+
+.tag[data-type="float"] {
+  --tag-color: var(--color-gray-120);
+  --tag-color-hover: var(--color-gray-130);
+  --tag-color-active: var(--color-gray-130);
+  --tag-border: var(--color-gray-80);
+  --tag-border-hover: var(--color-gray-90);
+  --tag-border-active: var(--color-gray-100);
+  --tag-bg: var(--color-gray-60);
+  --tag-bg-hover: var(--color-gray-70);
+  --tag-bg-active: var(--color-gray-90);
+}
+
+.tag[data-type="vec2"] {
+  --tag-color: var(--color-blue-gray-120);
+  --tag-color-hover: var(--color-blue-gray-130);
+  --tag-color-active: var(--color-blue-gray-130);
+  --tag-border: var(--color-blue-gray-70);
+  --tag-border-hover: var(--color-blue-gray-80);
+  --tag-border-active: var(--color-blue-gray-100);
+  --tag-bg: var(--color-blue-gray-60);
+  --tag-bg-hover: var(--color-blue-gray-70);
+  --tag-bg-active: var(--color-blue-gray-90);
+}
+
+.tag[data-type="vec3"] {
+  --tag-color: var(--color-teal-gray-120);
+  --tag-color-hover: var(--color-teal-gray-130);
+  --tag-color-active: var(--color-teal-gray-130);
+  --tag-border: var(--color-teal-gray-70);
+  --tag-border-hover: var(--color-teal-gray-80);
+  --tag-border-active: var(--color-teal-gray-100);
+  --tag-bg: var(--color-teal-gray-60);
+  --tag-bg-hover: var(--color-teal-gray-70);
+  --tag-bg-active: var(--color-teal-gray-90);
+}
+
+.tag[data-type="vec4"] {
+  --tag-color: var(--color-purple-gray-120);
+  --tag-color-hover: var(--color-purple-gray-130);
+  --tag-color-active: var(--color-purple-gray-130);
+  --tag-border: var(--color-purple-gray-70);
+  --tag-border-hover: var(--color-purple-gray-80);
+  --tag-border-active: var(--color-purple-gray-100);
+  --tag-bg: var(--color-purple-gray-60);
+  --tag-bg-hover: var(--color-purple-gray-70);
+  --tag-bg-active: var(--color-purple-gray-90);
+}
+
+/* === CONTAINER === */
+
+.tag-container {
+  display: flex;
+  flex-wrap: wrap;
+  width: 100%;
+  gap: var(--pd-sm);
+}

@@ -1,0 +1,137 @@
+/**
+ * Contextual Help Manager
+ * Loads and manages contextual help content from JSON
+ */
+
+import type { NodeSpec } from '../types/nodeSpec';
+
+export interface HelpContent {
+  title: string;
+  titleType: 'type' | 'node' | 'parameter' | 'category' | string;
+  category?: string;
+  description: string;
+  examples?: string[];
+  relatedItems?: string[]; // Format: "type:float" or "node:constant-float"
+  icon?: string;
+}
+
+export interface HelpData {
+  helpItems: Record<string, HelpContent>;
+  categories: Record<string, {
+    icon?: string;
+    color?: string;
+  }>;
+}
+
+let helpData: HelpData | null = null;
+
+/**
+ * Load help data from JSON file
+ */
+export async function loadHelpData(): Promise<HelpData> {
+  if (helpData) {
+    return helpData;
+  }
+
+  try {
+    // Use Vite's import.meta.glob for dynamic import
+    const helpModules = import.meta.glob('/src/data/contextual-help.json', { eager: false });
+    const helpPath = '/src/data/contextual-help.json';
+    
+    if (!(helpPath in helpModules)) {
+      throw new Error('Help data file not found');
+    }
+    
+    // Dynamically import the help data module
+    const module = await helpModules[helpPath]();
+    // Vite imports JSON files as default exports
+    helpData = (module as { default: HelpData }).default;
+    return helpData;
+  } catch (error) {
+    console.error('Failed to load contextual help data:', error);
+    // Return empty data structure as fallback
+    return {
+      helpItems: {},
+      categories: {}
+    };
+  }
+}
+
+/**
+ * Get help content by ID
+ * @param helpId Format: "type:float", "node:constant-float", etc.
+ */
+export async function getHelpContent(helpId: string): Promise<HelpContent | null> {
+  const data = await loadHelpData();
+  return data.helpItems[helpId] || null;
+}
+
+/**
+ * Get related node specs for a help item
+ * @param helpId Help item ID
+ * @param nodeSpecs Map of all available node specs
+ */
+export function getRelatedNodeSpecs(
+  _helpId: string,
+  _nodeSpecs: Map<string, NodeSpec>
+): NodeSpec[] {
+  // This will be called after help content is loaded
+  // For now, return empty array - will be populated by caller
+  return [];
+}
+
+/**
+ * Resolve related items from help content
+ * @param relatedItems Array of related item IDs
+ * @param nodeSpecs Map of all available node specs
+ */
+export function resolveRelatedItems(
+  relatedItems: string[],
+  nodeSpecs: Map<string, NodeSpec>
+): {
+  nodes: NodeSpec[];
+  types: string[];
+} {
+  const nodes: NodeSpec[] = [];
+  const types: string[] = [];
+
+  for (const itemId of relatedItems) {
+    if (itemId.startsWith('node:')) {
+      const nodeId = itemId.substring(5); // Remove "node:" prefix
+      const spec = nodeSpecs.get(nodeId);
+      if (spec) {
+        nodes.push(spec);
+      }
+    } else if (itemId.startsWith('type:')) {
+      const type = itemId.substring(5); // Remove "type:" prefix
+      types.push(type);
+    }
+  }
+
+  return { nodes, types };
+}
+
+/**
+ * Find all nodes that use a specific type
+ * @param type Port type to search for
+ * @param nodeSpecs Map of all available node specs
+ */
+export function findNodesUsingType(
+  type: string,
+  nodeSpecs: Map<string, NodeSpec>
+): NodeSpec[] {
+  const matchingNodes: NodeSpec[] = [];
+
+  for (const spec of nodeSpecs.values()) {
+    // Check inputs
+    const hasInputType = spec.inputs.some(port => port.type === type);
+    // Check outputs
+    const hasOutputType = spec.outputs.some(port => port.type === type);
+
+    if (hasInputType || hasOutputType) {
+      matchingNodes.push(spec);
+    }
+  }
+
+  return matchingNodes;
+}

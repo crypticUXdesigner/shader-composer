@@ -81,6 +81,15 @@ export const bezierCurveNodeSpec: NodeSpec = {
       step: 0.01
     }
   },
+  parameterLayout: {
+    elements: [
+      {
+        type: 'bezier-editor',
+        height: 200,
+        parameters: ['x1', 'y1', 'x2', 'y2']
+      }
+    ]
+  },
   mainCode: `
     $output.out = vec4($param.x1, $param.y1, $param.x2, $param.y2);
   `

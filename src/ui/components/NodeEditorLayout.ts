@@ -3,6 +3,7 @@
 
 import { createIconElement } from '../../utils/icons';
 import { getCSSColor, getCSSVariable } from '../../utils/cssTokens';
+import { DropdownMenu, type DropdownMenuItem } from './DropdownMenu';
 
 export type PreviewState = 'expanded' | 'collapsed';
 
@@ -18,10 +19,14 @@ export class NodeEditorLayout {
   private nodeEditorContainer!: HTMLElement;
   private previewContainer!: HTMLElement;
   private divider!: HTMLElement;
-  private saveAsDefaultBtn!: HTMLElement;
-  private copyPresetBtn!: HTMLElement;
-  private exportBtn!: HTMLElement;
-  private presetSelect!: HTMLSelectElement;
+  private menuButton!: HTMLElement;
+  private presetButton!: HTMLElement;
+  private zoomDisplay!: HTMLElement;
+  private zoomValueDisplay!: HTMLElement;
+  private menuDropdown!: DropdownMenu;
+  private presetDropdown!: DropdownMenu;
+  private currentPresetName: string | null = null;
+  private presetList: Array<{ name: string; displayName: string }> = [];
   private state: LayoutState;
   
   private isDraggingDivider: boolean = false;
@@ -44,19 +49,28 @@ export class NodeEditorLayout {
   private readonly SAFE_DISTANCE = 16; // pixels from edges
   private readonly BUTTON_HIDE_DELAY = 2000; // milliseconds before hiding button when collapsed
   
-  private onSaveAsDefault?: () => Promise<void> | void;
+  /**
+   * Get the top bar height in pixels
+   */
+  private getTopBarHeight(): number {
+    if (!this.buttonContainer) return 0;
+    return this.buttonContainer.getBoundingClientRect().height;
+  }
+  
   private onCopyPreset?: () => Promise<void> | void;
   private onExport?: () => Promise<void> | void;
   private onLoadPreset?: (presetName: string) => Promise<void> | void;
-  private onGlobalAudioPlayToggle?: () => void;
-  private onGlobalAudioTimeChange?: (time: number) => void;
-  private getGlobalAudioState?: () => { isPlaying: boolean; currentTime: number; duration: number } | null;
+  private onZoomChange?: (zoom: number) => void;
+  private getZoom?: () => number;
+  private onPanelToggle?: () => void;
   private buttonHideTimeout: number | null = null;
-  private globalPlayButton!: HTMLElement;
-  private globalTimeSlider!: HTMLInputElement;
-  private globalTimeDisplay!: HTMLElement;
-  private audioUpdateInterval: number | null = null;
-  private isDraggingTimeSlider: boolean = false;
+  private panelToggleButton!: HTMLElement;
+  private panelToggleIcon!: SVGElement;
+  private nodePanelContainer!: HTMLElement;
+  private buttonContainer!: HTMLElement;
+  private panelWidth: number = 380;
+  private isPanelVisible: boolean = true;
+  private bottomBar?: { setPanelOffset: (offset: number) => void };
   
   // FPS counter
   private fpsDisplay!: HTMLElement;
@@ -73,7 +87,8 @@ export class NodeEditorLayout {
     const initialHeight = 240;
     const containerRect = container.getBoundingClientRect();
     const initialX = containerRect.width - initialWidth - this.SAFE_DISTANCE;
-    const initialY = this.SAFE_DISTANCE; // Top-right corner
+    // Top bar height will be calculated after layout is created, use placeholder for now
+    const initialY = 60; // Will be updated after layout creation (top bar height is ~60px)
     
     // Initialize as snapped to top-right corner
     this.snappedCorner = 'top-right';
@@ -88,6 +103,9 @@ export class NodeEditorLayout {
     this.createLayout();
     this.setupEventListeners();
     this.setupPreviewResizeObserver();
+    // Update initial position with actual top bar height
+    const topBarHeight = this.getTopBarHeight();
+    this.state.cornerWidgetPosition.y = topBarHeight;
     this.updateLayout();
   }
   
@@ -120,23 +138,6 @@ export class NodeEditorLayout {
       }
     });
     canvasObserver.observe(this.previewContainer, { childList: true, subtree: true });
-  }
-  
-  /**
-   * Set callback for save as default button
-   * Callback should return a promise that resolves on success or rejects on error
-   */
-  setSaveAsDefaultCallback(callback: () => Promise<void> | void): void {
-    this.onSaveAsDefault = async () => {
-      try {
-        await callback();
-        this.showToast('State saved as default!', 'success');
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to save default state';
-        this.showToast(errorMessage, 'error');
-        console.error('Failed to save default state:', error);
-      }
-    };
   }
   
   /**
@@ -175,91 +176,6 @@ export class NodeEditorLayout {
     };
   }
   
-  /**
-   * Set callbacks for global audio controls
-   */
-  setGlobalAudioCallbacks(callbacks: {
-    onPlayToggle?: () => void;
-    onTimeChange?: (time: number) => void;
-    getState?: () => { isPlaying: boolean; currentTime: number; duration: number } | null;
-  }): void {
-    this.onGlobalAudioPlayToggle = callbacks.onPlayToggle;
-    this.onGlobalAudioTimeChange = callbacks.onTimeChange;
-    this.getGlobalAudioState = callbacks.getState;
-    
-    // Start updating UI if we have a state getter
-    if (this.getGlobalAudioState) {
-      this.startAudioUIUpdates();
-    }
-  }
-  
-  /**
-   * Start periodic updates for audio UI
-   */
-  private startAudioUIUpdates(): void {
-    if (this.audioUpdateInterval) {
-      clearInterval(this.audioUpdateInterval);
-    }
-    
-    this.audioUpdateInterval = window.setInterval(() => {
-      if (this.getGlobalAudioState) {
-        const state = this.getGlobalAudioState();
-        if (state) {
-          this.updatePlayButtonIcon(state.isPlaying);
-          this.updateTimeDisplay(state.currentTime, state.duration);
-          this.updateTimeSlider(state.currentTime, state.duration);
-        } else {
-          // No audio loaded
-          this.updatePlayButtonIcon(false);
-          this.globalTimeDisplay.textContent = '0:00 / 0:00';
-          this.globalTimeSlider.value = '0';
-          this.globalTimeSlider.max = '100';
-        }
-      }
-    }, 100); // Update every 100ms
-  }
-  
-  /**
-   * Update play button icon
-   */
-  private updatePlayButtonIcon(isPlaying: boolean): void {
-    this.globalPlayButton.innerHTML = '';
-    const iconName = isPlaying ? 'pause' : 'play';
-    const iconColor = getCSSColor('layout-button-color', getCSSColor('color-gray-130', '#ebeff0'));
-    const icon = createIconElement(iconName, 16, iconColor);
-    this.globalPlayButton.appendChild(icon);
-  }
-  
-  /**
-   * Update time display
-   */
-  private updateTimeDisplay(currentTime: number, duration: number): void {
-    const formatTime = (seconds: number): string => {
-      const mins = Math.floor(seconds / 60);
-      const secs = Math.floor(seconds % 60);
-      return `${mins}:${secs.toString().padStart(2, '0')}`;
-    };
-    this.globalTimeDisplay.textContent = `${formatTime(currentTime)} / ${formatTime(duration)}`;
-  }
-  
-  /**
-   * Update time slider
-   */
-  private updateTimeSlider(currentTime: number, duration: number): void {
-    // Don't update slider while user is dragging
-    if (this.isDraggingTimeSlider) {
-      return;
-    }
-    
-    if (duration > 0) {
-      const percent = (currentTime / duration) * 100;
-      this.globalTimeSlider.value = percent.toString();
-      this.globalTimeSlider.max = '100';
-    } else {
-      this.globalTimeSlider.value = '0';
-      this.globalTimeSlider.max = '100';
-    }
-  }
 
   /**
    * Set callback for preset selection
@@ -278,45 +194,114 @@ export class NodeEditorLayout {
   }
   
   /**
-   * Update the preset select dropdown with available presets
+   * Set callbacks for zoom control
    */
-  async updatePresetList(presets: Array<{ name: string; displayName: string }>): Promise<void> {
-    // Clear existing options except the first "Select preset..." option
-    while (this.presetSelect.options.length > 1) {
-      this.presetSelect.remove(1);
+  setZoomCallbacks(callbacks: {
+    onZoomChange?: (zoom: number) => void;
+    getZoom?: () => number;
+  }): void {
+    this.onZoomChange = callbacks.onZoomChange;
+    this.getZoom = callbacks.getZoom;
+  }
+  
+  /**
+   * Set callback for panel toggle
+   */
+  setPanelToggleCallback(callback: () => void): void {
+    this.onPanelToggle = callback;
+  }
+  
+  /**
+   * Set panel toggle button active state
+   */
+  setPanelToggleActive(isActive: boolean): void {
+    if (this.panelToggleButton) {
+      if (isActive) {
+        this.panelToggleButton.classList.add('is-active');
+      } else {
+        this.panelToggleButton.classList.remove('is-active');
+      }
+    }
+    this.isPanelVisible = isActive;
+    this.updatePanelToggleIcon();
+    this.updateLayout();
+  }
+  
+  /**
+   * Update panel toggle icon based on panel state
+   */
+  private updatePanelToggleIcon(): void {
+    if (!this.panelToggleButton) return;
+    
+    // Remove old icon if it exists
+    if (this.panelToggleIcon) {
+      this.panelToggleButton.removeChild(this.panelToggleIcon);
     }
     
-    // Add preset options
-    for (const preset of presets) {
-      const option = document.createElement('option');
-      option.value = preset.name;
-      option.textContent = preset.displayName;
-      this.presetSelect.appendChild(option);
+    // Create new icon based on panel state
+    const iconName = this.isPanelVisible ? 'transition-left' : 'layout-grid';
+    this.panelToggleIcon = createIconElement(iconName, 16, 'currentColor', undefined, 'filled');
+    this.panelToggleButton.appendChild(this.panelToggleIcon);
+  }
+  
+  /**
+   * Get the panel container element
+   */
+  getPanelContainer(): HTMLElement {
+    return this.nodePanelContainer;
+  }
+  
+  /**
+   * Set bottom bar reference for adjusting position
+   */
+  setBottomBar(bottomBar: { setPanelOffset: (offset: number) => void }): void {
+    this.bottomBar = bottomBar;
+  }
+  
+  /**
+   * Update zoom display value
+   */
+  updateZoomDisplay(zoom: number): void {
+    if (this.zoomValueDisplay) {
+      const zoomPercent = Math.round(zoom * 100);
+      this.zoomValueDisplay.textContent = `${zoomPercent}%`;
     }
   }
   
   /**
-   * Set the selected preset in the dropdown
+   * Update the preset list with available presets
+   */
+  async updatePresetList(presets: Array<{ name: string; displayName: string }>): Promise<void> {
+    this.presetList = presets;
+    // Update preset button label if a preset is currently selected
+    this.updatePresetButtonLabel();
+  }
+  
+  /**
+   * Set the selected preset and update the button label
    * @param presetName - Name of the preset to select (filename without .json extension)
    */
   setSelectedPreset(presetName: string | null): void {
-    if (!presetName) {
-      // Reset to default option
-      this.presetSelect.selectedIndex = 0;
-      return;
-    }
+    this.currentPresetName = presetName;
+    this.updatePresetButtonLabel();
+  }
+  
+  /**
+   * Update the preset button label to show current preset
+   */
+  private updatePresetButtonLabel(): void {
+    if (!this.presetButton) return;
     
-    // Find the option with matching value
-    for (let i = 0; i < this.presetSelect.options.length; i++) {
-      if (this.presetSelect.options[i].value === presetName) {
-        this.presetSelect.selectedIndex = i;
-        return;
+    const label = this.presetButton.querySelector('.top-bar-preset-button-label') as HTMLElement;
+    if (label) {
+      if (this.currentPresetName) {
+        const preset = this.presetList.find(p => p.name === this.currentPresetName);
+        const displayName = preset ? preset.displayName : this.currentPresetName;
+        label.textContent = `Preset: ${displayName}`;
+      } else {
+        label.textContent = 'Preset: None';
       }
     }
-    
-    // If preset not found, reset to default
-    console.warn(`[NodeEditorLayout] Preset "${presetName}" not found in dropdown, resetting to default`);
-    this.presetSelect.selectedIndex = 0;
   }
   
   /**
@@ -324,14 +309,14 @@ export class NodeEditorLayout {
    */
   private showToast(message: string, type: 'success' | 'error'): void {
     // Remove existing toast if any
-    const existingToast = document.body.querySelector('.toast-notification');
+    const existingToast = document.body.querySelector('.message');
     if (existingToast) {
       existingToast.remove();
     }
     
     // Create toast element
     const toast = document.createElement('div');
-    toast.className = `toast-notification is-${type}`;
+    toast.className = `message is-${type}`;
     toast.textContent = message;
     
     document.body.appendChild(toast);
@@ -355,169 +340,239 @@ export class NodeEditorLayout {
   }
   
   private createLayout(): void {
-    // Create button container for top-left controls
-    const buttonContainer = document.createElement('div');
-    buttonContainer.className = 'layout-button-container';
-    this.container.appendChild(buttonContainer);
+    // Create button container for top bar
+    this.buttonContainer = document.createElement('div');
+    this.buttonContainer.className = 'top-bar';
+    this.container.appendChild(this.buttonContainer);
     
-    // Save as default button
-    this.saveAsDefaultBtn = document.createElement('button');
-    this.saveAsDefaultBtn.textContent = 'Save as Default';
-    this.saveAsDefaultBtn.title = 'Save current state as the new starting point';
-    this.saveAsDefaultBtn.className = 'layout-button';
-    this.saveAsDefaultBtn.addEventListener('click', async () => {
-      if (this.onSaveAsDefault) {
-        await this.onSaveAsDefault();
-      }
-    });
-    buttonContainer.appendChild(this.saveAsDefaultBtn);
+    // Create left section container
+    const leftSection = document.createElement('div');
+    leftSection.className = 'top-bar-left';
+    this.buttonContainer.appendChild(leftSection);
     
-    // Copy preset button
-    this.copyPresetBtn = document.createElement('button');
-    (this.copyPresetBtn as HTMLButtonElement).type = 'button';
-    this.copyPresetBtn.textContent = 'Copy Preset';
-    this.copyPresetBtn.title = 'Copy current graph as JSON to clipboard';
-    this.copyPresetBtn.className = 'layout-button';
-    this.copyPresetBtn.addEventListener('click', async (e) => {
+    // Create right section container
+    const rightSection = document.createElement('div');
+    rightSection.className = 'top-bar-right';
+    this.buttonContainer.appendChild(rightSection);
+    
+    // Initialize dropdown menus
+    this.menuDropdown = new DropdownMenu();
+    this.presetDropdown = new DropdownMenu();
+    
+    // Panel toggle button (left side - first)
+    this.panelToggleButton = document.createElement('button');
+    (this.panelToggleButton as HTMLButtonElement).type = 'button';
+    this.panelToggleButton.className = 'button secondary md icon-only';
+    this.panelToggleButton.title = 'Toggle node panel';
+    // Initialize icon based on default panel state (visible by default)
+    this.updatePanelToggleIcon();
+    this.panelToggleButton.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      if (this.onCopyPreset) {
-        await this.onCopyPreset();
-      } else {
-        console.warn('[NodeEditorLayout] Copy preset callback not set yet. Please wait for initialization to complete.');
-        this.showToast('Copy preset not ready yet. Please try again.', 'error');
+      if (this.onPanelToggle) {
+        this.onPanelToggle();
       }
     });
-    buttonContainer.appendChild(this.copyPresetBtn);
+    leftSection.appendChild(this.panelToggleButton);
     
-    // Export button
-    this.exportBtn = document.createElement('button');
-    (this.exportBtn as HTMLButtonElement).type = 'button';
-    this.exportBtn.textContent = 'Export Image';
-    this.exportBtn.title = 'Export current shader as image';
-    this.exportBtn.className = 'layout-button';
-    this.exportBtn.addEventListener('click', async (e) => {
+    // Preset button (left side - second)
+    this.presetButton = document.createElement('button');
+    (this.presetButton as HTMLButtonElement).type = 'button';
+    this.presetButton.className = 'button secondary sm both';
+    this.presetButton.title = 'Select preset';
+    
+    // Create button content with icon and label
+    const presetIcon = createIconElement('preset', 16, 'currentColor', undefined, 'line');
+    this.presetButton.appendChild(presetIcon);
+    
+    const presetLabel = document.createElement('span');
+    presetLabel.className = 'top-bar-preset-button-label';
+    presetLabel.textContent = 'Preset: None';
+    this.presetButton.appendChild(presetLabel);
+    
+    this.presetButton.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      if (this.onExport) {
-        await this.onExport();
-      } else {
-        console.warn('[NodeEditorLayout] Export callback not set yet.');
-        this.showToast('Export not ready yet. Please try again.', 'error');
-      }
-    });
-    buttonContainer.appendChild(this.exportBtn);
-    
-    // Preset select dropdown
-    this.presetSelect = document.createElement('select');
-    this.presetSelect.title = 'Load a preset';
-    this.presetSelect.className = 'layout-select';
-    // Add default option
-    const defaultOption = document.createElement('option');
-    defaultOption.value = '';
-    defaultOption.textContent = 'Select preset...';
-    defaultOption.disabled = true;
-    defaultOption.selected = true;
-    this.presetSelect.appendChild(defaultOption);
-    this.presetSelect.addEventListener('change', async (e) => {
-      const target = e.target as HTMLSelectElement;
-      const presetName = target.value;
-      if (presetName && this.onLoadPreset) {
-        await this.onLoadPreset(presetName);
-        // Keep the selected preset visible (don't reset to default)
-        // The selection is now managed by setSelectedPreset in the callback
-      }
-    });
-    buttonContainer.appendChild(this.presetSelect);
-    
-    // Global audio controls container
-    const audioControlsContainer = document.createElement('div');
-    audioControlsContainer.className = 'layout-audio-controls';
-    audioControlsContainer.style.cssText = `
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-left: 16px;
-    `;
-    
-    // Global play/pause button
-    this.globalPlayButton = document.createElement('button');
-    this.globalPlayButton.className = 'layout-button layout-audio-play-button';
-    this.globalPlayButton.title = 'Play/Pause all audio';
-    this.globalPlayButton.style.cssText = `
-      width: 32px;
-      height: 32px;
-      padding: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    `;
-    this.updatePlayButtonIcon(false);
-    this.globalPlayButton.addEventListener('click', () => {
-      this.onGlobalAudioPlayToggle?.();
-    });
-    audioControlsContainer.appendChild(this.globalPlayButton);
-    
-    // Time display
-    this.globalTimeDisplay = document.createElement('div');
-    this.globalTimeDisplay.className = 'layout-audio-time';
-    this.globalTimeDisplay.style.cssText = `
-      font-family: monospace;
-      font-size: 12px;
-      color: ${getCSSColor('layout-button-color', '#e0e0e0')};
-      min-width: 80px;
-      text-align: right;
-    `;
-    this.globalTimeDisplay.textContent = '0:00 / 0:00';
-    audioControlsContainer.appendChild(this.globalTimeDisplay);
-    
-    // Time scrubber slider
-    this.globalTimeSlider = document.createElement('input');
-    this.globalTimeSlider.type = 'range';
-    this.globalTimeSlider.min = '0';
-    this.globalTimeSlider.max = '100';
-    this.globalTimeSlider.value = '0';
-    this.globalTimeSlider.className = 'layout-audio-slider';
-    this.globalTimeSlider.style.cssText = `
-      flex: 1;
-      min-width: 200px;
-      max-width: 400px;
-    `;
-    this.globalTimeSlider.addEventListener('mousedown', () => {
-      this.isDraggingTimeSlider = true;
-    });
-    this.globalTimeSlider.addEventListener('mouseup', () => {
-      this.isDraggingTimeSlider = false;
-    });
-    this.globalTimeSlider.addEventListener('input', (e) => {
-      const target = e.target as HTMLInputElement;
-      const percent = parseFloat(target.value);
-      if (this.getGlobalAudioState) {
-        const state = this.getGlobalAudioState();
-        if (state) {
-          const time = (percent / 100) * state.duration;
-          this.onGlobalAudioTimeChange?.(time);
+      const rect = this.presetButton.getBoundingClientRect();
+      const menuItems: DropdownMenuItem[] = this.presetList.map(preset => ({
+        label: preset.displayName,
+        action: async () => {
+          if (this.onLoadPreset) {
+            await this.onLoadPreset(preset.name);
+          }
         }
+      }));
+      
+      if (menuItems.length === 0) {
+        menuItems.push({
+          label: 'No presets available',
+          action: () => {},
+          disabled: true
+        });
       }
+      
+      this.presetDropdown.show(rect.left, rect.bottom + 4, menuItems);
     });
-    audioControlsContainer.appendChild(this.globalTimeSlider);
+    leftSection.appendChild(this.presetButton);
     
-    buttonContainer.appendChild(audioControlsContainer);
+    // Menu icon button (left side - third)
+    this.menuButton = document.createElement('button');
+    (this.menuButton as HTMLButtonElement).type = 'button';
+    this.menuButton.className = 'button secondary sm icon-only';
+    this.menuButton.title = 'Options';
+    const menuIcon = createIconElement('menu', 16, 'currentColor', undefined, 'line');
+    this.menuButton.appendChild(menuIcon);
+    this.menuButton.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const rect = this.menuButton.getBoundingClientRect();
+      const menuItems: DropdownMenuItem[] = [
+        {
+          label: 'Copy Preset',
+          action: async () => {
+            if (this.onCopyPreset) {
+              await this.onCopyPreset();
+            } else {
+              console.warn('[NodeEditorLayout] Copy preset callback not set yet.');
+              this.showToast('Copy preset not ready yet. Please try again.', 'error');
+            }
+          }
+        },
+        {
+          label: 'Export Image',
+          action: async () => {
+            if (this.onExport) {
+              await this.onExport();
+            } else {
+              console.warn('[NodeEditorLayout] Export callback not set yet.');
+              this.showToast('Export not ready yet. Please try again.', 'error');
+            }
+          }
+        }
+      ];
+      this.menuDropdown.show(rect.left, rect.bottom + 4, menuItems);
+    });
+    leftSection.appendChild(this.menuButton);
     
-    // FPS counter
+    // FPS counter (right side - first)
     this.fpsDisplay = document.createElement('div');
     this.fpsDisplay.className = 'layout-fps-display';
     this.fpsDisplay.style.cssText = `
-      font-family: monospace;
+      font-family: "JetBrains Mono", "Courier New", Courier, monospace;
       font-size: 12px;
       color: ${getCSSColor('layout-button-color', '#e0e0e0')};
-      margin-left: 16px;
       min-width: 50px;
       text-align: right;
       opacity: 0.7;
     `;
     this.fpsDisplay.textContent = '-- FPS';
-    buttonContainer.appendChild(this.fpsDisplay);
+    rightSection.appendChild(this.fpsDisplay);
+    
+    // Zoom display button (right side - second)
+    this.zoomDisplay = document.createElement('button');
+    (this.zoomDisplay as HTMLButtonElement).type = 'button';
+    this.zoomDisplay.className = 'button secondary sm both';
+    this.zoomDisplay.title = 'Zoom';
+    
+    // Create button content with icon and value
+    const zoomIcon = createIconElement('zoom-in', 16, 'currentColor', undefined, 'filled');
+    this.zoomDisplay.appendChild(zoomIcon);
+    
+    this.zoomValueDisplay = document.createElement('span');
+    this.zoomValueDisplay.className = 'top-bar-zoom-value-display';
+    this.zoomValueDisplay.textContent = '100%';
+    this.zoomDisplay.appendChild(this.zoomValueDisplay);
+    
+    // Single click: go to 100%
+    let clickTimeout: number | null = null;
+    this.zoomDisplay.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Clear any pending timeout
+      if (clickTimeout !== null) {
+        clearTimeout(clickTimeout);
+        clickTimeout = null;
+      }
+      
+      // Set timeout to detect if this is a single click (not double click)
+      clickTimeout = window.setTimeout(() => {
+        clickTimeout = null;
+        // Single click: reset to 100%
+        if (this.onZoomChange) {
+          this.onZoomChange(1.0);
+        }
+      }, 250); // Wait 250ms to see if double click occurs
+    });
+    
+    // Double click: enter custom value
+    this.zoomDisplay.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Clear single click timeout
+      if (clickTimeout !== null) {
+        clearTimeout(clickTimeout);
+        clickTimeout = null;
+      }
+      
+      // Get current zoom value
+      const currentZoom = this.getZoom ? this.getZoom() : 1.0;
+      const currentZoomPercent = Math.round(currentZoom * 100);
+      
+      // Create input element
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = String(currentZoomPercent);
+      input.className = 'input secondary sm';
+      input.style.cssText = `
+        position: absolute;
+        left: ${this.zoomDisplay.getBoundingClientRect().left}px;
+        top: ${this.zoomDisplay.getBoundingClientRect().top}px;
+        width: ${this.zoomDisplay.getBoundingClientRect().width}px;
+        height: ${this.zoomDisplay.getBoundingClientRect().height}px;
+        z-index: 1000;
+        text-align: center;
+      `;
+      
+      // Select all text
+      input.select();
+      
+      // Handle input
+      const handleInput = () => {
+        const value = parseFloat(input.value);
+        if (!isNaN(value) && value > 0) {
+          const zoomValue = Math.max(0.10, Math.min(5.0, value / 100));
+          if (this.onZoomChange) {
+            this.onZoomChange(zoomValue);
+          }
+        }
+        document.body.removeChild(input);
+      };
+      
+      input.addEventListener('blur', handleInput);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleInput();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          document.body.removeChild(input);
+        }
+      });
+      
+      document.body.appendChild(input);
+      input.focus();
+    });
+    
+    rightSection.appendChild(this.zoomDisplay);
+    
+    // Node panel container (left side, hidden by default)
+    this.nodePanelContainer = document.createElement('div');
+    this.nodePanelContainer.className = 'node-panel-container';
+    // Set CSS variable for dynamic width
+    this.nodePanelContainer.style.setProperty('--panel-width-dynamic', `${this.panelWidth}px`);
+    this.container.appendChild(this.nodePanelContainer);
     
     // Node editor container (left)
     this.nodeEditorContainer = document.createElement('div');
@@ -525,7 +580,7 @@ export class NodeEditorLayout {
       position: absolute;
       left: 0;
       top: 0;
-      height: 100%;
+      bottom: 80px;
       overflow: hidden;
     `;
     this.container.appendChild(this.nodeEditorContainer);
@@ -586,6 +641,7 @@ export class NodeEditorLayout {
     window.addEventListener('resize', () => {
       this.updateLayout();
     });
+    
   }
   
   private setupButtonAutoHide(): void {
@@ -664,11 +720,12 @@ export class NodeEditorLayout {
     if (wasExpanded && this.state.previewState === 'collapsed') {
       const containerRect = this.container.getBoundingClientRect();
       const widgetWidth = this.state.cornerWidgetSize.width;
+      const topBarHeight = this.getTopBarHeight();
       
       // Only initialize if position is at origin (0,0) or invalid
       if (this.state.cornerWidgetPosition.x === 0 && this.state.cornerWidgetPosition.y === 0) {
         this.state.cornerWidgetPosition.x = containerRect.width - widgetWidth - this.SAFE_DISTANCE;
-        this.state.cornerWidgetPosition.y = this.SAFE_DISTANCE; // Top-right corner
+        this.state.cornerWidgetPosition.y = topBarHeight; // Top-right corner (below top bar)
         this.snappedCorner = 'top-right';
       } else {
         // Check if the current position is at a corner and update snappedCorner
@@ -679,10 +736,10 @@ export class NodeEditorLayout {
         const maxX = containerRect.width - widgetWidth - safeDist;
         const maxY = containerRect.height - widgetHeight - safeDist;
         
-        // Check if at a corner
-        if (Math.abs(x - safeDist) < this.SNAP_DISTANCE && Math.abs(y - safeDist) < this.SNAP_DISTANCE) {
+        // Check if at a corner (use topBarHeight for top edge)
+        if (Math.abs(x - safeDist) < this.SNAP_DISTANCE && Math.abs(y - topBarHeight) < this.SNAP_DISTANCE) {
           this.snappedCorner = 'top-left';
-        } else if (Math.abs(x - maxX) < this.SNAP_DISTANCE && Math.abs(y - safeDist) < this.SNAP_DISTANCE) {
+        } else if (Math.abs(x - maxX) < this.SNAP_DISTANCE && Math.abs(y - topBarHeight) < this.SNAP_DISTANCE) {
           this.snappedCorner = 'top-right';
         } else if (Math.abs(x - safeDist) < this.SNAP_DISTANCE && Math.abs(y - maxY) < this.SNAP_DISTANCE) {
           this.snappedCorner = 'bottom-left';
@@ -703,6 +760,26 @@ export class NodeEditorLayout {
     const width = containerRect.width;
     const height = containerRect.height;
     
+    // Calculate panel offset
+    const panelOffset = this.isPanelVisible ? this.panelWidth : 0;
+    
+    // Update panel container visibility using CSS classes
+    if (this.isPanelVisible) {
+      this.nodePanelContainer.classList.add('is-visible');
+    } else {
+      this.nodePanelContainer.classList.remove('is-visible');
+    }
+    
+    // Update bottom bar position
+    if (this.bottomBar) {
+      this.bottomBar.setPanelOffset(panelOffset);
+    }
+    
+    // Update button container position using CSS variable
+    if (this.buttonContainer) {
+      this.buttonContainer.style.setProperty('--top-bar-left-offset', `${panelOffset}px`);
+    }
+    
     // Update toggle button icon
     this.updateToggleButtonIcon();
     
@@ -717,23 +794,32 @@ export class NodeEditorLayout {
       this.scheduleButtonHide();
     }
     
+    // Get top bar height for safe distance calculations
+    const topBarHeight = this.getTopBarHeight();
+    
     if (this.state.previewState === 'expanded') {
       // Split-screen mode
-      const leftWidth = width * this.state.dividerPosition;
-      const rightWidth = width * (1 - this.state.dividerPosition);
+      const leftWidth = (width - panelOffset) * this.state.dividerPosition;
+      const rightWidth = (width - panelOffset) * (1 - this.state.dividerPosition);
       
+      // Node editor container overlays the top bar (starts at top: 0)
+      this.nodeEditorContainer.style.left = `${panelOffset}px`;
       this.nodeEditorContainer.style.width = `${leftWidth}px`;
       this.nodeEditorContainer.style.display = 'block';
+      this.nodeEditorContainer.style.top = `0px`;
+      this.nodeEditorContainer.style.bottom = `0px`;
       
-      this.divider.style.left = `${leftWidth}px`;
+      // Divider also overlays the top bar (starts at top: 0)
+      this.divider.style.left = `${panelOffset + leftWidth}px`;
       this.divider.style.top = `0px`;
       this.divider.style.height = `100%`;
       this.divider.style.display = 'block';
       
-      this.previewContainer.style.left = `${leftWidth + 4}px`;
-      this.previewContainer.style.top = `0px`;
+      // Preview container respects top bar height (doesn't overlap)
+      this.previewContainer.style.left = `${panelOffset + leftWidth + 4}px`;
+      this.previewContainer.style.top = `${topBarHeight}px`;
       this.previewContainer.style.width = `${rightWidth - 4}px`;
-      this.previewContainer.style.height = `100%`;
+      this.previewContainer.style.height = `calc(100% - ${topBarHeight}px)`;
       this.previewContainer.style.display = 'block';
       this.previewContainer.style.position = 'absolute';
       this.previewContainer.style.border = 'none';
@@ -745,8 +831,12 @@ export class NodeEditorLayout {
       existingHandles.forEach(h => h.remove());
     } else {
       // Collapsed mode (corner widget)
-      this.nodeEditorContainer.style.width = '100%';
+      // Node editor container overlays the top bar (starts at top: 0)
+      this.nodeEditorContainer.style.left = `${panelOffset}px`;
+      this.nodeEditorContainer.style.width = `calc(100% - ${panelOffset}px)`;
       this.nodeEditorContainer.style.display = 'block';
+      this.nodeEditorContainer.style.top = `0px`;
+      this.nodeEditorContainer.style.bottom = `0px`;
       
       this.divider.style.display = 'none';
       
@@ -757,6 +847,7 @@ export class NodeEditorLayout {
       let widgetY = this.state.cornerWidgetPosition.y;
       
       // If snapped to a corner, recalculate position based on that corner
+      // Use top bar height for top edge, SAFE_DISTANCE for other edges
       if (this.snappedCorner) {
         const maxX = width - widgetWidth - this.SAFE_DISTANCE;
         const maxY = height - widgetHeight - this.SAFE_DISTANCE;
@@ -764,11 +855,11 @@ export class NodeEditorLayout {
         switch (this.snappedCorner) {
           case 'top-left':
             widgetX = this.SAFE_DISTANCE;
-            widgetY = this.SAFE_DISTANCE;
+            widgetY = topBarHeight;
             break;
           case 'top-right':
             widgetX = maxX;
-            widgetY = this.SAFE_DISTANCE;
+            widgetY = topBarHeight;
             break;
           case 'bottom-left':
             widgetX = this.SAFE_DISTANCE;
@@ -781,10 +872,11 @@ export class NodeEditorLayout {
         }
       } else {
         // Not snapped - constrain position to viewport with safe distance
+        // Use top bar height for top edge, SAFE_DISTANCE for other edges
         const maxX = width - widgetWidth - this.SAFE_DISTANCE;
         const maxY = height - widgetHeight - this.SAFE_DISTANCE;
         widgetX = Math.max(this.SAFE_DISTANCE, Math.min(maxX, widgetX));
-        widgetY = Math.max(this.SAFE_DISTANCE, Math.min(maxY, widgetY));
+        widgetY = Math.max(topBarHeight, Math.min(maxY, widgetY));
       }
       
       // Update state with constrained position
@@ -817,10 +909,10 @@ export class NodeEditorLayout {
     // Clear existing icon
     toggleButton.innerHTML = '';
     
-    // Show expand icon when collapsed, minimize icon when expanded
-    const iconName = this.state.previewState === 'collapsed' ? 'maximize-2' : 'minimize-2';
-    const iconColor = getCSSColor('layout-button-color', getCSSColor('color-gray-130', '#ebeff0'));
-    const icon = createIconElement(iconName, 18, iconColor);
+    // When expanded (large): use picture-in-picture to signify swap to picture-in-picture layout
+    // When collapsed (small): use layout-sidebar-right to expand
+    const iconName = this.state.previewState === 'expanded' ? 'picture-in-picture' : 'layout-sidebar-right';
+    const icon = createIconElement(iconName, 16, 'currentColor', undefined, 'filled');
     toggleButton.appendChild(icon);
   }
   
@@ -935,6 +1027,7 @@ export class NodeEditorLayout {
     
     // Check if we're moving away from a snapped corner
     // If moved more than snap distance, clear the snap
+    const topBarHeight = this.getTopBarHeight();
     if (this.snappedCorner) {
       const safeDist = this.SAFE_DISTANCE;
       const snapDist = this.SNAP_DISTANCE;
@@ -947,11 +1040,11 @@ export class NodeEditorLayout {
       switch (this.snappedCorner) {
         case 'top-left':
           expectedX = safeDist;
-          expectedY = safeDist;
+          expectedY = topBarHeight;
           break;
         case 'top-right':
           expectedX = containerRect.width - widgetWidth - safeDist;
-          expectedY = safeDist;
+          expectedY = topBarHeight;
           break;
         case 'bottom-left':
           expectedX = safeDist;
@@ -969,7 +1062,7 @@ export class NodeEditorLayout {
       }
     }
     
-    // Apply edge snapping with safe distance
+    // Apply edge snapping with safe distance (using top bar height for top edge)
     const snapped = this.snapToEdges(
       newX,
       newY,
@@ -1040,10 +1133,11 @@ export class NodeEditorLayout {
       }
     }
     
-    // Constrain position and size to viewport bounds
+    // Constrain position and size to viewport bounds (use top bar height for top edge)
+    const topBarHeight = this.getTopBarHeight();
     const minX = this.SAFE_DISTANCE;
     const maxX = containerRect.width - newWidth - this.SAFE_DISTANCE;
-    const minY = this.SAFE_DISTANCE;
+    const minY = topBarHeight;
     const maxY = containerRect.height - newHeight - this.SAFE_DISTANCE;
     
     newX = Math.max(minX, Math.min(maxX, newX));
@@ -1114,11 +1208,12 @@ export class NodeEditorLayout {
   ): { x: number; y: number } {
     const safeDist = this.SAFE_DISTANCE;
     const snapDist = this.SNAP_DISTANCE;
+    const topBarHeight = this.getTopBarHeight();
     
-    // Calculate distances to each edge
+    // Calculate distances to each edge (use top bar height for top edge)
     const distToLeft = x - safeDist;
     const distToRight = (viewportWidth - safeDist) - (x + width);
-    const distToTop = y - safeDist;
+    const distToTop = y - topBarHeight;
     const distToBottom = (viewportHeight - safeDist) - (y + height);
     
     let snappedX = x;
@@ -1139,9 +1234,9 @@ export class NodeEditorLayout {
       snappedToRight = true;
     }
     
-    // Snap to top edge
+    // Snap to top edge (below top bar)
     if (Math.abs(distToTop) < snapDist) {
-      snappedY = safeDist;
+      snappedY = topBarHeight;
       snappedToTop = true;
     }
     // Snap to bottom edge
@@ -1164,10 +1259,10 @@ export class NodeEditorLayout {
       this.snappedCorner = null;
     }
     
-    // Constrain to viewport bounds
+    // Constrain to viewport bounds (use top bar height for top edge)
     const minX = safeDist;
     const maxX = viewportWidth - width - safeDist;
-    const minY = safeDist;
+    const minY = topBarHeight;
     const maxY = viewportHeight - height - safeDist;
     
     snappedX = Math.max(minX, Math.min(maxX, snappedX));

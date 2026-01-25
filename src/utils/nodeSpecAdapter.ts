@@ -195,7 +195,8 @@ export function getNodeColorByCategory(category: string): string {
     'Blend': '--category-color-blend',
     'Mask': '--category-color-mask',
     'Effects': '--category-color-effects',
-    'Output': '--category-color-output'
+    'Output': '--category-color-output',
+    'Audio': '--category-color-audio'
   };
   
   const tokenName = tokenMap[category] || '--category-color-default';
@@ -212,15 +213,16 @@ export function getNodeColorByCategory(category: string): string {
   // These match the --category-color-* tokens which use color-*-130 scale values
   const fallbackColors: Record<string, string> = {
     'Inputs': '#efebff',    // blue-130
-    'Patterns': '#e2f4e5',  // leaf-130
-    'Shapes': '#f4eee2',    // orange-130
-    'Math': '#ebf1e1',      // yellow-130
-    'Utilities': '#e1f3f1', // teal-130
-    'Distort': '#ebeff0',  // gray-130
-    'Blend': '#fce7f7',    // purple-130
-    'Mask': '#f4eee2',     // orange-130
-    'Effects': '#fee9e2',  // red-130
-    'Output': '#fee9e2'    // red-130
+    'Patterns': '#e0f5e5',  // leaf-130
+    'Shapes': '#dff4ee',    // teal-130
+    'Math': '#f4efd9',      // orange-130
+    'Utilities': '#edf2d7', // yellow-130
+    'Distort': '#fdebd8',  // orange-red-130
+    'Blend': '#ffe6f2',    // purple-130
+    'Mask': '#fae8f9',     // violet-130
+    'Effects': '#ffe8e6',  // red-purple-130
+    'Output': '#ffe9df',    // red-130
+    'Audio': '#e8effb'     // cyan-130
   };
   return fallbackColors[category] || '#ebeff0'; // gray-130
 }
@@ -230,14 +232,14 @@ export function getNodeColorByCategory(category: string): string {
 const nodeSpecificIconMap: Record<string, string> = {
   // Input nodes
   'time': 'time-clock',
-  'uv-coordinates': 'grid',
-  'resolution': 'monitor',
-  'fragment-coordinates': 'grid',
+  'uv-coordinates': 'chart-scatter',
+  'resolution': 'chart-scatter',
+  'fragment-coordinates': 'chart-scatter',
   'constant-float': 'constant',
-  'constant-vec2': 'constant',
-  'constant-vec3': 'constant',
-  'constant-vec4': 'constant',
-  'bezier-curve': 'bezier',
+  'constant-vec2': 'chart-scatter',
+  'constant-vec3': 'chart-scatter-3d',
+  'constant-vec4': 'chart-scatter-3d',
+  'bezier-curve': 'ease-in-out-control-points',
   
   // Audio nodes
   'audio-file-input': 'audio-waveform',
@@ -257,18 +259,18 @@ const nodeSpecificIconMap: Record<string, string> = {
   
   // Shape/Geometry nodes
   'sphere-raymarch': 'sphere',
-  'box-torus-sdf': 'circle',
-  'fractal': 'circle',
+  'box-torus-sdf': 'box',
+  'fractal': 'sparkles-2',
   
   // Transform/Distort nodes
-  'translate': 'arrow-right',
+  'translate': 'arrow-move-right',
   'rotate': 'rotate',
-  'scale': 'resize',
-  'kaleidoscope': 'kaleidoscope',
-  'twist-distortion': 'twist',
-  'polar-coordinates': 'circle',
-  'turbulence': 'wave',
-  'vector-field': 'move',
+  'scale': 'arrow-autofit-height',
+  'kaleidoscope': 'ikosaedr',
+  'twist-distortion': 'spiral',
+  'polar-coordinates': 'spiral',
+  'turbulence': 'noise',
+  'vector-field': 'arrow-up-right',
   
   // Math nodes - Basic arithmetic
   'add': 'plus',
@@ -277,15 +279,28 @@ const nodeSpecificIconMap: Record<string, string> = {
   'divide': 'divide',
   'power': 'power',
   'square-root': 'sqrt',
+  'absolute': 'arrows-left-right',
+  'floor': 'arrow-down',
+  'ceil': 'arrow-up',
+  'fract': 'hash',
+  'modulo': 'percentage',
+  'min': 'math-min',
+  'max': 'math-max',
+  'clamp': 'math-max-min',
+  'mix': 'arrows-left-right',
+  'step': 'arrow-right',
+  'smoothstep': 'wave-sine',
+  'exponential': 'math-xy',
+  'natural-logarithm': 'math-function',
   
   // Math nodes - Trigonometry
   'sine': 'trig-wave',
-  'cosine': 'trig-wave',
-  'tangent': 'trig-wave',
-  'arc-sine': 'trig-wave',
-  'arc-cosine': 'trig-wave',
-  'arc-tangent': 'trig-wave',
-  'arc-tangent-2': 'trig-wave',
+  'cosine': 'math-cos',
+  'tangent': 'math-tg',
+  'arc-sine': 'math-function-y',
+  'arc-cosine': 'math-function-y',
+  'arc-tangent': 'math-function-y',
+  'arc-tangent-2': 'math-symbols',
   
   // Math nodes - Vector operations
   'length': 'ruler',
@@ -293,38 +308,46 @@ const nodeSpecificIconMap: Record<string, string> = {
   'dot-product': 'vector-dot',
   'cross-product': 'vector-cross',
   'normalize': 'normalize',
-  'reflect': 'reflect',
-  'refract': 'refract',
+  'reflect': 'calculator',
+  'refract': 'calculator',
   
   // Effect nodes
   'blur': 'blur-circle',
   'glow-bloom': 'glow',
-  'edge-detection': 'grid',
+  'edge-detection': 'focus',
   'chromatic-aberration': 'rgb-split',
   'rgb-separation': 'rgb-split',
   'scanlines': 'scanline',
-  'block-color-glitch': 'glitch-block',
-  'block-displacement': 'glitch-block',
-  'block-edge-brightness': 'glitch-block',
+  'block-color-glitch': 'glitch',
+  'block-displacement': 'displacement',
+  'block-edge-brightness': 'brightness',
   'color-grading': 'color-palette',
   'normal-mapping': 'normal-map',
   'lighting-shading': 'light',
   
   // Mask nodes
-  'gradient-mask': 'gradient',
+  'gradient-mask': 'mask',
   'compare': 'compare',
   'select': 'select',
   
+  // Blend nodes
+  'blend-mode': 'blend-mode',
+  'oklch-color-map-bezier': 'ease-in-out-control-points',
+  'oklch-color-map-threshold': 'color-palette',
+  'color-map': 'color-swatch',
+  
   // Color nodes
-  'oklch-color': 'color-wheel',
-  'color-map': 'layers',
+  'oklch-color': 'color-picker',
   'bayer-dither': 'dither',
-  'tone-mapping': 'tone-curve',
-  'oklch-color-map-bezier': 'bezier',
-  'oklch-color-map-threshold': 'layers',
+  'tone-mapping': 'contrast-2',
   
   // Output nodes
-  'final-output': 'monitor',
+  'final-output': 'screen-share',
+  
+  // Utility nodes
+  'swizzle': 'arrows-right-left',
+  'split-vector': 'layers-difference',
+  'combine-vector': 'layers-union',
 };
 
 // Get icon identifier for node category (default icons)
@@ -335,12 +358,12 @@ export function getNodeIconByCategory(category: string): string {
     'Patterns': 'grid',
     'Shapes': 'circle',
     'Math': 'calculator',
-    'Utilities': 'settings',
+    'Utilities': 'settings-2',
     'Distort': 'move',
-    'Blend': 'layers',
+    'Blend': 'blend-mode',
     'Mask': 'square',
-    'Effects': 'sparkles',
-    'Output': 'monitor',
+    'Effects': 'adjustments',
+    'Output': 'screen-share',
     'Audio': 'audio-waveform'
   };
   

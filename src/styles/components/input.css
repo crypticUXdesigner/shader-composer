@@ -1,0 +1,170 @@
+/* Input Component Styles */
+
+/* Base Input */
+.input {
+  /* Layout */
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+
+  /* Box model */
+  border: none;
+  box-sizing: border-box;
+
+  /* Visual */
+  outline: none;
+
+  /* Typography */
+  font-family: inherit;
+  font-weight: 500;
+
+  /* Other */
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+
+  &::placeholder {
+    opacity: 1; /* One-off visual value - placeholder text opacity */
+  }
+
+  &:disabled {
+    opacity: var(--opacity-disabled);
+    cursor: not-allowed;
+  }
+}
+
+/* ========================================
+   Style Variants
+   ======================================== */
+
+/* Primary Style */
+.input.primary {
+  /* Box model */
+  border: 2px solid var(--color-gray-60);
+
+  /* Visual */
+  background: var(--color-gray-60);
+  color: var(--color-gray-130);
+
+  &:focus {
+    background: var(--color-gray-30);
+    border-color: var(--color-blue-90);
+  }
+
+  &::placeholder {
+    color: var(--color-gray-100);
+  }
+}
+
+/* Secondary Style */
+.input.secondary {
+  /* Box model */
+  border: 1px solid var(--color-gray-70);
+
+  /* Visual */
+  background: var(--color-gray-30);
+  color: var(--color-gray-130);
+
+  &:focus {
+    background: var(--color-gray-40);
+    border-color: var(--color-gray-80);
+  }
+
+  &::placeholder {
+    color: var(--color-gray-100);
+  }
+}
+
+/* Nudge Style */
+.input.nudge {
+  /* Box model */
+  border: 2px solid var(--color-teal-50);
+
+  /* Visual */
+  background: var(--color-teal-20);
+  color: var(--color-teal-130);
+
+  &:focus {
+    background: var(--color-teal-10);
+    border-color: var(--color-teal-90);
+  }
+
+  &::placeholder {
+    color: var(--color-teal-70);
+  }
+}
+
+/* ========================================
+   Size Variants
+   ======================================== */
+
+/* Small Size */
+.input.sm {
+  /* Box model */
+  min-height: var(--size-sm); /* 24px */
+  padding: var(--pd-xs) var(--pd-md); /* 4px 12px */
+  border-radius: var(--radius-sm);
+
+  /* Typography */
+  font-size: var(--text-sm);
+}
+
+/* Medium Size */
+.input.md {
+  /* Box model */
+  min-height: var(--size-md); /* 36px */
+  padding: var(--pd-sm) var(--pd-lg); /* 6px 18px */
+  border-radius: var(--radius-md);
+
+  /* Typography */
+  font-size: var(--text-md);
+}
+
+/* Large Size */
+.input.lg {
+  /* Box model */
+  min-height: var(--size-lg); /* 48px */
+  padding: var(--pd-md) var(--pd-xl); /* 12px 24px */
+  border-radius: var(--radius-xl);
+
+  /* Typography */
+  font-size: var(--text-lg);
+}
+
+/* ========================================
+   Input Wrapper (for leading/trailing icons)
+   ======================================== */
+
+.input-wrapper {
+  /* Layout */
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  width: 100%;
+
+  .input {
+    /* Box model */
+    padding-left: calc(var(--pd-lg) + 1rem + var(--pd-sm)); /* icon width (1rem) + gap */
+  }
+
+  .input-icon-leading {
+    /* Layout */
+    position: absolute;
+    left: var(--pd-lg);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1;
+
+    /* Box model */
+    width: 1rem; /* 16px - controlled by CSS, not inline styles */
+    height: 1rem; /* 16px - controlled by CSS, not inline styles */
+
+    /* Visual */
+    color: currentColor;
+    opacity: 0.7;
+    pointer-events: none;
+  }
+
+  /* Icon color for nudge style */
+  &:has(.input.nudge) .input-icon-leading {
+    color: var(--color-teal-70);
+  }
+}

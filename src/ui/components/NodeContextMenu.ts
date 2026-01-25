@@ -2,6 +2,8 @@
 // Right-click menu for creating nodes
 
 import type { NodeSpec } from '../../types/nodeSpec';
+import { getNodeIcon } from '../../utils/nodeSpecAdapter';
+import { createNodeIconElement } from '../../utils/icons';
 
 export interface ContextMenuCallbacks {
   onCreateNode?: (nodeType: string, x: number, y: number) => void;
@@ -26,20 +28,23 @@ export class NodeContextMenu {
     this.callbacks = callbacks;
     
     this.menu = document.createElement('div');
-    this.menu.className = 'context-menu';
+    this.menu.className = 'menu-wrapper';
+    this.menu.style.minWidth = 'var(--menu-min-width)';
+    this.menu.style.maxWidth = 'var(--menu-max-width)';
+    this.menu.style.maxHeight = 'var(--menu-max-height)';
     
     // Search input at top
     this.searchInput = document.createElement('input');
     this.searchInput.type = 'text';
     this.searchInput.placeholder = 'Search nodes...';
-    this.searchInput.className = 'context-menu-input';
+    this.searchInput.className = 'input primary md menu-input';
     this.searchInput.addEventListener('input', () => this.filterResults());
     this.searchInput.addEventListener('keydown', (e) => this.handleInputKeyDown(e));
     this.menu.appendChild(this.searchInput);
     
     // Results container
     this.resultsContainer = document.createElement('div');
-    this.resultsContainer.className = 'context-menu-results';
+    this.resultsContainer.className = 'menu-results';
     this.resultsContainer.tabIndex = -1;
     this.resultsContainer.addEventListener('keydown', (e) => this.handleResultsKeyDown(e));
     this.menu.appendChild(this.resultsContainer);
@@ -80,7 +85,7 @@ export class NodeContextMenu {
     if (this.filteredSpecs.length === 0) {
       const noResults = document.createElement('div');
       noResults.textContent = 'No nodes found';
-      noResults.className = 'context-menu-no-results';
+      noResults.className = 'menu-no-results';
       this.resultsContainer.appendChild(noResults);
       return;
     }
@@ -90,22 +95,41 @@ export class NodeContextMenu {
       const spec = this.filteredSpecs[i];
       const item = document.createElement('div');
       item.tabIndex = -1;
-      item.className = 'context-menu-item';
+      item.className = 'menu-item';
       if (i === this.selectedIndex) {
         item.classList.add('is-selected');
       }
       
+      // Icon
+      const iconContainer = document.createElement('div');
+      iconContainer.className = 'menu-item-icon';
+      const iconIdentifier = getNodeIcon(spec);
+      try {
+        const iconElement = createNodeIconElement(iconIdentifier, 18, 'currentColor', 'menu-item-icon');
+        iconContainer.appendChild(iconElement);
+      } catch (e) {
+        // Fallback if icon creation fails
+        console.warn(`Failed to create icon for ${spec.id}:`, e);
+      }
+      item.appendChild(iconContainer);
+      
+      // Content wrapper for name and description
+      const content = document.createElement('div');
+      content.className = 'menu-item-content';
+      
       const name = document.createElement('div');
       name.textContent = spec.displayName;
-      name.className = 'context-menu-item-name';
-      item.appendChild(name);
+      name.className = 'menu-item-name';
+      content.appendChild(name);
       
       if (spec.description) {
         const desc = document.createElement('div');
         desc.textContent = `${spec.category} - ${spec.description}`;
-        desc.className = 'context-menu-item-desc';
-        item.appendChild(desc);
+        desc.className = 'menu-item-desc';
+        content.appendChild(desc);
       }
+      
+      item.appendChild(content);
       
       item.addEventListener('mouseenter', () => {
         this.selectedIndex = i;
@@ -130,13 +154,13 @@ export class NodeContextMenu {
     
     // Add separator and actions
     const separator = document.createElement('div');
-    separator.className = 'context-menu-separator';
+    separator.className = 'menu-separator';
     this.resultsContainer.appendChild(separator);
     
     // Paste option
     const pasteItem = document.createElement('div');
     pasteItem.tabIndex = -1;
-    pasteItem.className = 'context-menu-item';
+    pasteItem.className = 'menu-item';
     pasteItem.textContent = 'Paste';
     pasteItem.addEventListener('click', () => {
       this.hide();
@@ -158,7 +182,7 @@ export class NodeContextMenu {
     // Select All option
     const selectAllItem = document.createElement('div');
     selectAllItem.tabIndex = -1;
-    selectAllItem.className = 'context-menu-item';
+    selectAllItem.className = 'menu-item';
     selectAllItem.textContent = 'Select All';
     selectAllItem.addEventListener('click', () => {
       this.hide();

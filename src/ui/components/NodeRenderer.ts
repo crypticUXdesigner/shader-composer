@@ -1,11 +1,17 @@
-// Node Renderer Utility
 // Handles rendering of individual nodes with ports, parameters, etc.
 
 import type { NodeInstance } from '../../types/nodeGraph';
-import type { NodeSpec } from '../../types/nodeSpec';
+import type { NodeSpec, LayoutElement } from '../../types/nodeSpec';
 import { getNodeColorByCategory, getNodeIcon } from '../../utils/nodeSpecAdapter';
 import { getCSSColor, getCSSColorRGBA, getCSSVariable, getCSSVariableAsNumber } from '../../utils/cssTokens';
 import { renderIconOnCanvas } from '../../utils/icons';
+import { NodeMetricsCalculator } from './rendering/NodeMetricsCalculator';
+import { NodeHeaderRenderer } from './rendering/NodeHeaderRenderer';
+import { NodePortRenderer } from './rendering/NodePortRenderer';
+import { getParameterUIRegistry } from './rendering/ParameterUIRegistry';
+import { ParameterLayoutManager } from './rendering/layout/ParameterLayoutManager';
+import type { ElementMetrics } from './rendering/layout/LayoutElementRenderer';
+import { NodeCache } from './rendering/NodeCache';
 
 export interface NodeRenderMetrics {
   width: number;
@@ -32,13 +38,57 @@ export interface NodeRenderMetrics {
   // Keep for compatibility (may be deprecated)
   parameterPositions: Map<string, { x: number; y: number; width: number; height: number }>;
   parameterInputPortPositions: Map<string, { x: number; y: number }>;  // Parameter name → port position
+  
+  // Layout system element metrics (only set when using parameterLayout)
+  elementMetrics?: Map<LayoutElement, ElementMetrics>;
 }
 
 export class NodeRenderer {
   private ctx: CanvasRenderingContext2D;
+  private metricsCalculator: NodeMetricsCalculator | null = null;
+  private headerRenderer: NodeHeaderRenderer | null = null;
+  private portRenderer: NodePortRenderer | null = null;
+  private layoutManager: ParameterLayoutManager | null = null;
+  private parameterRegistry = getParameterUIRegistry();
+  private nodeCache: NodeCache | null = null;
+  private useCache: boolean = true;
   
   constructor(ctx: CanvasRenderingContext2D) {
     this.ctx = ctx;
+    // Initialize refactored renderers
+    this.metricsCalculator = new NodeMetricsCalculator(ctx);
+    this.headerRenderer = new NodeHeaderRenderer(ctx);
+    this.portRenderer = new NodePortRenderer(ctx);
+    this.layoutManager = new ParameterLayoutManager(ctx);
+    this.nodeCache = new NodeCache();
+  }
+  
+  /**
+   * Enable or disable node caching
+   */
+  setCacheEnabled(enabled: boolean): void {
+    this.useCache = enabled;
+    if (!enabled && this.nodeCache) {
+      this.nodeCache.clear();
+    }
+  }
+  
+  /**
+   * Clear the node cache
+   */
+  clearCache(): void {
+    if (this.nodeCache) {
+      this.nodeCache.clear();
+    }
+  }
+  
+  /**
+   * Clear cache for a specific node
+   */
+  clearNodeCache(node: NodeInstance, spec: NodeSpec, metrics: NodeRenderMetrics): void {
+    if (this.nodeCache) {
+      this.nodeCache.invalidateNode(node, spec, metrics);
+    }
   }
   
   private getCategoryIconBoxBg(category: string): string {
@@ -52,7 +102,8 @@ export class NodeRenderer {
       'Blend': 'node-icon-box-bg-blend',
       'Mask': 'node-icon-box-bg-mask',
       'Effects': 'node-icon-box-bg-effects',
-      'Output': 'node-icon-box-bg-output'
+      'Output': 'node-icon-box-bg-output',
+      'Audio': 'node-icon-box-bg-audio'
     };
     const tokenName = tokenMap[category] || 'node-icon-box-bg-default';
     return getCSSColor(tokenName, getCSSColor('node-icon-box-bg-default', getCSSColor('color-gray-60', '#282b31')));
@@ -69,7 +120,8 @@ export class NodeRenderer {
       'Blend': 'category-color-end-blend',
       'Mask': 'category-color-end-mask',
       'Effects': 'category-color-end-effects',
-      'Output': 'category-color-end-output'
+      'Output': 'category-color-end-output',
+      'Audio': 'category-color-end-audio'
     };
     const tokenName = tokenMap[category] || 'category-color-end-default';
     return getCSSColor(tokenName, getCSSColor('category-color-default', getCSSColor('color-gray-100', '#747e87')));
@@ -86,7 +138,8 @@ export class NodeRenderer {
       'Blend': 'node-header-category-color-blend',
       'Mask': 'node-header-category-color-mask',
       'Effects': 'node-header-category-color-effects',
-      'Output': 'node-header-category-color-output'
+      'Output': 'node-header-category-color-output',
+      'Audio': 'node-header-category-color-audio'
     };
     const tokenName = tokenMap[category] || 'node-header-category-color-default';
     return getCSSColor(tokenName, getCSSColor('node-header-category-color-default', getCSSColor('color-gray-100', '#747e87')));
@@ -103,7 +156,8 @@ export class NodeRenderer {
       'Blend': 'node-header-category-color-end-blend',
       'Mask': 'node-header-category-color-end-mask',
       'Effects': 'node-header-category-color-end-effects',
-      'Output': 'node-header-category-color-end-output'
+      'Output': 'node-header-category-color-end-output',
+      'Audio': 'node-header-category-color-end-audio'
     };
     const tokenName = tokenMap[category] || 'node-header-category-color-end-default';
     return getCSSColor(tokenName, getCSSColor('node-header-category-color-end-default', getCSSColor('color-gray-80', '#4a5057')));
@@ -132,429 +186,17 @@ export class NodeRenderer {
   }
   
   calculateMetrics(node: NodeInstance, spec: NodeSpec): NodeRenderMetrics {
-    const minWidth = getCSSVariableAsNumber('node-box-min-width', 300);
-    const headerHeight = getCSSVariableAsNumber('node-header-height', 70);
-    const headerMinHeight = getCSSVariableAsNumber('node-header-min-height', 70);
-    const headerPadding = getCSSVariableAsNumber('node-header-padding', 12);
-    const nameSize = getCSSVariableAsNumber('node-header-name-size', 14);
-    const inputPortSpacing = getCSSVariableAsNumber('node-header-input-port-spacing', 28);
-    const portSize = getCSSVariableAsNumber('node-port-size', 8);
-    
-    // Calculate header height based on content
-    const iconBoxHeight = getCSSVariableAsNumber('node-icon-box-height', 48);
-    const iconBoxNameSpacing = getCSSVariableAsNumber('node-icon-box-name-spacing', 4);
-    const iconAndNameHeight = iconBoxHeight + iconBoxNameSpacing + nameSize;
-    const inputPortsHeight = spec.inputs.length > 0 ? (spec.inputs.length - 1) * inputPortSpacing + portSize * 2 : 0;
-    const outputPortsHeight = spec.outputs.length > 0 ? (spec.outputs.length - 1) * inputPortSpacing + portSize * 2 : 0;
-    const portsHeight = Math.max(inputPortsHeight, outputPortsHeight);
-    // Content determines height, but respect minimum and use headerHeight as target/default
-    const contentHeight = Math.max(iconAndNameHeight, portsHeight + headerPadding * 2);
-    const targetHeight = Math.max(headerHeight, contentHeight);
-    const actualHeaderHeight = Math.max(headerMinHeight, targetHeight);
-    
-    // Organize parameters by groups (needed for width calculation)
-    const { groupedParams, ungroupedParams } = this.organizeParametersByGroups(spec);
-    
-    // Calculate total width first (needed for grid calculations)
-    this.ctx.font = `${getCSSVariableAsNumber('node-header-name-weight', 600)} ${nameSize}px sans-serif`;
-    const titleWidth = this.ctx.measureText(node.label || spec.displayName).width;
-    let width = Math.max(minWidth, titleWidth + 100);
-    
-    // Adjust width if needed for parameter grid
-    const isBezierNode = this.isBezierCurveNode(spec);
-    if (!node.collapsed && Object.keys(spec.parameters).length > 0) {
-      const gridPadding = getCSSVariableAsNumber('node-body-padding', 18);
-      
-      if (isBezierNode) {
-        // For bezier nodes, calculate width needed for bezier editor
-        const portSize = getCSSVariableAsNumber('param-port-size', 6);
-        const portToModeSpacing = 8;
-        const modeButtonSize = getCSSVariableAsNumber('param-mode-button-size', 24);
-        const modeToLabelSpacing = 8;
-        const labelWidth = 60; // Approximate label width
-        const bezierEditorMinWidth = 250; // Minimum width for bezier editor
-        
-        const leftEdgeWidth = gridPadding + portSize + portToModeSpacing + modeButtonSize + modeToLabelSpacing + labelWidth;
-        const minBezierWidth = leftEdgeWidth + bezierEditorMinWidth + gridPadding;
-        width = Math.max(width, minBezierWidth);
-      } else {
-        const gridGap = getCSSVariableAsNumber('param-grid-gap', 12);
-        const cellMinWidth = getCSSVariableAsNumber('param-cell-min-width', 120);
-        
-        // Check all groups to find max columns needed
-        let maxColumns = 1;
-        [...groupedParams, { parameters: ungroupedParams }].forEach((group) => {
-          if (group.parameters.length > 0) {
-            const cols = this.calculateOptimalColumns(group.parameters.length);
-            maxColumns = Math.max(maxColumns, cols);
-          }
-        });
-        
-        // Calculate minimum width needed for grid
-        const minGridWidth = gridPadding * 2 + (maxColumns * cellMinWidth) + ((maxColumns - 1) * gridGap);
-        width = Math.max(width, minGridWidth);
-      }
-    }
-    
-    // Calculate parameter grid height (only if node is not collapsed)
-    let paramsHeight = 0;
-    const parameterGridPositions = new Map<string, {
-      cellX: number;
-      cellY: number;
-      cellWidth: number;
-      cellHeight: number;
-      knobX: number;
-      knobY: number;
-      portX: number;
-      portY: number;
-      labelX: number;
-      labelY: number;
-      valueX: number;
-      valueY: number;
-    }>();
-    
-    if (!node.collapsed && Object.keys(spec.parameters).length > 0) {
-      const gridPadding = getCSSVariableAsNumber('node-body-padding', 18);
-      const gridGap = getCSSVariableAsNumber('param-grid-gap', 12);
-      const cellMinWidth = getCSSVariableAsNumber('param-cell-min-width', 120);
-      const cellHeight = getCSSVariableAsNumber('param-cell-height', 100);
-      const groupHeaderHeight = getCSSVariableAsNumber('param-group-header-height', 24);
-      const groupHeaderMarginTop = getCSSVariableAsNumber('param-group-header-margin-top', 0);
-      const groupHeaderMarginBottom = getCSSVariableAsNumber('param-group-header-margin-bottom', 0);
-      const groupDividerHeight = getCSSVariableAsNumber('param-group-divider-height', 1);
-      const groupDividerSpacing = getCSSVariableAsNumber('param-group-divider-spacing', 12);
-      const bodyTopPadding = getCSSVariableAsNumber('param-body-top-padding', 24);
-      const knobSize = getCSSVariableAsNumber('knob-size', 45);
-      const valueSpacing = getCSSVariableAsNumber('knob-value-spacing', 4);
-      let currentY = 0;
-      
-      // Check for range editor node
-      const rangeParams = ['inMin', 'inMax', 'outMin', 'outMax'];
-      const isRangeNode = this.isRangeEditorNode(spec, rangeParams);
-      
-      // Handle range editor node specially
-      if (isRangeNode) {
-        currentY += bodyTopPadding;
-        const sliderUIHeight = getCSSVariableAsNumber('range-editor-height', 180);
-        const rangeParamCellHeight = 120;
-        const columns = 2;
-        // Layout: Row 1: In Max - Out Max, Row 2: In Min - Out Min
-        const allParams = ['inMax', 'outMax', 'inMin', 'outMin', 'clamp'];
-        const rows = Math.ceil(allParams.length / columns);
-        const paramGridHeight = rangeParamCellHeight * rows + gridGap * (rows - 1);
-        
-        // Calculate grid positions for all 5 parameters
-        const paramGridX = node.position.x + gridPadding;
-        const paramGridY = node.position.y + actualHeaderHeight + currentY + sliderUIHeight + gridGap;
-        const paramGridWidth = width - gridPadding * 2;
-        const paramCellWidth = (paramGridWidth - gridGap) / columns;
-        
-        allParams.forEach((paramName, index) => {
-          const row = Math.floor(index / columns);
-          const col = index % columns;
-          const cellX = paramGridX + col * (paramCellWidth + gridGap);
-          const cellY = paramGridY + row * (rangeParamCellHeight + gridGap);
-          
-          const paramSpec = spec.parameters[paramName];
-          if (!paramSpec) return;
-          
-          // Calculate positions matching renderSimpleInputField/renderToggle
-          const cellPadding = getCSSVariableAsNumber('param-cell-padding', 12);
-          const labelFontSize = getCSSVariableAsNumber('param-label-font-size', 11);
-          // Port positioned: X uses cellPadding, Y is vertically centered with label text
-          const portX = cellX + cellPadding;
-          const labelY = cellY + cellPadding;
-          const portY = labelY + labelFontSize / 2; // Port center aligns with label text center
-          const labelX = cellX + paramCellWidth / 2;
-          
-          // For input field position (where knob would be)
-          const extraSpacing = getCSSVariableAsNumber('param-label-knob-spacing', 20);
-          const contentY = cellY + cellPadding;
-          const labelBottom = contentY + labelFontSize;
-          const inputFieldCenterY = labelBottom + extraSpacing;
-          const inputFieldX = cellX + paramCellWidth / 2;
-          
-          parameterGridPositions.set(paramName, {
-            cellX,
-            cellY,
-            cellWidth: paramCellWidth,
-            cellHeight: rangeParamCellHeight,
-            knobX: inputFieldX,
-            knobY: inputFieldCenterY,
-            portX,
-            portY,
-            labelX,
-            labelY,
-            valueX: inputFieldX,
-            valueY: inputFieldCenterY
-          });
-        });
-        
-        currentY += sliderUIHeight + gridGap + paramGridHeight;
-        paramsHeight = currentY + gridPadding; // Add bottom padding
-      } else if (isBezierNode) {
-        currentY += bodyTopPadding;
-        const bezierEditorHeight = getCSSVariableAsNumber('bezier-editor-height', 200);
-        const portSize = getCSSVariableAsNumber('param-port-size', 6);
-        // Use larger spacing for bezier curve parameters
-        const bezierPortSpacing = getCSSVariableAsNumber('bezier-param-port-spacing', 40);
-        const modeButtonSize = getCSSVariableAsNumber('param-mode-button-size', 24);
-        
-        // Calculate left edge space for ports, mode buttons, type labels, and name labels
-        const leftEdgePadding = gridPadding;
-        const portX = node.position.x + leftEdgePadding;
-        const portToModeSpacing = 8;
-        const modeButtonX = portX + portSize + portToModeSpacing;
-        const modeToTypeSpacing = 8;
-        const typeLabelX = modeButtonX + modeButtonSize + modeToTypeSpacing;
-        const typeToNameSpacing = 8;
-        // Approximate type label width (will be adjusted during rendering)
-        const typeLabelWidth = 50;
-        const labelX = typeLabelX + typeLabelWidth + typeToNameSpacing;
-        const labelWidth = 60; // Approximate label width
-        const bezierEditorX = labelX + labelWidth;
-        // Ensure bezier editor is within node bounds and has minimum width
-        const maxBezierEditorX = node.position.x + width - gridPadding;
-        const actualBezierEditorX = Math.min(bezierEditorX, maxBezierEditorX - 200); // Leave at least 200px width
-        const bezierEditorWidth = Math.max(200, maxBezierEditorX - actualBezierEditorX);
-        
-        // Position for each bezier parameter (x1, y1, x2, y2)
-        const bezierParams = ['x1', 'y1', 'x2', 'y2'];
-        const basePortY = node.position.y + actualHeaderHeight + currentY;
-        // Distribute ports evenly across bezier editor height
-        const totalSpacing = (bezierParams.length - 1) * bezierPortSpacing;
-        const startOffset = (bezierEditorHeight - totalSpacing) / 2;
-        bezierParams.forEach((paramName, index) => {
-          const portY = basePortY + startOffset + index * bezierPortSpacing;
-          const labelY = portY;
-          
-          parameterGridPositions.set(paramName, {
-            cellX: actualBezierEditorX,
-            cellY: node.position.y + actualHeaderHeight + currentY,
-            cellWidth: bezierEditorWidth,
-            cellHeight: bezierEditorHeight,
-            knobX: 0, // Not used for bezier
-            knobY: 0, // Not used for bezier
-            portX: portX,
-            portY: portY,
-            labelX: labelX,
-            labelY: labelY,
-            valueX: 0, // Not used for bezier
-            valueY: 0 // Not used for bezier
-          });
-        });
-        
-        currentY += bezierEditorHeight + gridPadding;
-        paramsHeight = currentY;
-      } else {
-      
-      // Add top padding if body doesn't start with a group header
-      // (either no groups at all, or first group has no label)
-      const firstGroupHasLabel = groupedParams.length > 0 && groupedParams[0].label && groupedParams[0].parameters.length > 0;
-      if (groupedParams.length === 0 || !firstGroupHasLabel) {
-        currentY += bodyTopPadding;
-      }
-      
-      // Process grouped parameters
-      groupedParams.forEach((group, groupIndex) => {
-        if (group.parameters.length === 0) return;
-        
-        // Add divider before group (except first group)
-        if (groupIndex > 0) {
-          // Add spacing before divider
-          currentY += groupDividerSpacing;
-          // Divider height (for calculation only, not rendered here)
-          currentY += groupDividerHeight;
-          // Add spacing after divider
-          currentY += groupDividerSpacing;
-        }
-        
-        // Add group header (with margins to match rendering)
-        if (group.label) {
-          currentY += groupHeaderMarginTop;
-          currentY += groupHeaderHeight;
-          currentY += groupHeaderMarginBottom;
-        }
-        
-        // Calculate grid for this group
-        const columns = this.calculateOptimalColumns(group.parameters.length);
-        const availableWidth = width - gridPadding * 2;
-        const cellWidth = Math.max(cellMinWidth, (availableWidth - gridGap * (columns - 1)) / columns);
-        const rows = Math.ceil(group.parameters.length / columns);
-        
-        // Calculate positions for each parameter in the group
-        group.parameters.forEach((paramName, index) => {
-          const row = Math.floor(index / columns);
-          const col = index % columns;
-          const cellX = node.position.x + gridPadding + col * (cellWidth + gridGap);
-          const cellY = node.position.y + actualHeaderHeight + currentY + row * (cellHeight + gridGap);
-          
-          // Calculate sub-element positions accounting for cell padding
-          const cellPadding = getCSSVariableAsNumber('param-cell-padding', 12);
-          const labelFontSize = getCSSVariableAsNumber('param-label-font-size', 11);
-          const extraSpacing = getCSSVariableAsNumber('param-label-knob-spacing', 20);
-          
-          // Port positioned: X uses cellPadding, Y is vertically centered with label text
-          const portX = cellX + cellPadding;
-          const labelY = cellY + cellPadding;
-          const portY = labelY + labelFontSize / 2; // Port center aligns with label text center
-          
-          // Parameter name label horizontally centered at the top
-          const labelX = cellX + cellWidth / 2; // Horizontally centered
-          
-          const knobX = cellX + cellWidth / 2;
-          const contentY = cellY + cellPadding;
-          const labelBottom = contentY + labelFontSize;
-          const knobY = labelBottom + extraSpacing + knobSize / 2;
-          const valueX = knobX;
-          const valueY = knobY + knobSize / 2 + valueSpacing;
-          
-          parameterGridPositions.set(paramName, {
-            cellX,
-            cellY,
-            cellWidth,
-            cellHeight,
-            knobX,
-            knobY,
-            portX,
-            portY,
-            labelX,
-            labelY,
-            valueX,
-            valueY
-          });
-        });
-        
-        // Update currentY after this group
-        currentY += rows * (cellHeight + gridGap) - gridGap;
-      });
-      
-      // Add divider before ungrouped params if there are groups
-      if (groupedParams.length > 0 && ungroupedParams.length > 0) {
-        // Add spacing before divider
-        currentY += groupDividerSpacing;
-        // Divider height (for calculation only, not rendered here)
-        currentY += groupDividerHeight;
-        // Add spacing after divider
-        currentY += groupDividerSpacing;
-      }
-      
-      // Process ungrouped parameters
-      if (ungroupedParams.length > 0) {
-        const columns = this.calculateOptimalColumns(ungroupedParams.length);
-        const availableWidth = width - gridPadding * 2;
-        const cellWidth = Math.max(cellMinWidth, (availableWidth - gridGap * (columns - 1)) / columns);
-        const rows = Math.ceil(ungroupedParams.length / columns);
-        
-        ungroupedParams.forEach((paramName, index) => {
-          const row = Math.floor(index / columns);
-          const col = index % columns;
-          const cellX = node.position.x + gridPadding + col * (cellWidth + gridGap);
-          const cellY = node.position.y + actualHeaderHeight + currentY + row * (cellHeight + gridGap);
-          
-          // Calculate sub-element positions accounting for cell padding
-          const cellPadding = getCSSVariableAsNumber('param-cell-padding', 12);
-          const labelFontSize = getCSSVariableAsNumber('param-label-font-size', 11);
-          const extraSpacing = getCSSVariableAsNumber('param-label-knob-spacing', 20);
-          
-          // Port positioned: X uses cellPadding, Y is vertically centered with label text
-          const portX = cellX + cellPadding;
-          const labelY = cellY + cellPadding;
-          const portY = labelY + labelFontSize / 2; // Port center aligns with label text center
-          
-          // Parameter name label horizontally centered at the top
-          const labelX = cellX + cellWidth / 2; // Horizontally centered
-          
-          const knobX = cellX + cellWidth / 2;
-          const contentY = cellY + cellPadding;
-          const labelBottom = contentY + labelFontSize;
-          const knobY = labelBottom + extraSpacing + knobSize / 2;
-          const valueX = knobX;
-          const valueY = knobY + knobSize / 2 + valueSpacing;
-          
-          parameterGridPositions.set(paramName, {
-            cellX,
-            cellY,
-            cellWidth,
-            cellHeight,
-            knobX,
-            knobY,
-            portX,
-            portY,
-            labelX,
-            labelY,
-            valueX,
-            valueY
-          });
-        });
-        
-        currentY += rows * (cellHeight + gridGap) - gridGap;
-      }
-      
-      paramsHeight = currentY + gridPadding;
-      }
-    }
-    
-    // Calculate total height
-    const totalHeight = actualHeaderHeight + paramsHeight;
-    
-    // Calculate port positions (in header)
-    const portPositions = new Map<string, { x: number; y: number; isOutput: boolean }>();
-    
-    // Input ports (left edge of header)
-    spec.inputs.forEach((port, index) => {
-      const portY = node.position.y + headerPadding + (index * inputPortSpacing) + portSize;
-      portPositions.set(`input:${port.name}`, {
-        x: node.position.x,
-        y: portY,
-        isOutput: false
-      });
-    });
-    
-    // Output ports (right edge of header)
-    spec.outputs.forEach((port, index) => {
-      const portY = node.position.y + headerPadding + (index * inputPortSpacing) + portSize;
-      portPositions.set(`output:${port.name}`, {
-        x: node.position.x + width,
-        y: portY,
-        isOutput: true
-      });
-    });
-    
-    // Keep old parameter positions for compatibility (empty for now)
-    const parameterPositions = new Map<string, { x: number; y: number; width: number; height: number }>();
-    const parameterInputPortPositions = new Map<string, { x: number; y: number }>();
-    
-    // Populate old format from new format for compatibility
-    parameterGridPositions.forEach((pos, paramName) => {
-      parameterPositions.set(paramName, {
-        x: pos.cellX,
-        y: pos.cellY,
-        width: pos.cellWidth,
-        height: pos.cellHeight
-      });
-      
-      const paramSpec = spec.parameters[paramName];
-      if (paramSpec && (paramSpec.type === 'float' || paramSpec.type === 'int')) {
-        parameterInputPortPositions.set(paramName, {
-          x: pos.portX,
-          y: pos.portY
-        });
-      }
-    });
-    
-    return {
-      width,
-      height: totalHeight,
-      headerHeight: actualHeaderHeight,
-      portPositions,
-      parameterGridPositions,
-      parameterPositions,
-      parameterInputPortPositions
-    };
+    return this.metricsCalculator!.calculate(node, spec);
   }
   
-  // Check if a node is a bezier curve node (has x1, y1, x2, y2 parameters)
+  /**
+   * Invalidate cached metrics for a node
+   */
+  invalidateMetrics(nodeId: string): void {
+    this.metricsCalculator!.invalidate(nodeId);
+  }
+  
+  // Old calculateMetricsOld method removed - now using NodeMetricsCalculator
   private isBezierCurveNode(spec: NodeSpec): boolean {
     return spec.id === 'bezier-curve' || (
       spec.parameters.x1 !== undefined &&
@@ -726,16 +368,6 @@ export class NodeRenderer {
       };
     }
     
-    // gradient-mask node - direction
-    if (nodeId === 'gradient-mask' && paramName === 'direction') {
-      return {
-        0: 'Horizontal',
-        1: 'Vertical',
-        2: 'Radial',
-        3: 'Diagonal'
-      };
-    }
-    
     // gradient-mask node - maskType
     if (nodeId === 'gradient-mask' && paramName === 'maskType') {
       return {
@@ -767,6 +399,15 @@ export class NodeRenderer {
         0: 'Raymarched',
         1: 'Grid',
         2: 'Checkerboard'
+      };
+    }
+    
+    // box-torus-sdf node - primitiveType
+    if (nodeId === 'box-torus-sdf' && paramName === 'primitiveType') {
+      return {
+        0: 'Box',
+        1: 'Torus',
+        2: 'Capsule'
       };
     }
     
@@ -914,7 +555,7 @@ export class NodeRenderer {
     // Draw node name (below icon box)
     const nameY = iconBoxY + iconBoxHeight + iconBoxNameSpacing;
     this.ctx.fillStyle = nameColor;
-    this.ctx.font = `${nameWeight} ${nameSize}px sans-serif`;
+    this.ctx.font = `${nameWeight} ${nameSize}px "Space Grotesk", sans-serif`;
     this.ctx.textAlign = 'center';
     this.ctx.textBaseline = 'top';
     this.ctx.fillText(node.label || spec.displayName, iconX, nameY);
@@ -949,7 +590,7 @@ export class NodeRenderer {
         const portLabel = port.label || port.name;
         
         // Measure text widths
-        this.ctx.font = `${typeFontWeight} ${typeFontSize}px sans-serif`;
+        this.ctx.font = `${typeFontWeight} ${typeFontSize}px "Space Grotesk", sans-serif`;
         const typeWidth = this.ctx.measureText(port.type).width;
         
         // Calculate positions: port -> type -> name
@@ -977,7 +618,7 @@ export class NodeRenderer {
         // Draw type text
         const typeTextColor = this.getPortTypeTextColor(port.type);
         this.ctx.fillStyle = typeTextColor;
-        this.ctx.font = `${typeFontWeight} ${typeFontSize}px sans-serif`;
+        this.ctx.font = `${typeFontWeight} ${typeFontSize}px "Space Grotesk", sans-serif`;
         this.ctx.textAlign = 'left';
         this.ctx.textBaseline = 'middle';
         this.ctx.fillText(port.type, typeTextX, typeTextY);
@@ -985,7 +626,7 @@ export class NodeRenderer {
         // Draw label text (no background, after type)
         const labelColor = getCSSColor('port-label-color', getCSSColor('color-gray-110', '#a3aeb5'));
         this.ctx.fillStyle = labelColor;
-        this.ctx.font = `${labelFontWeight} ${labelFontSize}px sans-serif`;
+        this.ctx.font = `${labelFontWeight} ${labelFontSize}px "Space Grotesk", sans-serif`;
         this.ctx.textAlign = 'left';
         this.ctx.textBaseline = 'middle';
         this.ctx.fillText(portLabel, nameTextX, nameTextY);
@@ -1017,7 +658,7 @@ export class NodeRenderer {
         const portLabel = port.label || port.name;
         
         // Measure text widths
-        this.ctx.font = `${typeFontWeight} ${typeFontSize}px sans-serif`;
+        this.ctx.font = `${typeFontWeight} ${typeFontSize}px "Space Grotesk", sans-serif`;
         const typeWidth = this.ctx.measureText(port.type).width;
         
         // Calculate positions from right to left: port -> type -> name
@@ -1037,7 +678,7 @@ export class NodeRenderer {
         // Draw label text first (no background, furthest left)
         const labelColor = getCSSColor('port-label-color', getCSSColor('color-gray-110', '#a3aeb5'));
         this.ctx.fillStyle = labelColor;
-        this.ctx.font = `${labelFontWeight} ${labelFontSize}px sans-serif`;
+        this.ctx.font = `${labelFontWeight} ${labelFontSize}px "Space Grotesk", sans-serif`;
         this.ctx.textAlign = 'right';
         this.ctx.textBaseline = 'middle';
         this.ctx.fillText(portLabel, nameTextX, nameTextY);
@@ -1054,7 +695,7 @@ export class NodeRenderer {
         // Draw type text
         const typeTextColor = this.getPortTypeTextColor(port.type);
         this.ctx.fillStyle = typeTextColor;
-        this.ctx.font = `${typeFontWeight} ${typeFontSize}px sans-serif`;
+        this.ctx.font = `${typeFontWeight} ${typeFontSize}px "Space Grotesk", sans-serif`;
         this.ctx.textAlign = 'left';
         this.ctx.textBaseline = 'middle';
         this.ctx.fillText(port.type, typeTextX, typeTextY);
@@ -1065,516 +706,7 @@ export class NodeRenderer {
     this.ctx.textBaseline = 'alphabetic';
   }
   
-  // Render rotary knob
-  private renderRotaryKnob(
-    x: number,
-    y: number,
-    size: number,
-    value: number,
-    min: number,
-    max: number,
-    isAnimated: boolean = false
-  ): void {
-    const ringWidth = getCSSVariableAsNumber('knob-ring-width', 4);
-    const ringColor = getCSSColor('knob-ring-color', getCSSColor('color-gray-70', '#282b31'));
-    const ringActiveColorStatic = getCSSColor('knob-ring-active-color-static', getCSSColor('color-blue-90', '#6565dc'));
-    const ringActiveColorAnimated = getCSSColor('knob-ring-active-color-animated', getCSSColor('color-leaf-100', '#6eab31'));
-    const ringActiveColor = isAnimated ? ringActiveColorAnimated : ringActiveColorStatic;
-    const markerSize = getCSSVariableAsNumber('knob-marker-size', 6);
-    const markerColor = getCSSColor('knob-marker-color', getCSSColor('color-gray-130', '#ebeff0'));
-    const markerRadiusOffset = getCSSVariableAsNumber('knob-marker-radius-offset', 0);
-    const arcSweep = getCSSVariableAsNumber('knob-arc-sweep', 270);
-    
-    // For 270deg arc from bottom-left (225deg) to bottom-right (315deg) with opening at bottom:
-    // The arc should cover the top portion, leaving a 90deg opening at the bottom
-    // To ensure the opening is at bottom, we'll draw from 135deg (top-right) to 45deg (top-left)
-    // going clockwise, which gives us 270deg covering the top, with bottom open
-    
-    // Calculate the arc endpoints for top coverage
-    // Start at top-right (135deg), end at top-left (45deg) going clockwise = 270deg
-    const topStartDeg = 135; // top-right
-    const topEndDeg = 45; // top-left
-    const topStartRad = topStartDeg * (Math.PI / 180);
-    const topEndRad = topEndDeg * (Math.PI / 180);
-    
-    // Convert value to normalized range (0 to 1)
-    const normalized = (value - min) / (max - min); // 0 to 1
-    
-    const radius = size / 2 - ringWidth / 2;
-    const markerRadius = radius + markerRadiusOffset; // Marker on separate radius
-    
-    // Set rounded line caps for the arc ends
-    this.ctx.lineCap = 'round';
-    
-    // Draw full arc ring (background)
-    // Draw from top-right (135deg) clockwise to top-left (45deg) = 270deg
-    // This covers the top portion, leaving the bottom open
-    this.ctx.strokeStyle = ringColor;
-    this.ctx.lineWidth = ringWidth;
-    this.ctx.beginPath();
-    this.ctx.arc(x, y, radius, topStartRad, topEndRad, false); // clockwise from 135deg to 45deg = 270deg
-    this.ctx.stroke();
-    
-    // Draw value highlight segment
-    // Map the value angle (which goes from bottom-left 225deg to bottom-right 315deg counter-clockwise)
-    // to the visual arc (which goes from top-right 135deg to top-left 45deg clockwise)
-    // When normalized=0: angle=225deg (bottom-left) -> highlight at 135deg (top-right) = nothing
-    // When normalized=1: angle=315deg (bottom-right) -> highlight at 45deg (top-left) = full
-    // The mapping: bottom positions map to top positions
-    if (normalized > 0) {
-      // Use active color based on animated state (not hover/drag state)
-      this.ctx.strokeStyle = ringActiveColor;
-      this.ctx.lineWidth = ringWidth;
-      this.ctx.beginPath();
-      // Map normalized value to top arc: start at 135deg, go clockwise by (normalized * 270deg)
-      const highlightEndDeg = (topStartDeg + (normalized * arcSweep)) % 360;
-      const highlightEndRad = highlightEndDeg * (Math.PI / 180);
-      this.ctx.arc(x, y, radius, topStartRad, highlightEndRad, false); // clockwise from top-start
-      this.ctx.stroke();
-    }
-    
-    // Draw marker dot at value position
-    // Use the same arc calculation as the visible arc (top arc from 135deg to 45deg)
-    // Map normalized value to top arc: start at 135deg, go clockwise by (normalized * 270deg)
-    // Marker uses separate radius (markerRadius) instead of arc radius
-    const markerAngleDeg = (topStartDeg + (normalized * arcSweep)) % 360;
-    const markerAngleRad = markerAngleDeg * (Math.PI / 180);
-    const markerX = x + Math.cos(markerAngleRad) * markerRadius;
-    const markerY = y + Math.sin(markerAngleRad) * markerRadius;
-    this.ctx.fillStyle = markerColor;
-    this.ctx.beginPath();
-    this.ctx.arc(markerX, markerY, markerSize / 2, 0, Math.PI * 2);
-    this.ctx.fill();
-  }
-  
   // Render single parameter cell
-  private renderParameterCell(
-    paramName: string,
-    paramSpec: import('../../types/nodeSpec').ParameterSpec,
-    paramValue: number,
-    cellX: number,
-    cellY: number,
-    cellWidth: number,
-    cellHeight: number,
-    isConnected: boolean,
-    effectiveValue: number | null,
-    node: NodeInstance,
-    spec: NodeSpec,
-    isHovered: boolean = false,
-    skipPorts: boolean = false
-  ): void {
-    // Check UI type for this parameter
-    const uiType = this.getParameterUIType(spec, [paramName]);
-    
-    // Route to appropriate renderer
-    if (uiType === 'enum') {
-      this.renderEnumSelector(
-        node,
-        spec,
-        paramName,
-        paramSpec,
-        paramValue,
-        cellX,
-        cellY,
-        cellWidth,
-        cellHeight,
-        isConnected,
-        isHovered,
-        skipPorts
-      );
-      return;
-    }
-    
-    if (uiType === 'toggle') {
-      this.renderToggle(
-        node,
-        spec,
-        paramName,
-        paramSpec,
-        paramValue,
-        cellX,
-        cellY,
-        cellWidth,
-        cellHeight,
-        isConnected,
-        isHovered,
-        skipPorts
-      );
-      return;
-    }
-    
-    // Default: render as knob (existing behavior)
-    const cellBg = getCSSColor('param-cell-bg', getCSSColor('color-gray-30', '#050507'));
-    const cellBgConnectedRGBA = getCSSColorRGBA('param-cell-bg-connected', { r: 255, g: 255, b: 255, a: 0.5 });
-    const cellBgConnected = `rgba(${cellBgConnectedRGBA.r}, ${cellBgConnectedRGBA.g}, ${cellBgConnectedRGBA.b}, ${cellBgConnectedRGBA.a})`;
-    const cellBorderRadius = getCSSVariableAsNumber('param-cell-border-radius', 6);
-    const cellPadding = getCSSVariableAsNumber('param-cell-padding', 12);
-    const portSize = getCSSVariableAsNumber('param-port-size', 6);
-    const labelFontSize = getCSSVariableAsNumber('param-label-font-size', 11);
-    const labelFontWeight = getCSSVariableAsNumber('param-label-font-weight', 400);
-    const labelColor = getCSSColor('param-label-color', getCSSColor('color-gray-110', '#a3aeb5'));
-    const knobSize = getCSSVariableAsNumber('knob-size', 45);
-    const valueFontSize = getCSSVariableAsNumber('knob-value-font-size', 11);
-    const valueColor = getCSSColor('knob-value-color', getCSSColor('color-gray-130', '#ebeff0'));
-    const valueSpacing = getCSSVariableAsNumber('knob-value-spacing', 4);
-    const modeButtonSize = getCSSVariableAsNumber('param-mode-button-size', 20);
-    
-    // Draw cell background
-    this.ctx.fillStyle = isConnected ? cellBgConnected : cellBg;
-    this.drawRoundedRect(cellX, cellY, cellWidth, cellHeight, cellBorderRadius);
-    this.ctx.fill();
-    
-    // Draw cell border
-    const borderColorToken = isConnected ? 'param-cell-border-connected' : 'param-cell-border';
-    this.ctx.strokeStyle = getCSSColor(borderColorToken, getCSSColor('color-gray-70', '#282b31'));
-    this.ctx.lineWidth = 1;
-    this.drawRoundedRect(cellX, cellY, cellWidth, cellHeight, cellBorderRadius);
-    this.ctx.stroke();
-    
-    // Draw parameter name label first to measure actual text height
-    const paramNameText = paramSpec.label || paramName;
-    this.ctx.font = `${labelFontWeight} ${labelFontSize}px sans-serif`;
-    this.ctx.textBaseline = 'top';
-    this.ctx.textAlign = 'center';
-    const paramNameX = cellX + cellWidth / 2;
-    const paramNameY = cellY + cellPadding;
-    
-    // Measure text to get actual rendered height (accounts for font metrics)
-    const labelTextMetrics = this.ctx.measureText(paramNameText);
-    const actualTextHeight = labelTextMetrics.actualBoundingBoxAscent + labelTextMetrics.actualBoundingBoxDescent;
-    // Use actual text height if available, otherwise fall back to font size
-    const labelHeight = actualTextHeight > 0 ? actualTextHeight : labelFontSize;
-    
-    // Port positioned: X uses cellPadding, Y is vertically centered with label text
-    const portX = cellX + cellPadding;
-    // Port center aligns with label text center (label uses textBaseline='top')
-    const portY = paramNameY + labelHeight / 2;
-    
-    // Calculate other positions accounting for cell padding
-    const contentY = cellY + cellPadding;
-    
-    // Draw parameter port (top-left corner) - only if not skipping
-    if (!skipPorts && (paramSpec.type === 'float' || paramSpec.type === 'int')) {
-      this.renderPort(portX, portY, 'float', isHovered, false, portSize / getCSSVariableAsNumber('port-radius', 4));
-    }
-    
-    // Draw parameter name label
-    this.ctx.fillStyle = labelColor;
-    this.ctx.fillText(paramNameText, paramNameX, paramNameY);
-    
-    // Draw rotary knob (center horizontally, moved further down for more spacing from label)
-    const knobX = cellX + cellWidth / 2;
-    // Move knob down: start from center, then add extra offset to create more space from label
-    const labelBottom = contentY + labelFontSize; // Approximate label bottom
-    const extraSpacing = getCSSVariableAsNumber('param-label-knob-spacing', 20);
-    const knobY = labelBottom + extraSpacing + knobSize / 2;
-    
-    // Draw mode button (left side of knob, vertically centered with knob, horizontally aligned with port)
-    const modeButtonX = portX; // Same X as port (horizontally centered with port)
-    const modeButtonY = knobY; // Same Y as knob center (vertically centered with knob)
-    const inputMode = node.parameterInputModes?.[paramName] || paramSpec.inputMode || 'override';
-    const modeSymbol = inputMode === 'override' ? '=' : inputMode === 'add' ? '+' : inputMode === 'subtract' ? '-' : '*';
-    const modeButtonBg = getCSSColor('param-mode-button-bg', getCSSColor('color-gray-50', '#111317'));
-    this.ctx.fillStyle = modeButtonBg;
-    this.ctx.beginPath();
-    this.ctx.arc(modeButtonX, modeButtonY, modeButtonSize / 2, 0, Math.PI * 2);
-    this.ctx.fill();
-    // Use different color based on connection state
-    const modeButtonColorToken = isConnected ? 'param-mode-button-color-connected' : 'param-mode-button-color-static';
-    this.ctx.fillStyle = getCSSColor(modeButtonColorToken, isConnected ? getCSSColor('color-gray-130', '#ebeff0') : getCSSColor('color-gray-60', '#5a5f66'));
-    const modeButtonFontSize = getCSSVariableAsNumber('param-mode-button-font-size', 10);
-    const modeButtonFontWeight = getCSSVariableAsNumber('param-mode-button-font-weight', 400);
-    const modeButtonTextOffsetY = getCSSVariableAsNumber('param-mode-button-text-offset-y', 0);
-    this.ctx.font = `${modeButtonFontWeight} ${modeButtonFontSize}px sans-serif`;
-    this.ctx.textAlign = 'center';
-    this.ctx.textBaseline = 'middle';
-    this.ctx.fillText(modeSymbol, modeButtonX, modeButtonY + modeButtonTextOffsetY);
-    const displayValue = effectiveValue !== null ? effectiveValue : paramValue;
-    const min = paramSpec.min ?? 0;
-    const max = paramSpec.max ?? 1;
-    const isAnimated = effectiveValue !== null;
-    this.renderRotaryKnob(knobX, knobY, knobSize, displayValue, min, max, isAnimated);
-    
-    // Draw value display (below knob)
-    const valueX = knobX;
-    const valueY = knobY + knobSize / 2 + valueSpacing;
-    const valueDisplayColor = isAnimated 
-      ? getCSSColor('node-param-value-animated-color', getCSSColor('color-teal-90', '#2f8a6b'))
-      : valueColor;
-    
-    // Prepare font for text measurement
-    this.ctx.font = `${valueFontSize}px monospace`;
-    this.ctx.textAlign = 'center';
-    this.ctx.textBaseline = 'top';
-    const displayText = paramSpec.type === 'int' ? Math.round(displayValue).toString() : displayValue.toFixed(3);
-    const textMetrics = this.ctx.measureText(displayText);
-    const textWidth = textMetrics.width;
-    const textHeight = valueFontSize;
-    
-    // Draw background
-    const valueBg = getCSSColor('knob-value-bg', getCSSColor('color-gray-30', '#0a0b0d'));
-    const valueRadius = getCSSVariableAsNumber('knob-value-radius', 4);
-    const paddingH = getCSSVariableAsNumber('knob-value-padding-horizontal', 4);
-    const paddingV = getCSSVariableAsNumber('knob-value-padding-vertical', 4);
-    const bgX = valueX - textWidth / 2 - paddingH;
-    const bgY = valueY;
-    const bgWidth = textWidth + paddingH * 2;
-    const bgHeight = textHeight + paddingV * 2;
-    this.ctx.fillStyle = valueBg;
-    this.drawRoundedRect(bgX, bgY, bgWidth, bgHeight, valueRadius);
-    this.ctx.fill();
-    
-    // Draw text
-    this.ctx.fillStyle = valueDisplayColor;
-    this.ctx.fillText(displayText, valueX, valueY + paddingV);
-    
-    this.ctx.textAlign = 'left';
-    this.ctx.textBaseline = 'alphabetic';
-  }
-
-  // Render enum selector dropdown
-  private renderEnumSelector(
-    _node: NodeInstance,
-    spec: NodeSpec,
-    paramName: string,
-    paramSpec: import('../../types/nodeSpec').ParameterSpec,
-    paramValue: number,
-    cellX: number,
-    cellY: number,
-    cellWidth: number,
-    cellHeight: number,
-    isConnected: boolean,
-    isHovered: boolean = false,
-    skipPorts: boolean = false
-  ): void {
-    const cellBg = getCSSColor('param-cell-bg', getCSSColor('color-gray-30', '#050507'));
-    const cellBgConnectedRGBA = getCSSColorRGBA('param-cell-bg-connected', { r: 255, g: 255, b: 255, a: 0.5 });
-    const cellBgConnected = `rgba(${cellBgConnectedRGBA.r}, ${cellBgConnectedRGBA.g}, ${cellBgConnectedRGBA.b}, ${cellBgConnectedRGBA.a})`;
-    const cellBorderRadius = getCSSVariableAsNumber('param-cell-border-radius', 6);
-    const cellPadding = getCSSVariableAsNumber('param-cell-padding', 12);
-    const portSize = getCSSVariableAsNumber('param-port-size', 6);
-    const labelFontSize = getCSSVariableAsNumber('param-label-font-size', 11);
-    const labelFontWeight = getCSSVariableAsNumber('param-label-font-weight', 400);
-    const labelColor = getCSSColor('param-label-color', getCSSColor('color-gray-110', '#a3aeb5'));
-    
-    // Draw cell background
-    this.ctx.fillStyle = isConnected ? cellBgConnected : cellBg;
-    this.drawRoundedRect(cellX, cellY, cellWidth, cellHeight, cellBorderRadius);
-    this.ctx.fill();
-    
-    // Draw cell border
-    const borderColorToken = isConnected ? 'param-cell-border-connected' : 'param-cell-border';
-    this.ctx.strokeStyle = getCSSColor(borderColorToken, getCSSColor('color-gray-70', '#282b31'));
-    this.ctx.lineWidth = 1;
-    this.drawRoundedRect(cellX, cellY, cellWidth, cellHeight, cellBorderRadius);
-    this.ctx.stroke();
-    
-    // Draw parameter name label first to measure actual text height
-    const paramNameText = paramSpec.label || paramName;
-    this.ctx.font = `${labelFontWeight} ${labelFontSize}px sans-serif`;
-    this.ctx.textBaseline = 'top';
-    this.ctx.textAlign = 'center';
-    const paramNameX = cellX + cellWidth / 2;
-    const paramNameY = cellY + cellPadding;
-    
-    // Measure text to get actual rendered height (accounts for font metrics)
-    const labelTextMetrics = this.ctx.measureText(paramNameText);
-    const actualTextHeight = labelTextMetrics.actualBoundingBoxAscent + labelTextMetrics.actualBoundingBoxDescent;
-    // Use actual text height if available, otherwise fall back to font size
-    const labelHeight = actualTextHeight > 0 ? actualTextHeight : labelFontSize;
-    
-    // Port positioned: X uses cellPadding, Y is vertically centered with label text
-    const portX = cellX + cellPadding;
-    // Port center aligns with label text center (label uses textBaseline='top')
-    const portY = paramNameY + labelHeight / 2;
-    
-    // Draw parameter port (top-left corner) - only if not skipping
-    if (!skipPorts && paramSpec.type === 'int') {
-      this.renderPort(portX, portY, 'float', isHovered, false, portSize / getCSSVariableAsNumber('port-radius', 4));
-    }
-    
-    // Draw parameter name label
-    this.ctx.fillStyle = labelColor;
-    this.ctx.fillText(paramNameText, paramNameX, paramNameY);
-    
-    // Draw enum selector button
-    const selectorHeight = getCSSVariableAsNumber('enum-selector-height', 32);
-    const selectorBg = isHovered 
-      ? getCSSColor('enum-selector-bg-hover', getCSSColor('color-gray-50', '#1a1c20'))
-      : getCSSColor('enum-selector-bg', getCSSColor('color-gray-30', '#0a0b0d'));
-    const selectorBorder = getCSSColor('enum-selector-border', getCSSColor('color-gray-70', '#282b31'));
-    const selectorRadius = getCSSVariableAsNumber('enum-selector-radius', 6);
-    const selectorPadding = getCSSVariableAsNumber('enum-selector-padding', 8);
-    const selectorFontSize = getCSSVariableAsNumber('enum-selector-font-size', 13);
-    const selectorFontWeight = getCSSVariableAsNumber('enum-selector-font-weight', 500);
-    const selectorColor = getCSSColor('enum-selector-color', getCSSColor('color-gray-130', '#ebeff0'));
-    const arrowSize = getCSSVariableAsNumber('enum-selector-arrow-size', 8);
-    const arrowColor = getCSSColor('enum-selector-arrow-color', getCSSColor('color-gray-100', '#747e87'));
-    
-    // Position selector below label
-    const labelBottom = paramNameY + labelFontSize;
-    const selectorSpacing = getCSSVariableAsNumber('param-label-knob-spacing', 20);
-    const selectorY = labelBottom + selectorSpacing;
-    const selectorX = cellX + cellPadding;
-    const selectorWidth = cellWidth - cellPadding * 2;
-    
-    // Draw selector background
-    this.ctx.fillStyle = selectorBg;
-    this.drawRoundedRect(selectorX, selectorY, selectorWidth, selectorHeight, selectorRadius);
-    this.ctx.fill();
-    
-    // Draw selector border
-    this.ctx.strokeStyle = selectorBorder;
-    this.ctx.lineWidth = 1;
-    this.drawRoundedRect(selectorX, selectorY, selectorWidth, selectorHeight, selectorRadius);
-    this.ctx.stroke();
-    
-    // Get current label
-    const enumMappings = this.getEnumMappings(spec.id, paramName);
-    const currentLabel = enumMappings?.[paramValue] ?? paramValue.toString();
-    
-    // Draw label text
-    this.ctx.font = `${selectorFontWeight} ${selectorFontSize}px sans-serif`;
-    this.ctx.textAlign = 'left';
-    this.ctx.textBaseline = 'middle';
-    this.ctx.fillStyle = selectorColor;
-    const textX = selectorX + selectorPadding;
-    const textY = selectorY + selectorHeight / 2;
-    this.ctx.fillText(currentLabel, textX, textY);
-    
-    // Draw dropdown arrow (right side)
-    const arrowX = selectorX + selectorWidth - selectorPadding - arrowSize;
-    const arrowY = selectorY + selectorHeight / 2;
-    this.ctx.fillStyle = arrowColor;
-    this.ctx.beginPath();
-    this.ctx.moveTo(arrowX, arrowY - arrowSize / 2);
-    this.ctx.lineTo(arrowX + arrowSize, arrowY - arrowSize / 2);
-    this.ctx.lineTo(arrowX + arrowSize / 2, arrowY + arrowSize / 2);
-    this.ctx.closePath();
-    this.ctx.fill();
-    
-    this.ctx.textAlign = 'left';
-    this.ctx.textBaseline = 'alphabetic';
-  }
-
-  // Render toggle switch
-  private renderToggle(
-    _node: NodeInstance,
-    _spec: NodeSpec,
-    paramName: string,
-    paramSpec: import('../../types/nodeSpec').ParameterSpec,
-    paramValue: number,
-    cellX: number,
-    cellY: number,
-    cellWidth: number,
-    cellHeight: number,
-    isConnected: boolean,
-    isHovered: boolean = false,
-    skipPorts: boolean = false
-  ): void {
-    const cellBg = getCSSColor('param-cell-bg', getCSSColor('color-gray-30', '#050507'));
-    const cellBgConnectedRGBA = getCSSColorRGBA('param-cell-bg-connected', { r: 255, g: 255, b: 255, a: 0.5 });
-    const cellBgConnected = `rgba(${cellBgConnectedRGBA.r}, ${cellBgConnectedRGBA.g}, ${cellBgConnectedRGBA.b}, ${cellBgConnectedRGBA.a})`;
-    const cellBorderRadius = getCSSVariableAsNumber('param-cell-border-radius', 6);
-    const cellPadding = getCSSVariableAsNumber('param-cell-padding', 12);
-    const portSize = getCSSVariableAsNumber('param-port-size', 6);
-    const labelFontSize = getCSSVariableAsNumber('param-label-font-size', 11);
-    const labelFontWeight = getCSSVariableAsNumber('param-label-font-weight', 400);
-    const labelColor = getCSSColor('param-label-color', getCSSColor('color-gray-110', '#a3aeb5'));
-    
-    // Draw cell background
-    this.ctx.fillStyle = isConnected ? cellBgConnected : cellBg;
-    this.drawRoundedRect(cellX, cellY, cellWidth, cellHeight, cellBorderRadius);
-    this.ctx.fill();
-    
-    // Draw cell border
-    const borderColorToken = isConnected ? 'param-cell-border-connected' : 'param-cell-border';
-    this.ctx.strokeStyle = getCSSColor(borderColorToken, getCSSColor('color-gray-70', '#282b31'));
-    this.ctx.lineWidth = 1;
-    this.drawRoundedRect(cellX, cellY, cellWidth, cellHeight, cellBorderRadius);
-    this.ctx.stroke();
-    
-    // Draw parameter name label first to measure actual text height
-    const paramNameText = paramSpec.label || paramName;
-    this.ctx.font = `${labelFontWeight} ${labelFontSize}px sans-serif`;
-    this.ctx.textBaseline = 'top';
-    this.ctx.textAlign = 'center';
-    const paramNameX = cellX + cellWidth / 2;
-    const paramNameY = cellY + cellPadding;
-    
-    // Measure text to get actual rendered height (accounts for font metrics)
-    const labelTextMetrics = this.ctx.measureText(paramNameText);
-    const actualTextHeight = labelTextMetrics.actualBoundingBoxAscent + labelTextMetrics.actualBoundingBoxDescent;
-    // Use actual text height if available, otherwise fall back to font size
-    const labelHeight = actualTextHeight > 0 ? actualTextHeight : labelFontSize;
-    
-    // Port positioned: X uses cellPadding, Y is vertically centered with label text
-    const portX = cellX + cellPadding;
-    // Port center aligns with label text center (label uses textBaseline='top')
-    const portY = paramNameY + labelHeight / 2;
-    
-    // Draw parameter port (top-left corner) - only if not skipping
-    if (!skipPorts && paramSpec.type === 'int') {
-      this.renderPort(portX, portY, 'float', isHovered, false, portSize / getCSSVariableAsNumber('port-radius', 4));
-    }
-    
-    // Draw parameter name label
-    this.ctx.fillStyle = labelColor;
-    this.ctx.fillText(paramNameText, paramNameX, paramNameY);
-    
-    // Draw toggle switch
-    const toggleWidth = getCSSVariableAsNumber('toggle-width', 48);
-    const toggleHeight = getCSSVariableAsNumber('toggle-height', 24);
-    const toggleRadius = getCSSVariableAsNumber('toggle-border-radius', 12);
-    const toggleBorder = getCSSColor('toggle-border', getCSSColor('color-gray-70', '#282b31'));
-    const isOn = paramValue === 1;
-    const toggleBg = isOn 
-      ? getCSSColor('toggle-bg-on', getCSSColor('color-blue-90', '#6565dc'))
-      : (isHovered 
-        ? getCSSColor('toggle-bg-hover', getCSSColor('color-gray-70', '#282b31'))
-        : getCSSColor('toggle-bg-off', getCSSColor('color-gray-50', '#1a1c20')));
-    const sliderSize = getCSSVariableAsNumber('toggle-slider-size', 20);
-    const sliderOffset = getCSSVariableAsNumber('toggle-slider-offset', 2);
-    const sliderBg = getCSSColor('toggle-slider-bg', getCSSColor('color-gray-130', '#ebeff0'));
-    const sliderBorder = getCSSColor('toggle-slider-border', getCSSColor('color-gray-100', '#747e87'));
-    
-    // Position toggle vertically centered in cell
-    const toggleY = cellY + cellHeight / 2 - toggleHeight / 2;
-    const toggleX = cellX + cellWidth / 2 - toggleWidth / 2; // Centered horizontally
-    
-    // Draw toggle background
-    this.ctx.fillStyle = toggleBg;
-    this.drawRoundedRect(toggleX, toggleY, toggleWidth, toggleHeight, toggleRadius);
-    this.ctx.fill();
-    
-    // Draw toggle border
-    this.ctx.strokeStyle = toggleBorder;
-    this.ctx.lineWidth = 1;
-    this.drawRoundedRect(toggleX, toggleY, toggleWidth, toggleHeight, toggleRadius);
-    this.ctx.stroke();
-    
-    // Calculate slider position
-    const sliderRadius = sliderSize / 2;
-    const sliderY = toggleY + toggleHeight / 2;
-    const sliderX = isOn 
-      ? toggleX + toggleWidth - sliderRadius - sliderOffset
-      : toggleX + sliderRadius + sliderOffset;
-    
-    // Draw slider
-    this.ctx.fillStyle = sliderBg;
-    this.ctx.beginPath();
-    this.ctx.arc(sliderX, sliderY, sliderRadius, 0, Math.PI * 2);
-    this.ctx.fill();
-    
-    this.ctx.strokeStyle = sliderBorder;
-    this.ctx.lineWidth = 1;
-    this.ctx.beginPath();
-    this.ctx.arc(sliderX, sliderY, sliderRadius, 0, Math.PI * 2);
-    this.ctx.stroke();
-    
-    this.ctx.textAlign = 'left';
-    this.ctx.textBaseline = 'alphabetic';
-  }
 
   // Render range editor (for remap nodes with inMin, inMax, outMin, outMax)
   private renderRangeEditor(
@@ -1773,19 +905,30 @@ export class NodeRenderer {
       // Check UI type - clamp should render as toggle, range params as input field
       const uiType = this.getParameterUIType(spec, [paramName]);
       if (uiType === 'toggle') {
-        this.renderToggle(
+        // Use parameter registry for toggle rendering
+        const renderer = this.parameterRegistry.getRenderer(spec, paramName);
+        const metrics = renderer.calculateMetrics(
+          paramName,
+          paramSpec,
+          {
+            x: paramCellX,
+            y: paramCellY,
+            width: paramCellWidth,
+            height: rangeParamCellHeight
+          }
+        );
+        renderer.render(
+          this.ctx,
           node,
           spec,
           paramName,
-          paramSpec,
-          paramValue as number,
-          paramCellX,
-          paramCellY,
-          paramCellWidth,
-          rangeParamCellHeight,
-          isParamConnected,
-          isParamHovered,
-          skipPorts
+          metrics,
+          {
+            isConnected: isParamConnected,
+            isHovered: isParamHovered ?? false,
+            effectiveValue: effectiveValue,
+            skipPorts: skipPorts ?? false
+          }
         );
       } else {
         // Use simple input field renderer (no knob, just value display + input)
@@ -1947,7 +1090,7 @@ export class NodeRenderer {
     
     // Draw parameter name label first to measure actual text height
     const paramNameText = paramSpec.label || paramName;
-    this.ctx.font = `${labelFontWeight} ${labelFontSize}px sans-serif`;
+    this.ctx.font = `${labelFontWeight} ${labelFontSize}px "Space Grotesk", sans-serif`;
     this.ctx.textBaseline = 'top';
     this.ctx.textAlign = 'center';
     const paramNameX = cellX + cellWidth / 2;
@@ -1996,7 +1139,7 @@ export class NodeRenderer {
     const modeButtonFontSize = getCSSVariableAsNumber('param-mode-button-font-size', 10);
     const modeButtonFontWeight = getCSSVariableAsNumber('param-mode-button-font-weight', 400);
     const modeButtonTextOffsetY = getCSSVariableAsNumber('param-mode-button-text-offset-y', 0);
-    this.ctx.font = `${modeButtonFontWeight} ${modeButtonFontSize}px sans-serif`;
+    this.ctx.font = `${modeButtonFontWeight} ${modeButtonFontSize}px "Space Grotesk", sans-serif`;
     this.ctx.textAlign = 'center';
     this.ctx.textBaseline = 'middle';
     this.ctx.fillText(modeSymbol, modeButtonX, modeButtonY + modeButtonTextOffsetY);
@@ -2009,7 +1152,7 @@ export class NodeRenderer {
       : valueColor;
     
     // Prepare font for text measurement
-    this.ctx.font = `${valueFontSize}px monospace`;
+    this.ctx.font = `${valueFontSize}px "JetBrains Mono", monospace`;
     this.ctx.textAlign = 'center';
     this.ctx.textBaseline = 'middle'; // Center vertically on inputFieldCenterY
     const displayText = paramSpec.type === 'int' ? Math.round(displayValue).toString() : displayValue.toFixed(3);
@@ -2269,7 +1412,7 @@ export class NodeRenderer {
       const typeFontSize = getCSSVariableAsNumber('port-type-font-size', 19);
       const typeFontWeight = getCSSVariableAsNumber('port-type-font-weight', 600);
       // Measure max type width for all parameters
-      this.ctx.font = `${typeFontWeight} ${typeFontSize}px sans-serif`;
+      this.ctx.font = `${typeFontWeight} ${typeFontSize}px "Space Grotesk", sans-serif`;
       const maxTypeWidth = Math.max(...bezierParams.map(p => {
         const paramSpec = spec.parameters[p];
         const paramType = paramSpec?.type || 'float';
@@ -2400,7 +1543,7 @@ export class NodeRenderer {
         currentY += groupHeaderMarginTop;
         
         this.ctx.fillStyle = groupHeaderColor;
-        this.ctx.font = `${getCSSVariableAsNumber('param-group-header-weight', 500)} ${groupHeaderFontSize}px sans-serif`;
+        this.ctx.font = `${getCSSVariableAsNumber('param-group-header-weight', 500)} ${groupHeaderFontSize}px "Space Grotesk", sans-serif`;
         this.ctx.textAlign = 'left';
         this.ctx.textBaseline = 'middle';
         this.ctx.fillText(group.label, x + gridPadding, currentY + groupHeaderHeight / 2);
@@ -2425,25 +1568,24 @@ export class NodeRenderer {
         if (!paramSpec) return;
         
         const paramValue = node.parameters[paramName] ?? paramSpec.default;
-        const isParamHovered = hoveredPortName === paramName && isHoveredParameter;
+        const isParamHovered = (hoveredPortName === paramName && isHoveredParameter) ?? false;
         const effectiveValue = effectiveParameterValues?.get(paramName) ?? null;
         const isConnected = connectedParameters?.has(paramName) ?? false;
         
         if (paramSpec.type === 'float' || paramSpec.type === 'int') {
-          this.renderParameterCell(
-            paramName,
-            paramSpec,
-            paramValue as number,
-            gridPos.cellX,
-            gridPos.cellY,
-            gridPos.cellWidth,
-            gridPos.cellHeight,
-            isConnected,
-            effectiveValue,
+          const renderer = this.parameterRegistry.getRenderer(spec, paramName);
+          renderer.render(
+            this.ctx,
             node,
             spec,
-            isParamHovered,
-            skipPorts
+            paramName,
+            gridPos,
+            {
+              isConnected,
+              isHovered: isParamHovered,
+              effectiveValue,
+              skipPorts
+            }
           );
         } else if (paramSpec.type === 'string') {
           // Render string parameter (button style)
@@ -2490,25 +1632,24 @@ export class NodeRenderer {
       if (!paramSpec) return;
       
       const paramValue = node.parameters[paramName] ?? paramSpec.default;
-      const isParamHovered = hoveredPortName === paramName && isHoveredParameter;
+      const isParamHovered = (hoveredPortName === paramName && isHoveredParameter) ?? false;
       const effectiveValue = effectiveParameterValues?.get(paramName) ?? null;
       const isConnected = connectedParameters?.has(paramName) ?? false;
       
       if (paramSpec.type === 'float' || paramSpec.type === 'int') {
-        this.renderParameterCell(
-          paramName,
-          paramSpec,
-          paramValue as number,
-          gridPos.cellX,
-          gridPos.cellY,
-          gridPos.cellWidth,
-          gridPos.cellHeight,
-          isConnected,
-          effectiveValue,
+        const renderer = this.parameterRegistry.getRenderer(spec, paramName);
+        renderer.render(
+          this.ctx,
           node,
           spec,
-          isParamHovered,
-          skipPorts
+          paramName,
+          gridPos,
+          {
+            isConnected,
+            isHovered: isParamHovered,
+            effectiveValue,
+            skipPorts
+          }
         );
       } else if (paramSpec.type === 'string') {
         this.renderStringParameter(gridPos.cellX, gridPos.cellY, gridPos.cellWidth, gridPos.cellHeight, paramName, paramSpec, paramValue as string, node.id);
@@ -2518,6 +1659,150 @@ export class NodeRenderer {
     });
   }
   
+  /**
+   * Render static node content to an offscreen canvas (for caching)
+   * This renders the base structure without dynamic states (selection, hover, parameter values)
+   */
+  private renderStaticNodeContent(
+    ctx: CanvasRenderingContext2D,
+    node: NodeInstance,
+    spec: NodeSpec,
+    metrics: NodeRenderMetrics,
+    width: number,
+    height: number
+  ): void {
+    // Render at (0, 0) since this is an offscreen canvas
+    const x = 0;
+    const y = 0;
+    const { headerHeight } = metrics;
+    const borderRadius = getCSSVariableAsNumber('node-box-border-radius', 10);
+    
+    // Draw default shadow (non-selected state)
+    const shadowOffsetX = 0;
+    const shadowOffsetY = 2;
+    const shadowBlur = 8;
+    const shadowColor = getCSSVariable('node-shadow-color', 'rgba(0, 0, 0, 0.15)');
+    
+    ctx.save();
+    ctx.shadowOffsetX = shadowOffsetX;
+    ctx.shadowOffsetY = shadowOffsetY;
+    ctx.shadowBlur = shadowBlur;
+    ctx.shadowColor = shadowColor;
+    ctx.fillStyle = 'transparent';
+    this.drawRoundedRectOnContext(ctx, x, y, width, height, borderRadius);
+    ctx.fill();
+    ctx.restore();
+    
+    // Draw node background with gradient using category colors
+    const bgColorStart = getNodeColorByCategory(spec.category);
+    const bgColorEnd = this.getCategoryColorEnd(spec.category);
+    
+    // Get gradient ellipse parameters
+    const ellipseWidthPercent = getCSSVariableAsNumber('node-bg-gradient-ellipse-width', 100);
+    const ellipseHeightPercent = getCSSVariableAsNumber('node-bg-gradient-ellipse-height', 100);
+    const ellipseXPercent = getCSSVariableAsNumber('node-bg-gradient-ellipse-x', 50);
+    const ellipseYPercent = getCSSVariableAsNumber('node-bg-gradient-ellipse-y', 50);
+    
+    // Calculate ellipse dimensions and position
+    const ellipseWidth = (width * ellipseWidthPercent) / 100;
+    const ellipseHeight = (height * ellipseHeightPercent) / 100;
+    const ellipseX = x + (width * ellipseXPercent) / 100;
+    const ellipseY = y + (height * ellipseYPercent) / 100;
+    
+    // Use the larger dimension for the radial gradient radius
+    const gradientRadius = Math.max(ellipseWidth, ellipseHeight) / 2;
+    
+    // Create radial gradient
+    const gradient = ctx.createRadialGradient(
+      ellipseX, ellipseY, 0,
+      ellipseX, ellipseY, gradientRadius
+    );
+    gradient.addColorStop(0, bgColorStart);
+    gradient.addColorStop(1, bgColorEnd);
+    
+    // Clip to rounded rectangle and fill with gradient
+    ctx.save();
+    this.drawRoundedRectOnContext(ctx, x, y, width, height, borderRadius);
+    ctx.clip();
+    ctx.fillStyle = gradient;
+    ctx.fillRect(x, y, width, height);
+    ctx.restore();
+    
+    // Draw default border (non-selected)
+    const borderColor = getCSSColor('node-border', getCSSColor('color-gray-100', '#747e87'));
+    const borderWidth = getCSSVariableAsNumber('node-border-width', 1);
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = borderWidth;
+    this.drawRoundedRectOnContext(ctx, x, y, width, height, borderRadius);
+    ctx.stroke();
+    
+    // Render header (icon and name) - static version without hover states
+    // Create a temporary header renderer with the offscreen canvas context
+    if (this.headerRenderer) {
+      // Create a temporary header renderer for the offscreen canvas
+      const tempHeaderRenderer = new NodeHeaderRenderer(ctx);
+      tempHeaderRenderer.render(
+        node,
+        spec,
+        x,
+        y,
+        width,
+        headerHeight,
+        false, // isSelected = false for static cache
+        null, // hoveredPortName = null
+        null, // connectingPortName = null
+        true, // skipPorts = true (ports are rendered separately)
+        height
+      );
+    } else {
+      // Fallback - render header directly with the offscreen context
+      // We need to temporarily swap contexts for the old renderHeader method
+      const oldCtx = this.ctx;
+      this.ctx = ctx;
+      try {
+        this.renderHeader(
+          node,
+          spec,
+          x,
+          y,
+          width,
+          headerHeight,
+          false,
+          null,
+          null,
+          true,
+          height
+        );
+      } finally {
+        this.ctx = oldCtx;
+      }
+    }
+  }
+  
+  /**
+   * Helper to draw rounded rect on any context
+   */
+  private drawRoundedRectOnContext(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    radius: number
+  ): void {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+  }
+
   renderNode(
     node: NodeInstance,
     spec: NodeSpec,
@@ -2537,115 +1822,559 @@ export class NodeRenderer {
     
     const borderRadius = getCSSVariableAsNumber('node-box-border-radius', 10);
     
-    // Draw 3D box shadow (draw shadow shape before main box)
-    const shadowOffsetX = 0;
-    const shadowOffsetY = isSelected ? 4 : 2;
-    const shadowBlur = isSelected ? 12 : 8;
-    const shadowColor = isSelected 
-      ? getCSSVariable('node-shadow-color-selected-rgba', 'rgba(68, 72, 191, 0.3)')
-      : getCSSVariable('node-shadow-color', 'rgba(0, 0, 0, 0.15)');
-    
-    // Draw shadow
-    this.ctx.save();
-    this.ctx.shadowOffsetX = shadowOffsetX;
-    this.ctx.shadowOffsetY = shadowOffsetY;
-    this.ctx.shadowBlur = shadowBlur;
-    this.ctx.shadowColor = shadowColor;
-    this.ctx.fillStyle = 'transparent';
-    this.drawRoundedRect(x, y, width, height, borderRadius);
-    this.ctx.fill();
-    this.ctx.restore();
-    
-    // Draw selection highlight (subtle background)
-    if (isSelected) {
-      const selectionColor = getCSSColorRGBA('node-bg-selected', { r: 4, g: 16, b: 51, a: 1 });
-      this.ctx.fillStyle = `rgba(${selectionColor.r}, ${selectionColor.g}, ${selectionColor.b}, 0.1)`;
-      this.drawRoundedRect(x, y, width, height, borderRadius);
-      this.ctx.fill();
+    // Try to use cached static content
+    let useCached = false;
+    if (this.useCache && this.nodeCache) {
+      try {
+        const cachedCanvas = this.nodeCache.getCachedNode(
+          node,
+          spec,
+          metrics,
+          (ctx, w, h) => this.renderStaticNodeContent(ctx, node, spec, metrics, w, h)
+        );
+        
+        // Draw cached static content
+        this.ctx.drawImage(cachedCanvas, x, y);
+        useCached = true;
+      } catch (error) {
+        // Fall back to direct rendering if cache fails
+        console.warn('Node cache error, falling back to direct rendering:', error);
+        useCached = false;
+      }
     }
     
-    // Draw node background with gradient using category colors
-    const bgColorStart = getNodeColorByCategory(spec.category);
-    const bgColorEnd = this.getCategoryColorEnd(spec.category);
+    // If not using cache, render static content directly
+    if (!useCached) {
+      // Draw 3D box shadow (draw shadow shape before main box)
+      const shadowOffsetX = 0;
+      const shadowOffsetY = isSelected ? 4 : 2;
+      const shadowBlur = isSelected ? 12 : 8;
+      const shadowColor = isSelected 
+        ? getCSSVariable('node-shadow-color-selected-rgba', 'rgba(68, 72, 191, 0.3)')
+        : getCSSVariable('node-shadow-color', 'rgba(0, 0, 0, 0.15)');
+      
+      // Draw shadow
+      this.ctx.save();
+      this.ctx.shadowOffsetX = shadowOffsetX;
+      this.ctx.shadowOffsetY = shadowOffsetY;
+      this.ctx.shadowBlur = shadowBlur;
+      this.ctx.shadowColor = shadowColor;
+      this.ctx.fillStyle = 'transparent';
+      this.drawRoundedRect(x, y, width, height, borderRadius);
+      this.ctx.fill();
+      this.ctx.restore();
+      
+      // Draw selection highlight (subtle background)
+      if (isSelected) {
+        const selectionColor = getCSSColorRGBA('node-bg-selected', { r: 4, g: 16, b: 51, a: 1 });
+        this.ctx.fillStyle = `rgba(${selectionColor.r}, ${selectionColor.g}, ${selectionColor.b}, 0.1)`;
+        this.drawRoundedRect(x, y, width, height, borderRadius);
+        this.ctx.fill();
+      }
+      
+      // Draw node background with gradient using category colors
+      const bgColorStart = getNodeColorByCategory(spec.category);
+      const bgColorEnd = this.getCategoryColorEnd(spec.category);
+      
+      // Get gradient ellipse parameters
+      const ellipseWidthPercent = getCSSVariableAsNumber('node-bg-gradient-ellipse-width', 100);
+      const ellipseHeightPercent = getCSSVariableAsNumber('node-bg-gradient-ellipse-height', 100);
+      const ellipseXPercent = getCSSVariableAsNumber('node-bg-gradient-ellipse-x', 50);
+      const ellipseYPercent = getCSSVariableAsNumber('node-bg-gradient-ellipse-y', 50);
+      
+      // Calculate ellipse dimensions and position
+      const ellipseWidth = (width * ellipseWidthPercent) / 100;
+      const ellipseHeight = (height * ellipseHeightPercent) / 100;
+      const ellipseX = x + (width * ellipseXPercent) / 100;
+      const ellipseY = y + (height * ellipseYPercent) / 100;
+      
+      // Use the larger dimension for the radial gradient radius to ensure it covers the entire node
+      const gradientRadius = Math.max(ellipseWidth, ellipseHeight) / 2;
+      
+      // Create radial gradient
+      const gradient = this.ctx.createRadialGradient(
+        ellipseX, ellipseY, 0,
+        ellipseX, ellipseY, gradientRadius
+      );
+      gradient.addColorStop(0, bgColorStart);
+      gradient.addColorStop(1, bgColorEnd);
+      
+      // Clip to rounded rectangle and fill with gradient
+      this.ctx.save();
+      // Create clipping path for rounded rectangle
+      this.drawRoundedRect(x, y, width, height, borderRadius);
+      this.ctx.clip();
+      // Fill with gradient (will be clipped to the rounded rectangle)
+      this.ctx.fillStyle = gradient;
+      // Fill the entire node area - clipping will handle rounded corners
+      this.ctx.fillRect(x, y, width, height);
+      this.ctx.restore();
+      
+      // Draw border
+      const borderColor = isSelected 
+        ? getCSSColor('node-border-selected', getCSSColor('color-blue-90', '#6565dc'))
+        : getCSSColor('node-border', getCSSColor('color-gray-100', '#747e87'));
+      const baseBorderWidth = isSelected 
+        ? getCSSVariableAsNumber('node-border-width-selected', 3)
+        : getCSSVariableAsNumber('node-border-width', 1);
+      
+      // Get current zoom level from transform to make border width fixed regardless of zoom
+      const transform = this.ctx.getTransform();
+      const zoom = transform.a; // Horizontal scale component
+      
+      // For selected nodes: add offset and make border width fixed
+      if (isSelected) {
+        const borderOffset = getCSSVariableAsNumber('node-border-offset-selected', 2); // Offset in canvas units
+        const fixedBorderWidth = baseBorderWidth / zoom; // Divide by zoom to make it fixed-size
+        
+        // Adjust position and size to offset border outward
+        const offsetX = x - borderOffset / zoom;
+        const offsetY = y - borderOffset / zoom;
+        const offsetWidth = width + (borderOffset * 2) / zoom;
+        const offsetHeight = height + (borderOffset * 2) / zoom;
+        const offsetRadius = Math.max(0, borderRadius + borderOffset / zoom);
+        
+        this.ctx.strokeStyle = borderColor;
+        this.ctx.lineWidth = fixedBorderWidth;
+        this.drawRoundedRect(offsetX, offsetY, offsetWidth, offsetHeight, offsetRadius);
+        this.ctx.stroke();
+      } else {
+        // Non-selected border: keep original behavior
+        this.ctx.strokeStyle = borderColor;
+        this.ctx.lineWidth = baseBorderWidth;
+        this.drawRoundedRect(x, y, width, height, borderRadius);
+        this.ctx.stroke();
+      }
+      
+      // Render header (with icon, name, and optionally I/O ports)
+      if (this.headerRenderer) {
+        this.headerRenderer.render(
+          node,
+          spec,
+          x,
+          y,
+          width,
+          headerHeight,
+          isSelected,
+          hoveredPortName && !isHoveredParameter ? hoveredPortName : null,
+          connectingPortName && !isConnectingParameter ? connectingPortName : null,
+          skipPorts,
+          height // Pass full node height for proper clipping
+        );
+      } else {
+        // Fallback to old implementation
+        this.renderHeader(
+          node,
+          spec,
+          x,
+          y,
+          width,
+          headerHeight,
+          isSelected,
+          hoveredPortName && !isHoveredParameter ? hoveredPortName : null,
+          connectingPortName && !isConnectingParameter ? connectingPortName : null,
+          skipPorts,
+          height // Pass full node height for proper clipping
+        );
+      }
+    } else {
+      // Using cached content - render dynamic overlays on top
+      
+      // Draw selection shadow (if selected)
+      if (isSelected) {
+        const shadowOffsetX = 0;
+        const shadowOffsetY = 4;
+        const shadowBlur = 12;
+        const shadowColor = getCSSVariable('node-shadow-color-selected-rgba', 'rgba(68, 72, 191, 0.3)');
+        
+        this.ctx.save();
+        this.ctx.shadowOffsetX = shadowOffsetX;
+        this.ctx.shadowOffsetY = shadowOffsetY;
+        this.ctx.shadowBlur = shadowBlur;
+        this.ctx.shadowColor = shadowColor;
+        this.ctx.fillStyle = 'transparent';
+        this.drawRoundedRect(x, y, width, height, borderRadius);
+        this.ctx.fill();
+        this.ctx.restore();
+        
+        // Draw selection highlight
+        const selectionColor = getCSSColorRGBA('node-bg-selected', { r: 4, g: 16, b: 51, a: 1 });
+        this.ctx.fillStyle = `rgba(${selectionColor.r}, ${selectionColor.g}, ${selectionColor.b}, 0.1)`;
+        this.drawRoundedRect(x, y, width, height, borderRadius);
+        this.ctx.fill();
+        
+        // Draw selected border
+        const borderColor = getCSSColor('node-border-selected', getCSSColor('color-blue-90', '#6565dc'));
+        const baseBorderWidth = getCSSVariableAsNumber('node-border-width-selected', 3);
+        
+        // Get current zoom level from transform to make border width fixed regardless of zoom
+        const transform = this.ctx.getTransform();
+        const zoom = transform.a; // Horizontal scale component
+        
+        const borderOffset = getCSSVariableAsNumber('node-border-offset-selected', 2); // Offset in canvas units
+        const fixedBorderWidth = baseBorderWidth / zoom; // Divide by zoom to make it fixed-size
+        
+        // Adjust position and size to offset border outward
+        const offsetX = x - borderOffset / zoom;
+        const offsetY = y - borderOffset / zoom;
+        const offsetWidth = width + (borderOffset * 2) / zoom;
+        const offsetHeight = height + (borderOffset * 2) / zoom;
+        const offsetRadius = Math.max(0, borderRadius + borderOffset / zoom);
+        
+        this.ctx.strokeStyle = borderColor;
+        this.ctx.lineWidth = fixedBorderWidth;
+        this.drawRoundedRect(offsetX, offsetY, offsetWidth, offsetHeight, offsetRadius);
+        this.ctx.stroke();
+      }
+      
+      // Render header with hover states (if needed)
+      if (this.headerRenderer && (hoveredPortName || connectingPortName)) {
+        this.headerRenderer.render(
+          node,
+          spec,
+          x,
+          y,
+          width,
+          headerHeight,
+          isSelected,
+          hoveredPortName && !isHoveredParameter ? hoveredPortName : null,
+          connectingPortName && !isConnectingParameter ? connectingPortName : null,
+          skipPorts,
+          height
+        );
+      }
+    }
     
-    // Get gradient ellipse parameters
-    const ellipseWidthPercent = getCSSVariableAsNumber('node-bg-gradient-ellipse-width', 100);
-    const ellipseHeightPercent = getCSSVariableAsNumber('node-bg-gradient-ellipse-height', 100);
-    const ellipseXPercent = getCSSVariableAsNumber('node-bg-gradient-ellipse-x', 50);
-    const ellipseYPercent = getCSSVariableAsNumber('node-bg-gradient-ellipse-y', 50);
-    
-    // Calculate ellipse dimensions and position
-    const ellipseWidth = (width * ellipseWidthPercent) / 100;
-    const ellipseHeight = (height * ellipseHeightPercent) / 100;
-    const ellipseX = x + (width * ellipseXPercent) / 100;
-    const ellipseY = y + (height * ellipseYPercent) / 100;
-    
-    // Use the larger dimension for the radial gradient radius to ensure it covers the entire node
-    const gradientRadius = Math.max(ellipseWidth, ellipseHeight) / 2;
-    
-    // Create radial gradient
-    const gradient = this.ctx.createRadialGradient(
-      ellipseX, ellipseY, 0,
-      ellipseX, ellipseY, gradientRadius
-    );
-    gradient.addColorStop(0, bgColorStart);
-    gradient.addColorStop(1, bgColorEnd);
-    
-    // Clip to rounded rectangle and fill with gradient
-    this.ctx.save();
-    // Create clipping path for rounded rectangle
-    this.drawRoundedRect(x, y, width, height, borderRadius);
-    this.ctx.clip();
-    // Fill with gradient (will be clipped to the rounded rectangle)
-    this.ctx.fillStyle = gradient;
-    // Fill the entire node area - clipping will handle rounded corners
-    this.ctx.fillRect(x, y, width, height);
-    this.ctx.restore();
-    
-    // Draw border
-    const borderColor = isSelected 
-      ? getCSSColor('node-border-selected', getCSSColor('color-blue-90', '#6565dc'))
-      : getCSSColor('node-border', getCSSColor('color-gray-100', '#747e87'));
-    const borderWidth = isSelected 
-      ? getCSSVariableAsNumber('node-border-width-selected', 3)
-      : getCSSVariableAsNumber('node-border-width', 1);
-    this.ctx.strokeStyle = borderColor;
-    this.ctx.lineWidth = borderWidth;
-    this.drawRoundedRect(x, y, width, height, borderRadius);
-    this.ctx.stroke();
-    
-    // Render header (with icon, name, and optionally I/O ports)
-    this.renderHeader(
-      node,
-      spec,
-      x,
-      y,
-      width,
-      headerHeight,
-      isSelected,
-      hoveredPortName && !isHoveredParameter ? hoveredPortName : null,
-      connectingPortName && !isConnectingParameter ? connectingPortName : null,
-      skipPorts,
-      height // Pass full node height for proper clipping
-    );
-    
+    // Always render parameters (they change frequently and can't be cached effectively)
     // Render parameter grid (if not collapsed)
     if (!node.collapsed && Object.keys(spec.parameters).length > 0) {
-      const paramGridY = y + headerHeight;
-      this.renderParameterGrid(
-        node,
-        spec,
-        x,
-        paramGridY,
-        width,
-        metrics,
-        isSelected,
-        effectiveParameterValues,
-        hoveredPortName && isHoveredParameter ? hoveredPortName : null,
-        isHoveredParameter,
-        connectedParameters,
-        skipPorts
-      );
+      // Use new layout system if parameterLayout is defined
+      if (spec.parameterLayout && metrics.elementMetrics && this.layoutManager) {
+        try {
+          // Use layout manager to render elements
+          this.layoutManager.render(
+            node,
+            spec,
+            x,
+            y + headerHeight,
+            width,
+            headerHeight,
+            metrics,
+            metrics.elementMetrics,
+            {
+              hoveredPortName: hoveredPortName && isHoveredParameter ? hoveredPortName : null,
+              isHoveredParameter,
+              connectingPortName: connectingPortName && isConnectingParameter ? connectingPortName : null,
+              isConnectingParameter,
+              connectedParameters,
+              effectiveParameterValues,
+              skipPorts
+            }
+          );
+          
+          // Render string and array parameters that aren't handled by element renderers
+          // TODO: Move this to element renderers or extract to shared utility
+          this.renderStringAndArrayParameters(
+            node,
+            spec,
+            metrics
+          );
+        } catch (error) {
+          console.error('Error rendering with layout system, falling back to legacy:', error);
+          // Fall through to legacy rendering
+          const paramGridY = y + headerHeight;
+          this.renderParameterGrid(
+            node,
+            spec,
+            x,
+            paramGridY,
+            width,
+            metrics,
+            isSelected,
+            effectiveParameterValues,
+            hoveredPortName && isHoveredParameter ? hoveredPortName : null,
+            isHoveredParameter,
+            connectedParameters,
+            skipPorts
+          );
+        }
+      } else {
+        // Fallback to legacy rendering (also used when layout system is disabled)
+        const paramGridY = y + headerHeight;
+        this.renderParameterGrid(
+          node,
+          spec,
+          x,
+          paramGridY,
+          width,
+          metrics,
+          isSelected,
+          effectiveParameterValues,
+          hoveredPortName && isHoveredParameter ? hoveredPortName : null,
+          isHoveredParameter,
+          connectedParameters,
+          skipPorts
+        );
+      }
+    }
+  }
+  
+  /**
+   * Render string and array parameters that aren't handled by element renderers
+   * This is a temporary solution until these are moved to element renderers
+   */
+  private renderStringAndArrayParameters(
+    node: NodeInstance,
+    spec: NodeSpec,
+    metrics: NodeRenderMetrics
+  ): void {
+    // Find string and array parameters that have grid positions
+    Object.keys(spec.parameters).forEach((paramName) => {
+      const paramSpec = spec.parameters[paramName];
+      if (!paramSpec) return;
+      
+      // Only handle string and array types
+      if (paramSpec.type !== 'string' && paramSpec.type !== 'array') return;
+      
+      const gridPos = metrics.parameterGridPositions.get(paramName);
+      if (!gridPos) return;
+      
+      const paramValue = node.parameters[paramName] ?? paramSpec.default;
+      
+      if (paramSpec.type === 'string') {
+        this.renderStringParameter(
+          gridPos.cellX,
+          gridPos.cellY,
+          gridPos.cellWidth,
+          gridPos.cellHeight,
+          paramName,
+          paramSpec,
+          paramValue as string,
+          node.id
+        );
+      } else if (paramSpec.type === 'array') {
+        this.renderFrequencyBandsParameter(
+          gridPos.cellX,
+          gridPos.cellY,
+          gridPos.cellWidth,
+          gridPos.cellHeight,
+          paramName,
+          paramSpec,
+          paramValue,
+          node.id
+        );
+      }
+    });
+  }
+  
+  /**
+   * Render parameters using the layout system
+   * @deprecated Use ParameterLayoutManager.render() instead
+   */
+  // @ts-expect-error - Deprecated method kept for reference, may be removed later
+  private renderWithLayoutSystem(
+    node: NodeInstance,
+    spec: NodeSpec,
+    _x: number,
+    _y: number,
+    _width: number,
+    _headerHeight: number,
+    metrics: NodeRenderMetrics,
+    effectiveParameterValues?: Map<string, number | null>,
+    hoveredPortName?: string | null,
+    isHoveredParameter?: boolean,
+    connectingPortName?: string | null,
+    isConnectingParameter?: boolean,
+    connectedParameters?: Set<string>,
+    skipPorts: boolean = false
+  ): void {
+    if (!spec.parameterLayout || !metrics.elementMetrics) return;
+    
+    const layout = spec.parameterLayout;
+    const gridPadding = getCSSVariableAsNumber('node-body-padding', 18);
+    
+    // Track which parameters have been rendered by other elements
+    const renderedParams = new Set<string>();
+    
+    // Range editor parameters (used by slider-ui)
+    const rangeParams = ['inMin', 'inMax', 'outMin', 'outMax'];
+    
+    // Iterate through layout elements and render them
+    for (const element of layout.elements) {
+      const elementMetrics = metrics.elementMetrics.get(element);
+      if (!elementMetrics) continue;
+      
+      if (element.type === 'slider-ui') {
+        // Render slider UI (range editor)
+        // elementMetrics positions are in absolute coordinates
+        // Validate positions to prevent rendering artifacts
+        if (!elementMetrics.x || !elementMetrics.y || !elementMetrics.width || !elementMetrics.height) {
+          console.warn('Invalid slider-ui element metrics, skipping render');
+          continue;
+        }
+        
+        // renderRangeEditor expects cellX/cellY (the container cell), and adds gridPadding internally
+        // elementMetrics.x = node.position.x + gridPadding (slider UI left edge, which is cellX + gridPadding)
+        // elementMetrics.y = node.position.y + headerHeight + startY (slider UI top edge, which is cellY + gridPadding)
+        // So: cellX = elementMetrics.x - gridPadding, cellY = elementMetrics.y - gridPadding
+        const cellX = elementMetrics.x - gridPadding;
+        const cellY = elementMetrics.y - gridPadding;
+        const cellWidth = elementMetrics.width + gridPadding * 2; // availableWidth + 2*gridPadding = full width
+        const sliderUIHeight = elementMetrics.height;
+        
+        // Check if any range parameters are connected/hovered
+        const isAnyConnected = rangeParams.some(p => connectedParameters?.has(p) ?? false);
+        const isAnyHovered = rangeParams.some(p => hoveredPortName === p && isHoveredParameter);
+        
+        this.renderRangeEditor(
+          node,
+          spec,
+          cellX,
+          cellY,
+          cellWidth,
+          sliderUIHeight, // cellHeight - not really used but needed for signature
+          isAnyConnected,
+          isAnyHovered,
+          skipPorts,
+          hoveredPortName,
+          isHoveredParameter,
+          connectingPortName,
+          isConnectingParameter,
+          connectedParameters,
+          effectiveParameterValues
+        );
+        
+        // Mark range parameters as rendered (they're rendered by the slider UI, not individually)
+        rangeParams.forEach(p => renderedParams.add(p));
+      } else if (element.type === 'bezier-editor') {
+        // Render bezier editor
+        // elementMetrics.y is already in absolute coordinates
+        // Validate positions to prevent rendering artifacts
+        if (!elementMetrics.y || !elementMetrics.height) {
+          console.warn('Invalid bezier-editor element metrics, skipping render');
+          continue;
+        }
+        
+        const bezierEditorX = (elementMetrics as any).bezierEditorX || elementMetrics.x;
+        const bezierEditorY = elementMetrics.y; // Already absolute
+        const bezierEditorWidth = (elementMetrics as any).bezierEditorWidth || elementMetrics.width;
+        const bezierEditorHeight = elementMetrics.height;
+        
+        // Extract bezier-specific metrics
+        const portX = (elementMetrics as any).portX || (node.position.x + gridPadding);
+        const modeButtonX = (elementMetrics as any).modeButtonX || (portX + 20);
+        const typeLabelX = (elementMetrics as any).typeLabelX || (modeButtonX + 30);
+        const labelX = (elementMetrics as any).labelX || (typeLabelX + 50);
+        
+        // Get port Y positions from parameter grid positions
+        const bezierParams = (element as any).parameters || ['x1', 'y1', 'x2', 'y2'];
+        const portY: number[] = [];
+        const modeButtonY: number[] = [];
+        const typeLabelY: number[] = [];
+        const labelY: number[] = [];
+        
+        bezierParams.forEach((paramName: string) => {
+          const gridPos = metrics.parameterGridPositions.get(paramName);
+          if (gridPos) {
+            portY.push(gridPos.portY);
+            modeButtonY.push(gridPos.portY);
+            typeLabelY.push(gridPos.portY);
+            labelY.push(gridPos.labelY);
+          }
+        });
+        
+        // Get hovered control point (if any)
+        let hoveredControlPoint: number | null = null;
+        // TODO: Get from hover state if needed
+        
+        this.renderBezierEditor(
+          node,
+          spec,
+          bezierEditorX,
+          bezierEditorY,
+          bezierEditorWidth,
+          bezierEditorHeight,
+          portX,
+          portY,
+          modeButtonX,
+          modeButtonY,
+          typeLabelX,
+          typeLabelY,
+          labelX,
+          labelY,
+          connectedParameters,
+          hoveredControlPoint,
+          hoveredPortName && isHoveredParameter ? hoveredPortName : null,
+          isHoveredParameter,
+          skipPorts
+        );
+      } else if (element.type === 'grid' || element.type === 'auto-grid') {
+        // Render grid parameters using metrics from layout system
+        // Get parameters for this element
+        const elementParams = element.type === 'grid' && 'parameters' in element 
+          ? (element.parameters || [])
+          : Object.keys(spec.parameters);
+        
+        // Render each parameter using positions from metrics
+        // Skip parameters that were already rendered by other elements (e.g., slider-ui)
+        elementParams.forEach((paramName) => {
+          // Skip if already rendered
+          if (renderedParams.has(paramName)) return;
+          
+          const gridPos = metrics.parameterGridPositions.get(paramName);
+          if (!gridPos) return;
+          
+          const paramSpec = spec.parameters[paramName];
+          if (!paramSpec) return;
+          
+          const paramValue = node.parameters[paramName] ?? paramSpec.default;
+          const isParamHovered = (hoveredPortName === paramName && isHoveredParameter) ?? false;
+          const effectiveValue = effectiveParameterValues?.get(paramName) ?? null;
+          const isConnected = connectedParameters?.has(paramName) ?? false;
+          
+          if (paramSpec.type === 'float' || paramSpec.type === 'int') {
+            const renderer = this.parameterRegistry.getRenderer(spec, paramName);
+            renderer.render(
+              this.ctx,
+              node,
+              spec,
+              paramName,
+              gridPos,
+              {
+                isConnected,
+                isHovered: isParamHovered,
+                effectiveValue,
+                skipPorts
+              }
+            );
+          } else if (paramSpec.type === 'string') {
+            this.renderStringParameter(
+              gridPos.cellX,
+              gridPos.cellY,
+              gridPos.cellWidth,
+              gridPos.cellHeight,
+              paramName,
+              paramSpec,
+              paramValue as string,
+              node.id
+            );
+          } else if (paramSpec.type === 'array') {
+            this.renderFrequencyBandsParameter(
+              gridPos.cellX,
+              gridPos.cellY,
+              gridPos.cellWidth,
+              gridPos.cellHeight,
+              paramName,
+              paramSpec,
+              paramValue,
+              node.id
+            );
+          }
+          
+          // Mark as rendered
+          renderedParams.add(paramName);
+        });
+      }
     }
   }
   
@@ -2660,283 +2389,19 @@ export class NodeRenderer {
     isConnectingParameter?: boolean,
     connectedParameters?: Set<string>
   ): void {
-    const { width } = metrics;
-    const x = node.position.x;
-    const y = node.position.y;
-    
-    const headerPadding = getCSSVariableAsNumber('node-header-padding', 12);
-    const portSize = getCSSVariableAsNumber('node-port-size', 8);
-    const inputPortSpacing = getCSSVariableAsNumber('node-header-input-port-spacing', 28);
-    
-    // Render header I/O ports with labels
-    spec.inputs.forEach((port, index) => {
-      const portY = y + headerPadding + (index * inputPortSpacing) + portSize;
-      const isHovered = hoveredPortName === port.name && !isHoveredParameter;
-      const isConnecting = connectingPortName === port.name && !isConnectingParameter;
-      const portX = x;
-      
-      // Draw port circle first (without highlight)
-      this.renderPortCircle(portX, portY, port.type, isHovered, isConnecting);
-      
-      // Draw port label (type and name) to the right of the port
-      // Order: port -> type -> name
-      const portRadius = getCSSVariableAsNumber('port-radius', 6);
-        const labelSpacing = getCSSVariableAsNumber('port-label-spacing', 12);
-        const labelFontSize = getCSSVariableAsNumber('port-label-font-size', 19);
-        const labelFontWeight = getCSSVariableAsNumber('port-label-font-weight', 500);
-        const typeFontSize = getCSSVariableAsNumber('port-type-font-size', 19);
-        const typeFontWeight = getCSSVariableAsNumber('port-type-font-weight', 600);
-        const typeSpacing = getCSSVariableAsNumber('port-label-spacing', 12); // Use same spacing as port-to-type
-        const typeBgRadius = getCSSVariableAsNumber('port-type-bg-radius', 6);
-        const typePaddingH = getCSSVariableAsNumber('port-type-padding-horizontal', 8);
-        const typePaddingV = getCSSVariableAsNumber('port-type-padding-vertical', 4);
-        
-        const portLabel = port.label || port.name;
-        
-        // Measure text widths
-        this.ctx.font = `${typeFontWeight} ${typeFontSize}px sans-serif`;
-        const typeWidth = this.ctx.measureText(port.type).width;
-        
-        // Calculate positions: port -> type -> name
-        const typeStartX = portX + portRadius + labelSpacing;
-        const typeBgX = typeStartX;
-        const typeBgWidth = typeWidth + typePaddingH * 2;
-        const typeBgHeight = typeFontSize + typePaddingV * 2;
-        const typeBgY = portY - typeBgHeight / 2;
-        const typeTextX = typeStartX + typePaddingH;
-        const typeTextY = portY;
-        
-        const nameStartX = typeStartX + typeBgWidth + typeSpacing;
-        const nameTextX = nameStartX;
-        const nameTextY = portY;
-        
-        // Draw type background first
-        const typeBgColor = this.getPortTypeBgColor(port.type);
-        this.ctx.fillStyle = typeBgColor;
-        this.drawRoundedRect(typeBgX, typeBgY, typeBgWidth, typeBgHeight, typeBgRadius);
-        this.ctx.fill();
-        
-        // Draw hover highlight after type background (so it appears on top of bg but behind text)
-        this.renderPortHighlight(portX, portY, isHovered, isConnecting);
-        
-        // Draw type text
-      const typeTextColor = this.getPortTypeTextColor(port.type);
-      this.ctx.fillStyle = typeTextColor;
-      this.ctx.font = `${typeFontWeight} ${typeFontSize}px sans-serif`;
-      this.ctx.textAlign = 'left';
-      this.ctx.textBaseline = 'middle';
-      this.ctx.fillText(port.type, typeTextX, typeTextY);
-      
-      // Draw label text (no background, after type)
-      const labelColor = getCSSColor('node-header-port-label-color', getCSSColor('color-gray-130', '#ebeff0'));
-      this.ctx.fillStyle = labelColor;
-      this.ctx.font = `${labelFontWeight} ${labelFontSize}px sans-serif`;
-      this.ctx.textAlign = 'left';
-      this.ctx.textBaseline = 'middle';
-      this.ctx.fillText(portLabel, nameTextX, nameTextY);
-    });
-    
-    spec.outputs.forEach((port, index) => {
-      const portY = y + headerPadding + (index * inputPortSpacing) + portSize;
-      const isHovered = hoveredPortName === port.name && !isHoveredParameter;
-      const isConnecting = connectingPortName === port.name && !isConnectingParameter;
-      const portX = x + width;
-      
-      // Draw port circle first (without highlight)
-      this.renderPortCircle(portX, portY, port.type, isHovered, isConnecting);
-      
-      // Draw port label (name and type) to the left of the port
-      // Order: name -> type -> port
-      const portRadius = getCSSVariableAsNumber('port-radius', 6);
-        const labelSpacing = getCSSVariableAsNumber('port-label-spacing', 12);
-        const labelFontSize = getCSSVariableAsNumber('port-label-font-size', 19);
-        const labelFontWeight = getCSSVariableAsNumber('port-label-font-weight', 500);
-        const typeFontSize = getCSSVariableAsNumber('port-type-font-size', 19);
-        const typeFontWeight = getCSSVariableAsNumber('port-type-font-weight', 600);
-        const typeSpacing = getCSSVariableAsNumber('port-label-spacing', 12); // Use same spacing as port-to-type
-        const typeBgRadius = getCSSVariableAsNumber('port-type-bg-radius', 6);
-        const typePaddingH = getCSSVariableAsNumber('port-type-padding-horizontal', 8);
-        const typePaddingV = getCSSVariableAsNumber('port-type-padding-vertical', 4);
-        
-        const portLabel = port.label || port.name;
-        
-        // Measure text widths
-        this.ctx.font = `${typeFontWeight} ${typeFontSize}px sans-serif`;
-        const typeWidth = this.ctx.measureText(port.type).width;
-        
-        // Calculate positions from right to left: port -> type -> name
-        const typeBgWidth = typeWidth + typePaddingH * 2;
-        const typeBgHeight = typeFontSize + typePaddingV * 2;
-        
-        const typeEndX = portX - portRadius - labelSpacing;
-        const typeBgX = typeEndX - typeBgWidth;
-        const typeBgY = portY - typeBgHeight / 2;
-        const typeTextX = typeBgX + typePaddingH;
-        const typeTextY = portY;
-        
-        const nameEndX = typeBgX - typeSpacing;
-        const nameTextX = nameEndX;
-        const nameTextY = portY;
-        
-        // Draw label text first (no background, furthest left)
-        const labelColor = getCSSColor('node-header-port-label-color', getCSSColor('color-gray-130', '#ebeff0'));
-        this.ctx.fillStyle = labelColor;
-        this.ctx.font = `${labelFontWeight} ${labelFontSize}px sans-serif`;
-        this.ctx.textAlign = 'right';
-        this.ctx.textBaseline = 'middle';
-        this.ctx.fillText(portLabel, nameTextX, nameTextY);
-        
-        // Draw type background (between name and port)
-        const typeBgColor = this.getPortTypeBgColor(port.type);
-        this.ctx.fillStyle = typeBgColor;
-        this.drawRoundedRect(typeBgX, typeBgY, typeBgWidth, typeBgHeight, typeBgRadius);
-        this.ctx.fill();
-        
-        // Draw hover highlight after type background (so it appears on top of bg but behind text)
-        this.renderPortHighlight(portX, portY, isHovered, isConnecting);
-        
-        // Draw type text
-      const typeTextColor = this.getPortTypeTextColor(port.type);
-      this.ctx.fillStyle = typeTextColor;
-      this.ctx.font = `${typeFontWeight} ${typeFontSize}px sans-serif`;
-      this.ctx.textAlign = 'left';
-      this.ctx.textBaseline = 'middle';
-      this.ctx.fillText(port.type, typeTextX, typeTextY);
-    });
-    
-    // Render parameter input ports
-    if (!node.collapsed) {
-      const portSizeParam = getCSSVariableAsNumber('param-port-size', 6);
-      const portRadius = getCSSVariableAsNumber('port-radius', 4);
-      
-      // Special handling for bezier curve nodes
-      const isBezierNode = this.isBezierCurveNode(spec);
-      if (isBezierNode) {
-        this.renderBezierParameterPorts(
-          node,
-          spec,
-          metrics,
-          hoveredPortName,
-          isHoveredParameter,
-          connectingPortName,
-          isConnectingParameter,
-          connectedParameters
-        );
-      } else {
-        // Regular parameter ports
-        for (const [paramName, gridPos] of metrics.parameterGridPositions.entries()) {
-          const paramSpec = spec.parameters[paramName];
-          if (paramSpec && (paramSpec.type === 'float' || paramSpec.type === 'int')) {
-            const isHovered = hoveredPortName === paramName && isHoveredParameter;
-            const isConnecting = connectingPortName === paramName && isConnectingParameter;
-            this.renderPort(
-              gridPos.portX,
-              gridPos.portY,
-              'float',
-              isHovered,
-              isConnecting,
-              portSizeParam / portRadius
-            );
-          }
-        }
-      }
+    // Use port renderer
+    if (this.portRenderer) {
+      this.portRenderer.render(
+        node,
+        spec,
+        metrics,
+        hoveredPortName,
+        isHoveredParameter,
+        connectingPortName,
+        isConnectingParameter,
+        connectedParameters
+      );
     }
-  }
-  
-  // Render bezier curve parameter ports with mode buttons, type labels, and name labels
-  private renderBezierParameterPorts(
-    node: NodeInstance,
-    spec: NodeSpec,
-    metrics: NodeRenderMetrics,
-    hoveredPortName?: string | null,
-    isHoveredParameter?: boolean,
-    connectingPortName?: string | null,
-    isConnectingParameter?: boolean,
-    connectedParameters?: Set<string>
-  ): void {
-    const { headerHeight } = metrics;
-    const x = node.position.x;
-    const y = node.position.y;
-    
-    // Calculate positions (same logic as in renderParameterGrid)
-    const bodyTopPadding = getCSSVariableAsNumber('param-body-top-padding', 24);
-    const bezierEditorHeight = getCSSVariableAsNumber('bezier-editor-height', 200);
-    const gridPadding = getCSSVariableAsNumber('node-body-padding', 18);
-    const bezierPortSpacing = getCSSVariableAsNumber('bezier-param-port-spacing', 40);
-    const modeButtonSize = getCSSVariableAsNumber('param-mode-button-size', 24);
-    const modeButtonBg = getCSSColor('param-mode-button-bg', getCSSColor('color-gray-50', '#111317'));
-    
-    const currentY = y + headerHeight + bodyTopPadding;
-    const leftEdgePadding = gridPadding;
-    const bezierParams = ['x1', 'y1', 'x2', 'y2'];
-    
-    // Calculate positions using header node styling
-    const portX = x + leftEdgePadding;
-    const portRadius = getCSSVariableAsNumber('port-radius', 6);
-    const portLabelSpacing = getCSSVariableAsNumber('port-label-spacing', 12);
-    // Use consistent spacing between all elements: port -> mode -> name (12px between each)
-    // Calculate edge-to-edge spacing for visual consistency
-    const portEdgeX = portX + portRadius; // Port right edge
-    const portToModeSpacing = portLabelSpacing;
-    const modeButtonX = portEdgeX + portToModeSpacing + (modeButtonSize / 2); // Mode button center
-    const modeButtonRightEdge = modeButtonX + (modeButtonSize / 2); // Mode button right edge
-    const modeToLabelSpacing = portLabelSpacing;
-    const labelX = modeButtonRightEdge + modeToLabelSpacing;
-    
-    // Port Y positions: distribute evenly across bezier editor height
-    const totalSpacing = (bezierParams.length - 1) * bezierPortSpacing;
-    const startOffset = (bezierEditorHeight - totalSpacing) / 2;
-    const portY = bezierParams.map((_, index) => currentY + startOffset + index * bezierPortSpacing);
-    const modeButtonY = portY;
-    const labelY = portY;
-    
-    // Label styling (matching header nodes)
-    const labelFontSize = getCSSVariableAsNumber('port-label-font-size', 19);
-    const labelFontWeight = getCSSVariableAsNumber('port-label-font-weight', 500);
-    const labelColor = getCSSColor('port-label-color', getCSSColor('color-gray-110', '#a3aeb5'));
-    
-    // Render each parameter port with mode button and name label
-    bezierParams.forEach((paramName, index) => {
-      const paramSpec = spec.parameters[paramName];
-      if (!paramSpec) return;
-      
-      const isConnected = connectedParameters?.has(paramName) ?? false;
-      const isHovered = hoveredPortName === paramName && isHoveredParameter === true;
-      const isConnecting = connectingPortName === paramName && isConnectingParameter === true;
-      
-      // Draw port (using same rendering as header nodes)
-      this.renderPortCircle(portX, portY[index], 'float', isHovered, isConnecting);
-      
-      // Draw mode button
-      const inputMode = node.parameterInputModes?.[paramName] || paramSpec.inputMode || 'override';
-      const modeSymbol = inputMode === 'override' ? '=' : inputMode === 'add' ? '+' : inputMode === 'subtract' ? '-' : '*';
-      this.ctx.fillStyle = modeButtonBg;
-      this.ctx.beginPath();
-      this.ctx.arc(modeButtonX, modeButtonY[index], modeButtonSize / 2, 0, Math.PI * 2);
-      this.ctx.fill();
-      const modeButtonColorToken = isConnected ? 'param-mode-button-color-connected' : 'param-mode-button-color-static';
-      this.ctx.fillStyle = getCSSColor(modeButtonColorToken, isConnected ? getCSSColor('color-gray-130', '#ebeff0') : getCSSColor('color-gray-60', '#5a5f66'));
-      const modeButtonFontSize = getCSSVariableAsNumber('param-mode-button-font-size', 10);
-      const modeButtonFontWeight = getCSSVariableAsNumber('param-mode-button-font-weight', 400);
-      this.ctx.font = `${modeButtonFontWeight} ${modeButtonFontSize}px sans-serif`;
-      this.ctx.textAlign = 'center';
-      this.ctx.textBaseline = 'middle';
-      this.ctx.fillText(modeSymbol, modeButtonX, modeButtonY[index]);
-      
-      // Draw port highlight
-      this.renderPortHighlight(portX, portY[index], isHovered, isConnecting);
-      
-      // Draw name label (after mode button with 12px spacing)
-      const paramLabel = paramSpec.label || paramName;
-      this.ctx.fillStyle = labelColor;
-      this.ctx.font = `${labelFontWeight} ${labelFontSize}px sans-serif`;
-      this.ctx.textAlign = 'left';
-      this.ctx.textBaseline = 'middle';
-      this.ctx.fillText(paramLabel, labelX, labelY[index]);
-    });
-    
-    this.ctx.textAlign = 'left';
-    this.ctx.textBaseline = 'alphabetic';
   }
   
   // @ts-expect-error - Method kept for potential future use
@@ -2964,7 +2429,7 @@ export class NodeRenderer {
     const labelX = paramInputPortPos ? paramInputPortPos.x + portRadius + 6 : x + padding;
     const paramLabelColor = getCSSColor('node-param-label-color', getCSSColor('color-gray-100', '#747e87'));
     this.ctx.fillStyle = paramLabelColor;
-    this.ctx.font = '12px sans-serif';
+    this.ctx.font = '12px "Space Grotesk", sans-serif';
     this.ctx.textAlign = 'left';
     this.ctx.fillText(paramSpec.label || paramName, labelX, y + height / 2 + 4);
     
@@ -2978,7 +2443,7 @@ export class NodeRenderer {
     const modeSymbol = inputMode === 'override' ? '=' : inputMode === 'add' ? '+' : inputMode === 'subtract' ? '-' : '*';
     const modeColor = getCSSColor('node-param-label-color', getCSSColor('color-gray-100', '#747e87'));
     this.ctx.fillStyle = modeColor;
-    this.ctx.font = '11px sans-serif';
+    this.ctx.font = '11px "Space Grotesk", sans-serif';
     this.ctx.textAlign = 'center';
     this.ctx.fillText(modeSymbol, modeX + modeWidth / 2, y + height / 2 + 4);
     
@@ -2991,7 +2456,7 @@ export class NodeRenderer {
       ? getCSSColor('node-param-value-animated-color', getCSSColor('color-teal-90', '#2f8a6b'))
       : getCSSColor('node-param-value-color', getCSSColor('color-gray-130', '#ebeff0'));
     this.ctx.fillStyle = paramValueColor;
-    this.ctx.font = '12px monospace';
+    this.ctx.font = '12px "JetBrains Mono", monospace';
     this.ctx.textAlign = 'right';
     const displayText = paramSpec.type === 'int' ? Math.round(displayValue).toString() : displayValue.toFixed(3);
     this.ctx.fillText(displayText, valueX + valueWidth, y + height / 2 + 4);
@@ -3008,7 +2473,7 @@ export class NodeRenderer {
     // Parameter label (left side) - match style of other parameters
     const paramLabelColor = getCSSColor('node-param-label-color', getCSSColor('color-gray-100', '#747e87'));
     this.ctx.fillStyle = paramLabelColor;
-    this.ctx.font = '12px sans-serif';
+    this.ctx.font = '12px "Space Grotesk", sans-serif';
     this.ctx.textAlign = 'left';
     const labelText = paramSpec.label || paramName;
     this.ctx.fillText(labelText, x + padding, y + height / 2 + 4);
@@ -3016,7 +2481,7 @@ export class NodeRenderer {
     // Display frequency bands (right side) - match style of other parameter values
     const bandsTextColor = getCSSColor('node-param-value-color', '#333333');
     this.ctx.fillStyle = bandsTextColor;
-    this.ctx.font = '11px monospace';
+    this.ctx.font = '11px "JetBrains Mono", monospace';
     this.ctx.textAlign = 'right';
     
     if (Array.isArray(value) && value.length > 0) {
@@ -3063,7 +2528,7 @@ export class NodeRenderer {
     // Parameter label (left side)
     const paramLabelColor = getCSSColor('node-param-label-color', getCSSColor('color-gray-100', '#747e87'));
     this.ctx.fillStyle = paramLabelColor;
-    this.ctx.font = '12px sans-serif';
+    this.ctx.font = '12px "Space Grotesk", sans-serif';
     this.ctx.textAlign = 'left';
     this.ctx.fillText(paramSpec.label || paramName, x + padding, y + height / 2 + 4);
     
@@ -3083,7 +2548,7 @@ export class NodeRenderer {
     // Button text - show filename if file is selected, otherwise show "Select File"
     const buttonTextColor = getCSSColor('node-param-value-color', '#333333');
     this.ctx.fillStyle = buttonTextColor;
-    this.ctx.font = '11px sans-serif';
+    this.ctx.font = '11px "Space Grotesk", sans-serif';
     this.ctx.textAlign = 'center';
     
     let buttonText = 'Select File';
@@ -3228,3 +2693,4 @@ export class NodeRenderer {
     return metrics.portPositions.get(key) || null;
   }
 }
+

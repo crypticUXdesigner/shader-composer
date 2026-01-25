@@ -1,0 +1,10 @@
+/* Menu Separator Component */
+
+.menu-separator {
+  /* Box model */
+  height: 1px;
+  margin: var(--pd-xs) 0;
+
+  /* Visual */
+  background: var(--menu-separator-color);
+}

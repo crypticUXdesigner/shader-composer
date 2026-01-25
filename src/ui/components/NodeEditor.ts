@@ -2,9 +2,10 @@
 // Orchestrates the node editor UI including canvas, layout, and interactions
 
 import { NodeEditorCanvas } from './NodeEditorCanvas';
-import { NodeSearchDialog } from './NodeSearchDialog';
+import { NodePanel } from './NodePanel';
 import { UndoRedoManager } from './UndoRedoManager';
 import { CopyPasteManager } from './CopyPasteManager';
+import { ContextualHelpCallout } from './ContextualHelpCallout';
 import type { NodeGraph, NodeInstance, Connection } from '../../types/nodeGraph';
 import type { NodeSpec } from '../../types/nodeSpec';
 
@@ -20,12 +21,13 @@ export class NodeEditor {
   private container: HTMLElement;
   private canvas: HTMLCanvasElement;
   private canvasComponent: NodeEditorCanvas;
-  private searchDialog: NodeSearchDialog;
+  private nodePanel: NodePanel;
   private graph: NodeGraph;
   private nodeSpecs: Map<string, NodeSpec>;
   private callbacks: NodeEditorCallbacks;
   private undoRedoManager: UndoRedoManager;
   private copyPasteManager: CopyPasteManager;
+  private helpCallout: ContextualHelpCallout;
   
   constructor(
     container: HTMLElement,
@@ -58,34 +60,22 @@ export class NodeEditor {
     // Create canvas component (audioManager will be set later via setAudioManager)
     this.canvasComponent = new NodeEditorCanvas(this.canvas, graph, nodeSpecs);
     
-    // Create search dialog (the only menu for adding nodes)
-    this.searchDialog = new NodeSearchDialog(nodeSpecs, {
+    // Create node panel (will be added to layout container)
+    this.nodePanel = new NodePanel(nodeSpecs, {
       onCreateNode: (nodeType, x, y) => {
         this.addNode(nodeType, x, y);
+      },
+      onScreenToCanvas: (screenX, screenY) => {
+        return this.canvasComponent['screenToCanvas'](screenX, screenY);
       }
     });
     
-    // Setup double-click for search dialog (only if not on parameter or label)
-    this.canvas.addEventListener('dblclick', (e) => {
-      if (e.target === this.canvas) {
-        // Check if double-click is on a header label first
-        if (this.canvasComponent.showLabelInput(e.clientX, e.clientY)) {
-          // Label input was shown, don't open search dialog
-          return;
-        }
-        
-        // Check if double-click is on a parameter value
-        if (this.canvasComponent.showParameterInput(e.clientX, e.clientY)) {
-          // Parameter input was shown, don't open search dialog
-          return;
-        }
-        
-        // Otherwise, open search dialog
-        // Convert to canvas coordinates for node placement, but use screen coordinates for dialog positioning
-        const canvasPos = this.canvasComponent['screenToCanvas'](e.clientX, e.clientY);
-        this.searchDialog.show(e.clientX, e.clientY, canvasPos.x, canvasPos.y);
-      }
-    });
+    // Create contextual help callout
+    this.helpCallout = new ContextualHelpCallout();
+    this.helpCallout.setNodeSpecs(this.nodeSpecs);
+    
+    // Setup drag and drop from panel to canvas
+    this.setupPanelDragAndDrop();
     
     // Setup keyboard shortcuts
     this.setupKeyboardShortcuts();
@@ -234,7 +224,15 @@ export class NodeEditor {
           this.notifyGraphChanged();
         }
       },
-      isDialogVisible: () => this.searchDialog.isVisible()
+      onTypeLabelClick: (portType, screenX, screenY) => {
+        // Show help callout for the clicked type
+        this.helpCallout.show({
+          helpId: `type:${portType}`,
+          screenX,
+          screenY,
+          nodeSpecs: this.nodeSpecs
+        });
+      }
     });
   }
   
@@ -256,8 +254,8 @@ export class NodeEditor {
     // Handle parameter connections
     if (connection.targetParameter) {
       const paramSpec = targetSpec.parameters[connection.targetParameter];
-      if (!paramSpec || paramSpec.type !== 'float') {
-        return false; // Parameter doesn't exist or isn't float
+      if (!paramSpec || (paramSpec.type !== 'float' && paramSpec.type !== 'int')) {
+        return false; // Parameter doesn't exist or isn't float/int
       }
       
       const sourcePort = sourceSpec.outputs.find(p => p.name === connection.sourcePort);
@@ -389,18 +387,40 @@ export class NodeEditor {
       parameters[paramName] = paramSpec.default;
     }
     
-    const node: NodeInstance = {
-      id: this.generateId('node'),
+    // Create temporary node to calculate metrics (position doesn't affect metrics)
+    const tempNode: NodeInstance = {
+      id: 'temp',
       type: nodeType,
-      position: { x, y },
+      position: { x: 0, y: 0 },
       parameters,
       collapsed: false
     };
     
+    // Calculate metrics to get header dimensions
+    const metrics = this.canvasComponent.getNodeRenderer().calculateMetrics(tempNode, spec);
+    
+    // Adjust position so cursor aligns with center of node header
+    // Header center: (x + width/2, y + headerHeight/2)
+    // We want cursor at (x, y) to be at header center, so:
+    const adjustedX = x - metrics.width / 2;
+    const adjustedY = y - metrics.headerHeight / 2;
+    
+    const node: NodeInstance = {
+      id: this.generateId('node'),
+      type: nodeType,
+      position: { x: adjustedX, y: adjustedY },
+      parameters,
+      collapsed: false
+    };
+    
+    // Update graph's viewState with current viewport before calling setGraph
+    // This prevents the viewport from jumping when setGraph overwrites from graph.viewState
+    this.updateViewState();
+    
     this.graph.nodes.push(node);
-    // Update metrics for new node
-    const metrics = this.canvasComponent.getNodeRenderer().calculateMetrics(node, spec);
-    this.canvasComponent.getNodeMetrics().set(node.id, metrics);
+    // Update metrics for new node (recalculate with actual node instance)
+    const finalMetrics = this.canvasComponent.getNodeRenderer().calculateMetrics(node, spec);
+    this.canvasComponent.getNodeMetrics().set(node.id, finalMetrics);
     this.canvasComponent.setGraph(this.graph);
     this.notifyGraphChanged();
     
@@ -448,13 +468,14 @@ export class NodeEditor {
       }
     }
     
-    // Select pasted nodes
+    // Update graph's viewState with current viewport before calling setGraph
+    // This prevents the viewport from jumping when setGraph overwrites from graph.viewState
     const viewState = this.canvasComponent.getViewState();
     viewState.selectedNodeIds = pasted.nodes.map(n => n.id);
     this.graph.viewState = {
-      zoom: this.graph.viewState?.zoom ?? 1.0,
-      panX: this.graph.viewState?.panX ?? 0,
-      panY: this.graph.viewState?.panY ?? 0,
+      zoom: viewState.zoom,
+      panX: viewState.panX,
+      panY: viewState.panY,
       selectedNodeIds: viewState.selectedNodeIds
     };
     
@@ -503,37 +524,12 @@ export class NodeEditor {
   // Keyboard shortcuts
   setupKeyboardShortcuts(): void {
     window.addEventListener('keydown', (e) => {
-      // If search dialog is open, only handle Escape and dialog-specific shortcuts
-      // Let the dialog handle its own keyboard events
-      if (this.searchDialog.isVisible()) {
-        // Only allow opening search dialog again (Ctrl+F) or Escape (handled by dialog)
-        if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '=' || e.key === 'f')) {
-          e.preventDefault();
-          const rect = this.canvas.getBoundingClientRect();
-          const viewState = this.canvasComponent.getViewState();
-          const centerX = (rect.width / 2 - viewState.panX) / viewState.zoom;
-          const centerY = (rect.height / 2 - viewState.panY) / viewState.zoom;
-          this.searchDialog.show(centerX, centerY);
-        }
-        // Don't handle other shortcuts when dialog is open
-        return;
-      }
+      // Check if user is typing in an input field - don't handle shortcuts in that case
+      const target = e.target as HTMLElement;
+      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
       
-      // Ctrl++ or Ctrl+= or Ctrl+F to open search dialog in center
-      if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '=' || e.key === 'f')) {
-        e.preventDefault();
-        const rect = this.canvas.getBoundingClientRect();
-        const viewState = this.canvasComponent.getViewState();
-        const centerX = (rect.width / 2 - viewState.panX) / viewState.zoom;
-        const centerY = (rect.height / 2 - viewState.panY) / viewState.zoom;
-        this.searchDialog.show(centerX, centerY);
-        return;
-      }
-      
-      // Ctrl/Cmd + F: Focus search (also handled above, but keep for clarity)
-      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
-        e.preventDefault();
-        // Already handled above
+      // Don't handle shortcuts when user is typing in an input field
+      if (isInput) {
         return;
       }
       
@@ -580,8 +576,34 @@ export class NodeEditor {
     });
   }
   
+  private setupPanelDragAndDrop(): void {
+    // Prevent default drag behavior on canvas
+    this.canvas.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer!.dropEffect = 'copy';
+    });
+    
+    // Handle drop on canvas
+    this.canvas.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const nodeType = e.dataTransfer?.getData('text/plain');
+      if (nodeType) {
+        const canvasPos = this.canvasComponent['screenToCanvas'](e.clientX, e.clientY);
+        this.addNode(nodeType, canvasPos.x, canvasPos.y);
+      }
+    });
+  }
+  
+  /**
+   * Get the node panel instance
+   */
+  getNodePanel(): NodePanel {
+    return this.nodePanel;
+  }
+  
   destroy(): void {
-    this.searchDialog.destroy();
+    this.nodePanel.destroy();
+    this.helpCallout.destroy();
     this.container.removeChild(this.canvas);
   }
 }

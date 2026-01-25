@@ -2,6 +2,8 @@
 
 A web-based node-based shader editor for creating procedural shader art using WebGL. Build complex shader graphs by connecting nodes visually.
 
+> **⚠️ Prototype Status:** This is an early prototype version. The application is functional but features and APIs are subject to change. Some functionality may be incomplete or experimental.
+
 🌐 **[Live Demo](https://crypticUXdesigner.github.io/shader-composer/)**
 
 ## Features
@@ -33,7 +35,7 @@ npm run dev
 
 ### Creating a Shader
 
-1. **Add Nodes**: Right-click on the canvas or press `Space` to open the node search dialog
+1. **Add Nodes**: Use the side panel to browse and add nodes by dragging them onto the canvas
 2. **Connect Nodes**: Drag from output ports to input ports to create connections
 3. **Adjust Parameters**: Click on nodes to expand parameter controls, then drag sliders to adjust values
 4. **Preview**: The shader preview updates in real-time as you make changes
@@ -42,7 +44,6 @@ npm run dev
 
 ### Keyboard Shortcuts
 
-- `Space` - Open node search dialog
 - `Delete` / `Backspace` - Delete selected nodes
 - `Ctrl/Cmd + Z` - Undo
 - `Ctrl/Cmd + Shift + Z` - Redo
@@ -68,11 +69,39 @@ src/
 └── main.ts                # Main application entry point
 ```
 
-## Building
+## Tech Stack
+
+- **TypeScript** - Type-safe development
+- **Vite** - Fast build tool and dev server
+- **WebGL** - GPU-accelerated shader rendering
+- **GLSL** - Shader programming language
+- **Vanilla TypeScript** - No framework dependencies
+- **Tabler Icons** - Icon library
+
+## Development
+
+### Available Scripts
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run type-check` - Run TypeScript type checking
+- `npm run preview` - Preview production build locally
+
+### Building
 
 ```bash
 npm run build
 ```
+
+The build output will be in the `dist/` directory, ready for deployment.
+
+## Deployment
+
+This project is automatically deployed to GitHub Pages via GitHub Actions when changes are pushed to the `main` branch. The deployment workflow:
+
+1. Builds the project using `npm run build`
+2. Deploys the `dist/` directory to GitHub Pages
+3. Available at: `https://crypticUXdesigner.github.io/shader-composer/`
 
 ## License
 

@@ -18,6 +18,9 @@ uniform float uTime;
 
 {{UNIFORMS}}
 
+// Global variable declarations (accessible in functions)
+{{VARIABLE_DECLARATIONS}}
+
 {{FUNCTIONS}}
 
 out vec4 fragColor;
@@ -54,6 +57,7 @@ export class NodeShaderCompiler {
     if (graph.nodes.length === 0) {
       const emptyShader = BASE_SHADER_TEMPLATE
         .replace('{{UNIFORMS}}', '')
+        .replace('{{VARIABLE_DECLARATIONS}}', '')
         .replace('{{FUNCTIONS}}', '')
         .replace('{{MAIN_CODE}}', '')
         .replace('{{FINAL_COLOR}}', 'vec3(0.0)');
@@ -89,6 +93,20 @@ export class NodeShaderCompiler {
     try {
       const sorted = this.topologicalSort(graph);
       executionOrder.push(...sorted);
+      // Debug: Log execution order for turbulence debugging
+      const turbulenceNode = graph.nodes.find(n => n.type === 'turbulence');
+      if (turbulenceNode) {
+        const turbulenceIndex = sorted.indexOf(turbulenceNode.id);
+        const audioRemapNodes = graph.nodes.filter(n => n.type === 'audio-remap');
+        console.log('[Execution Order Debug] Turbulence node:', {
+          nodeId: turbulenceNode.id,
+          index: turbulenceIndex,
+          audioRemapNodes: audioRemapNodes.map(n => ({
+            nodeId: n.id,
+            index: sorted.indexOf(n.id)
+          }))
+        });
+      }
     } catch (error) {
       errors.push(`[ERROR] Circular Dependency: ${error instanceof Error ? error.message : 'Graph contains cycles'}`);
       return {
@@ -126,10 +144,10 @@ export class NodeShaderCompiler {
     const uniformNames = this.generateUniformNameMapping(graph);
 
     // Step 6: Collect functions (with uniform placeholders replaced)
-    const functions = this.collectAndDeduplicateFunctions(graph, uniformNames);
+    const functions = this.collectAndDeduplicateFunctions(graph, uniformNames, variableNames);
 
-    // Step 7: Generate main code
-    const mainCode = this.generateMainCode(graph, executionOrder, variableNames, uniformNames);
+    // Step 7: Generate main code (returns both variable declarations and main code)
+    const { variableDeclarations, mainCode } = this.generateMainCode(graph, executionOrder, variableNames, uniformNames);
 
     // Step 8: Find final output node
     const finalOutputNode = this.findFinalOutputNode(graph, executionOrder);
@@ -138,7 +156,7 @@ export class NodeShaderCompiler {
     const finalColorVar = this.generateFinalColorVariable(graph, finalOutputNode, variableNames);
 
     // Step 10: Track which uniforms are actually used in the shader code
-    const usedUniforms = this.findUsedUniforms(mainCode, functions, uniformNames);
+    const usedUniforms = this.findUsedUniforms(mainCode + '\n' + variableDeclarations, functions, uniformNames);
 
     // Step 11: Generate uniform metadata (only for used uniforms)
     const uniforms = this.generateUniformMetadata(graph, uniformNames, usedUniforms);
@@ -156,7 +174,7 @@ export class NodeShaderCompiler {
     }
 
     // Step 13: Assemble shader
-    const shaderCode = this.assembleShader(functions, uniforms, mainCode, finalColorVar);
+    const shaderCode = this.assembleShader(functions, uniforms, variableDeclarations, mainCode, finalColorVar);
 
     return {
       shaderCode,
@@ -241,7 +259,7 @@ export class NodeShaderCompiler {
       dependencies.set(node.id, []);
     }
 
-    // Add dependencies from connections
+    // Add dependencies from connections (both regular port connections and parameter connections)
     for (const conn of graph.connections) {
       const deps = dependencies.get(conn.targetNodeId) || [];
       if (!deps.includes(conn.sourceNodeId)) {
@@ -416,6 +434,12 @@ export class NodeShaderCompiler {
       }
       
       variableNames.set(node.id, nodeVars);
+    }
+
+    // Debug: Log all generated variable names
+    console.log('[DEBUG] Variable names generated:');
+    for (const [nodeId, nodeVars] of variableNames.entries()) {
+      console.log(`  Node ${nodeId}:`, Array.from(nodeVars.entries()));
     }
 
     return variableNames;
@@ -679,8 +703,19 @@ export class NodeShaderCompiler {
           glslType = 'vec4';
         }
 
-        // Get default value
-        const defaultValue = this.getParameterDefaultValue(paramSpec, paramName);
+        // Get default value - prefer node's parameter value over spec default
+        let defaultValue: number | [number, number] | [number, number, number] | [number, number, number, number];
+        const paramValue = node.parameters[paramName];
+        if (paramValue !== undefined && typeof paramValue === 'number') {
+          // Use node's parameter value
+          defaultValue = paramValue;
+        } else if (paramValue !== undefined && Array.isArray(paramValue)) {
+          // Use node's parameter array value
+          defaultValue = paramValue as any;
+        } else {
+          // Fall back to spec default
+          defaultValue = this.getParameterDefaultValue(paramSpec, paramName);
+        }
 
         uniforms.push({
           name: uniformName,
@@ -732,28 +767,223 @@ export class NodeShaderCompiler {
    * Processes functions per-node to replace uniform placeholders with actual uniform names
    * Deduplicates at the individual function level by signature
    */
-  private collectAndDeduplicateFunctions(graph: NodeGraph, uniformNames: Map<string, string>): string {
+  private collectAndDeduplicateFunctions(
+    graph: NodeGraph, 
+    uniformNames: Map<string, string>,
+    variableNames: Map<string, Map<string, string>>
+  ): string {
     const processedFunctions: string[] = [];
 
     for (const node of graph.nodes) {
       const nodeSpec = this.nodeSpecs.get(node.type);
       if (!nodeSpec?.functions) continue;
 
-      // Process function code for this node: replace placeholders with actual uniform names
+      // Process function code for this node: replace placeholders with actual uniform names or input values
       let funcCode = nodeSpec.functions;
       
-      // Replace parameter placeholders with actual uniform names
+      // Build map of parameter input variables (for parameters with input connections)
+      const parameterInputVars = new Map<string, string>();
+      for (const conn of graph.connections) {
+        if (conn.targetNodeId === node.id && conn.targetParameter) {
+          const sourceNode = graph.nodes.find(n => n.id === conn.sourceNodeId);
+          if (!sourceNode) {
+            // Source node doesn't exist - skip this connection
+            // This can happen if a node was deleted but connections weren't cleaned up
+            // Validation should catch this, but we handle it gracefully here
+            continue;
+          }
+
+          const sourceSpec = this.nodeSpecs.get(sourceNode.type);
+          if (!sourceSpec) continue;
+
+          const sourceOutput = sourceSpec.outputs.find(o => o.name === conn.sourcePort);
+          const paramSpec = nodeSpec.parameters[conn.targetParameter];
+          
+          // Only allow float parameters to have input connections
+          if (!sourceOutput || !paramSpec || paramSpec.type !== 'float') continue;
+
+          // CRITICAL: Only use variable names that actually exist in variableNames
+          // This ensures we don't reference variables from nodes that don't exist
+          // or weren't processed (e.g., if node type is unknown or node has no outputs)
+          // Also verify the source node exists in the graph (double-check for safety)
+          const sourceNodeInGraph = graph.nodes.find(n => n.id === conn.sourceNodeId);
+          if (!sourceNodeInGraph) {
+            // Source node doesn't exist in graph - skip this connection
+            // This can happen if a node was deleted but connection still exists
+            continue;
+          }
+          
+          if (!variableNames.has(conn.sourceNodeId)) {
+            // Source node wasn't processed - skip this connection
+            // This happens if node type is unknown or node has no outputs
+            continue;
+          }
+          
+          const sourceVarName = variableNames.get(conn.sourceNodeId)?.get(conn.sourcePort);
+          if (!sourceVarName) {
+            // Variable name doesn't exist - this means the output port doesn't exist
+            // or wasn't generated. Skip this connection.
+            continue;
+          }
+          
+          // Final safety check: ensure the variable will actually be declared
+          // by checking if the source node has outputs and will be processed
+          const sourceNodeSpec = this.nodeSpecs.get(sourceNodeInGraph.type);
+          if (!sourceNodeSpec || !sourceNodeSpec.outputs || sourceNodeSpec.outputs.length === 0) {
+            // Source node has no outputs - variable won't be declared, skip
+            continue;
+          }
+          
+          const sourceOutputExists = sourceNodeSpec.outputs.some(o => o.name === conn.sourcePort);
+          if (!sourceOutputExists) {
+            // Output port doesn't exist on source node - skip
+            continue;
+          }
+
+          // Promote to appropriate type based on parameter type (float only)
+          let promotedVar = sourceVarName;
+          // Parameter is float - convert int inputs to float, extract first component for vec types
+          if (sourceOutput.type === 'int') {
+            promotedVar = `float(${sourceVarName})`;
+          } else if (sourceOutput.type !== 'float') {
+            // Extract first component for vec types
+            promotedVar = `${sourceVarName}.x`;
+          }
+          parameterInputVars.set(conn.targetParameter, promotedVar);
+        }
+      }
+      
+      // Replace parameter placeholders with actual uniform names or input variable names
       for (const paramName of Object.keys(nodeSpec.parameters)) {
-        const uniformName = uniformNames.get(`${node.id}.${paramName}`);
-        if (uniformName) {
-          const regex = new RegExp(`\\$param\\.${this.escapeRegex(paramName)}`, 'g');
-          funcCode = funcCode.replace(regex, uniformName);
+        // Check if parameter has an input connection
+        const paramInputVar = parameterInputVars.get(paramName);
+        if (paramInputVar) {
+          // Parameter has input connection - use the input variable
+          const paramSpec = nodeSpec.parameters[paramName];
+          const inputMode = node.parameterInputModes?.[paramName] || 
+                           paramSpec?.inputMode || 
+                           'override';
+          
+          if (inputMode === 'override') {
+            // Override mode: use input value directly
+            const regex = new RegExp(`\\$param\\.${this.escapeRegex(paramName)}`, 'g');
+            funcCode = funcCode.replace(regex, paramInputVar);
+          } else {
+            // Add/subtract/multiply mode: need to combine with config value
+            const uniformName = uniformNames.get(`${node.id}.${paramName}`);
+            let configValue: string;
+            if (uniformName) {
+              // Use uniform name as config value
+              configValue = uniformName;
+            } else {
+              // No uniform found - use parameter default value from spec
+              // This can happen if uniform generation was skipped for some reason
+              const paramValue = node.parameters[paramName];
+              if (paramValue !== undefined) {
+                configValue = String(paramValue);
+              } else if (paramSpec?.default !== undefined) {
+                configValue = String(paramSpec.default);
+              } else {
+                // Fallback to 0.0 if no default available
+                configValue = paramSpec?.type === 'int' ? '0' : '0.0';
+              }
+            }
+            // Generate combined expression
+            const paramType = (paramSpec?.type === 'float' || paramSpec?.type === 'int') ? paramSpec.type : 'float';
+            const combinedExpr = this.generateParameterCombination(
+              configValue,
+              paramInputVar,
+              inputMode,
+              paramType
+            );
+            // Debug logging for turbulence node
+            if (nodeSpec.id === 'turbulence' && paramName === 'turbulenceStrength') {
+              console.log(`[Turbulence Debug] Node ${node.id}, param ${paramName}:`, {
+                configValue,
+                paramInputVar,
+                inputMode,
+                combinedExpr,
+                nodeParamValue: node.parameters[paramName]
+              });
+            }
+            const regex = new RegExp(`\\$param\\.${this.escapeRegex(paramName)}`, 'g');
+            funcCode = funcCode.replace(regex, combinedExpr);
+          }
+        } else {
+          // No input connection - use uniform name
+          const uniformName = uniformNames.get(`${node.id}.${paramName}`);
+          if (uniformName) {
+            const regex = new RegExp(`\\$param\\.${this.escapeRegex(paramName)}`, 'g');
+            funcCode = funcCode.replace(regex, uniformName);
+          }
         }
       }
       
       // Replace global placeholders
       funcCode = funcCode.replace(/\$time/g, 'uTime');
       funcCode = funcCode.replace(/\$resolution/g, 'uResolution');
+      
+      // Final cleanup pass: catch any remaining $param.* placeholders that weren't replaced
+      // This is a safety net for edge cases where placeholders exist in function code
+      // but the uniform wasn't found or the parameter doesn't exist in the spec
+      funcCode = funcCode.replace(/\$param\.\w+/g, (match) => {
+        // Extract parameter name
+        const paramName = match.replace('$param.', '');
+        // Try to find it in node.parameters as fallback
+        const paramValue = node.parameters[paramName];
+        if (paramValue !== undefined) {
+          return String(paramValue);
+        }
+        // Try to find uniform name one more time (in case it was added after first pass)
+        const uniformName = uniformNames.get(`${node.id}.${paramName}`);
+        if (uniformName) {
+          return uniformName;
+        }
+        // Default to 0.0 if nothing found (safe default for GLSL)
+        return '0.0';
+      });
+      
+      // Final safety check: verify all variable names used in function code will be declared
+      // Build set of all valid output variable names for O(1) lookup
+      const validOutputVars = new Set<string>();
+      for (const nodeVars of variableNames.values()) {
+        for (const varName of nodeVars.values()) {
+          validOutputVars.add(varName);
+        }
+      }
+      
+      // Build set of all uniform names to exclude them from validation
+      // Uniform names follow pattern: u<sanitizedId><CapitalizedParamName>
+      const allUniformNames = new Set(uniformNames.values());
+      
+      // Extract all variable names that match the pattern node_<id>_<port>
+      // Use word boundaries to avoid partial matches within larger identifiers
+      const variableNamePattern = /\bnode_[a-zA-Z0-9_]+_[a-zA-Z0-9_]+\b/g;
+      const usedVariableNames = new Set<string>();
+      let match;
+      while ((match = variableNamePattern.exec(funcCode)) !== null) {
+        const varName = match[0];
+        // Skip if it's a uniform name (uniforms start with 'u' and shouldn't be validated as variables)
+        // Also skip if it matches a uniform name pattern (starts with 'u' followed by node pattern)
+        if (allUniformNames.has(varName) || varName.startsWith('u')) {
+          continue;
+        }
+        // Only check if it's a potential output variable (starts with 'node_')
+        if (varName.startsWith('node_')) {
+          usedVariableNames.add(varName);
+        }
+      }
+      
+      // Check each used variable name to ensure it will be declared
+      for (const varName of usedVariableNames) {
+        if (!validOutputVars.has(varName)) {
+          // Variable name is used but won't be declared - replace with safe default
+          // This can happen if a connection references a deleted node or invalid output
+          console.warn(`[NodeShaderCompiler] Variable ${varName} used in function code but won't be declared. Replacing with 0.0`);
+          const escapedVarName = varName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          funcCode = funcCode.replace(new RegExp(`\\b${escapedVarName}\\b`, 'g'), '0.0');
+        }
+      }
       
       processedFunctions.push(funcCode);
     }
@@ -874,23 +1104,50 @@ export class NodeShaderCompiler {
 
   /**
    * Generate main code for all nodes in execution order
+   * Returns both variable declarations (for global scope) and main code (for main function)
    */
   private generateMainCode(
     graph: NodeGraph,
     executionOrder: string[],
     variableNames: Map<string, Map<string, string>>,
     uniformNames: Map<string, string>
-  ): string {
-    const code: string[] = [];
+  ): { variableDeclarations: string; mainCode: string } {
+    const variableDeclarations: string[] = [];
+    const mainCode: string[] = [];
+    const declaredVars = new Set<string>(); // Track declared variables
+
+    // Debug: Log state before declaration
+    console.log('[DEBUG] Declaring variables for nodes:');
+    console.log('[DEBUG] Graph has', graph.nodes.length, 'nodes');
+    console.log('[DEBUG] VariableNames map has', variableNames.size, 'entries');
+    for (const node of graph.nodes) {
+      const hasVars = variableNames.has(node.id);
+      const outputVars = variableNames.get(node.id);
+      console.log(`  Node ${node.id} (${node.type}): hasVars=${hasVars}, outputVars.size=${outputVars?.size || 0}`);
+    }
 
     // First, declare all output variables at function scope so they're accessible across nodes
     // Declare for ALL nodes in the graph, not just execution order, to ensure all variables exist
     for (const node of graph.nodes) {
       const nodeSpec = this.nodeSpecs.get(node.type);
-      if (!nodeSpec) continue;
+      if (!nodeSpec) {
+        // Node type not found - this should have been caught in validation, but continue gracefully
+        continue;
+      }
 
       const outputVars = variableNames.get(node.id);
-      if (!outputVars || outputVars.size === 0) continue;
+      if (!outputVars || outputVars.size === 0) {
+        // No output variables generated for this node - this can happen if:
+        // 1. Node has no outputs (shouldn't happen for nodes with connections)
+        // 2. Variable generation failed (shouldn't happen if nodeSpec exists)
+        // Log a warning but continue - this might be expected for some node types
+        if (nodeSpec.outputs && nodeSpec.outputs.length > 0) {
+          console.warn(
+            `[NodeShaderCompiler] Node ${node.type} (${node.id}) has outputs in spec but no variables generated`
+          );
+        }
+        continue;
+      }
       
       // Handle audio-analyzer dynamic outputs
       if (nodeSpec.id === 'audio-analyzer') {
@@ -899,24 +1156,97 @@ export class NodeShaderCompiler {
           const varName = outputVars.get(`band${i}`);
           if (varName) {
             const initValue = this.getOutputInitialValue('float', nodeSpec.id);
-            // Declare without const so it can be reassigned from uniforms
-            code.push(`  float ${varName} = ${initValue};`);
+            // Declare at global scope (without const) so it can be reassigned from uniforms
+            variableDeclarations.push(`float ${varName} = ${initValue};`);
+            declaredVars.add(varName);
           }
         }
       } else {
-        // Standard outputs (including audio-file-input)
+        // Standard outputs (including audio-file-input and audio-remap)
         for (const output of nodeSpec.outputs) {
           const varName = outputVars.get(output.name);
           if (varName) {
             const initValue = this.getOutputInitialValue(output.type, nodeSpec.id);
-            // Declare without const so it can be reassigned from uniforms (for audio nodes)
-            code.push(`  ${output.type} ${varName} = ${initValue};`);
+            // Declare at global scope (without const) so it can be reassigned from uniforms (for audio nodes)
+            variableDeclarations.push(`${output.type} ${varName} = ${initValue};`);
+            declaredVars.add(varName);
+          } else {
+            // Variable name not found in outputVars - this shouldn't happen if generateVariableNames worked correctly
+            console.warn(
+              `[NodeShaderCompiler] Variable name not found for ${node.type} (${node.id}).${output.name}`
+            );
           }
         }
       }
     }
 
-    code.push(''); // Blank line between declarations and node code
+    // Debug: Check for specific error variable pattern
+    const errorVarPattern = /node_node_\d+_\w+_out/;
+    for (const varName of declaredVars) {
+      if (errorVarPattern.test(varName)) {
+        console.log('[DEBUG] Found error-pattern variable in declaredVars:', varName);
+      }
+    }
+    console.log('[DEBUG] Searching variableNames for undeclared variables...');
+    for (const [nodeId, nodeVars] of variableNames.entries()) {
+      for (const [portName, varName] of nodeVars.entries()) {
+        if (errorVarPattern.test(varName) && !declaredVars.has(varName)) {
+          console.log(`[DEBUG] UNDECLARED VARIABLE FOUND! Node ${nodeId}, port ${portName}, varName ${varName}`);
+          const nodeInGraph = graph.nodes.find(n => n.id === nodeId);
+          console.log(`[DEBUG] Node exists in graph?`, !!nodeInGraph);
+          if (nodeInGraph) {
+            console.log(`[DEBUG] Node type: ${nodeInGraph.type}, ID match: ${nodeInGraph.id === nodeId}`);
+            const nodeSpec = this.nodeSpecs.get(nodeInGraph.type);
+            console.log(`[DEBUG] NodeSpec exists?`, !!nodeSpec);
+            if (nodeSpec) {
+              console.log(`[DEBUG] NodeSpec outputs:`, nodeSpec.outputs?.map(o => o.name));
+            }
+          }
+        }
+      }
+    }
+
+    // Validate that all variables referenced in connections are declared
+    for (const conn of graph.connections) {
+      // Debug: Log connections that might be problematic
+      const debugSourceVarName = variableNames.get(conn.sourceNodeId)?.get(conn.sourcePort);
+      if (debugSourceVarName && errorVarPattern.test(debugSourceVarName)) {
+        console.log('[DEBUG] Connection with error-pattern variable:', {
+          sourceNodeId: conn.sourceNodeId,
+          sourcePort: conn.sourcePort,
+          sourceVarName: debugSourceVarName,
+          targetNodeId: conn.targetNodeId,
+          targetParameter: conn.targetParameter,
+          varNameInMap: variableNames.has(conn.sourceNodeId),
+          declared: declaredVars.has(debugSourceVarName)
+        });
+      }
+      const sourceVarName = variableNames.get(conn.sourceNodeId)?.get(conn.sourcePort);
+      if (sourceVarName && !declaredVars.has(sourceVarName)) {
+        const sourceNode = graph.nodes.find(n => n.id === conn.sourceNodeId);
+        console.error(
+          `[NodeShaderCompiler] Variable ${sourceVarName} is referenced but not declared. ` +
+          `Source node: ${sourceNode?.type || 'unknown'} (${conn.sourceNodeId}).${conn.sourcePort}`
+        );
+        // This is a critical error - the shader will fail to compile
+        // We should ensure the variable is declared
+        if (sourceNode) {
+          const sourceSpec = this.nodeSpecs.get(sourceNode.type);
+          if (sourceSpec && sourceSpec.outputs) {
+            const output = sourceSpec.outputs.find(o => o.name === conn.sourcePort);
+            if (output) {
+              // Force declare the variable - add it to the global declarations
+              const initValue = this.getOutputInitialValue(output.type, sourceSpec.id);
+              variableDeclarations.push(`${output.type} ${sourceVarName} = ${initValue};`);
+              declaredVars.add(sourceVarName);
+              console.warn(
+                `[NodeShaderCompiler] Force-declared missing variable ${sourceVarName} for ${sourceNode.type} (${conn.sourceNodeId})`
+              );
+            }
+          }
+        }
+      }
+    }
 
     // Then generate node code in execution order (inside blocks for scoping)
     for (const nodeId of executionOrder) {
@@ -933,28 +1263,31 @@ export class NodeShaderCompiler {
         // Generate code to read from uniforms and assign to output variables
         const nodeCode = this.generateAudioNodeCode(node, nodeSpec, graph, variableNames, uniformNames);
         if (nodeCode.trim()) {
-          code.push(`  // Node: ${nodeSpec.displayName} (${nodeId})`);
-          code.push('  {');
+          mainCode.push(`  // Node: ${nodeSpec.displayName} (${nodeId})`);
+          mainCode.push('  {');
           const indentedCode = nodeCode.split('\n').map(line => line ? '  ' + line : line).join('\n');
-          code.push(indentedCode);
-          code.push('  }');
-          code.push('');
+          mainCode.push(indentedCode);
+          mainCode.push('  }');
+          mainCode.push('');
         }
         continue;
       }
 
       const nodeCode = this.generateNodeCode(node, nodeSpec, graph, variableNames, uniformNames);
-      code.push(`  // Node: ${nodeSpec.displayName} (${nodeId})`);
+      mainCode.push(`  // Node: ${nodeSpec.displayName} (${nodeId})`);
       // Wrap each node's code in a block scope to prevent variable name collisions
-      code.push('  {');
+      mainCode.push('  {');
       // Indent the node code
       const indentedCode = nodeCode.split('\n').map(line => line ? '  ' + line : line).join('\n');
-      code.push(indentedCode);
-      code.push('  }');
-      code.push('');
+      mainCode.push(indentedCode);
+      mainCode.push('  }');
+      mainCode.push('');
     }
 
-    return code.join('\n');
+    return {
+      variableDeclarations: variableDeclarations.join('\n'),
+      mainCode: mainCode.join('\n')
+    };
   }
 
   /**
@@ -1055,19 +1388,44 @@ export class NodeShaderCompiler {
         // Only allow float parameters to have input connections
         if (!sourceOutput || !paramSpec || paramSpec.type !== 'float') continue;
 
-        const sourceVarName = variableNames.get(conn.sourceNodeId)?.get(conn.sourcePort);
-        if (sourceVarName) {
-          // Promote to appropriate type based on parameter type (float only)
-          let promotedVar = sourceVarName;
-          // Parameter is float - convert int inputs to float, extract first component for vec types
-          if (sourceOutput.type === 'int') {
-            promotedVar = `float(${sourceVarName})`;
-          } else if (sourceOutput.type !== 'float') {
-            // Extract first component for vec types
-            promotedVar = `${sourceVarName}.x`;
-          }
-          parameterInputVars.set(conn.targetParameter, promotedVar);
+        // Verify the source node has outputs and will have its variable declared
+        if (!sourceSpec.outputs || sourceSpec.outputs.length === 0) {
+          console.warn(
+            `[NodeShaderCompiler] Source node ${sourceNode.type} (${conn.sourceNodeId}) has no outputs, ` +
+            `cannot connect to parameter ${conn.targetParameter}`
+          );
+          continue;
         }
+
+        const sourceVarName = variableNames.get(conn.sourceNodeId)?.get(conn.sourcePort);
+        if (!sourceVarName) {
+          console.warn(
+            `[NodeShaderCompiler] Variable name not found for connection: ` +
+            `${conn.sourceNodeId}.${conn.sourcePort} -> ${node.id}.${conn.targetParameter}`
+          );
+          continue;
+        }
+
+        // Promote to appropriate type based on parameter type (float only)
+        let promotedVar = sourceVarName;
+        // Parameter is float - convert int inputs to float, extract first component for vec types
+        if (sourceOutput.type === 'int') {
+          promotedVar = `float(${sourceVarName})`;
+        } else if (sourceOutput.type !== 'float') {
+          // Extract first component for vec types
+          promotedVar = `${sourceVarName}.x`;
+        }
+        // Debug logging for turbulence time offset
+        if (nodeSpec.id === 'turbulence' && conn.targetParameter === 'turbulenceTimeOffset') {
+          console.log(`[Turbulence TimeOffset Connection] Found connection for ${node.id}:`, {
+            sourceNodeId: conn.sourceNodeId,
+            sourcePort: conn.sourcePort,
+            sourceVarName,
+            promotedVar,
+            targetParameter: conn.targetParameter
+          });
+        }
+        parameterInputVars.set(conn.targetParameter, promotedVar);
       }
     }
 
@@ -1142,19 +1500,18 @@ export class NodeShaderCompiler {
 
   /**
    * Get initial value for an output variable
+   * Note: Variables are now declared at global scope, so we can't use 'p' here
+   * (p is only available inside main()). Use safe defaults instead.
    */
-  private getOutputInitialValue(type: string, nodeType: string): string {
+  private getOutputInitialValue(type: string, _nodeType: string): string {
     // For generator nodes (output float), initialize to 0.0
-    // For transform nodes (output vec2), initialize to input coordinate (p)
+    // For transform nodes (output vec2), initialize to vec2(0.0) - actual value assigned in main()
     // For operation nodes, initialize based on operation type
 
     if (type === 'float') {
       return '0.0';
     } else if (type === 'vec2') {
-      // Transform nodes typically initialize to p
-      if (nodeType.includes('transform') || nodeType.includes('coordinate')) {
-        return 'p';
-      }
+      // Use vec2(0.0) as default - the node code will assign the actual value in main()
       return 'vec2(0.0)';
     } else if (type === 'vec3') {
       return 'vec3(0.0)';
@@ -1270,11 +1627,26 @@ export class NodeShaderCompiler {
         // Check if parameter has an input connection
         const paramInputVar = parameterInputVars.get(paramName);
         if (paramInputVar && paramSpec && paramSpec.type === 'float') {
+          // Get input mode (from node override, spec default, or 'override')
+          const inputMode = node.parameterInputModes?.[paramName] || 
+                           paramSpec.inputMode || 
+                           'override';
+          
           // Parameter has input connection - combine with config value
           const uniformName = uniformNames.get(`${node.id}.${paramName}`) || '';
           // Get config value: prefer uniform, then node parameter value, then default
           let configValue = uniformName;
           if (!configValue) {
+            // For override mode, we don't need a config value (input replaces it)
+            // For other modes, we need the config value for the combination
+            if (inputMode !== 'override') {
+              // Mode is add/subtract/multiply - we need config value but uniform doesn't exist
+              // This shouldn't happen if uniform generation is correct, but handle it gracefully
+              console.warn(
+                `[NodeShaderCompiler] Uniform not found for ${node.id}.${paramName} with mode '${inputMode}'. ` +
+                `Using node parameter value as fallback. This may indicate a uniform generation issue.`
+              );
+            }
             const paramValue = node.parameters[paramName];
             if (paramValue !== undefined) {
               configValue = String(paramValue);
@@ -1283,11 +1655,6 @@ export class NodeShaderCompiler {
             }
           }
           
-          // Get input mode (from node override, spec default, or 'override')
-          const inputMode = node.parameterInputModes?.[paramName] || 
-                           paramSpec.inputMode || 
-                           'override';
-          
           // Generate combined expression based on mode
           const combinedExpr = this.generateParameterCombination(
             configValue,
@@ -1295,7 +1662,16 @@ export class NodeShaderCompiler {
             inputMode,
             paramSpec.type
           );
-          
+          // Debug logging for turbulence time offset
+          if (nodeSpec.id === 'turbulence' && paramName === 'turbulenceTimeOffset') {
+            console.log(`[Turbulence TimeOffset Debug] Node ${node.id}, param ${paramName}:`, {
+              configValue,
+              paramInputVar,
+              inputMode,
+              combinedExpr,
+              nodeParamValue: node.parameters[paramName]
+            });
+          }
           const regex = new RegExp(`\\$param\\.${this.escapeRegex(paramName)}`, 'g');
           result = result.replace(regex, combinedExpr);
         } else {
@@ -1628,6 +2004,7 @@ export class NodeShaderCompiler {
   private assembleShader(
     functions: string,
     uniforms: UniformMetadata[],
+    variableDeclarations: string,
     mainCode: string,
     finalColorVar: string
   ): string {
@@ -1642,6 +2019,7 @@ export class NodeShaderCompiler {
 
     let shader = BASE_SHADER_TEMPLATE;
     shader = shader.replace('{{UNIFORMS}}', uniformDeclarations);
+    shader = shader.replace('{{VARIABLE_DECLARATIONS}}', variableDeclarations);
     shader = shader.replace('{{FUNCTIONS}}', functions);
     shader = shader.replace('{{MAIN_CODE}}', mainCode);
     shader = shader.replace('{{FINAL_COLOR}}', finalColorVar);

@@ -1,94 +1,4 @@
 :root {
-/* Component dimensions */
---panel-width: 400px;
---button-min-width-sm: 36px;
---button-min-width-md: 42px;
---value-display-width: 42px;
---color-picker-height: 40px;
-
-/* === BUTTON TOKENS === */
---button-bg: var(--color-gray-50);
---button-bg-hover: var(--color-gray-70);
---button-bg-active: var(--color-gray-30);
---button-color: var(--color-gray-130);
---button-radius: var(--radius-lg);
-
-/* === STEP BUTTON TOKENS === */
---step-button-bg: var(--color-gray-70);
---step-button-bg-hover: var(--color-gray-80);
---step-button-color: var(--color-gray-130);
---step-button-radius: var(--radius-lg);
---step-button-min-width-sm: var(--button-min-width-sm);
---step-button-min-width-md: var(--button-min-width-md);
-
-/* === TAB TOKENS === */
---tab-bg-default: transparent;
---tab-bg-hover: var(--color-gray-50);
---tab-bg-active: var(--color-gray-70);
---tab-color-default: var(--color-gray-100);
---tab-color-hover: var(--color-gray-130);
---tab-color-active: var(--color-gray-130);
---tab-radius: var(--radius-lg);
-
-/* === SELECT TOKENS === */
---select-bg: var(--color-gray-30);
---select-bg-hover: var(--color-gray-70);
---select-border: 1px solid var(--color-gray-70);
---select-border-focus: 1px solid var(--color-gray-80);
---select-color: var(--color-gray-130);
---select-radius: var(--radius-lg);
-
-/* === VALUE DISPLAY TOKENS === */
---value-display-min-width: 60px;
-
-/* === INPUT TOKENS === */
---input-bg: var(--color-gray-20);
---input-border: 1px solid var(--color-gray-60);
---input-color: var(--color-gray-130);
---input-radius: var(--radius-sm);
-
-/* === LABEL TOKENS === */
---label-color: var(--color-gray-110);
-
-/* === COLOR PICKER TOKENS === */
---color-picker-border: 1px solid var(--color-gray-60);
---color-picker-radius: var(--radius-lg);
-
-/* === BOX TOKENS === */
---box-bg-primary: var(--color-gray-30);
---box-bg-secondary: var(--color-gray-40);
---box-bg-tertiary: var(--color-gray-10);
---box-radius: var(--radius-lg);
-
-/* === DIVIDER TOKENS === */
---divider: rgba(255, 255, 255, 0.07);
-
-/* === HEADER TOKENS (collapsible) === */
---header-border-color: var(--divider);
---header-text-weight: 600;
-
-/* === TOGGLE TOKENS === */
---toggle-color: var(--color-gray-90);
-
-/* === TYPE ICON TOKENS === */
---type-icon-radius: var(--radius-md);
-
-/* === TYPE TITLE TOKENS === */
---type-title-weight: 600;
-
-/* === DRAG HANDLE TOKENS === */
---drag-handle-color: var(--color-gray-90);
-
-/* === PARAMETER GROUP TOKENS === */
---param-group-title-weight: 500;
---param-group-title-color: var(--color-gray-120);
-
-/* === ELEMENT BOX TOKENS === */
---element-box-bg: var(--color-gray-40);
---element-box-bg-dragging: var(--color-gray-20);
---element-box-border-highlight: 2px solid var(--color-blue-100);
---element-box-name-weight: 500;
-
 /* === NODE EDITOR CANVAS TOKENS === */
 --canvas-bg: var(--color-gray-40);
 --canvas-grid-color: var(--color-gray-50);
@@ -105,6 +15,7 @@
 --node-border-selected: #ffffff99;
 --node-border-width: 1px;
 --node-border-width-selected: 3px;
+--node-border-offset-selected: 2px;
 --node-padding: 0px;
 --node-body-padding: 18px;
 --node-header-bg: var(--color-gray-50);
@@ -133,9 +44,9 @@
 --port-border-width: var(--scale-3); /* 2px */
 --port-border-color: #00000059;
 --port-color-float: var(--color-gray-50);
---port-color-vec2: var(--color-leaf-100);
---port-color-vec3: var(--color-orange-100);
---port-color-vec4: var(--color-purple-100);
+--port-color-vec2: var(--color-blue-gray-100);
+--port-color-vec3: var(--color-teal-gray-100);
+--port-color-vec4: var(--color-purple-gray-100);
 --port-color-default: var(--color-gray-100);
 --port-hover-color: var(--color-gray-110);
 --port-hover-outer-opacity: 0.6;
@@ -143,7 +54,7 @@
 --port-dragging-outer-opacity: 0.3;
 
 /* === NODE PORT LABEL TOKENS === */
---port-label-font-size: 19px;
+--port-label-font-size: var(--canvas-text-xl); /* 19px */
 --port-label-font-weight: 600;
 --port-label-color: var(--color-gray-10);
 --port-label-spacing: var(--scale-4); /* 12px - Space between port and label */
@@ -153,20 +64,20 @@
 
 /* Port Type Background Colors (per type) */
 --port-type-bg-float: var(--color-gray-40);
---port-type-bg-vec2: var(--color-leaf-40);
---port-type-bg-vec3: var(--color-orange-40);
---port-type-bg-vec4: var(--color-purple-40);
+--port-type-bg-vec2: var(--color-blue-gray-40);
+--port-type-bg-vec3: var(--color-teal-gray-40);
+--port-type-bg-vec4: var(--color-purple-gray-40);
 --port-type-bg-default: var(--color-gray-40);
 
 /* Port Type Text Colors (per type) - uses port type colors */
 --port-type-text-float: var(--color-gray-110);
---port-type-text-vec2: var(--color-leaf-110);
---port-type-text-vec3: var(--color-orange-110);
---port-type-text-vec4: var(--color-purple-110);
+--port-type-text-vec2: var(--color-blue-gray-110);
+--port-type-text-vec3: var(--color-teal-gray-110);
+--port-type-text-vec4: var(--color-purple-gray-110);
 --port-type-text-default: var(--color-gray-110);
 
 /* Port Type Styling */
---port-type-font-size: 19px;
+--port-type-font-size: var(--canvas-text-xl); /* 19px */
 --port-type-font-weight: 600;
 --port-type-spacing: var(--scale-2); /* 4px - Space between name and type */
 --port-type-bg-radius: var(--scale-4); /* 12px */
@@ -176,79 +87,85 @@
 /* === NODE CATEGORY COLOR TOKENS === */
 --category-color-inputs: var(--color-blue-100);
 --category-color-patterns: var(--color-leaf-100);
---category-color-shapes: var(--color-orange-100);
---category-color-math: var(--color-yellow-100);
---category-color-utilities: var(--color-teal-100);
---category-color-distort: var(--color-gray-100);
+--category-color-shapes: var(--color-teal-100);
+--category-color-math: var(--color-orange-100);
+--category-color-utilities: var(--color-yellow-100);
+--category-color-distort: var(--color-orange-red-100);
 --category-color-blend: var(--color-purple-100);
---category-color-mask: var(--color-orange-100);
---category-color-effects: var(--color-red-100);
+--category-color-mask: var(--color-violet-100);
+--category-color-effects: var(--color-red-purple-100);
 --category-color-output: var(--color-red-100);
+--category-color-audio: var(--color-cyan-100);
 --category-color-default: var(--color-gray-100);
 
 /* === NODE CATEGORY COLOR END TOKENS (for gradient) === */
 --category-color-end-inputs: var(--color-blue-80);
 --category-color-end-patterns: var(--color-leaf-80);
---category-color-end-shapes: var(--color-orange-80);
---category-color-end-math: var(--color-yellow-80);
---category-color-end-utilities: var(--color-teal-80);
---category-color-end-distort: var(--color-gray-80);
+--category-color-end-shapes: var(--color-teal-80);
+--category-color-end-math: var(--color-orange-80);
+--category-color-end-utilities: var(--color-yellow-80);
+--category-color-end-distort: var(--color-orange-red-80);
 --category-color-end-blend: var(--color-purple-80);
---category-color-end-mask: var(--color-orange-80);
---category-color-end-effects: var(--color-red-80);
+--category-color-end-mask: var(--color-violet-80);
+--category-color-end-effects: var(--color-red-purple-80);
 --category-color-end-output: var(--color-red-80);
+--category-color-end-audio: var(--color-cyan-80);
 --category-color-end-default: var(--color-gray-80);
 
 /* === NODE HEADER CATEGORY BACKGROUND TOKENS === */
 --node-header-bg-inputs: var(--color-blue-50);
 --node-header-bg-patterns: var(--color-leaf-50);
---node-header-bg-shapes: var(--color-orange-50);
---node-header-bg-math: var(--color-yellow-50);
---node-header-bg-utilities: var(--color-teal-50);
---node-header-bg-distort: var(--color-gray-50);
+--node-header-bg-shapes: var(--color-teal-50);
+--node-header-bg-math: var(--color-orange-50);
+--node-header-bg-utilities: var(--color-yellow-50);
+--node-header-bg-distort: var(--color-orange-red-50);
 --node-header-bg-blend: var(--color-purple-50);
---node-header-bg-mask: var(--color-orange-50);
---node-header-bg-effects: var(--color-red-50);
+--node-header-bg-mask: var(--color-violet-50);
+--node-header-bg-effects: var(--color-red-purple-50);
 --node-header-bg-output: var(--color-red-50);
+--node-header-bg-audio: var(--color-cyan-50);
 --node-header-bg-default: var(--color-gray-50);
 
 /* === NODE HEADER CATEGORY COLOR TOKENS (for gradient start) === */
 --node-header-category-color-inputs: var(--color-blue-70);
 --node-header-category-color-patterns: var(--color-leaf-70);
---node-header-category-color-shapes: var(--color-orange-70);
---node-header-category-color-math: var(--color-yellow-70);
---node-header-category-color-utilities: var(--color-teal-70);
---node-header-category-color-distort: var(--color-gray-70);
+--node-header-category-color-shapes: var(--color-teal-70);
+--node-header-category-color-math: var(--color-orange-70);
+--node-header-category-color-utilities: var(--color-yellow-70);
+--node-header-category-color-distort: var(--color-orange-red-70);
 --node-header-category-color-blend: var(--color-purple-70);
---node-header-category-color-mask: var(--color-orange-70);
---node-header-category-color-effects: var(--color-red-70);
+--node-header-category-color-mask: var(--color-violet-70);
+--node-header-category-color-effects: var(--color-red-purple-70);
 --node-header-category-color-output: var(--color-red-70);
+--node-header-category-color-audio: var(--color-cyan-70);
 --node-header-category-color-default: var(--color-gray-70);
 
 /* === NODE HEADER CATEGORY COLOR END TOKENS (for gradient end) === */
 --node-header-category-color-end-inputs: var(--color-blue-50);
 --node-header-category-color-end-patterns: var(--color-leaf-50);
---node-header-category-color-end-shapes: var(--color-orange-50);
---node-header-category-color-end-math: var(--color-yellow-50);
---node-header-category-color-end-utilities: var(--color-teal-50);
---node-header-category-color-end-distort: var(--color-gray-50);
+--node-header-category-color-end-shapes: var(--color-teal-50);
+--node-header-category-color-end-math: var(--color-orange-50);
+--node-header-category-color-end-utilities: var(--color-yellow-50);
+--node-header-category-color-end-distort: var(--color-orange-red-50);
 --node-header-category-color-end-blend: var(--color-purple-50);
---node-header-category-color-end-mask: var(--color-orange-50);
---node-header-category-color-end-effects: var(--color-red-50);
+--node-header-category-color-end-mask: var(--color-violet-50);
+--node-header-category-color-end-effects: var(--color-red-purple-50);
 --node-header-category-color-end-output: var(--color-red-50);
+--node-header-category-color-end-audio: var(--color-cyan-50);
 --node-header-category-color-end-default: var(--color-gray-50);
 
 /* === NODE ICON BOX CATEGORY BACKGROUND TOKENS === */
 --node-icon-box-bg-inputs: var(--color-blue-50);
 --node-icon-box-bg-patterns: var(--color-leaf-80);
---node-icon-box-bg-shapes: var(--color-orange-80);
---node-icon-box-bg-math: var(--color-yellow-50);
---node-icon-box-bg-utilities: var(--color-teal-50);
---node-icon-box-bg-distort: var(--color-gray-80);
+--node-icon-box-bg-shapes: var(--color-teal-80);
+--node-icon-box-bg-math: var(--color-orange-50);
+--node-icon-box-bg-utilities: var(--color-yellow-50);
+--node-icon-box-bg-distort: var(--color-orange-red-80);
 --node-icon-box-bg-blend: var(--color-purple-80);
---node-icon-box-bg-mask: var(--color-orange-80);
---node-icon-box-bg-effects: var(--color-red-80);
+--node-icon-box-bg-mask: var(--color-violet-80);
+--node-icon-box-bg-effects: var(--color-red-purple-80);
 --node-icon-box-bg-output: var(--color-red-50);
+--node-icon-box-bg-audio: var(--color-cyan-50);
 --node-icon-box-bg-default: var(--color-gray-50);
 
 /* === NODE ICON BOX SIZE TOKENS === */
@@ -320,100 +237,14 @@
 --connection-opacity: 0.8;
 --connection-opacity-selected: 1.0;
 
-/* === CONNECTION COLOR BY CATEGORY TOKENS === */
---connection-color-inputs: var(--color-blue-90);
---connection-color-patterns: var(--color-leaf-90);
---connection-color-shapes: var(--color-orange-90);
---connection-color-math: var(--color-yellow-90);
---connection-color-utilities: var(--color-teal-90);
---connection-color-distort: var(--color-gray-90);
---connection-color-blend: var(--color-purple-90);
---connection-color-mask: var(--color-orange-90);
---connection-color-effects: var(--color-red-90);
---connection-color-output: var(--color-red-90);
---connection-color-default: var(--color-gray-90);
-
-/* === SEARCH DIALOG TOKENS === */
---search-dialog-overlay: rgba(0, 0, 0, 0.5);
---search-dialog-bg: var(--color-gray-40);
---search-dialog-border: var(--color-gray-20);
---search-dialog-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
---search-dialog-radius: var(--radius-xl);
---search-input-bg: var(--color-gray-20);
---search-input-border: 1px solid var(--color-gray-70);
---search-input-color: var(--color-gray-130);
---search-result-bg: var(--color-gray-50);
---search-result-bg-hover: var(--color-gray-70);
---search-result-bg-selected: var(--color-gray-70);
---search-result-border: 1px solid var(--color-gray-70);
---search-result-border-selected: 1px solid var(--color-blue-90);
---search-result-name-color: var(--color-gray-130);
---search-result-desc-color: var(--color-gray-100);
---search-category-header-bg: var(--color-blue-50);
---search-category-header-color: var(--color-blue-100);
---search-no-results-color: var(--color-gray-100);
-
-/* === LAYOUT TOKENS === */
---layout-bg: var(--color-gray-20);
---layout-divider-bg: var(--color-gray-70);
---layout-divider-width: 4px;
---layout-preview-bg: var(--color-gray-20);
---layout-preview-border: 1px solid var(--color-gray-70);
---layout-button-bg: var(--color-gray-70);
---layout-button-bg-hover: var(--color-gray-80);
---layout-button-color: var(--color-gray-130);
---layout-button-border: 1px solid var(--color-gray-80);
---layout-toast-success-bg: var(--color-teal-60);
---layout-toast-success-border: var(--color-teal-80);
---layout-toast-error-bg: var(--color-red-60);
---layout-toast-error-border: var(--color-red-80);
---layout-toast-color: var(--color-gray-130);
-
-/* === PARAMETER INPUT TOKENS === */
---param-input-bg: var(--color-gray-20);
---param-input-border: 2px solid var(--color-blue-90);
---param-input-color: var(--color-gray-130);
-
-/* === PARAMETER CONTROL TOKENS === */
---param-control-label-color: var(--label-color);
---param-control-bg: var(--input-bg);
---param-control-border: var(--input-border);
---param-control-border-active: var(--node-border-selected);
---param-control-value-color: var(--input-color);
---param-control-drag-area-bg: var(--color-gray-30);
---param-control-drag-area-border: var(--input-border);
---param-control-drag-area-border-active: var(--param-control-border-active);
-
-/* === FILTER TAG TOKENS === */
---filter-tag-padding: 2px 6px;
---filter-tag-font-size: var(--text-xs);
---filter-tag-radius: 6px;
---filter-tag-border: var(--color-gray-70);
---filter-tag-bg: var(--color-gray-70);
---filter-tag-bg-selected: transparent;
---filter-tag-color: var(--color-gray-130);
---filter-tag-color-selected: var(--search-result-name-color);
-
-/* === TOAST NOTIFICATION TOKENS === */
---toast-padding: 12px 20px;
---toast-font-size: 13px;
---toast-radius: 6px;
---toast-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
---toast-z-index: 1000;
---toast-max-width: 400px;
-
-/* === CONTEXT MENU TOKENS === */
---context-menu-bg: var(--search-dialog-bg);
---context-menu-border: var(--search-dialog-border);
---context-menu-radius: var(--radius-lg);
---context-menu-shadow: var(--search-dialog-shadow);
---context-menu-min-width: 300px;
---context-menu-max-width: 500px;
---context-menu-max-height: 600px;
---context-menu-item-padding: 8px 12px;
---context-menu-item-bg-hover: var(--search-result-bg-hover);
---context-menu-item-color: var(--search-result-name-color);
---context-menu-separator-color: var(--color-gray-70);
+/* === CONNECTION COLOR BY PORT TYPE TOKENS === */
+--connection-color-float: var(--color-gray-90);
+--connection-color-vec2: var(--color-blue-gray-110);
+--connection-color-vec3: var(--color-teal-gray-110);
+--connection-color-vec4: var(--color-purple-gray-110);
+--connection-color-int: var(--color-gray-110);
+--connection-color-bool: var(--color-gray-110);
+--connection-color-default: var(--color-gray-110);
 
 /* === NODE REDESIGN TOKENS === */
 
@@ -460,13 +291,13 @@
 --param-port-offset-y: var(--scale-5); /* 18px */
 
 /* Parameter Label */
---param-label-font-size: 19px;
+--param-label-font-size: var(--canvas-text-xl); /* 19px */
 --param-label-font-weight: 600;
 --param-label-color: var(--color-gray-40);
 --param-label-knob-spacing: 12px;
 
 /* Parameter Type Label */
---param-type-label-font-size: 11px;
+--param-type-label-font-size: var(--canvas-text-xs); /* 11px */
 --param-type-label-font-weight: 600;
 
 /* Rotary Knob */
@@ -478,7 +309,7 @@
 --knob-marker-size: 7px;
 --knob-marker-color: var(--color-gray-10);
 --knob-marker-radius-offset: -16px; /* Offset from arc radius (positive = further out, negative = further in) */
---knob-value-font-size: 20px;
+--knob-value-font-size: var(--canvas-text-2xl); /* 20px */
 --knob-value-color: var(--color-gray-130);
 --knob-value-bg: #000000d9;
 --knob-value-radius: 6px;
@@ -491,7 +322,7 @@
 
 /* Parameter Mode Button */
 --param-mode-button-size: 24px;
---param-mode-button-font-size: 24px;
+--param-mode-button-font-size: var(--canvas-text-3xl); /* 24px */
 --param-mode-button-font-weight: 900;
 --param-mode-button-color-static: #00000034; /* Color when parameter is NOT connected (clicking does nothing) */
 --param-mode-button-color-connected: var(--color-leaf-100); /* Color when parameter IS connected (clicking has effect) */
@@ -501,7 +332,7 @@
 
 /* Parameter Group */
 --param-group-header-height: 12px;
---param-group-header-font-size: 18px;
+--param-group-header-font-size: var(--canvas-text-lg); /* 18px */
 --param-group-header-color: var(--color-gray-40);
 --param-group-header-weight: 600;
 --param-group-header-margin-top: 12px;
@@ -512,25 +343,6 @@
 
 /* Zoom Interaction */
 --zoom-interaction-threshold: 0.3; /* Disable parameter drag below this zoom */
-
-/* === FPS DISPLAY TOKENS === */
---fps-color-good: var(--color-teal-90);
---fps-color-moderate: var(--color-yellow-90);
---fps-color-poor: var(--color-red-90);
-
-/* === PLUS BUTTON TOKENS === */
---plus-button-active-bg: var(--color-leaf-60);
---plus-button-active-border: var(--color-leaf-100);
---plus-button-active-color: var(--color-leaf-100);
---plus-button-active-shadow-rgba: rgba(110, 171, 49, 0.6); /* leaf-100 with 0.6 opacity */
-
-/* === POWER BUTTON TOKENS === */
---power-button-active-bg: var(--color-teal-90);
---power-button-active-thumb: var(--color-gray-130);
-
-/* === NODE SHADOW TOKENS === */
---node-shadow-color: rgba(0, 0, 0, 0.15);
---node-shadow-color-selected-rgba: rgba(68, 72, 191, 0.3); /* blue-80 with 0.3 opacity */
 
 /* === BEZIER EDITOR TOKENS === */
 --bezier-editor-bg: var(--color-gray-20);
@@ -553,7 +365,7 @@
 --bezier-editor-control-line-color: var(--color-gray-80);
 --bezier-editor-control-line-width: 1px;
 --bezier-editor-control-line-dash: 4px;
---bezier-editor-label-font-size: 11px;
+--bezier-editor-label-font-size: var(--canvas-text-xs); /* 11px */
 --bezier-editor-label-color: var(--color-gray-110);
 --bezier-editor-label-spacing: 4px;
 --bezier-param-port-spacing: var(--scale-11); /* 54px */
@@ -579,8 +391,8 @@
 --color-picker-slider-handle-border: 2px solid var(--color-gray-130);
 --color-picker-input-width: 60px;
 --color-picker-input-height: 24px;
---color-picker-input-font-size: 12px;
---color-picker-label-font-size: 11px;
+--color-picker-input-font-size: var(--canvas-text-sm); /* 12px */
+--color-picker-label-font-size: var(--canvas-text-xs); /* 11px */
 --color-picker-label-color: var(--color-gray-110);
 --color-picker-label-spacing: 4px;
 
@@ -602,9 +414,9 @@
 --vector2d-editor-point-hover-bg: var(--color-blue-100);
 --vector2d-editor-input-width: 70px;
 --vector2d-editor-input-height: 24px;
---vector2d-editor-input-font-size: 12px;
+--vector2d-editor-input-font-size: var(--canvas-text-sm); /* 12px */
 --vector2d-editor-input-spacing: 8px;
---vector2d-editor-label-font-size: 11px;
+--vector2d-editor-label-font-size: var(--canvas-text-xs); /* 11px */
 --vector2d-editor-label-color: var(--color-gray-110);
 --vector2d-editor-label-spacing: 4px;
 
@@ -628,9 +440,9 @@
 --vector3d-editor-knob-marker-color: var(--color-gray-10);
 --vector3d-editor-input-width: 60px;
 --vector3d-editor-input-height: 24px;
---vector3d-editor-input-font-size: 12px;
+--vector3d-editor-input-font-size: var(--canvas-text-sm); /* 12px */
 --vector3d-editor-input-spacing: 6px;
---vector3d-editor-label-font-size: 11px;
+--vector3d-editor-label-font-size: var(--canvas-text-xs); /* 11px */
 --vector3d-editor-label-color: var(--color-gray-110);
 --vector3d-editor-label-spacing: 4px;
 
@@ -642,7 +454,7 @@
 --enum-selector-border-focus: 1px solid var(--color-blue-90);
 --enum-selector-radius: 6px;
 --enum-selector-padding: 8px 12px;
---enum-selector-font-size: 13px;
+--enum-selector-font-size: var(--canvas-text-md); /* 13px */
 --enum-selector-font-weight: 500;
 --enum-selector-color: var(--color-gray-130);
 --enum-selector-arrow-size: 8px;
@@ -680,12 +492,12 @@
 --range-editor-connection-color: var(--color-blue-90);
 --range-editor-connection-width: 2px;
 --range-editor-connection-dash: 4px;
---range-editor-label-font-size: 11px;
+--range-editor-label-font-size: var(--canvas-text-xs); /* 11px */
 --range-editor-label-color: var(--color-gray-110);
 --range-editor-label-spacing: 18px;
 --range-editor-input-width: 60px;
 --range-editor-input-height: 24px;
---range-editor-input-font-size: 18px;
+--range-editor-input-font-size: var(--canvas-text-lg); /* 18px */
 --range-editor-input-spacing: 6px;
 --range-editor-param-label-spacing: 24px;
 
@@ -702,7 +514,17 @@
 --toggle-slider-border: 1px solid var(--color-gray-100);
 --toggle-slider-offset: 2px;
 --toggle-transition-duration: 0.2s;
---toggle-label-font-size: 13px;
+--toggle-label-font-size: var(--canvas-text-md); /* 13px */
 --toggle-label-color: var(--color-gray-130);
 --toggle-label-spacing: 8px;
+
+/* === ELEMENT BOX TOKENS === */
+--element-box-bg: var(--color-gray-40);
+--element-box-bg-dragging: var(--color-gray-20);
+--element-box-border-highlight: 2px solid var(--color-blue-100);
+--element-box-name-weight: 500;
+
+/* === NODE SHADOW TOKENS === */
+--node-shadow-color: rgba(0, 0, 0, 0.15);
+--node-shadow-color-selected-rgba: rgba(68, 72, 191, 0.3); /* blue-80 with 0.3 opacity */
 }

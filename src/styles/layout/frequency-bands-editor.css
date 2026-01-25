@@ -1,0 +1,327 @@
+/* Frequency Bands Editor Layout Styles */
+
+/* ========================================
+   Overlay
+   ======================================== */
+
+.frequency-bands-editor-overlay {
+  /* Layout */
+  position: fixed;
+  top: 0;
+  left: 0;
+  display: none;
+
+  /* Box model */
+  width: 100%;
+  height: 100%;
+
+  /* Visual */
+  background: var(--search-dialog-overlay);
+
+  /* Other */
+  z-index: 1000;
+
+  &.is-visible {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* ========================================
+   Dialog
+   ======================================== */
+
+.frequency-bands-editor-dialog {
+  /* Layout */
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
+
+  /* Box model */
+  width: 31.25rem; /* 500px - one-off dimension */
+  max-width: 90vw;
+  max-height: 80vh;
+  border: 1px solid var(--divider);
+  border-radius: var(--search-dialog-radius);
+  box-shadow: 0 0 0 6px var(--search-dialog-border);
+
+  /* Visual */
+  background: var(--search-dialog-bg);
+
+  /* Other */
+  z-index: 1001;
+
+  /* ========================================
+     Header
+     ======================================== */
+
+  .header {
+    /* Box model */
+    padding: var(--pd-lg);
+    border-bottom: 1px solid var(--divider);
+
+    /* Typography */
+    font-size: var(--text-lg);
+    font-weight: 600;
+    color: var(--search-result-name-color);
+  }
+
+  /* ========================================
+     Bands Container
+     ======================================== */
+
+  .bands {
+    /* Layout */
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+
+    /* Box model */
+    padding: var(--pd-lg);
+    gap: var(--pd-md);
+    overflow-y: auto;
+
+    /* Visual */
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-gray-70) var(--color-gray-30);
+
+    &::-webkit-scrollbar {
+      /* Box model */
+      width: var(--size-2xs);
+    }
+
+    &::-webkit-scrollbar-track {
+      /* Visual */
+      background: var(--color-gray-30);
+    }
+
+    &::-webkit-scrollbar-thumb {
+      /* Box model */
+      border-radius: var(--radius-xs);
+
+      /* Visual */
+      background: var(--color-gray-70);
+
+      &:hover {
+        /* Visual */
+        background: var(--color-gray-80);
+      }
+    }
+
+    /* ========================================
+       Band Row
+       ======================================== */
+
+    .band-row {
+      /* Layout */
+      display: flex;
+      align-items: center;
+      gap: var(--pd-md);
+
+      /* Box model */
+      padding: var(--pd-md);
+      border: 1px solid rgba(255, 255, 255, 0.05); /* One-off visual value */
+      border-radius: var(--radius-lg);
+
+      /* Visual */
+      background: var(--color-gray-30);
+
+      /* ========================================
+         Band Label
+         ======================================== */
+
+      .band-label {
+        /* Box model */
+        min-width: var(--value-display-min-width);
+
+        /* Typography */
+        font-size: var(--text-sm);
+        font-weight: 500;
+        color: var(--color-gray-110);
+      }
+
+      /* ========================================
+         Input Container
+         ======================================== */
+
+      .input-container {
+        /* Layout */
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+
+        /* Box model */
+        gap: var(--pd-xs);
+      }
+
+      .input-label {
+        /* Typography */
+        font-size: var(--text-xs);
+        font-weight: 500;
+        color: var(--color-gray-100);
+      }
+
+      .input {
+        /* Typography */
+        font-family: var(--font-mono);
+        font-optical-sizing: auto;
+
+        &:hover:not(:focus) {
+          /* Box model */
+          border-color: var(--color-gray-80);
+        }
+      }
+
+      /* ========================================
+         Remove Button
+         ======================================== */
+
+      .remove-button {
+        /* Layout */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        /* Box model */
+        width: 2rem; /* 32px - one-off dimension */
+        height: 2rem; /* 32px - one-off dimension */
+        padding: 0;
+        flex-shrink: 0;
+        border: none;
+        border-radius: var(--radius-md);
+
+        /* Visual */
+        background: var(--color-red-80);
+        color: var(--color-gray-130);
+
+        /* Typography */
+        font-size: 1.25rem; /* 20px - one-off dimension */
+        font-weight: 600;
+
+        /* Other */
+        cursor: pointer;
+        transition: background 0.15s;
+
+        &:hover {
+          /* Visual */
+          background: var(--color-red-90);
+        }
+
+        &:active {
+          /* Visual */
+          background: var(--color-red-70);
+        }
+      }
+    }
+  }
+
+  /* ========================================
+     Add Button
+     ======================================== */
+
+  .add-button {
+    /* Box model */
+    margin: 0 var(--pd-lg) var(--pd-md);
+    padding: var(--pd-sm) var(--pd-md);
+    border: 1px solid var(--color-gray-70);
+    border-radius: var(--button-radius);
+
+    /* Visual */
+    background: var(--button-bg);
+    color: var(--button-color);
+
+    /* Typography */
+    font-size: var(--text-md);
+
+    /* Other */
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+
+    &:hover {
+      /* Box model */
+      border-color: var(--color-gray-80);
+
+      /* Visual */
+      background: var(--button-bg-hover);
+    }
+
+    &:active {
+      /* Visual */
+      background: var(--button-bg-active);
+    }
+  }
+
+  /* ========================================
+     Button Container
+     ======================================== */
+
+  .buttons {
+    /* Layout */
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--pd-md);
+
+    /* Box model */
+    padding: var(--pd-lg);
+    border-top: 1px solid var(--divider);
+  }
+
+  /* ========================================
+     Dialog Buttons
+     ======================================== */
+
+  .button {
+    /* Box model */
+    min-width: 5rem; /* 80px - one-off dimension */
+    padding: var(--pd-sm) var(--pd-lg);
+    border: 1px solid var(--color-gray-70);
+    border-radius: var(--button-radius);
+
+    /* Typography */
+    font-size: var(--text-md);
+    font-weight: 500;
+
+    /* Other */
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+
+    &:active {
+      /* Visual */
+      opacity: 0.8; /* One-off visual value - active state opacity */
+    }
+
+    &.cancel {
+      /* Visual */
+      background: var(--button-bg);
+      color: var(--button-color);
+
+      &:hover {
+        /* Box model */
+        border-color: var(--color-gray-80);
+
+        /* Visual */
+        background: var(--button-bg-hover);
+      }
+    }
+
+    &.apply {
+      /* Box model */
+      border-color: var(--color-blue-90);
+
+      /* Visual */
+      background: var(--color-blue-90);
+      color: var(--color-gray-130);
+
+      &:hover {
+        /* Box model */
+        border-color: var(--color-blue-100);
+
+        /* Visual */
+        background: var(--color-blue-100);
+      }
+    }
+  }
+}

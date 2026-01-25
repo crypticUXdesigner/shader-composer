@@ -1,0 +1,25 @@
+/* Menu Wrapper Component */
+/* Outer container for menus with frame styling */
+
+.menu-wrapper {
+  /* Layout */
+  position: fixed;
+  display: none;
+  flex-direction: column;
+
+  /* Box model */
+  border: var(--frame-border);
+  border-radius: var(--frame-border-radius);
+
+  /* Visual */
+  background: var(--frame-bg);
+  box-shadow: var(--frame-shadow);
+
+  /* Other */
+  z-index: var(--message-z-index);
+
+  &.is-visible {
+    /* Layout */
+    display: flex;
+  }
+}
