@@ -410,7 +410,6 @@ export class ContextualHelpCallout {
     const anchorTop = typeLabelBounds?.top ?? screenY;
     const anchorRight = typeLabelBounds?.right ?? screenX;
     const anchorBottom = typeLabelBounds?.bottom ?? screenY;
-    const anchorWidth = typeLabelBounds?.width ?? 0;
     const anchorHeight = typeLabelBounds?.height ?? 0;
     
     // Try multiple positions in order of preference and choose the best one
