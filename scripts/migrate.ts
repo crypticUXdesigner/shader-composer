@@ -6,9 +6,11 @@ import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Import element library and types
-import { elementLibrary } from '../src/shaders/elements/index.ts';
+// Import types and NodeSpecs
+// NOTE: elementLibrary has been removed - all VisualElements have been migrated to NodeSpecs
+// This migration script now uses NodeSpecs instead
 import type { SavedConfig, Layer, FXLayer, ColorConfig, ParameterConfig } from '../src/types/index.ts';
+import { nodeSystemSpecs } from '../src/shaders/nodes/index.ts';
 
 // Deprecated elements that should be removed
 const DEPRECATED_ELEMENTS = ['bayer-dither'];
@@ -36,8 +38,9 @@ interface ElementMetadata {
 function buildElementParamMap(): ElementParamMap {
   const paramMap: ElementParamMap = {};
   
-  for (const element of elementLibrary) {
-    paramMap[element.id] = new Set(Object.keys(element.parameters));
+  // Use NodeSpecs instead of VisualElements
+  for (const spec of nodeSystemSpecs) {
+    paramMap[spec.id] = new Set(Object.keys(spec.parameters));
   }
   
   return paramMap;
@@ -46,8 +49,24 @@ function buildElementParamMap(): ElementParamMap {
 function buildElementParamMetadata(): ElementParamMetadata {
   const metadata: ElementParamMetadata = {};
   
-  for (const element of elementLibrary) {
-    metadata[element.id] = { ...element.parameters };
+  // Use NodeSpecs instead of VisualElements
+  // Convert ParameterSpec to ParameterConfig format
+  for (const spec of nodeSystemSpecs) {
+    const convertedParams: Record<string, ParameterConfig> = {};
+    for (const [key, paramSpec] of Object.entries(spec.parameters)) {
+      // Only include float/int parameters (skip string, vec4, array for legacy compatibility)
+      if (paramSpec.type === 'float' || paramSpec.type === 'int') {
+        convertedParams[key] = {
+          type: paramSpec.type,
+          default: typeof paramSpec.default === 'number' ? paramSpec.default : 0,
+          min: paramSpec.min,
+          max: paramSpec.max,
+          step: paramSpec.step,
+          label: paramSpec.label
+        };
+      }
+    }
+    metadata[spec.id] = convertedParams;
   }
   
   return metadata;
@@ -56,10 +75,13 @@ function buildElementParamMetadata(): ElementParamMetadata {
 function buildElementMetadata(): ElementMetadata {
   const metadata: ElementMetadata = {};
   
-  for (const element of elementLibrary) {
-    metadata[element.id] = {
-      elementType: element.elementType,
-      isPostProcessor: element.elementType === 'post-processor' || element.postColorMapping === true
+  // Use NodeSpecs instead of VisualElements
+  // Note: NodeSpecs don't have elementType, so we infer from category
+  for (const spec of nodeSystemSpecs) {
+    const isPostProcessor = spec.category === 'Effects' || spec.category === 'Blend';
+    metadata[spec.id] = {
+      elementType: isPostProcessor ? 'post-processor' : 'content-generator',
+      isPostProcessor
     };
   }
   
@@ -479,7 +501,7 @@ function updateConfig(
 }
 
 function createDefaultConfig(): SavedConfig {
-  const allElementIds = Array.from(elementLibrary.map(el => el.id));
+  const allElementIds = Array.from(nodeSystemSpecs.map(spec => spec.id));
   const defaultColorConfig: ColorConfig = {
     mode: 'thresholds',
     startColor: { l: 0.2, c: 0.1, h: 200 },
@@ -605,7 +627,7 @@ function updateConfigFile(
 function main() {
   try {
     const configsDir = join(__dirname, '../src/configs');
-    const validElementIds = new Set(elementLibrary.map(el => el.id));
+    const validElementIds = new Set(nodeSystemSpecs.map(spec => spec.id));
     const paramMap = buildElementParamMap();
     const paramMetadata = buildElementParamMetadata();
     const elementMetadata = buildElementMetadata();

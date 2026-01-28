@@ -55,3 +55,21 @@ export {
   createEmptyGraph,
   createDefaultViewState,
 } from './utils';
+
+// Immutable Updates
+export {
+  deepCopyGraph,
+  addNode,
+  removeNode,
+  updateNode,
+  updateNodePosition,
+  updateNodeParameter,
+  updateNodeParameterInputMode,
+  updateNodeLabel,
+  addConnection,
+  removeConnection,
+  removeConnections,
+  updateViewState,
+  addNodes,
+  addConnections,
+} from './immutableUpdates';

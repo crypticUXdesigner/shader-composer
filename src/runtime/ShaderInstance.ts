@@ -8,6 +8,7 @@
 import type { CompilationResult } from './types';
 import { getUniformName } from './utils';
 import { ShaderCompilationError } from './errors';
+import type { Disposable } from '../utils/Disposable';
 
 /**
  * Base vertex shader (static, used for all shaders - fullscreen quad).
@@ -18,7 +19,7 @@ void main() {
   gl_Position = vec4(a_position, 0.0, 1.0);
 }`;
 
-export class ShaderInstance {
+export class ShaderInstance implements Disposable {
   private gl: WebGL2RenderingContext;
   private program: WebGLProgram | null = null;
   private vertexShader: WebGLShader | null = null;
@@ -104,8 +105,12 @@ export class ShaderInstance {
     
     if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
       const error = this.gl.getShaderInfoLog(shader);
-      console.error('Shader compile error:', error);
-      console.error('Shader source:', source);
+      const shaderType = type === this.gl.VERTEX_SHADER ? 'VERTEX' : 'FRAGMENT';
+      console.error(`[${shaderType} Shader] compile error:`, error);
+      console.error(`[${shaderType} Shader] source (first 2000 chars):`, source.substring(0, 2000));
+      if (source.length > 2000) {
+        console.error(`[${shaderType} Shader] source (last 500 chars):`, source.substring(source.length - 500));
+      }
       this.gl.deleteShader(shader);
       return null;
     }

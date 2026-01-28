@@ -1,0 +1,151 @@
+{
+    "format": "shader-composer-node-graph",
+    "formatVersion": "2.0",
+    "graph": {
+      "id": "graph-1769639414180-nyvdu6jvp",
+      "name": "Sphere Shader",
+      "version": "2.0",
+      "nodes": [
+        {
+          "id": "node-1769639414180-sq6u7wx2u",
+          "type": "final-output",
+          "position": {
+            "x": 7872,
+            "y": 924
+          },
+          "parameters": {}
+        },
+        {
+          "id": "node-1769639414180-nkthzitz9",
+          "type": "uv-coordinates",
+          "position": {
+            "x": 4127.355575180883,
+            "y": 639.3055066908443
+          },
+          "parameters": {}
+        },
+        {
+          "id": "node-1769639423540-a9d7bfkl4",
+          "type": "hexagonal-grid",
+          "position": {
+            "x": 4677,
+            "y": 706
+          },
+          "parameters": {
+            "hexSize": 0.25,
+            "hexGap": 0,
+            "hexCellRotation": 0,
+            "hexSizeVariation": 0,
+            "hexSizeVariationSteps": 0,
+            "hexRotation": 0,
+            "hexIntensity": 0.35,
+            "hexIntensityVariation": 0,
+            "hexSoftness": 0.01,
+            "hexEdgeThickness": 0,
+            "hexEdgeIntensity": 0,
+            "hexRimWidth": 0,
+            "hexRimIntensity": 0,
+            "hexSeed": 0,
+            "hexPulseSpeed": 0.6,
+            "hexPulseDepth": 0.19999999999999998,
+            "hexWaveDirection": 0,
+            "hexWaveFrequency": 40,
+            "hexWaveSpeed": 1.6,
+            "hexWaveDepth": 0.4
+          }
+        },
+        {
+          "id": "node-1769639531265-8tnsbn2bl",
+          "type": "oklch-color-map-bezier",
+          "position": {
+            "x": 7024,
+            "y": 1096
+          },
+          "parameters": {
+            "stops": 10
+          }
+        },
+        {
+          "id": "node-1769639558985-ay7mqrzpe",
+          "type": "oklch-color",
+          "position": {
+            "x": 5790,
+            "y": 1150
+          },
+          "parameters": {
+            "l": 0.14,
+            "c": 0.064,
+            "h": 7.2
+          }
+        },
+        {
+          "id": "node-1769639564643-3wlb1m4vz",
+          "type": "oklch-color",
+          "position": {
+            "x": 6009,
+            "y": 1619
+          },
+          "parameters": {
+            "l": 1,
+            "c": 0.268,
+            "h": 280.8
+          }
+        },
+        {
+          "id": "node-1769639621101-3es2m0245",
+          "type": "bayer-dither",
+          "position": {
+            "x": 6011,
+            "y": 495
+          },
+          "parameters": {
+            "strength": 0.5,
+            "pixelSize": 1
+          }
+        }
+      ],
+      "connections": [
+        {
+          "id": "conn-1769639429367-cyks933t0",
+          "sourceNodeId": "node-1769639414180-nkthzitz9",
+          "sourcePort": "out",
+          "targetNodeId": "node-1769639423540-a9d7bfkl4",
+          "targetPort": "in"
+        },
+        {
+          "id": "conn-1769639539041-8fd5pi9l0",
+          "sourceNodeId": "node-1769639423540-a9d7bfkl4",
+          "sourcePort": "out",
+          "targetNodeId": "node-1769639531265-8tnsbn2bl",
+          "targetPort": "in"
+        },
+        {
+          "id": "conn-1769639542844-3o7ifqv78",
+          "sourceNodeId": "node-1769639531265-8tnsbn2bl",
+          "sourcePort": "out",
+          "targetNodeId": "node-1769639414180-sq6u7wx2u",
+          "targetPort": "in"
+        },
+        {
+          "id": "conn-1769639568292-sr5ya1awz",
+          "sourceNodeId": "node-1769639558985-ay7mqrzpe",
+          "sourcePort": "out",
+          "targetNodeId": "node-1769639531265-8tnsbn2bl",
+          "targetPort": "startColor"
+        },
+        {
+          "id": "conn-1769639569866-mpe0sfqt4",
+          "sourceNodeId": "node-1769639564643-3wlb1m4vz",
+          "sourcePort": "out",
+          "targetNodeId": "node-1769639531265-8tnsbn2bl",
+          "targetPort": "endColor"
+        }
+      ],
+      "viewState": {
+        "zoom": 0.46819723438634236,
+        "panX": -2807.2296451402476,
+        "panY": -204.87867740973024,
+        "selectedNodeIds": []
+      }
+    }
+  }

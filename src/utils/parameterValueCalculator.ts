@@ -4,7 +4,7 @@
 
 import type { NodeGraph, NodeInstance, Connection } from '../types/nodeGraph';
 import type { NodeSpec, ParameterSpec } from '../types/nodeSpec';
-import type { AudioManager } from '../runtime/AudioManager';
+import type { IAudioManager } from '../runtime/types';
 
 export type ParameterInputMode = 'override' | 'add' | 'subtract' | 'multiply';
 
@@ -17,7 +17,7 @@ export function computeEffectiveParameterValue(
   paramSpec: ParameterSpec,
   graph: NodeGraph,
   nodeSpecs: Map<string, NodeSpec>,
-  audioManager?: AudioManager
+  audioManager?: IAudioManager
 ): number | null {
   // Find connection that targets this parameter
   const connection = graph.connections.find(
@@ -74,7 +74,7 @@ function getInputValue(
   connection: Connection,
   graph: NodeGraph,
   nodeSpecs: Map<string, NodeSpec>,
-  audioManager?: AudioManager
+  audioManager?: IAudioManager
 ): number | null {
   const sourceNode = graph.nodes.find(n => n.id === connection.sourceNodeId);
   if (!sourceNode) return null;

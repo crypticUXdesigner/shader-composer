@@ -1,12 +1,27 @@
 :root {
-/* === NODE EDITOR CANVAS TOKENS === */
+/*
+ * Canvas tokens — consumed by JS via getCSSVariable*().
+ * Sections are grouped by what they drive in node rendering.
+ *
+ * 1. Canvas         → grid, bg, guides (canvas layer)
+ * 2. Node — Box     → outer container, border, shadow (NodeRenderer)
+ * 3. Node — Header  → layout + content + gradient + icon box (HeaderFlexboxLayout, NodeHeaderRenderer, NodeRenderer)
+ * 4. Node — Body   → body padding, flex (BodyFlexboxLayout, AutoGridElement)
+ * 5. Ports          → port dot, label, type chip (NodePortRenderer, RenderingUtils; header + param ports)
+ * 6. Connections    → wire stroke (ConnectionLayerRenderer, ParameterConnectionLayerRenderer)
+ * 7. Parameters     → param grid, cells, knob, toggle, enum, range, etc. (param layout + param renderers)
+ * 8. Embedded UIs   → range-editor, bezier, remap-range, frequency-range, color-picker, etc.
+ * 9. Icons / Other  → icon design, delete button, zoom
+ */
+
+/* === 1. CANVAS (grid, bg, guides) === */
 --canvas-bg: var(--color-gray-40);
 --canvas-grid-color: var(--color-gray-50);
---canvas-grid-size: 50px;
+--canvas-grid-size: 150px;
 --canvas-grid-dot-radius: 1.5px;
 --smart-guide-color: var(--color-blue-90);
 
-/* === NODE TOKENS === */
+/* === 2. NODE — BOX (outer container, border, shadow) === */
 --node-bg: var(--color-gray-80);
 --node-bg-end: var(--color-gray-80);
 --node-bg-selected: var(--color-blue-40);
@@ -14,32 +29,120 @@
 --node-border: #ffffff4e;
 --node-border-selected: #ffffff99;
 --node-border-width: 1px;
---node-border-width-selected: 3px;
---node-border-offset-selected: 2px;
+--node-border-width-selected: 6px;
+--node-border-offset-selected: 6px;
 --node-padding: 0px;
---node-body-padding: 18px;
---node-header-bg: var(--color-gray-50);
---node-header-border: var(--color-gray-100);
---node-title-color: var(--color-gray-130);
 --node-radius: var(--radius-lg);
 
-/* Node Background Gradient */
+/* Node box gradient (background of full node) */
 --node-bg-gradient-ellipse-width: 150%;
 --node-bg-gradient-ellipse-height: 200%;
 --node-bg-gradient-ellipse-x: 50%;
 --node-bg-gradient-ellipse-y: 20%;
 
-/* Node Header Background Gradient */
+/* Node box chrome (min-width, radius, shadow) — used with Node — Box */
+--node-box-min-width: 400px;
+--node-box-border-radius: 36px;
+--node-box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+--node-box-shadow-selected: 0 4px 12px var(--color-blue-60);
+--node-shadow-color: rgba(0, 0, 0, 0.15);
+--node-shadow-color-selected-rgba: rgba(68, 72, 191, 0.3);
+
+/* === 3. NODE — HEADER (HeaderFlexboxLayout, NodeHeaderRenderer, NodeRenderer) === */
+
+/* Header content: padding, min-height, icon, name */
+--node-header-padding: 24px; /* General header inset — inputs and outputs react to this */
+--node-header-logo-padding: 60px; /* Padding around icon box + label (center part only) */
+--node-header-min-height: 200px;
+--node-header-icon-size: 60px;
+--node-header-name-size: 24px;
+--node-header-name-weight: 600;
+--node-header-name-color: var(--color-gray-130);
+
+/* Header background gradient (ellipse for radial gradient) */
 --node-header-bg-gradient-ellipse-width: 200%;
 --node-header-bg-gradient-ellipse-height: 150%;
 --node-header-bg-gradient-ellipse-x: 50%;
 --node-header-bg-gradient-ellipse-y: 15%;
 
-/* === NODE DELETE BUTTON TOKENS === */
---node-delete-bg: var(--color-red-80);
---node-delete-color: var(--color-gray-130);
+/* Header category gradient (start/end colors per category) */
+--node-header-category-color-inputs: var(--color-blue-70);
+--node-header-category-color-patterns: var(--color-leaf-70);
+--node-header-category-color-shapes: var(--color-teal-70);
+--node-header-category-color-math: var(--color-orange-70);
+--node-header-category-color-utilities: var(--color-yellow-70);
+--node-header-category-color-distort: var(--color-orange-red-70);
+--node-header-category-color-blend: var(--color-purple-70);
+--node-header-category-color-mask: var(--color-violet-70);
+--node-header-category-color-effects: var(--color-red-purple-70);
+--node-header-category-color-output: var(--color-red-70);
+--node-header-category-color-audio: var(--color-cyan-70);
+--node-header-category-color-default: var(--color-gray-70);
+--node-header-category-color-end-inputs: var(--color-blue-50);
+--node-header-category-color-end-patterns: var(--color-leaf-50);
+--node-header-category-color-end-shapes: var(--color-teal-50);
+--node-header-category-color-end-math: var(--color-orange-50);
+--node-header-category-color-end-utilities: var(--color-yellow-50);
+--node-header-category-color-end-distort: var(--color-orange-red-50);
+--node-header-category-color-end-blend: var(--color-purple-50);
+--node-header-category-color-end-mask: var(--color-violet-50);
+--node-header-category-color-end-effects: var(--color-red-purple-50);
+--node-header-category-color-end-output: var(--color-red-50);
+--node-header-category-color-end-audio: var(--color-cyan-50);
+--node-header-category-color-end-default: var(--color-gray-50);
 
-/* === NODE PORT TOKENS === */
+/* Header icon box (center block: icon + name) */
+--node-icon-box-width: 90px;
+--node-icon-box-height: 90px;
+--node-icon-box-radius: 36px;
+--node-icon-box-name-spacing: 24px;
+--node-icon-box-bg-inputs: var(--color-blue-50);
+--node-icon-box-bg-patterns: var(--color-leaf-80);
+--node-icon-box-bg-shapes: var(--color-teal-80);
+--node-icon-box-bg-math: var(--color-orange-50);
+--node-icon-box-bg-utilities: var(--color-yellow-50);
+--node-icon-box-bg-distort: var(--color-orange-red-80);
+--node-icon-box-bg-blend: var(--color-purple-80);
+--node-icon-box-bg-mask: var(--color-violet-80);
+--node-icon-box-bg-effects: var(--color-red-purple-80);
+--node-icon-box-bg-output: var(--color-red-50);
+--node-icon-box-bg-audio: var(--color-cyan-50);
+--node-icon-box-bg-default: var(--color-gray-50);
+
+/* Header layout (flex): prefix "node-header" for FlexboxLayoutEngine */
+--node-header-flex-direction: row;
+--node-header-justify-content: space-between;
+--node-header-align-items: center;
+--node-header-gap: 12px;
+--node-header-inputs-flex-direction: column;
+--node-header-inputs-justify-content: flex-start;
+--node-header-inputs-align-items: flex-start;
+--node-header-inputs-gap: 28px;
+--node-header-logo-flex-direction: column;
+--node-header-logo-justify-content: center;
+--node-header-logo-align-items: center;
+--node-header-logo-gap: 4px;
+--node-header-outputs-flex-direction: column;
+--node-header-outputs-justify-content: flex-start;
+--node-header-outputs-align-items: flex-end;
+--node-header-outputs-gap: 28px;
+
+/* Header ports: spacing between ports, label color */
+--node-header-input-port-spacing: var(--scale-11); /* 54px */
+--node-header-port-label-color: var(--color-gray-110);
+
+/* Legacy/alias (referenced by DOM or older code) */
+--node-header-bg: var(--color-gray-50);
+--node-header-border: var(--color-gray-100);
+--node-title-color: var(--color-gray-130);
+
+/* === 4. NODE — BODY (BodyFlexboxLayout, AutoGridElement, param layout) === */
+--node-body-padding: 18px;
+
+/* === 5. PORTS (NodePortRenderer, RenderingUtils; header + param ports) === */
+--node-port-size: var(--scale-4); /* 12px */
+--node-port-spacing: var(--scale-6); /* 24px */
+--node-port-regular-size: var(--scale-4); /* 12px */
 --port-radius: var(--scale-4); /* 12px */
 --port-border-width: var(--scale-3); /* 2px */
 --port-border-color: #00000059;
@@ -58,9 +161,6 @@
 --port-label-font-weight: 600;
 --port-label-color: var(--color-gray-10);
 --port-label-spacing: var(--scale-4); /* 12px - Space between port and label */
-
-/* === NODE HEADER PORT LABEL TOKENS === */
---node-header-port-label-color: var(--color-gray-110); /* Bright color for header input/output port labels */
 
 /* Port Type Background Colors (per type) */
 --port-type-bg-float: var(--color-gray-40);
@@ -112,7 +212,7 @@
 --category-color-end-audio: var(--color-cyan-80);
 --category-color-end-default: var(--color-gray-80);
 
-/* === NODE HEADER CATEGORY BACKGROUND TOKENS === */
+/* Header category palette (used by DOM node-panel for palette; canvas uses node-header-category-color-* / node-icon-box-bg-* above) */
 --node-header-bg-inputs: var(--color-blue-50);
 --node-header-bg-patterns: var(--color-leaf-50);
 --node-header-bg-shapes: var(--color-teal-50);
@@ -126,56 +226,11 @@
 --node-header-bg-audio: var(--color-cyan-50);
 --node-header-bg-default: var(--color-gray-50);
 
-/* === NODE HEADER CATEGORY COLOR TOKENS (for gradient start) === */
---node-header-category-color-inputs: var(--color-blue-70);
---node-header-category-color-patterns: var(--color-leaf-70);
---node-header-category-color-shapes: var(--color-teal-70);
---node-header-category-color-math: var(--color-orange-70);
---node-header-category-color-utilities: var(--color-yellow-70);
---node-header-category-color-distort: var(--color-orange-red-70);
---node-header-category-color-blend: var(--color-purple-70);
---node-header-category-color-mask: var(--color-violet-70);
---node-header-category-color-effects: var(--color-red-purple-70);
---node-header-category-color-output: var(--color-red-70);
---node-header-category-color-audio: var(--color-cyan-70);
---node-header-category-color-default: var(--color-gray-70);
+/* === 9. ICONS / OTHER (icon rendering, delete button, zoom) === */
+--node-delete-bg: var(--color-red-80);
+--node-delete-color: var(--color-gray-130);
 
-/* === NODE HEADER CATEGORY COLOR END TOKENS (for gradient end) === */
---node-header-category-color-end-inputs: var(--color-blue-50);
---node-header-category-color-end-patterns: var(--color-leaf-50);
---node-header-category-color-end-shapes: var(--color-teal-50);
---node-header-category-color-end-math: var(--color-orange-50);
---node-header-category-color-end-utilities: var(--color-yellow-50);
---node-header-category-color-end-distort: var(--color-orange-red-50);
---node-header-category-color-end-blend: var(--color-purple-50);
---node-header-category-color-end-mask: var(--color-violet-50);
---node-header-category-color-end-effects: var(--color-red-purple-50);
---node-header-category-color-end-output: var(--color-red-50);
---node-header-category-color-end-audio: var(--color-cyan-50);
---node-header-category-color-end-default: var(--color-gray-50);
-
-/* === NODE ICON BOX CATEGORY BACKGROUND TOKENS === */
---node-icon-box-bg-inputs: var(--color-blue-50);
---node-icon-box-bg-patterns: var(--color-leaf-80);
---node-icon-box-bg-shapes: var(--color-teal-80);
---node-icon-box-bg-math: var(--color-orange-50);
---node-icon-box-bg-utilities: var(--color-yellow-50);
---node-icon-box-bg-distort: var(--color-orange-red-80);
---node-icon-box-bg-blend: var(--color-purple-80);
---node-icon-box-bg-mask: var(--color-violet-80);
---node-icon-box-bg-effects: var(--color-red-purple-80);
---node-icon-box-bg-output: var(--color-red-50);
---node-icon-box-bg-audio: var(--color-cyan-50);
---node-icon-box-bg-default: var(--color-gray-50);
-
-/* === NODE ICON BOX SIZE TOKENS === */
---node-icon-box-width: 90px;
---node-icon-box-height: 90px;
---node-icon-box-radius: 36px;
---node-icon-box-name-spacing: 24px;
-
-/* === ICON DESIGN TOKENS === */
-/* Icon Stroke & Fill */
+/* Icon design (stroke, ratios, etc.) */
 --icon-stroke-width: 4px;
 --icon-stroke-width-thick: 9px;
 --icon-stroke-width-thin: 2px;
@@ -221,15 +276,7 @@
 --icon-line-length: 0.7; /* Line length */
 --icon-line-offset: 0.15; /* Line offset from center */
 
-/* === NODE PARAMETER TOKENS === */
---node-param-bg: transparent;
---node-param-label-color: var(--color-gray-100);
---node-param-value-color: var(--color-gray-130);
---node-param-value-animated-color: var(--color-teal-110);
---node-param-separator: var(--color-gray-100);
---node-param-group-header-color: var(--color-gray-110);
-
-/* === CONNECTION TOKENS === */
+/* === 6. CONNECTIONS (ConnectionLayerRenderer, ParameterConnectionLayerRenderer) === */
 --connection-color: var(--color-gray-100);
 --connection-color-selected: var(--color-blue-90);
 --connection-width: 6px;
@@ -246,28 +293,21 @@
 --connection-color-bool: var(--color-gray-110);
 --connection-color-default: var(--color-gray-110);
 
-/* === NODE REDESIGN TOKENS === */
+/* === 7. PARAMETERS (param grid, cells, knob, toggle, enum, range, etc.) === */
+--node-param-bg: transparent;
+--node-param-label-color: var(--color-gray-100);
+--node-param-value-color: var(--color-gray-130);
+--node-param-value-animated-color: var(--color-teal-110);
+--node-param-separator: var(--color-gray-100);
+--node-param-group-header-color: var(--color-gray-110);
 
-/* Node Box */
---node-box-min-width: 300px;
---node-box-border-radius: 36px;
---node-box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
---node-box-shadow-selected: 0 4px 12px var(--color-blue-60);
-
-/* Node Header */
---node-header-height: 200px;
---node-header-min-height: 140px;
---node-header-padding: 24px;
---node-header-icon-size: 60px;
---node-header-name-size: 24px;
---node-header-name-weight: 600;
---node-header-name-color: var(--color-gray-130);
-
-/* Node Ports (Regular I/O) */
---node-port-size: var(--scale-4); /* 12px */
---node-port-spacing: var(--scale-6); /* 24px */
---node-header-input-port-spacing: var(--scale-11); /* 54px - Spacing between input ports in node header */
---node-port-regular-size: var(--scale-4); /* 12px - Keep existing port-radius for compatibility */
+/*
+ * Parameter UI design system: param-* = cell shell; input-* = value box primitive;
+ * knob-* = rotary only; toggle-* / enum-selector-* / range-editor-* / remap-range-* = per-component.
+ * Token index: param-* (Parameter Cell), input-* (Input/value box), knob-* (Rotary Knob),
+ * toggle-* (TOGGLE SWITCH TOKENS), enum-selector-* (ENUM SELECTOR TOKENS),
+ * range-editor-* (RANGE EDITOR TOKENS), remap-range-* (Remap Range Container).
+ */
 
 /* Parameter Grid */
 --param-grid-bg: transparent;
@@ -319,6 +359,17 @@
 --knob-arc-start: 225deg; /* Bottom-left  */
 --knob-arc-end: 315deg; /* Bottom-right */
 --knob-arc-sweep: 270deg; /* Total sweep angle (270deg arc from bottom-left to bottom-right) */
+/* Knob tokens are for the rotary control only; the value display uses input-* */
+
+/* === INPUT / VALUE BOX PRIMITIVE === */
+/* input-* is the value-box primitive used by input param, knob value display, and remap-range input row */
+--input-value-font-size: var(--canvas-text-2xl); /* 20px – from knob-value-font-size */
+--input-value-color: var(--color-gray-130);
+--input-value-bg: #000000d9;
+--input-value-radius: 12px;
+--input-value-padding-horizontal: 18px;
+--input-value-padding-vertical: 6px;
+--input-value-animated-color: var(--color-teal-110); /* connected/animated value; from node-param-value-animated-color */
 
 /* Parameter Mode Button */
 --param-mode-button-size: 24px;
@@ -344,7 +395,8 @@
 /* Zoom Interaction */
 --zoom-interaction-threshold: 0.3; /* Disable parameter drag below this zoom */
 
-/* === BEZIER EDITOR TOKENS === */
+/* === 8. EMBEDDED UIs (range-editor, bezier, toggle, enum, remap-range, etc.) === */
+/* Bezier editor */
 --bezier-editor-bg: var(--color-gray-20);
 --bezier-editor-border: 0 solid var(--color-gray-70);
 --bezier-editor-border-color: var(--color-gray-70);
@@ -524,7 +576,126 @@
 --element-box-border-highlight: 2px solid var(--color-blue-100);
 --element-box-name-weight: 500;
 
-/* === NODE SHADOW TOKENS === */
---node-shadow-color: rgba(0, 0, 0, 0.15);
---node-shadow-color-selected-rgba: rgba(68, 72, 191, 0.3); /* blue-80 with 0.3 opacity */
+/* === FLEXBOX LAYOUT (Node/Header/Body prefixes for FlexboxLayoutEngine) === */
+/* Node container; header layout tokens live in §3 Node — Header */
+--node-flex-direction: column;
+--node-justify-content: flex-start;
+--node-align-items: stretch;
+--node-gap: 0px;
+--node-padding: 0px;
+--node-min-width: 300px;
+--node-max-width: none;
+
+/* Body Container */
+--node-body-flex-direction: column;
+--node-body-justify-content: flex-start;
+--node-body-align-items: stretch;
+--node-body-gap: 0px;
+
+/* Grid Slot Container */
+--param-grid-flex-direction: row;
+--param-grid-flex-wrap: wrap;
+--param-grid-justify-content: flex-start;
+--param-grid-align-items: flex-start;
+
+/* Grid Cell Container */
+--param-cell-flex-direction: column;
+--param-cell-justify-content: center;
+--param-cell-align-items: center;
+--param-cell-gap: 8px;
+--param-cell-min-height: auto; /* content-based */
+--param-cell-flex-grow: 0;
+--param-cell-flex-shrink: 1;
+--param-cell-flex-basis: auto;
+
+/* Grid Cell - Label */
+--param-cell-label-order: 1;
+--param-cell-label-align-self: center;
+--param-cell-label-margin-bottom: 0px;
+
+/* Grid Cell - Control Container (nested) */
+--param-cell-control-container-flex-direction: column;
+--param-cell-control-container-justify-content: center;
+--param-cell-control-container-align-items: center;
+--param-cell-control-container-gap: 0px;
+--param-cell-control-container-order: 2;
+
+/* Grid Cell - Knob */
+--param-cell-knob-order: 1;
+--param-cell-knob-align-self: center;
+--param-cell-knob-flex-grow: 0;
+--param-cell-knob-flex-shrink: 0;
+
+/* Grid Cell - Value */
+--param-cell-value-order: 2;
+--param-cell-value-align-self: center;
+--param-cell-value-margin-top: 4px;
+
+/* Grid Cell - Port */
+--param-cell-port-position: absolute; /* or 'flex' */
+--param-cell-port-order: 1;
+--param-cell-port-align-self: flex-start;
+--param-cell-port-offset-x: 18px; /* When absolute */
+--param-cell-port-offset-y: 18px; /* When absolute */
+--param-cell-port-margin-right: 8px; /* When flex */
+
+/* Grid Cell - Mode Button */
+--param-cell-mode-position: absolute; /* or 'flex' */
+--param-cell-mode-order: 0;
+--param-cell-mode-align-self: flex-start;
+--param-cell-mode-offset-x: 18px; /* When absolute */
+--param-cell-mode-offset-y: 18px; /* When absolute */
+
+/* Remap Range Container
+ * Column layout: padding, slider row, gap (= padding), input row, padding.
+ * Layering: remap-range-* overlays range-editor-*; use var(--range-editor-...) defaults where shared.
+ */
+--remap-range-height: 300px; /* Fallback total; computed as 3×padding + slider-row + input-row when tokens set */
+--remap-range-padding: 12px; /* Used as container padding and as gap between rows */
+--remap-range-gap: 0px; /* Unused; gap = padding */
+--remap-range-radius: var(--range-editor-radius);
+--remap-range-editor-padding: var(--range-editor-padding); /* Inset inside container for slider/content area */
+--remap-range-slider-row-height: 228px; /* Height of the slider graph row */
+--remap-range-input-row-height: 24px; /* Height of the In/Out Min/Max input row */
+
+/* Remap Range – input row (IN: min — max | OUT: min — max) */
+--remap-range-input-group-gap: 120px; /* Gap between IN and OUT groups */
+--remap-range-input-dash-width: 18px; /* Space for the "—" between min and max */
+--remap-range-input-item-spacing: 2px; /* Spacing between label, value boxes, dash */
+--remap-range-input-label-font-size: var(--canvas-text-md); /* 11px */
+--remap-range-input-label-width: 24px; /* Reserved width for "IN:" / "OUT:" (for layout + hit-test) */
+--remap-range-input-label-color: var(--range-editor-label-color);
+
+/* Remap Range – slider and connection (overlay range-editor) */
+--remap-range-slider-width: var(--range-editor-slider-width);
+--remap-range-slider-radius: var(--range-editor-slider-radius);
+--remap-range-connection-width: var(--range-editor-connection-width);
+--remap-range-connection-dash: var(--range-editor-connection-dash);
+
+/* Remap Range – slider colors */
+--remap-range-bg: var(--color-gray-20);
+--remap-range-slider-bg: var(--color-gray-30);
+--remap-range-slider-track-color: var(--color-gray-60);
+--remap-range-slider-input-color: var(--color-purple-90);   /* Left/input range fill */
+--remap-range-slider-output-color: var(--color-green-90); /* Right/output range fill */
+--remap-range-connection-color: var(--color-blue-90);
+
+/* Bezier Editor Container */
+--bezier-editor-gap: 6px;
+
+/* === EMBED SLOT (frequency-range, etc.) === */
+--embed-slot-pd: 12px; /* Padding and gap for embed-slot; direction column */
+
+/* Frequency Range Element (simplified range: label + horizontal slider + start/end inputs) */
+--frequency-range-label-font-size: var(--canvas-text-md); /* 11px */
+--frequency-range-slider-height: 36px;
+--frequency-range-input-row-height: 24px;
+--frequency-range-input-gap: 60px;
+--frequency-range-radius: var(--radius-md);
+--frequency-range-bg: var(--color-gray-20);
+--frequency-range-slider-bg: var(--color-gray-40);
+--frequency-range-slider-track-color: var(--color-gray-60);
+--frequency-range-slider-active-color: var(--color-teal-90);
+--frequency-range-slider-radius: 4px;
+--frequency-range-label-color: var(--color-gray-110);
 }

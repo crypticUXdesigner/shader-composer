@@ -8,12 +8,16 @@
 
 import { ShaderInstance } from './ShaderInstance';
 import { Renderer } from './Renderer';
-import type { ShaderCompiler, ErrorCallback } from './types';
+import type { ShaderCompiler, ErrorCallback, CompilationResult } from './types';
 import type { NodeGraph } from '../data-model/types';
 import { hashGraph } from './utils';
 import { ShaderCompilationError } from './errors';
+import type { ErrorHandler } from '../utils/errorHandling';
+import { ErrorUtils, adaptErrorCallback, globalErrorHandler } from '../utils/errorHandling';
+import type { Disposable } from '../utils/Disposable';
+import { GraphChangeDetector } from '../utils/changeDetection/GraphChangeDetector';
 
-export class CompilationManager {
+export class CompilationManager implements Disposable {
   private shaderInstance: ShaderInstance | null = null;
   private compiler: ShaderCompiler;
   private renderer: Renderer;
@@ -27,17 +31,39 @@ export class CompilationManager {
   // Track if graph structure changed
   private lastGraphHash: string = '';
   
-  // Error callback
+  // Track previous graph for change detection (incremental compilation)
+  private previousGraph: NodeGraph | null = null;
+  
+  // Track previous graph state metadata for incremental compilation
+  private previousGraphState: {
+    nodeIds: Set<string>;
+    connectionIds: Set<string>;
+    executionOrder: string[];
+  } | null = null;
+  
+  // Store compilation metadata for incremental compilation
+  private compilationMetadata: {
+    result: CompilationResult;
+    executionOrder: string[];
+  } | null = null;
+  
+  // Error handling - support both old ErrorCallback and new ErrorHandler
   private errorCallback?: ErrorCallback;
+  private errorHandler?: ErrorHandler;
+  
+  // Parameter update batching
+  private parameterRenderScheduled: boolean = false;
   
   constructor(
     compiler: ShaderCompiler,
     renderer: Renderer,
-    errorCallback?: ErrorCallback
+    errorCallback?: ErrorCallback,
+    errorHandler?: ErrorHandler
   ) {
     this.compiler = compiler;
     this.renderer = renderer;
     this.errorCallback = errorCallback;
+    this.errorHandler = errorHandler;
   }
   
   /**
@@ -51,9 +77,9 @@ export class CompilationManager {
    * Handle parameter change.
    * Determines if recompilation is needed or just uniform update.
    */
-  onParameterChange(nodeId: string, paramName: string, value: number): void {
+  onParameterChange(nodeId: string, paramName: string, value: number | number[][]): void {
     if (!this.graph) return;
-    
+
     // Update graph
     const node = this.graph.nodes.find(n => n.id === nodeId);
     if (node) {
@@ -63,14 +89,14 @@ export class CompilationManager {
         node.parameters[paramName] = value;
         return;
       }
-      
+
       // Skip runtime-only parameters for audio-analyzer nodes
       if (node.type === 'audio-analyzer' && (paramName === 'smoothing' || paramName === 'fftSize' || paramName === 'frequencyBands')) {
         // Just update the graph parameter, don't try to set as uniform
         node.parameters[paramName] = value;
         return;
       }
-      
+
       node.parameters[paramName] = value;
     }
     
@@ -81,63 +107,110 @@ export class CompilationManager {
     if (needsRecompile) {
       // Debounce compilation
       this.scheduleRecompile();
+    } else if (typeof value === 'number') {
+      // Parameter value changed (number) - batch uniform updates and rendering
+      this.scheduleParameterUpdate(nodeId, paramName, value);
     } else {
-      // Check if parameter is connected to an output
-      const isConnected = this.graph.connections.some(
-        conn => conn.targetNodeId === nodeId && conn.targetParameter === paramName
-      );
-      
-      if (isConnected) {
-        // Parameter has input connection - check the input mode
-        const node = this.graph.nodes.find(n => n.id === nodeId);
-        if (node) {
-          // Get the input mode from node override (if explicitly set)
-          const inputMode = node.parameterInputModes?.[paramName];
-          
-          // If mode is explicitly set to 'override', the input completely replaces the config value,
-          // so the uniform is not used and we can skip updating it.
-          // But if mode is 'add', 'subtract', 'multiply', or undefined (might default to something other than override),
-          // the uniform IS used in the combination expression, so we MUST update it.
-          // To be safe and ensure correctness, we'll update the uniform unless mode is explicitly 'override'.
-          if (inputMode !== 'override') {
-            // Mode is add/subtract/multiply or undefined - uniform is used in combination, so update it
-            if (this.shaderInstance) {
-              this.shaderInstance.setParameter(nodeId, paramName, value);
-              this.renderer.render();
-            }
-          }
-          // If mode is explicitly 'override', skip uniform update (input completely replaces config)
-        }
-      } else {
-        // No input connection - just update uniform
-        if (this.shaderInstance) {
-          this.shaderInstance.setParameter(nodeId, paramName, value);
-          this.renderer.render();
-        }
-      }
+      // Array parameter (e.g. frequencyBands) - trigger recompile
+      this.scheduleRecompile();
     }
   }
   
   /**
    * Handle graph structure change (node added/removed, connection added/removed).
+   * @param immediate - If true, recompile immediately (e.g. when only connections changed) so parameter connections take effect right away.
    */
-  onGraphStructureChange(): void {
-    this.scheduleRecompile();
+  onGraphStructureChange(immediate: boolean = false): void {
+    if (immediate) {
+      this.cancelPendingRecompile();
+      // Defer to next tick so we don't block the connection handler; still much faster than 100ms debounce
+      this.compileTimeout = window.setTimeout(() => {
+        this.compileTimeout = null;
+        this.recompile();
+      }, 0);
+    } else {
+      this.scheduleRecompile();
+    }
+  }
+
+  /**
+   * Cancel any pending recompilation (used before immediate recompile).
+   */
+  private cancelPendingRecompile(): void {
+    if (this.compileTimeout) {
+      clearTimeout(this.compileTimeout);
+      this.compileTimeout = null;
+    }
+    if (this.compileIdleCallback !== null && typeof window !== 'undefined' && window.cancelIdleCallback) {
+      window.cancelIdleCallback(this.compileIdleCallback);
+      this.compileIdleCallback = null;
+    }
+  }
+  
+  /**
+   * Schedule parameter update for next frame (batching).
+   * Updates uniforms immediately (cheap operation) but defers rendering.
+   */
+  private scheduleParameterUpdate(nodeId: string, paramName: string, value: number): void {
+    if (!this.graph || !this.shaderInstance) return;
+    
+    // Update uniform immediately (cheap operation, doesn't block)
+    // Check if parameter is connected to an output
+    const isConnected = this.graph.connections.some(
+      conn => conn.targetNodeId === nodeId && conn.targetParameter === paramName
+    );
+    
+    if (isConnected) {
+      // Parameter has input connection - check the input mode
+      const node = this.graph.nodes.find(n => n.id === nodeId);
+      if (node) {
+        // Get the input mode from node override (if explicitly set)
+        const inputMode = node.parameterInputModes?.[paramName];
+        
+        // If mode is explicitly set to 'override', the input completely replaces the config value,
+        // so the uniform is not used and we can skip updating it.
+        // But if mode is 'add', 'subtract', 'multiply', or undefined (might default to something other than override),
+        // the uniform IS used in the combination expression, so we MUST update it.
+        // To be safe and ensure correctness, we'll update the uniform unless mode is explicitly 'override'.
+        if (inputMode !== 'override') {
+          // Mode is add/subtract/multiply or undefined - uniform is used in combination, so update it
+          this.shaderInstance.setParameter(nodeId, paramName, value);
+        }
+        // If mode is explicitly 'override', skip uniform update (input completely replaces config)
+      }
+    } else {
+      // No input connection - just update uniform
+      this.shaderInstance.setParameter(nodeId, paramName, value);
+    }
+    
+    // Mark renderer as dirty
+    this.renderer.markDirty('parameter');
+    
+    // Schedule render for next frame (if not already scheduled)
+    if (!this.parameterRenderScheduled) {
+      this.parameterRenderScheduled = true;
+      requestAnimationFrame(() => {
+        this.flushParameterRender();
+      });
+    }
+  }
+  
+  /**
+   * Flush pending parameter render (called on next animation frame).
+   */
+  private flushParameterRender(): void {
+    this.parameterRenderScheduled = false;
+    
+    // All uniforms were already updated in scheduleParameterUpdate()
+    // Just need to render once per frame
+    this.renderer.render();
   }
   
   /**
    * Schedule recompilation (with debouncing).
    */
   private scheduleRecompile(): void {
-    // Cancel any pending compilation
-    if (this.compileTimeout) {
-      clearTimeout(this.compileTimeout);
-      this.compileTimeout = null;
-    }
-    if (this.compileIdleCallback !== null && window.cancelIdleCallback) {
-      window.cancelIdleCallback(this.compileIdleCallback);
-      this.compileIdleCallback = null;
-    }
+    this.cancelPendingRecompile();
     
     // Use requestIdleCallback for async compilation to prevent UI blocking
     // Fallback to setTimeout if requestIdleCallback is not available
@@ -159,13 +232,40 @@ export class CompilationManager {
   
   /**
    * Recompile shader from graph.
+   * Uses incremental compilation when possible to improve performance.
    */
   private recompile(): void {
     if (!this.graph) return;
     
     try {
-      // Compile
-      const result = this.compiler.compile(this.graph);
+      // Detect what changed in the graph
+      const changes = this.detectGraphChanges(this.graph);
+      
+      // Get previous compilation result for incremental compilation
+      const previousResult = this.compilationMetadata?.result || null;
+      
+      // Try incremental compilation if we have a previous result and changes are limited
+      let result: CompilationResult;
+      const changeThreshold = this.graph.nodes.length * 0.5; // 50% threshold
+      if (previousResult && changes.affectedNodeIds.size < changeThreshold) {
+        // Try incremental compilation
+        // Pass affectedNodeIds (changed nodes + dependents) for incremental compilation
+        const incrementalResult = (this.compiler as any).compileIncremental?.(
+          this.graph,
+          previousResult,
+          changes.affectedNodeIds
+        );
+        
+        if (incrementalResult) {
+          result = incrementalResult;
+        } else {
+          // Fall back to full compilation
+          result = this.compiler.compile(this.graph);
+        }
+      } else {
+        // Too many changes or no previous result - full compilation
+        result = this.compiler.compile(this.graph);
+      }
       
       // Check for errors
       if (result.metadata.errors.length > 0) {
@@ -195,15 +295,86 @@ export class CompilationManager {
       this.shaderInstance = newInstance;
       this.renderer.setShaderInstance(newInstance);
       
+      // Store compilation metadata for future incremental compilation
+      this.compilationMetadata = {
+        result,
+        executionOrder: result.metadata.executionOrder
+      };
+      
+      // Update previous graph state with execution order
+      if (this.previousGraphState) {
+        this.previousGraphState.executionOrder = result.metadata.executionOrder;
+      }
+      
       // Update graph hash
       this.lastGraphHash = hashGraph(this.graph);
       
-      // Render
+      // Mark as dirty and render after successful compilation
+      this.renderer.markDirty('compilation');
       this.renderer.render();
       
     } catch (error) {
       this.handleCompilationError(error instanceof Error ? error : new Error(String(error)));
     }
+  }
+  
+  /**
+   * Detect what changed in the graph compared to previous state.
+   * Returns information about added/removed nodes and affected nodes.
+   * Uses unified change detection system.
+   */
+  private detectGraphChanges(graph: NodeGraph): {
+    addedNodes: string[];
+    removedNodes: string[];
+    changedConnections: boolean;
+    changedNodeIds: Set<string>;
+    affectedNodeIds: Set<string>;
+  } {
+    // Use unified change detection system
+    const changeResult = GraphChangeDetector.detectChanges(
+      this.previousGraph,
+      graph,
+      {
+        trackAffectedNodes: true,
+        includeConnectionIds: false // We don't need connection IDs for this use case
+      }
+    );
+    
+    // Update previous graph state metadata for incremental compilation
+    const currentNodeIds = new Set(graph.nodes.map(n => n.id));
+    const currentConnectionIds = new Set(graph.connections.map(c => c.id));
+    
+    if (!this.previousGraphState) {
+      // First compilation - initialize state
+      this.previousGraphState = {
+        nodeIds: currentNodeIds,
+        connectionIds: currentConnectionIds,
+        executionOrder: []
+      };
+    } else {
+      // Update previous state
+      this.previousGraphState = {
+        nodeIds: currentNodeIds,
+        connectionIds: currentConnectionIds,
+        executionOrder: this.previousGraphState.executionOrder // Preserve execution order
+      };
+    }
+    
+    // Update previous graph reference for next comparison
+    this.previousGraph = graph;
+    
+    // Build set of changed node IDs (type or parameters changed, plus added nodes)
+    const changedNodeIds = new Set<string>();
+    changeResult.changedNodeIds.forEach(id => changedNodeIds.add(id));
+    changeResult.addedNodeIds.forEach(id => changedNodeIds.add(id));
+    
+    return {
+      addedNodes: changeResult.addedNodeIds,
+      removedNodes: changeResult.removedNodeIds,
+      changedConnections: changeResult.isConnectionsChanged,
+      changedNodeIds,
+      affectedNodeIds: changeResult.affectedNodeIds
+    };
   }
   
   /**
@@ -340,15 +511,32 @@ export class CompilationManager {
    * Handle compilation errors.
    */
   private handleCompilationErrors(errors: string[]): void {
-    // Report to UI
-    this.errorCallback?.({
-      type: 'compilation',
-      errors: errors,
-      timestamp: Date.now()
-    });
+    const message = errors.length === 1 
+      ? errors[0] 
+      : `Shader compilation failed with ${errors.length} errors`;
     
-    // Log to console
-    console.error('Shader compilation errors:', errors);
+    // Use new error handler if available
+    if (this.errorHandler) {
+      this.errorHandler.reportError(
+        ErrorUtils.compilationError(message, errors)
+      );
+    } else if (this.errorCallback) {
+      // Fallback to old callback for backward compatibility
+      const oldError = {
+        type: 'compilation' as const,
+        errors: errors,
+        timestamp: Date.now()
+      };
+      this.errorCallback(oldError);
+      
+      // Also report to global error handler
+      globalErrorHandler.reportError(adaptErrorCallback(oldError));
+    } else {
+      // No error handler - use global handler
+      globalErrorHandler.reportError(
+        ErrorUtils.compilationError(message, errors)
+      );
+    }
   }
   
   /**
@@ -358,12 +546,30 @@ export class CompilationManager {
     if (error instanceof ShaderCompilationError) {
       this.handleCompilationErrors([error.glError]);
     } else {
-      console.error('Unexpected compilation error:', error);
-      this.errorCallback?.({
-        type: 'unexpected',
-        error: error.message,
-        timestamp: Date.now()
-      });
+      const message = `Unexpected compilation error: ${error.message}`;
+      
+      // Use new error handler if available
+      if (this.errorHandler) {
+        this.errorHandler.reportError(
+          ErrorUtils.compilationError(message, undefined, { originalError: error })
+        );
+      } else if (this.errorCallback) {
+        // Fallback to old callback for backward compatibility
+        const oldError = {
+          type: 'unexpected' as const,
+          error: error.message,
+          timestamp: Date.now()
+        };
+        this.errorCallback(oldError);
+        
+        // Also report to global error handler
+        globalErrorHandler.reportError(adaptErrorCallback(oldError));
+      } else {
+        // No error handler - use global handler
+        globalErrorHandler.reportError(
+          ErrorUtils.compilationError(message, undefined, { originalError: error })
+        );
+      }
     }
   }
   
@@ -372,5 +578,33 @@ export class CompilationManager {
    */
   getShaderInstance(): ShaderInstance | null {
     return this.shaderInstance;
+  }
+  
+  /**
+   * Cleanup all resources.
+   */
+  destroy(): void {
+    // Cancel pending compilation
+    if (this.compileTimeout) {
+      clearTimeout(this.compileTimeout);
+      this.compileTimeout = null;
+    }
+    
+    if (this.compileIdleCallback !== null && window.cancelIdleCallback) {
+      window.cancelIdleCallback(this.compileIdleCallback);
+      this.compileIdleCallback = null;
+    }
+    
+    // Clean up shader instance
+    if (this.shaderInstance) {
+      this.shaderInstance.destroy();
+      this.shaderInstance = null;
+    }
+    
+    // Clear references
+    this.graph = null;
+    this.compilationMetadata = null;
+    this.previousGraphState = null;
+    this.previousGraph = null;
   }
 }

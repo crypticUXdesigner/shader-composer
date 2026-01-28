@@ -4,6 +4,7 @@
 import { createIconElement } from '../../utils/icons';
 import { getCSSColor, getCSSVariable } from '../../utils/cssTokens';
 import { DropdownMenu, type DropdownMenuItem } from './DropdownMenu';
+import { globalErrorHandler } from '../../utils/errorHandling';
 
 export type PreviewState = 'expanded' | 'collapsed';
 
@@ -19,11 +20,11 @@ export class NodeEditorLayout {
   private nodeEditorContainer!: HTMLElement;
   private previewContainer!: HTMLElement;
   private divider!: HTMLElement;
-  private menuButton!: HTMLElement;
+  private copyButton!: HTMLElement;
+  private exportButton!: HTMLElement;
   private presetButton!: HTMLElement;
   private zoomDisplay!: HTMLElement;
   private zoomValueDisplay!: HTMLElement;
-  private menuDropdown!: DropdownMenu;
   private presetDropdown!: DropdownMenu;
   private currentPresetName: string | null = null;
   private presetList: Array<{ name: string; displayName: string }> = [];
@@ -68,9 +69,17 @@ export class NodeEditorLayout {
   private panelToggleIcon!: SVGElement;
   private nodePanelContainer!: HTMLElement;
   private buttonContainer!: HTMLElement;
+  private topBarRightSection!: HTMLElement;
+  private layoutToggleButton!: HTMLElement;
   private panelWidth: number = 380;
   private isPanelVisible: boolean = true;
   private bottomBar?: { setPanelOffset: (offset: number) => void };
+  private panelResizeHandle!: HTMLElement;
+  private isResizingPanel: boolean = false;
+  private panelResizeStartX: number = 0;
+  private panelResizeStartWidth: number = 0;
+  private readonly PANEL_MIN_WIDTH = 250;
+  private readonly PANEL_MAX_WIDTH = 800;
   
   // FPS counter
   private fpsDisplay!: HTMLElement;
@@ -145,7 +154,7 @@ export class NodeEditorLayout {
    */
   setCopyPresetCallback(callback: () => Promise<void> | void): void {
     if (!callback) {
-      console.error('[NodeEditorLayout] setCopyPresetCallback called with null/undefined callback');
+      globalErrorHandler.report('validation', 'error', 'setCopyPresetCallback called with null/undefined callback');
       return;
     }
     this.onCopyPreset = async () => {
@@ -155,7 +164,12 @@ export class NodeEditorLayout {
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Failed to copy graph';
         this.showToast(errorMessage, 'error');
-        console.error('Failed to copy graph:', error);
+        globalErrorHandler.report(
+          'runtime',
+          'error',
+          'Failed to copy graph',
+          { originalError: error instanceof Error ? error : new Error(errorMessage) }
+        );
       }
     };
   }
@@ -171,7 +185,12 @@ export class NodeEditorLayout {
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Failed to export image';
         this.showToast(errorMessage, 'error');
-        console.error('Failed to export image:', error);
+        globalErrorHandler.report(
+          'runtime',
+          'error',
+          'Failed to export image',
+          { originalError: error instanceof Error ? error : new Error(errorMessage) }
+        );
       }
     };
   }
@@ -188,7 +207,12 @@ export class NodeEditorLayout {
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Failed to load preset';
         this.showToast(errorMessage, 'error');
-        console.error('Failed to load preset:', error);
+        globalErrorHandler.report(
+          'runtime',
+          'error',
+          'Failed to load preset',
+          { originalError: error instanceof Error ? error : new Error(errorMessage) }
+        );
       }
     };
   }
@@ -238,9 +262,10 @@ export class NodeEditorLayout {
       this.panelToggleButton.removeChild(this.panelToggleIcon);
     }
     
-    // Create new icon based on panel state
-    const iconName = this.isPanelVisible ? 'transition-left' : 'layout-grid';
-    this.panelToggleIcon = createIconElement(iconName, 16, 'currentColor', undefined, 'filled');
+    // Create new icon based on panel state (active = panel visible)
+    const iconName = this.isPanelVisible ? 'x' : 'layout-grid';
+    const variant = iconName === 'x' ? 'line' : 'filled';
+    this.panelToggleIcon = createIconElement(iconName, 16, 'currentColor', undefined, variant);
     this.panelToggleButton.appendChild(this.panelToggleIcon);
   }
   
@@ -340,6 +365,10 @@ export class NodeEditorLayout {
   }
   
   private createLayout(): void {
+    // Get divider styling values (used for both divider and panel resize handle)
+    const dividerBg = getCSSColor('layout-divider-bg', getCSSColor('color-gray-70', '#282b31'));
+    const dividerWidth = getCSSVariable('layout-divider-width', '4px');
+    
     // Create button container for top bar
     this.buttonContainer = document.createElement('div');
     this.buttonContainer.className = 'top-bar';
@@ -351,12 +380,11 @@ export class NodeEditorLayout {
     this.buttonContainer.appendChild(leftSection);
     
     // Create right section container
-    const rightSection = document.createElement('div');
-    rightSection.className = 'top-bar-right';
-    this.buttonContainer.appendChild(rightSection);
+    this.topBarRightSection = document.createElement('div');
+    this.topBarRightSection.className = 'top-bar-right';
+    this.buttonContainer.appendChild(this.topBarRightSection);
     
     // Initialize dropdown menus
-    this.menuDropdown = new DropdownMenu();
     this.presetDropdown = new DropdownMenu();
     
     // Panel toggle button (left side - first)
@@ -415,44 +443,49 @@ export class NodeEditorLayout {
     });
     leftSection.appendChild(this.presetButton);
     
-    // Menu icon button (left side - third)
-    this.menuButton = document.createElement('button');
-    (this.menuButton as HTMLButtonElement).type = 'button';
-    this.menuButton.className = 'button secondary sm icon-only';
-    this.menuButton.title = 'Options';
-    const menuIcon = createIconElement('menu', 16, 'currentColor', undefined, 'line');
-    this.menuButton.appendChild(menuIcon);
-    this.menuButton.addEventListener('click', (e) => {
+    // Copy button (left side - third)
+    this.copyButton = document.createElement('button');
+    (this.copyButton as HTMLButtonElement).type = 'button';
+    this.copyButton.className = 'button secondary sm both';
+    this.copyButton.title = 'Copy Preset';
+    const copyIcon = createIconElement('copy', 16, 'currentColor', undefined, 'line');
+    this.copyButton.appendChild(copyIcon);
+    const copyLabel = document.createElement('span');
+    copyLabel.textContent = 'Copy';
+    this.copyButton.appendChild(copyLabel);
+    this.copyButton.addEventListener('click', async (e) => {
       e.preventDefault();
       e.stopPropagation();
-      const rect = this.menuButton.getBoundingClientRect();
-      const menuItems: DropdownMenuItem[] = [
-        {
-          label: 'Copy Preset',
-          action: async () => {
-            if (this.onCopyPreset) {
-              await this.onCopyPreset();
-            } else {
-              console.warn('[NodeEditorLayout] Copy preset callback not set yet.');
-              this.showToast('Copy preset not ready yet. Please try again.', 'error');
-            }
-          }
-        },
-        {
-          label: 'Export Image',
-          action: async () => {
-            if (this.onExport) {
-              await this.onExport();
-            } else {
-              console.warn('[NodeEditorLayout] Export callback not set yet.');
-              this.showToast('Export not ready yet. Please try again.', 'error');
-            }
-          }
-        }
-      ];
-      this.menuDropdown.show(rect.left, rect.bottom + 4, menuItems);
+      if (this.onCopyPreset) {
+        await this.onCopyPreset();
+      } else {
+        globalErrorHandler.report('validation', 'warning', 'Copy preset callback not set yet');
+        this.showToast('Copy preset not ready yet. Please try again.', 'error');
+      }
     });
-    leftSection.appendChild(this.menuButton);
+    leftSection.appendChild(this.copyButton);
+    
+    // Export button (left side - fourth)
+    this.exportButton = document.createElement('button');
+    (this.exportButton as HTMLButtonElement).type = 'button';
+    this.exportButton.className = 'button secondary sm both';
+    this.exportButton.title = 'Export Image';
+    const exportIcon = createIconElement('photo', 16, 'currentColor', undefined, 'line');
+    this.exportButton.appendChild(exportIcon);
+    const exportLabel = document.createElement('span');
+    exportLabel.textContent = 'Export';
+    this.exportButton.appendChild(exportLabel);
+    this.exportButton.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (this.onExport) {
+        await this.onExport();
+      } else {
+        globalErrorHandler.report('validation', 'warning', 'Export callback not set yet');
+        this.showToast('Export not ready yet. Please try again.', 'error');
+      }
+    });
+    leftSection.appendChild(this.exportButton);
     
     // FPS counter (right side - first)
     this.fpsDisplay = document.createElement('div');
@@ -466,7 +499,7 @@ export class NodeEditorLayout {
       opacity: 0.7;
     `;
     this.fpsDisplay.textContent = '-- FPS';
-    rightSection.appendChild(this.fpsDisplay);
+    this.topBarRightSection.appendChild(this.fpsDisplay);
     
     // Zoom display button (right side - second)
     this.zoomDisplay = document.createElement('button');
@@ -542,7 +575,7 @@ export class NodeEditorLayout {
       const handleInput = () => {
         const value = parseFloat(input.value);
         if (!isNaN(value) && value > 0) {
-          const zoomValue = Math.max(0.10, Math.min(5.0, value / 100));
+          const zoomValue = Math.max(0.10, Math.min(1.0, value / 100));
           if (this.onZoomChange) {
             this.onZoomChange(zoomValue);
           }
@@ -565,7 +598,7 @@ export class NodeEditorLayout {
       input.focus();
     });
     
-    rightSection.appendChild(this.zoomDisplay);
+    this.topBarRightSection.appendChild(this.zoomDisplay);
     
     // Node panel container (left side, hidden by default)
     this.nodePanelContainer = document.createElement('div');
@@ -573,6 +606,22 @@ export class NodeEditorLayout {
     // Set CSS variable for dynamic width
     this.nodePanelContainer.style.setProperty('--panel-width-dynamic', `${this.panelWidth}px`);
     this.container.appendChild(this.nodePanelContainer);
+    
+    // Panel resize handle (right edge of panel)
+    this.panelResizeHandle = document.createElement('div');
+    this.panelResizeHandle.className = 'node-panel-resize-handle';
+    this.panelResizeHandle.style.cssText = `
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: ${dividerWidth};
+      background: ${dividerBg};
+      cursor: col-resize;
+      z-index: 11;
+      user-select: none;
+    `;
+    this.nodePanelContainer.appendChild(this.panelResizeHandle);
     
     // Node editor container (left)
     this.nodeEditorContainer = document.createElement('div');
@@ -587,8 +636,6 @@ export class NodeEditorLayout {
     
     // Divider
     this.divider = document.createElement('div');
-    const dividerBg = getCSSColor('layout-divider-bg', getCSSColor('color-gray-70', '#282b31'));
-    const dividerWidth = getCSSVariable('layout-divider-width', '4px');
     this.divider.style.cssText = `
       position: absolute;
       top: 0;
@@ -613,14 +660,12 @@ export class NodeEditorLayout {
     `;
     this.container.appendChild(this.previewContainer);
     
-    // Expand/Collapse button
-    const toggleButton = document.createElement('button');
-    toggleButton.className = 'layout-toggle-button';
-    toggleButton.addEventListener('click', () => this.togglePreview());
-    this.previewContainer.appendChild(toggleButton);
-    
-    // Store reference to button for icon updates
-    (this.previewContainer as any)._toggleButton = toggleButton;
+    // Expand/Collapse button – same size as panel toggle (.button.secondary.md.icon-only)
+    this.layoutToggleButton = document.createElement('button');
+    this.layoutToggleButton.className = 'button secondary md icon-only layout-toggle-button';
+    this.layoutToggleButton.title = this.state.previewState === 'expanded' ? 'Collapse preview' : 'Expand preview';
+    this.layoutToggleButton.addEventListener('click', () => this.togglePreview());
+    this.previewContainer.appendChild(this.layoutToggleButton);
     this.updateToggleButtonIcon();
     
     // Setup hover listeners for auto-hide/show when collapsed
@@ -634,6 +679,16 @@ export class NodeEditorLayout {
       this.dragStartX = e.clientX;
       document.addEventListener('mousemove', this.handleDividerDrag);
       document.addEventListener('mouseup', this.handleDividerDragEnd);
+      e.preventDefault();
+    });
+    
+    // Panel resize handle drag
+    this.panelResizeHandle.addEventListener('mousedown', (e) => {
+      this.isResizingPanel = true;
+      this.panelResizeStartX = e.clientX;
+      this.panelResizeStartWidth = this.panelWidth;
+      document.addEventListener('mousemove', this.handlePanelResize);
+      document.addEventListener('mouseup', this.handlePanelResizeEnd);
       e.preventDefault();
     });
     
@@ -661,22 +716,14 @@ export class NodeEditorLayout {
   }
   
   private showToggleButton(): void {
-    const toggleButton = (this.previewContainer as any)._toggleButton;
-    if (!toggleButton) return;
-    
-    // Clear any pending hide timeout
+    if (!this.layoutToggleButton) return;
     this.clearButtonHideTimeout();
-    
-    // Show button
-    toggleButton.classList.remove('is-hidden');
+    this.layoutToggleButton.classList.remove('is-hidden');
   }
   
   private hideToggleButton(): void {
-    const toggleButton = (this.previewContainer as any)._toggleButton;
-    if (!toggleButton) return;
-    
-    // Hide button
-    toggleButton.classList.add('is-hidden');
+    if (!this.layoutToggleButton) return;
+    this.layoutToggleButton.classList.add('is-hidden');
   }
   
   private scheduleButtonHide(): void {
@@ -701,7 +748,10 @@ export class NodeEditorLayout {
     if (!this.isDraggingDivider) return;
     
     const containerRect = this.container.getBoundingClientRect();
-    const newPosition = (e.clientX - containerRect.left) / containerRect.width;
+    const panelOffset = this.isPanelVisible ? this.panelWidth : 0;
+    const availableWidth = containerRect.width - panelOffset;
+    // Calculate position relative to available width (after panel offset)
+    const newPosition = (e.clientX - containerRect.left - panelOffset) / availableWidth;
     this.state.dividerPosition = Math.max(0.2, Math.min(0.8, newPosition));
     this.updateLayout();
   };
@@ -710,6 +760,26 @@ export class NodeEditorLayout {
     this.isDraggingDivider = false;
     document.removeEventListener('mousemove', this.handleDividerDrag);
     document.removeEventListener('mouseup', this.handleDividerDragEnd);
+  };
+  
+  private handlePanelResize = (e: MouseEvent): void => {
+    if (!this.isResizingPanel) return;
+    
+    const deltaX = e.clientX - this.panelResizeStartX;
+    const newWidth = Math.max(
+      this.PANEL_MIN_WIDTH,
+      Math.min(this.PANEL_MAX_WIDTH, this.panelResizeStartWidth + deltaX)
+    );
+    
+    this.panelWidth = newWidth;
+    this.nodePanelContainer.style.setProperty('--panel-width-dynamic', `${this.panelWidth}px`);
+    this.updateLayout();
+  };
+  
+  private handlePanelResizeEnd = (): void => {
+    this.isResizingPanel = false;
+    document.removeEventListener('mousemove', this.handlePanelResize);
+    document.removeEventListener('mouseup', this.handlePanelResizeEnd);
   };
   
   private togglePreview(): void {
@@ -760,14 +830,25 @@ export class NodeEditorLayout {
     const width = containerRect.width;
     const height = containerRect.height;
     
+    // Expose preview state on container for CSS (e.g. transparent topbar when expanded)
+    this.container.dataset.preview = this.state.previewState;
+    
     // Calculate panel offset
     const panelOffset = this.isPanelVisible ? this.panelWidth : 0;
     
     // Update panel container visibility using CSS classes
     if (this.isPanelVisible) {
       this.nodePanelContainer.classList.add('is-visible');
+      // Update resize handle visibility
+      if (this.panelResizeHandle) {
+        this.panelResizeHandle.style.display = 'block';
+      }
     } else {
       this.nodePanelContainer.classList.remove('is-visible');
+      // Hide resize handle when panel is hidden
+      if (this.panelResizeHandle) {
+        this.panelResizeHandle.style.display = 'none';
+      }
     }
     
     // Update bottom bar position
@@ -815,11 +896,11 @@ export class NodeEditorLayout {
       this.divider.style.height = `100%`;
       this.divider.style.display = 'block';
       
-      // Preview container respects top bar height (doesn't overlap)
+      // Preview container full height so shader is visually below/behind the topbar
       this.previewContainer.style.left = `${panelOffset + leftWidth + 4}px`;
-      this.previewContainer.style.top = `${topBarHeight}px`;
+      this.previewContainer.style.top = `0px`;
       this.previewContainer.style.width = `${rightWidth - 4}px`;
-      this.previewContainer.style.height = `calc(100% - ${topBarHeight}px)`;
+      this.previewContainer.style.height = `100%`;
       this.previewContainer.style.display = 'block';
       this.previewContainer.style.position = 'absolute';
       this.previewContainer.style.border = 'none';
@@ -829,8 +910,17 @@ export class NodeEditorLayout {
       // Remove resize handles when expanded
       const existingHandles = this.previewContainer.querySelectorAll('.resize-handle');
       existingHandles.forEach(h => h.remove());
+      
+      // Move toggle button into topbar right section so it sits with other topbar items
+      if (this.layoutToggleButton && this.layoutToggleButton.parentElement !== this.topBarRightSection) {
+        this.topBarRightSection.appendChild(this.layoutToggleButton);
+      }
     } else {
       // Collapsed mode (corner widget)
+      // Move toggle button back into preview container when collapsed
+      if (this.layoutToggleButton && this.layoutToggleButton.parentElement !== this.previewContainer) {
+        this.previewContainer.appendChild(this.layoutToggleButton);
+      }
       // Node editor container overlays the top bar (starts at top: 0)
       this.nodeEditorContainer.style.left = `${panelOffset}px`;
       this.nodeEditorContainer.style.width = `calc(100% - ${panelOffset}px)`;
@@ -903,17 +993,18 @@ export class NodeEditorLayout {
   }
   
   private updateToggleButtonIcon(): void {
-    const toggleButton = (this.previewContainer as any)._toggleButton;
-    if (!toggleButton) return;
-    
-    // Clear existing icon
-    toggleButton.innerHTML = '';
-    
-    // When expanded (large): use picture-in-picture to signify swap to picture-in-picture layout
-    // When collapsed (small): use layout-sidebar-right to expand
-    const iconName = this.state.previewState === 'expanded' ? 'picture-in-picture' : 'layout-sidebar-right';
-    const icon = createIconElement(iconName, 16, 'currentColor', undefined, 'filled');
-    toggleButton.appendChild(icon);
+    if (!this.layoutToggleButton) return;
+    this.layoutToggleButton.innerHTML = '';
+    const iconName = this.state.previewState === 'expanded' ? 'arrows-minimize' : 'arrows-maximize';
+    const icon = createIconElement(iconName, 0, 'currentColor', undefined, 'line');
+    this.layoutToggleButton.appendChild(icon);
+    this.layoutToggleButton.title = this.state.previewState === 'expanded' ? 'Collapse preview' : 'Expand preview';
+    // Same active state as panel toggle: .button.is-active when maximized/expanded
+    if (this.state.previewState === 'expanded') {
+      this.layoutToggleButton.classList.add('is-active');
+    } else {
+      this.layoutToggleButton.classList.remove('is-active');
+    }
   }
   
   private addResizeHandles(): void {

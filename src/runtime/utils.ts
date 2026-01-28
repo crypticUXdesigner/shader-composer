@@ -37,7 +37,7 @@ export function hashGraph(graph: import('../data-model/types').NodeGraph): strin
   const nodeIds = graph.nodes.map(n => n.id).sort().join(',');
   const connectionIds = graph.connections.map(c => c.id).sort().join(',');
   const connections = graph.connections
-    .map(c => `${c.sourceNodeId}:${c.sourcePort}->${c.targetNodeId}:${c.targetPort}`)
+    .map(c => `${c.sourceNodeId}:${c.sourcePort}->${c.targetNodeId}:${c.targetPort ?? ''}:${c.targetParameter ?? ''}`)
     .sort()
     .join(',');
   

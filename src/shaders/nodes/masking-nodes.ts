@@ -9,6 +9,7 @@ export const compareNodeSpec: NodeSpec = {
   category: 'Mask',
   displayName: 'Compare',
   description: 'Compares two values and outputs 0.0 or 1.0',
+  icon: 'compare',
   inputs: [
     { name: 'a', type: 'float' },
     { name: 'b', type: 'float' }
@@ -46,6 +47,7 @@ export const selectNodeSpec: NodeSpec = {
   category: 'Mask',
   displayName: 'Select',
   description: 'Selects between two values based on condition',
+  icon: 'select',
   inputs: [
     { name: 'condition', type: 'float' },
     { name: 'trueValue', type: 'float' },
@@ -60,6 +62,5 @@ export const selectNodeSpec: NodeSpec = {
   `
 };
 
-// Note: gradient-mask node is provided by gradientMaskElement (in src/shaders/elements/gradient-mask.ts)
-// which gets converted to a NodeSpec via visualElementToNodeSpec(). The element version is more complete
-// and functional, with proper coordinate handling and support for radial, linear, and elliptical masks.
+// Note: gradient-mask node has been migrated to a native NodeSpec (if it exists).
+// All VisualElements have been converted to native NodeSpecs.

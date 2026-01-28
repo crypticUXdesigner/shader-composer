@@ -11,7 +11,7 @@ import type { NodeSpec } from '../../types';
 export const audioFileInputNodeSpec: NodeSpec = {
   id: 'audio-file-input',
   category: 'Audio',
-  displayName: 'Audio File Input',
+  displayName: 'Audio File',
   description: 'Load and play MP3 audio files. Provides playback state and timing.',
   inputs: [],
   outputs: [
@@ -115,6 +115,20 @@ export const audioAnalyzerNodeSpec: NodeSpec = {
       max: 8192
     }
   },
+  parameterLayout: {
+    elements: [
+      { type: 'frequency-range', parameter: 'frequencyBands', bandIndex: 0, label: 'Band 1', scale: 'audio' },
+      { type: 'frequency-range', parameter: 'frequencyBands', bandIndex: 1, label: 'Band 2', scale: 'audio' },
+      { type: 'frequency-range', parameter: 'frequencyBands', bandIndex: 2, label: 'Band 3', scale: 'audio' },
+      { type: 'frequency-range', parameter: 'frequencyBands', bandIndex: 3, label: 'Band 4', scale: 'audio' },
+      {
+        type: 'grid',
+        parameters: ['smoothing', 'fftSize'],
+        layout: { columns: 1, cellHeight: 120, respectMinWidth: true }
+      }
+    ],
+    parametersWithoutPorts: ['smoothing']
+  },
   mainCode: `
     // Audio analyzer node - data comes from AudioManager as uniforms
     // No GLSL code needed, outputs are uniforms
@@ -167,23 +181,18 @@ export const audioRemapNodeSpec: NodeSpec = {
   parameterLayout: {
     elements: [
       {
-        type: 'slider-ui',
-        height: 180
+        type: 'remap-range'
       },
       {
         type: 'grid',
-        parameters: ['inMax', 'outMax', 'inMin', 'outMin', 'clamp'],
+        parameters: ['clamp'],
         layout: {
-          columns: 2,
+          columns: 1,
           cellHeight: 120,
-          respectMinWidth: true  // Fixes the bug - respects param-cell-min-width
+          respectMinWidth: true
         },
         parameterUI: {
-          inMin: 'input',   // Simple draggable input (no knob)
-          inMax: 'input',   // Simple draggable input (no knob)
-          outMin: 'input',  // Simple draggable input (no knob)
-          outMax: 'input',  // Simple draggable input (no knob)
-          clamp: 'toggle'   // clamp uses toggle UI
+          clamp: 'toggle'
         }
       }
     ]

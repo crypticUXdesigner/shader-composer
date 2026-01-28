@@ -35,16 +35,15 @@ export class GridLayerRenderer implements LayerRenderer {
     const gridSize = getCSSVariableAsNumber('canvas-grid-size', 50);
     const gridColor = getCSSColor('canvas-grid-color', getCSSColor('color-gray-50', '#111317'));
     const dotRadius = getCSSVariableAsNumber('canvas-grid-dot-radius', 1.5);
-    
+
     ctx.fillStyle = gridColor;
-    
+
     const rect = this.context.canvas.getBoundingClientRect();
     const startX = Math.floor((-state.panX) / (state.zoom * gridSize)) * gridSize;
     const startY = Math.floor((-state.panY) / (state.zoom * gridSize)) * gridSize;
-    const endX = startX + (rect.width / state.zoom) + gridSize;
-    const endY = startY + (rect.height / state.zoom) + gridSize;
-    
-    // Draw dots at grid intersection points
+    const endX = startX + rect.width / state.zoom + gridSize;
+    const endY = startY + rect.height / state.zoom + gridSize;
+
     ctx.beginPath();
     for (let x = startX; x < endX; x += gridSize) {
       for (let y = startY; y < endY; y += gridSize) {

@@ -7,13 +7,23 @@
 
 import { ShaderInstance } from './ShaderInstance';
 import { WebGLContextError } from './errors';
+import type { Disposable } from '../utils/Disposable';
 
-export class Renderer {
+export class Renderer implements Disposable {
   private canvas: HTMLCanvasElement;
   private gl: WebGL2RenderingContext;
   private shaderInstance: ShaderInstance | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private pendingResize: boolean = false;
+  
+  // Event listeners for cleanup
+  private contextLostHandler: ((e: Event) => void) | null = null;
+  private contextRestoredHandler: (() => void) | null = null;
+  
+  // Dirty flag system for conditional rendering
+  private isDirty: boolean = false;
+  private dirtyReasons: Set<string> = new Set();
+  private forceRender: boolean = false;
   
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -37,19 +47,56 @@ export class Renderer {
    */
   setShaderInstance(instance: ShaderInstance): void {
     this.shaderInstance = instance;
+    
+    // Force initial render when shader is set
+    this.forceRenderOnce();
   }
   
   /**
-   * Render a single frame.
+   * Mark renderer as dirty (needs rendering).
+   */
+  markDirty(reason: string = 'unknown'): void {
+    this.isDirty = true;
+    this.dirtyReasons.add(reason);
+  }
+  
+  /**
+   * Clear dirty flags after rendering.
+   */
+  private clearDirty(): void {
+    this.isDirty = false;
+    this.dirtyReasons.clear();
+  }
+  
+  /**
+   * Force a render (bypass dirty check).
+   * Use sparingly - for initial render, etc.
+   */
+  forceRenderOnce(): void {
+    this.forceRender = true;
+    this.render();
+  }
+  
+  /**
+   * Render a single frame (only if dirty).
    */
   render(): void {
-    // Process pending resize before rendering
+    // Always process pending resize
     if (this.pendingResize) {
       this.setupViewport();
       this.pendingResize = false;
+      this.markDirty('resize');
     }
     
-    if (!this.shaderInstance) return;
+    // Only render if dirty or if forced
+    if (!this.isDirty && !this.forceRender) {
+      return; // Skip render - nothing changed
+    }
+    
+    if (!this.shaderInstance) {
+      this.clearDirty();
+      return; // No shader to render
+    }
     
     // Update resolution if changed
     const width = this.canvas.width;
@@ -62,6 +109,10 @@ export class Renderer {
     
     // Render
     this.shaderInstance.render(width, height);
+    
+    // Clear dirty flags after rendering
+    this.clearDirty();
+    this.forceRender = false;
   }
   
   /**
@@ -118,12 +169,30 @@ export class Renderer {
   }
   
   /**
-   * Cleanup resize observer.
+   * Cleanup all resources.
    */
   destroy(): void {
+    // Clean up resize observer
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
       this.resizeObserver = null;
+    }
+    
+    // Remove event listeners
+    if (this.contextLostHandler) {
+      this.canvas.removeEventListener('webglcontextlost', this.contextLostHandler);
+      this.contextLostHandler = null;
+    }
+    
+    if (this.contextRestoredHandler) {
+      this.canvas.removeEventListener('webglcontextrestored', this.contextRestoredHandler);
+      this.contextRestoredHandler = null;
+    }
+    
+    // Clean up shader instance if it exists
+    if (this.shaderInstance) {
+      this.shaderInstance.destroy();
+      this.shaderInstance = null;
     }
   }
   
@@ -131,18 +200,21 @@ export class Renderer {
    * Setup WebGL context loss handling.
    */
   private setupContextLossHandling(): void {
-    this.canvas.addEventListener('webglcontextlost', (e) => {
+    this.contextLostHandler = (e: Event) => {
       e.preventDefault();
       console.warn('WebGL context lost');
       this.stopAnimation();
       // Attempt recovery - context will be restored automatically
-    });
+    };
     
-    this.canvas.addEventListener('webglcontextrestored', () => {
+    this.contextRestoredHandler = () => {
       console.log('WebGL context restored');
       this.setupViewport();
       // Note: Shader instance will need to be recreated by CompilationManager
-    });
+    };
+    
+    this.canvas.addEventListener('webglcontextlost', this.contextLostHandler);
+    this.canvas.addEventListener('webglcontextrestored', this.contextRestoredHandler);
   }
   
   /**

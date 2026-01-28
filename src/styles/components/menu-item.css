@@ -6,7 +6,7 @@
   align-items: center;
 
   /* Box model */
-  padding: var(--menu-item-padding);
+  padding: var(--pd-md) var(--pd-lg);
   gap: var(--pd-sm);
 
   /* Visual */

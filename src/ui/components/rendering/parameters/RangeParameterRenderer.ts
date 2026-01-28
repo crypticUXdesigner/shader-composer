@@ -9,7 +9,7 @@ import { ParameterRenderer, type ParameterMetrics, type ParameterRenderState, ty
 import type { NodeInstance } from '../../../../types/nodeGraph';
 import type { NodeSpec, ParameterSpec } from '../../../../types/nodeSpec';
 import { getCSSColor, getCSSVariableAsNumber } from '../../../../utils/cssTokens';
-import { drawRoundedRect } from '../RenderingUtils';
+import { drawRoundedRect, drawVerticalRangeSlider, drawArrow } from '../RenderingUtils';
 import { getParameterUIRegistry } from '../ParameterUIRegistry';
 
 export class RangeParameterRenderer extends ParameterRenderer {
@@ -19,7 +19,7 @@ export class RangeParameterRenderer extends ParameterRenderer {
   
   canHandle(spec: NodeSpec, paramName: string): boolean {
     // Don't handle range parameters when using the layout system
-    // The layout system uses SliderUIElementRenderer for the slider UI
+    // The layout system uses RemapRangeElementRenderer for the remap range UI
     // and regular parameter renderers for the individual parameters
     if (spec.parameterLayout) {
       return false;
@@ -215,9 +215,6 @@ export class RangeParameterRenderer extends ParameterRenderer {
     const sliderInputActiveColor = getCSSColor('range-editor-slider-input-active-color', getCSSColor('color-green-90', '#6ee7b7'));
     const sliderOutputActiveColor = getCSSColor('range-editor-slider-output-active-color', getCSSColor('color-purple-90', '#8b5cf6'));
     const sliderWidth = getCSSVariableAsNumber('range-editor-slider-width', 18);
-    const handleSize = getCSSVariableAsNumber('range-editor-handle-size', 12);
-    const handleBg = getCSSColor('range-editor-handle-bg', getCSSColor('color-blue-90', '#6565dc'));
-    const handleBorder = getCSSColor('range-editor-handle-border', getCSSColor('color-gray-130', '#ebeff0'));
     const connectionColor = getCSSColor('range-editor-connection-color', getCSSColor('color-blue-90', '#6565dc'));
     const connectionWidth = getCSSVariableAsNumber('range-editor-connection-width', 2);
     const connectionDash = getCSSVariableAsNumber('range-editor-connection-dash', 4);
@@ -251,8 +248,8 @@ export class RangeParameterRenderer extends ParameterRenderer {
     const outputSliderLeftEdge = outputSliderCenter - sliderWidth / 2;
     const sliderY = sliderUIEditorY + topMargin;
     
-    // Draw input range slider (vertical)
-    this.drawVerticalRangeSlider(
+    // Draw input range slider (vertical) — uses shared RenderingUtils.drawVerticalRangeSlider
+    drawVerticalRangeSlider(
       ctx,
       inputSliderCenter,
       sliderY,
@@ -263,16 +260,13 @@ export class RangeParameterRenderer extends ParameterRenderer {
       sliderBg,
       sliderTrackColor,
       sliderInputActiveColor,
-      handleSize,
-      handleBg,
-      handleBorder,
       sliderRadius,
       false,
       false
     );
     
-    // Draw output range slider (vertical)
-    this.drawVerticalRangeSlider(
+    // Draw output range slider (vertical) — uses shared RenderingUtils.drawVerticalRangeSlider
+    drawVerticalRangeSlider(
       ctx,
       outputSliderCenter,
       sliderY,
@@ -283,9 +277,6 @@ export class RangeParameterRenderer extends ParameterRenderer {
       sliderBg,
       sliderTrackColor,
       sliderOutputActiveColor,
-      handleSize,
-      handleBg,
-      handleBorder,
       sliderRadius,
       false,
       false
@@ -320,95 +311,10 @@ export class RangeParameterRenderer extends ParameterRenderer {
     ctx.lineWidth = connectionWidth;
     ctx.setLineDash([connectionDash, connectionDash]);
     ctx.globalAlpha = 0.5;
-    this.drawArrow(ctx, inputSliderRightEdge, inputTopY, outputSliderLeftEdge, outputTopY, connectionColor, connectionWidth);
-    this.drawArrow(ctx, inputSliderRightEdge, inputBottomY, outputSliderLeftEdge, outputBottomY, connectionColor, connectionWidth);
+    drawArrow(ctx, inputSliderRightEdge, inputTopY, outputSliderLeftEdge, outputTopY, connectionColor, connectionWidth);
+    drawArrow(ctx, inputSliderRightEdge, inputBottomY, outputSliderLeftEdge, outputBottomY, connectionColor, connectionWidth);
     ctx.setLineDash([]);
     ctx.globalAlpha = 1.0;
   }
   
-  private drawVerticalRangeSlider(
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    minNorm: number,
-    maxNorm: number,
-    bgColor: string,
-    trackColor: string,
-    activeColor: string,
-    _handleSize: number,
-    _handleBg: string,
-    _handleBorder: string,
-    radius: number,
-    isHovered: boolean = false,
-    isDragging: boolean = false
-  ): void {
-    const trackX = x;
-    const trackWidth = width;
-    const trackLeft = trackX - trackWidth / 2;
-    
-    // Draw full slider track background
-    ctx.fillStyle = bgColor;
-    drawRoundedRect(ctx, trackLeft, y, trackWidth, height, radius);
-    ctx.fill();
-    
-    // Draw track border
-    ctx.strokeStyle = trackColor;
-    ctx.lineWidth = 1;
-    drawRoundedRect(ctx, trackLeft, y, trackWidth, height, radius);
-    ctx.stroke();
-    
-    // Draw active range
-    const actualMinNorm = Math.min(minNorm, maxNorm);
-    const actualMaxNorm = Math.max(minNorm, maxNorm);
-    const activeTopY = y + (1 - actualMaxNorm) * height;
-    const activeBottomY = y + (1 - actualMinNorm) * height;
-    const activeHeight = Math.max(0, activeBottomY - activeTopY);
-    if (activeHeight > 0) {
-      ctx.fillStyle = activeColor;
-      drawRoundedRect(ctx, trackLeft, activeTopY, trackWidth, activeHeight, radius);
-      ctx.fill();
-    }
-    
-    // Draw edge highlighting when hovering or dragging
-    if (isHovered || isDragging) {
-      const highlightWidth = 2;
-      const highlightOpacity = 0.6;
-      ctx.fillStyle = `rgba(255, 255, 255, ${highlightOpacity})`;
-      ctx.fillRect(trackLeft, y, trackWidth, highlightWidth);
-      ctx.fillRect(trackLeft, y + height - highlightWidth, trackWidth, highlightWidth);
-    }
-  }
-  
-  private drawArrow(
-    ctx: CanvasRenderingContext2D,
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number,
-    color: string,
-    width: number
-  ): void {
-    ctx.strokeStyle = color;
-    ctx.lineWidth = width;
-    ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
-    ctx.stroke();
-    
-    // Draw arrowhead
-    const angle = Math.atan2(y2 - y1, x2 - x1);
-    const arrowSize = 6;
-    const arrowX = x2 - Math.cos(angle) * arrowSize;
-    const arrowY = y2 - Math.sin(angle) * arrowSize;
-    
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.moveTo(x2, y2);
-    ctx.lineTo(arrowX - Math.cos(angle - Math.PI / 6) * arrowSize, arrowY - Math.sin(angle - Math.PI / 6) * arrowSize);
-    ctx.lineTo(arrowX - Math.cos(angle + Math.PI / 6) * arrowSize, arrowY - Math.sin(angle + Math.PI / 6) * arrowSize);
-    ctx.closePath();
-    ctx.fill();
-  }
 }

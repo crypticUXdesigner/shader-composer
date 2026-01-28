@@ -28,6 +28,14 @@
   }
 }
 
+/* When shader preview is expanded, topbar is transparent so the shader shows through */
+[data-preview="expanded"] {
+  .top-bar {
+    /* Visual */
+    background: transparent;
+  }
+}
+
 /* Top Bar Left Section */
 .top-bar-left {
   /* Layout */
@@ -42,6 +50,14 @@
   display: flex;
   align-items: center;
   gap: var(--pd-md);
+
+  /* When preview is expanded, layout toggle lives here and flows with other items */
+  .layout-toggle-button {
+    /* Layout */
+    position: static;
+    top: auto;
+    right: auto;
+  }
 }
 
 /* ========================================
@@ -68,46 +84,21 @@
    Layout Toggle Button
    ======================================== */
 
-/* Layout Toggle Button (for preview container, not top bar) */
+/* Layout-only overrides for the expand/collapse button; base style from .button.secondary.sm.icon-only */
 .layout-toggle-button {
-  /* Layout */
+  /* Layout – floating on preview when collapsed; overridden to static when in .top-bar-right */
   position: absolute;
   top: var(--pd-sm);
   right: var(--pd-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  /* Box model */
-  width: var(--size-sm);
-  height: var(--size-sm);
-  border: none;
-  border-radius: var(--button-radius);
-
-  /* Visual */
-  background: var(--layout-button-bg);
-  color: var(--layout-button-color);
 
   /* Other */
-  cursor: pointer;
   z-index: 20;
-  transition: opacity 0.15s ease-out;
-
-  &:hover {
-    /* Visual */
-    background: var(--layout-button-bg-hover);
-  }
 
   &.is-hidden {
     /* Visual */
     opacity: 0;
 
     /* Other */
-    pointer-events: none;
-  }
-
-  /* Ensure icon elements inside toggle button don't block clicks */
-  > * {
     pointer-events: none;
   }
 }

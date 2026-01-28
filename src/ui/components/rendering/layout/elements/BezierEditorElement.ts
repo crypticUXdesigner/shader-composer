@@ -2,6 +2,8 @@
  * Bezier Editor Element Renderer
  * 
  * Bezier curve editor for bezier curve nodes.
+ * 
+ * Uses flexbox container structure with absolute positioning for interactive elements.
  */
 
 import type { NodeInstance } from '../../../../../types/nodeGraph';
@@ -10,6 +12,8 @@ import type { NodeRenderMetrics } from '../../../NodeRenderer';
 import type { LayoutElementRenderer, ElementMetrics } from '../LayoutElementRenderer';
 import { getCSSVariableAsNumber, getCSSColor } from '../../../../../utils/cssTokens';
 import { drawRoundedRect } from '../../RenderingUtils';
+import { calculateFlexboxLayout } from '../flexbox/FlexboxCalculator';
+import type { FlexItem, FlexboxProperties, FlexboxLayoutResult, LayoutResult } from '../flexbox/FlexboxTypes';
 
 export class BezierEditorElementRenderer implements LayoutElementRenderer {
   private ctx: CanvasRenderingContext2D;
@@ -41,25 +45,205 @@ export class BezierEditorElementRenderer implements LayoutElementRenderer {
     // Default parameters if not specified
     const params = element.parameters || ['x1', 'y1', 'x2', 'y2'];
     
-    // Calculate left edge space for ports, mode buttons, type labels, and name labels
-    const portX = node.position.x + gridPadding;
+    // Calculate left edge width for ports, mode buttons, type labels, and name labels
     const portToModeSpacing = portLabelSpacing;
-    const modeButtonX = portX + portSize + portToModeSpacing;
     const modeToTypeSpacing = portLabelSpacing;
-    const typeLabelX = modeButtonX + modeButtonSize + modeToTypeSpacing;
-    const typeToNameSpacing = portLabelSpacing;
     const typeLabelWidth = 50; // Approximate
-    const labelX = typeLabelX + typeLabelWidth + typeToNameSpacing;
+    const typeToNameSpacing = portLabelSpacing;
     const labelWidth = 60; // Approximate
-    const bezierEditorX = labelX + labelWidth;
+    const leftEdgeWidth = portSize + portToModeSpacing + modeButtonSize + modeToTypeSpacing + typeLabelWidth + typeToNameSpacing + labelWidth;
     
-    // Ensure bezier editor is within node bounds
-    const maxBezierEditorX = node.position.x + metrics.width - gridPadding;
-    const actualBezierEditorX = Math.min(bezierEditorX, maxBezierEditorX - 200);
-    const bezierEditorWidth = Math.max(200, maxBezierEditorX - actualBezierEditorX);
+    // Use flexbox for container structure (row: left-edge | bezier-editor)
+    const containerX = node.position.x + gridPadding;
+    const containerY = node.position.y + metrics.headerHeight + startY;
     
-    // Calculate port positions
-    const basePortY = node.position.y + metrics.headerHeight + startY;
+    const containerItems: FlexItem[] = [
+      {
+        id: 'left-edge',
+        properties: {
+          width: leftEdgeWidth,
+          height: height
+        },
+        isContainer: true
+      },
+      {
+        id: 'bezier-editor',
+        properties: {
+          width: availableWidth - leftEdgeWidth,
+          height: height
+        }
+      }
+    ];
+    
+    const containerProps: FlexboxProperties = {
+      direction: 'row',
+      justifyContent: 'flex-start',
+      alignItems: 'flex-start',
+      gap: getCSSVariableAsNumber('bezier-editor-gap', 8)
+    };
+    
+    const containerLayout = calculateFlexboxLayout(
+      containerX,
+      containerY,
+      availableWidth,
+      height,
+      containerProps,
+      containerItems
+    );
+    
+    const leftEdgeResult = containerLayout.items.get('left-edge');
+    const bezierEditorResult = containerLayout.items.get('bezier-editor');
+    
+    // Fallback if flexbox calculation fails
+    if (!leftEdgeResult || !bezierEditorResult || 'items' in leftEdgeResult || 'items' in bezierEditorResult) {
+      // Fallback to manual calculation
+      const portX = containerX;
+      const modeButtonX = portX + portSize + portToModeSpacing;
+      const typeLabelX = modeButtonX + modeButtonSize + modeToTypeSpacing;
+      const labelX = typeLabelX + typeLabelWidth + typeToNameSpacing;
+      const bezierEditorX = labelX + labelWidth;
+      const maxBezierEditorX = node.position.x + metrics.width - gridPadding;
+      const actualBezierEditorX = Math.min(bezierEditorX, maxBezierEditorX - 200);
+      const bezierEditorWidth = Math.max(200, maxBezierEditorX - actualBezierEditorX);
+      
+      const basePortY = containerY;
+      const totalSpacing = (params.length - 1) * bezierPortSpacing;
+      const startOffset = (height - totalSpacing) / 2;
+      
+      const parameterGridPositions = new Map<string, {
+        cellX: number;
+        cellY: number;
+        cellWidth: number;
+        cellHeight: number;
+        knobX: number;
+        knobY: number;
+        portX: number;
+        portY: number;
+        labelX: number;
+        labelY: number;
+        valueX: number;
+        valueY: number;
+      }>();
+      
+      params.forEach((paramName, index) => {
+        const portY = basePortY + startOffset + index * bezierPortSpacing;
+        
+        parameterGridPositions.set(paramName, {
+          cellX: actualBezierEditorX,
+          cellY: containerY,
+          cellWidth: bezierEditorWidth,
+          cellHeight: height,
+          knobX: 0,
+          knobY: 0,
+          portX: portX,
+          portY: portY,
+          labelX: labelX,
+          labelY: portY,
+          valueX: 0,
+          valueY: 0
+        });
+      });
+      
+      return {
+        x: containerX,
+        y: containerY,
+        width: availableWidth,
+        height: height,
+        parameterGridPositions,
+        bezierEditorX: actualBezierEditorX,
+        bezierEditorWidth: bezierEditorWidth,
+        portX: portX,
+        modeButtonX: modeButtonX,
+        typeLabelX: typeLabelX,
+        labelX: labelX
+      };
+    }
+    
+    // Use flexbox results - extract LayoutResult from FlexboxLayoutResult if needed
+    const getLayoutResult = (item: FlexboxLayoutResult | LayoutResult | undefined): LayoutResult | null => {
+      if (!item) return null;
+      if ('container' in item) {
+        // It's a FlexboxLayoutResult, use the container
+        return item.container;
+      }
+      // It's a LayoutResult
+      return item;
+    };
+    
+    const leftEdgeLayout = getLayoutResult(leftEdgeResult);
+    const bezierEditorLayout = getLayoutResult(bezierEditorResult);
+    
+    if (!leftEdgeLayout || !bezierEditorLayout) {
+      // Fallback to manual calculation if flexbox failed
+      const portX = containerX;
+      const modeButtonX = portX + portSize + portToModeSpacing;
+      const typeLabelX = modeButtonX + modeButtonSize + modeToTypeSpacing;
+      const labelX = typeLabelX + typeLabelWidth + typeToNameSpacing;
+      const bezierEditorX = labelX + labelWidth;
+      const maxBezierEditorX = node.position.x + metrics.width - gridPadding;
+      const actualBezierEditorX = Math.min(bezierEditorX, maxBezierEditorX - 200);
+      const bezierEditorWidth = Math.max(200, maxBezierEditorX - actualBezierEditorX);
+      
+      const basePortY = containerY;
+      const totalSpacing = (params.length - 1) * bezierPortSpacing;
+      const startOffset = (height - totalSpacing) / 2;
+      
+      const parameterGridPositions = new Map<string, {
+        cellX: number;
+        cellY: number;
+        cellWidth: number;
+        cellHeight: number;
+        knobX: number;
+        knobY: number;
+        portX: number;
+        portY: number;
+        labelX: number;
+        labelY: number;
+        valueX: number;
+        valueY: number;
+      }>();
+      
+      params.forEach((paramName, index) => {
+        const portY = basePortY + startOffset + index * bezierPortSpacing;
+        
+        parameterGridPositions.set(paramName, {
+          cellX: actualBezierEditorX,
+          cellY: containerY,
+          cellWidth: bezierEditorWidth,
+          cellHeight: height,
+          knobX: 0,
+          knobY: 0,
+          portX: portX,
+          portY: portY,
+          labelX: labelX,
+          labelY: portY,
+          valueX: 0,
+          valueY: 0
+        });
+      });
+      
+      return {
+        x: containerX,
+        y: containerY,
+        width: availableWidth,
+        height: height,
+        parameterGridPositions,
+        bezierEditorX: actualBezierEditorX,
+        bezierEditorWidth: bezierEditorWidth,
+        portX: portX,
+        modeButtonX: modeButtonX,
+        typeLabelX: typeLabelX,
+        labelX: labelX
+      };
+    }
+    
+    // Calculate port positions within left edge (absolute positioning for ports)
+    const portX = leftEdgeLayout.x;
+    const modeButtonX = portX + portSize + portToModeSpacing;
+    const typeLabelX = modeButtonX + modeButtonSize + modeToTypeSpacing;
+    const labelX = typeLabelX + typeLabelWidth + typeToNameSpacing;
+    
+    const basePortY = leftEdgeLayout.y;
     const totalSpacing = (params.length - 1) * bezierPortSpacing;
     const startOffset = (height - totalSpacing) / 2;
     
@@ -82,10 +266,10 @@ export class BezierEditorElementRenderer implements LayoutElementRenderer {
       const portY = basePortY + startOffset + index * bezierPortSpacing;
       
       parameterGridPositions.set(paramName, {
-        cellX: actualBezierEditorX,
-        cellY: node.position.y + metrics.headerHeight + startY,
-        cellWidth: bezierEditorWidth,
-        cellHeight: height,
+        cellX: bezierEditorLayout.x,
+        cellY: bezierEditorLayout.y,
+        cellWidth: bezierEditorLayout.width,
+        cellHeight: bezierEditorLayout.height,
         knobX: 0,
         knobY: 0,
         portX: portX,
@@ -98,14 +282,14 @@ export class BezierEditorElementRenderer implements LayoutElementRenderer {
     });
     
     return {
-      x: node.position.x,
-      y: node.position.y + metrics.headerHeight + startY,
-      width: availableWidth,
-      height: height,
+      x: containerLayout.container.x,
+      y: containerLayout.container.y,
+      width: containerLayout.container.width,
+      height: containerLayout.container.height,
       parameterGridPositions,
       // Additional bezier-specific metrics
-      bezierEditorX: actualBezierEditorX,
-      bezierEditorWidth: bezierEditorWidth,
+      bezierEditorX: bezierEditorLayout.x,
+      bezierEditorWidth: bezierEditorLayout.width,
       portX: portX,
       modeButtonX: modeButtonX,
       typeLabelX: typeLabelX,
@@ -121,9 +305,11 @@ export class BezierEditorElementRenderer implements LayoutElementRenderer {
     _nodeMetrics: NodeRenderMetrics,
     _renderState: any
   ): void {
-    // Validate metrics
-    if (!elementMetrics.y || !elementMetrics.height) {
-      console.warn('Invalid bezier-editor element metrics, skipping render');
+    // Validate metrics - check for undefined/null, not falsy (0 is valid)
+    if (elementMetrics.y === undefined || elementMetrics.y === null || 
+        elementMetrics.height === undefined || elementMetrics.height === null ||
+        elementMetrics.height <= 0) {
+      console.warn('Invalid bezier-editor element metrics, skipping render', elementMetrics);
       return;
     }
     

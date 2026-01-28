@@ -11,7 +11,7 @@
 
 import type { NodeInstance } from '../../../types/nodeGraph';
 import type { NodeSpec } from '../../../types/nodeSpec';
-import { getNodeIcon } from '../../../utils/nodeSpecAdapter';
+import { getNodeIcon } from '../../../utils/nodeSpecUtils';
 import { getCSSColor, getCSSVariableAsNumber } from '../../../utils/cssTokens';
 import { renderIconOnCanvas } from '../../../utils/icons';
 import { drawRoundedRect, drawRoundedRectToPath } from './RenderingUtils';
@@ -39,12 +39,12 @@ export class NodeHeaderRenderer {
     _skipPorts: boolean = false,
     fullNodeHeight?: number
   ): void {
-    const iconSize = getCSSVariableAsNumber('node-header-icon-size', 36);
-    const iconBoxWidth = getCSSVariableAsNumber('node-icon-box-width', 48);
-    const iconBoxHeight = getCSSVariableAsNumber('node-icon-box-height', 48);
-    const iconBoxRadius = getCSSVariableAsNumber('node-icon-box-radius', 8);
-    const iconBoxNameSpacing = getCSSVariableAsNumber('node-icon-box-name-spacing', 4);
-    const nameSize = getCSSVariableAsNumber('node-header-name-size', 14);
+    const iconSize = getCSSVariableAsNumber('node-header-icon-size', 60);
+    const iconBoxWidth = getCSSVariableAsNumber('node-icon-box-width', 90);
+    const iconBoxHeight = getCSSVariableAsNumber('node-icon-box-height', 90);
+    const iconBoxRadius = getCSSVariableAsNumber('node-icon-box-radius', 36);
+    const iconBoxNameSpacing = getCSSVariableAsNumber('node-icon-box-name-spacing', 24);
+    const nameSize = getCSSVariableAsNumber('node-header-name-size', 24);
     const nameWeight = getCSSVariableAsNumber('node-header-name-weight', 600);
     const nameColor = getCSSColor('node-header-name-color', getCSSColor('color-gray-130', '#ebeff0'));
     const borderRadius = getCSSVariableAsNumber('node-box-border-radius', 24);
@@ -59,60 +59,64 @@ export class NodeHeaderRenderer {
     this.ctx.save();
     this.ctx.clip(nodePath);
     
-    // Draw header background with radial gradient using header-specific category colors
-    const headerBgColorStart = this.getHeaderCategoryColor(spec.category);
-    const headerBgColorEnd = this.getHeaderCategoryColorEnd(spec.category);
-    
-    // Get header gradient ellipse parameters (separate from node gradient)
-    const headerEllipseWidthPercent = getCSSVariableAsNumber('node-header-bg-gradient-ellipse-width', 100);
-    const headerEllipseHeightPercent = getCSSVariableAsNumber('node-header-bg-gradient-ellipse-height', 100);
-    const headerEllipseXPercent = getCSSVariableAsNumber('node-header-bg-gradient-ellipse-x', 50);
-    const headerEllipseYPercent = getCSSVariableAsNumber('node-header-bg-gradient-ellipse-y', 50);
-    
-    // Calculate ellipse dimensions and position
-    const headerEllipseWidth = (width * headerEllipseWidthPercent) / 100;
-    const headerEllipseHeight = (height * headerEllipseHeightPercent) / 100;
-    const headerEllipseX = x + (width * headerEllipseXPercent) / 100;
-    const headerEllipseY = y + (height * headerEllipseYPercent) / 100;
-    
-    // Use the larger dimension for the radial gradient radius to ensure it covers the entire header
-    const headerGradientRadius = Math.max(headerEllipseWidth, headerEllipseHeight) / 2;
-    
-    // Create radial gradient
-    const headerGradient = this.ctx.createRadialGradient(
-      headerEllipseX, headerEllipseY, 0,
-      headerEllipseX, headerEllipseY, headerGradientRadius
-    );
-    headerGradient.addColorStop(0, headerBgColorStart);
-    headerGradient.addColorStop(1, headerBgColorEnd);
-    
-    // Fill header with gradient (clipping will handle the rounded corners)
-    this.ctx.fillStyle = headerGradient;
-    this.ctx.fillRect(x, y, width, height);
-    
-    // Calculate icon/box/label group height for vertical centering
-    const groupHeight = iconBoxHeight + iconBoxNameSpacing + nameSize;
-    
-    // Center the icon/box/label group vertically in the header
-    const iconBoxX = x + width / 2 - iconBoxWidth / 2;
-    const iconBoxY = y + (height - groupHeight) / 2;
-    const iconBoxBg = this.getCategoryIconBoxBg(spec.category);
-    this.ctx.fillStyle = iconBoxBg;
-    drawRoundedRect(this.ctx, iconBoxX, iconBoxY, iconBoxWidth, iconBoxHeight, iconBoxRadius);
-    this.ctx.fill();
-    
-    // Draw icon (centered in icon box)
-    const iconX = x + width / 2;
-    const iconY = iconBoxY + iconBoxHeight / 2;
-    const iconIdentifier = getNodeIcon(spec);
-    renderIconOnCanvas(this.ctx, iconIdentifier, iconX, iconY, iconSize, nameColor);
-    
-    // Draw node name (below icon box)
-    const nameY = iconBoxY + iconBoxHeight + iconBoxNameSpacing;
-    this.ctx.fillStyle = nameColor;
-    this.ctx.font = `${nameWeight} ${nameSize}px "Space Grotesk", sans-serif`;
-    this.ctx.textAlign = 'center';
-    this.ctx.textBaseline = 'top';
+    // Logo padding: inset around icon box + label (center part only)
+    const logoPadding = getCSSVariableAsNumber('node-header-logo-padding', 60);
+
+      // Draw header background with radial gradient using header-specific category colors
+      // Header fills its entire allocated space (no padding on background)
+      const headerBgColorStart = this.getHeaderCategoryColor(spec.category);
+      const headerBgColorEnd = this.getHeaderCategoryColorEnd(spec.category);
+      
+      // Get header gradient ellipse parameters (separate from node gradient)
+      const headerEllipseWidthPercent = getCSSVariableAsNumber('node-header-bg-gradient-ellipse-width', 100);
+      const headerEllipseHeightPercent = getCSSVariableAsNumber('node-header-bg-gradient-ellipse-height', 100);
+      const headerEllipseXPercent = getCSSVariableAsNumber('node-header-bg-gradient-ellipse-x', 50);
+      const headerEllipseYPercent = getCSSVariableAsNumber('node-header-bg-gradient-ellipse-y', 50);
+      
+      // Calculate ellipse dimensions and position relative to full header area
+      const headerEllipseWidth = (width * headerEllipseWidthPercent) / 100;
+      const headerEllipseHeight = (height * headerEllipseHeightPercent) / 100;
+      const headerEllipseX = x + (width * headerEllipseXPercent) / 100;
+      const headerEllipseY = y + (height * headerEllipseYPercent) / 100;
+      
+      // Use the larger dimension for the radial gradient radius to ensure it covers the entire header
+      const headerGradientRadius = Math.max(headerEllipseWidth, headerEllipseHeight) / 2;
+      
+      // Create radial gradient
+      const headerGradient = this.ctx.createRadialGradient(
+        headerEllipseX, headerEllipseY, 0,
+        headerEllipseX, headerEllipseY, headerGradientRadius
+      );
+      headerGradient.addColorStop(0, headerBgColorStart);
+      headerGradient.addColorStop(1, headerBgColorEnd);
+      
+      // Fill header background - fills entire allocated space (clipping will handle the rounded corners)
+      this.ctx.fillStyle = headerGradient;
+      this.ctx.fillRect(x, y, width, height);
+      
+      // Calculate icon/box/label group height for vertical centering
+      const groupHeight = iconBoxHeight + iconBoxNameSpacing + nameSize;
+      
+      // Center the icon/box/label group vertically in the header, respecting logo padding (center only)
+      const iconBoxX = x + width / 2 - iconBoxWidth / 2;
+      const iconBoxY = y + logoPadding + (height - logoPadding * 2 - groupHeight) / 2;
+      const iconBoxBg = this.getCategoryIconBoxBg(spec.category);
+      this.ctx.fillStyle = iconBoxBg;
+      drawRoundedRect(this.ctx, iconBoxX, iconBoxY, iconBoxWidth, iconBoxHeight, iconBoxRadius);
+      this.ctx.fill();
+      
+      // Draw icon (centered in icon box)
+      const iconX = x + width / 2;
+      const iconY = iconBoxY + iconBoxHeight / 2;
+      const iconIdentifier = getNodeIcon(spec);
+      renderIconOnCanvas(this.ctx, iconIdentifier, iconX, iconY, iconSize, nameColor);
+      
+      // Draw node name (below icon box)
+      const nameY = iconBoxY + iconBoxHeight + iconBoxNameSpacing;
+      this.ctx.fillStyle = nameColor;
+      this.ctx.font = `${nameWeight} ${nameSize}px "Space Grotesk", sans-serif`;
+      this.ctx.textAlign = 'center';
+      this.ctx.textBaseline = 'top';
     this.ctx.fillText(node.label || spec.displayName, iconX, nameY);
     
     // Restore clipping

@@ -47,6 +47,7 @@ export const iconRegistry: Record<string, IconDefinition> = {
   // Patterns & grids
   'grid': { tablerIconName: 'grid-4x4', variant: 'line' },
   'dither': { tablerIconName: 'grid-pattern', variant: 'filled' },
+  'grain': { tablerIconName: 'grain', variant: 'line' },
   'noise': { tablerIconName: 'grain', variant: 'line' },
   'particle': { tablerIconName: 'grain', variant: 'line' },
   'kaleidoscope': { tablerIconName: 'shapes', variant: 'line' },

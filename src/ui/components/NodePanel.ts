@@ -2,7 +2,7 @@
 // Left-side panel for browsing and adding nodes
 
 import type { NodeSpec } from '../../types/nodeSpec';
-import { getNodeIcon } from '../../utils/nodeSpecAdapter';
+import { getNodeIcon } from '../../utils/nodeSpecUtils';
 import { createNodeIconElement, createIconElement } from '../../utils/icons';
 
 export interface NodePanelCallbacks {

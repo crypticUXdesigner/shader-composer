@@ -1,6 +1,9 @@
 /**
  * Parameter Drag Handler
- * 
+ *
+ * Behavior is driven by getUIType(): enum ⇒ no drag; toggle ⇒ click to flip;
+ * knob/input ⇒ drag. Range and bezier params are not draggable in this handler.
+ *
  * Handles parameter value adjustment via drag:
  * - Click and drag on parameter to adjust value
  * - Supports different sensitivity modes (normal, fine with shift, coarse with ctrl)
@@ -70,31 +73,25 @@ export class ParameterDragHandler implements InteractionHandler {
     const paramSpec = spec.parameters[paramHit.paramName];
     if (!paramSpec) return;
     
-    // Check if this parameter is rendered as an enum (dropdown)
-    // Enum parameters should not be draggable - they're only selectable via dropdown
     const parameterRegistry = getParameterUIRegistry();
     const renderer = parameterRegistry.getRenderer(spec, paramHit.paramName);
-    if (renderer.getUIType() === 'enum') {
+    const uiType = renderer.getUIType();
+
+    if (uiType === 'enum') {
       // Don't allow dragging enum parameters - they're only selectable via dropdown
       return;
     }
-    
-    // Check if this is a toggle parameter (int with min 0, max 1)
-    const isToggle = paramSpec.type === 'int' && 
-      paramSpec.min === 0 && 
-      paramSpec.max === 1;
-    
-    // Handle toggle parameters - toggle on click instead of drag
-    if (isToggle) {
+
+    if (uiType === 'toggle') {
       const currentValue = (node.parameters[paramHit.paramName] ?? paramSpec.default) as number;
       const newValue = currentValue === 1 ? 0 : 1;
       this.context.onParameterChanged?.(paramHit.nodeId, paramHit.paramName, newValue);
       this.context.requestRender();
       return;
     }
-    
-    // Handle float/int parameters - drag to adjust
-    if (paramSpec.type === 'float' || paramSpec.type === 'int') {
+
+    // Only knob and input support drag in this handler; range/bezier have their own interactions
+    if (uiType === 'knob' || uiType === 'input') {
       this.isDraggingParameter = true;
       this.draggingParameterNodeId = paramHit.nodeId;
       this.draggingParameterName = paramHit.paramName;
@@ -170,9 +167,10 @@ export class ParameterDragHandler implements InteractionHandler {
       // This ensures the node gets re-rendered even with frame buffer optimization
       this.context.markNodesDirty?.([this.draggingParameterNodeId]);
       
-      // Render immediately for live visual feedback during drag
-      // Use direct render() instead of requestRender() to avoid frame delay
-      this.context.render();
+      // Request render (batched via requestRender mechanism)
+      // This batches multiple parameter updates into a single frame (60fps max)
+      // Uniforms are updated immediately above, so visual feedback is still responsive
+      this.context.requestRender();
       
       // Throttle callback (Phase 3.4)
       // Throttle parameter change callbacks to avoid excessive updates

@@ -11,6 +11,8 @@ import type { NodeRenderMetrics } from '../../NodeRenderer';
 
 export interface NodeLayerContext {
   graph: NodeGraph;
+  /** When set, used to read the current graph (e.g. after setGraph). Prefer over stale graph. */
+  getGraph?: () => NodeGraph;
   nodeSpecs: Map<string, NodeSpec>;
   nodeMetrics: Map<string, NodeRenderMetrics>;
   selectedNodeIds: Set<string>;
@@ -42,9 +44,10 @@ export class NodeLayerRenderer implements LayerRenderer {
   }
   
   render(_ctx: CanvasRenderingContext2D, _state: RenderState): void {
+    const graph = this.context.getGraph ? this.context.getGraph() : this.context.graph;
     // Always render all visible nodes - dirty tracking controls when to trigger renders, not what to render
     // Viewport culling filters out off-screen nodes for performance
-    for (const node of this.context.graph.nodes) {
+    for (const node of graph.nodes) {
       // Get metrics to check visibility
       const metrics = this.context.nodeMetrics.get(node.id);
       

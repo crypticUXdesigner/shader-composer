@@ -63,12 +63,15 @@ export interface ParameterGroup {
 // Defines how parameters are laid out in the node body (slot container)
 export interface ParameterLayout {
   elements: LayoutElement[];  // Ordered list of elements (rendered top to bottom)
+  /** Parameter names that have no connection port (e.g. clamp on audio-remap) */
+  parametersWithoutPorts?: string[];
 }
 
-export type LayoutElement = 
+export type LayoutElement =
   | AutoGridElement
   | GridElement
-  | SliderUIElement
+  | RemapRangeElement
+  | FrequencyRangeElement
   | BezierEditorElement
   | CustomElement;
 
@@ -81,6 +84,8 @@ export interface AutoGridElement {
 // Explicit grid with layout control
 export interface GridElement {
   type: 'grid';
+  /** Optional header label rendered above this grid block */
+  label?: string;
   parameters: string[];  // Which parameters to include (in order)
   layout?: {
     columns?: number | 'auto';  // 'auto' uses calculateOptimalColumns
@@ -91,10 +96,37 @@ export interface GridElement {
   parameterUI?: Record<string, ParameterUISelection>;  // Override UI per param
 }
 
-// Range editor slider (maps to inMin/inMax/outMin/outMax)
-export interface SliderUIElement {
-  type: 'slider-ui';
-  height?: number;  // Default: range-editor-height CSS token
+// Remap range editor (maps to inMin/inMax/outMin/outMax)
+export interface RemapRangeElement {
+  type: 'remap-range';
+  // Height controlled by design system token: --remap-range-height
+}
+
+/**
+ * Scale for the frequency-range slider.
+ * - 'linear': Hz maps linearly to slider position (default).
+ * - 'audio': Logarithmic scale; matches human perception of pitch (each octave ≈ equal distance).
+ */
+export type FrequencyRangeScale = 'linear' | 'audio';
+
+/**
+ * Frequency range editor (simplified range: label + horizontal slider + start/end inputs).
+ * Used for editing one band of an array parameter (e.g. frequencyBands[bandIndex]).
+ * Layout: embed-slot with padding/gap from --embed-slot-pd, direction column.
+ */
+export interface FrequencyRangeElement {
+  type: 'frequency-range';
+  /** Name of the array parameter (e.g. 'frequencyBands') */
+  parameter: string;
+  /** Index of the band to edit within the array */
+  bandIndex: number;
+  /** Optional label override; defaults to "Band {bandIndex + 1}" or parameter label */
+  label?: string;
+  /**
+   * Slider scale. Default 'linear'.
+   * Use 'audio' for frequency in Hz (log scale: 20–20k maps to perceptually even steps).
+   */
+  scale?: FrequencyRangeScale;
 }
 
 // Bezier curve editor

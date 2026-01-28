@@ -2,7 +2,7 @@
 // Right-click menu for creating nodes
 
 import type { NodeSpec } from '../../types/nodeSpec';
-import { getNodeIcon } from '../../utils/nodeSpecAdapter';
+import { getNodeIcon } from '../../utils/nodeSpecUtils';
 import { createNodeIconElement } from '../../utils/icons';
 
 export interface ContextMenuCallbacks {
@@ -29,9 +29,6 @@ export class NodeContextMenu {
     
     this.menu = document.createElement('div');
     this.menu.className = 'menu-wrapper';
-    this.menu.style.minWidth = 'var(--menu-min-width)';
-    this.menu.style.maxWidth = 'var(--menu-max-width)';
-    this.menu.style.maxHeight = 'var(--menu-max-height)';
     
     // Search input at top
     this.searchInput = document.createElement('input');
@@ -308,23 +305,26 @@ export class NodeContextMenu {
     
     if (center) {
       // Center the menu
-      this.menu.style.top = '50%';
-      this.menu.style.left = '50%';
-      this.menu.style.transform = 'translate(-50%, -50%)';
+      this.menu.style.setProperty('--menu-top', '50%');
+      this.menu.style.setProperty('--menu-left', '50%');
+      this.menu.style.setProperty('--menu-transform', 'translate(-50%, -50%)');
     } else {
       // Position at click location
-      this.menu.style.top = `${y}px`;
-      this.menu.style.left = `${x}px`;
-      this.menu.style.transform = 'none';
+      let menuLeft = x;
+      let menuTop = y;
       
       // Ensure menu stays within viewport
       const rect = this.menu.getBoundingClientRect();
       if (rect.right > window.innerWidth) {
-        this.menu.style.left = `${x - rect.width}px`;
+        menuLeft = x - rect.width;
       }
       if (rect.bottom > window.innerHeight) {
-        this.menu.style.top = `${y - rect.height}px`;
+        menuTop = y - rect.height;
       }
+      
+      this.menu.style.setProperty('--menu-top', `${menuTop}px`);
+      this.menu.style.setProperty('--menu-left', `${menuLeft}px`);
+      this.menu.style.setProperty('--menu-transform', 'none');
     }
     
     // Reset search and focus

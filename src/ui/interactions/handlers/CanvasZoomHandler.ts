@@ -98,7 +98,7 @@ export class CanvasZoomHandler implements InteractionHandler {
     // Apply zoom factor using exponential scaling for efficiency
     // This ensures fast scrolling zooms proportionally faster without loops
     const zoomFactor = Math.pow(baseZoomFactor, normalizedDelta);
-    const newZoom = Math.max(0.10, Math.min(5.0, state.zoom * zoomFactor));
+    const newZoom = Math.max(0.10, Math.min(1.0, state.zoom * zoomFactor));
     
     // Calculate new pan to keep mouse position fixed in canvas space
     // Use canvas-relative coordinates, not screen coordinates

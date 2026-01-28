@@ -236,10 +236,7 @@ export class NodeDragHandler implements InteractionHandler {
         if (selectedNode) {
           selectedNode.position.x = Math.round(initialPos.x + deltaX);
           selectedNode.position.y = Math.round(initialPos.y + deltaY);
-          
-          // Invalidate metrics cache for moved node
-          this.context.invalidateNodeMetrics?.(nodeId);
-          
+
           this.context.onNodeMoved?.(nodeId, selectedNode.position.x, selectedNode.position.y);
           movedNodeIds.push(nodeId);
         }
@@ -299,6 +296,9 @@ export class NodeDragHandler implements InteractionHandler {
     
     // Clear smart guides
     this.context.setSmartGuides?.({ vertical: [], horizontal: [] });
+    // Force overlays to redraw immediately so guide lines disappear on mouseup
+    this.context.markLayerDirty?.(RenderLayer.Overlays);
+    this.context.requestRender();
     
     // Phase 3.4: Clear dragged nodes tracking
     this.context.setDraggedNodeIds?.([]);
@@ -413,8 +413,7 @@ export class NodeDragHandler implements InteractionHandler {
               if (selectedNode) {
                 selectedNode.position.x = Math.round(initialPos.x + deltaX);
                 selectedNode.position.y = Math.round(initialPos.y + deltaY);
-                
-                this.context.invalidateNodeMetrics?.(nodeId);
+
                 this.context.onNodeMoved?.(nodeId, selectedNode.position.x, selectedNode.position.y);
                 movedNodeIds.push(nodeId);
               }

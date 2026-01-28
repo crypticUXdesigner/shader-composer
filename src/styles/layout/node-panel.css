@@ -15,13 +15,45 @@
   z-index: var(--z-panel);
 
   /* Box model */
-  overflow: hidden;
+  overflow: visible; /* Changed from hidden to allow resize handle to be visible */
 
   /* Other */
   transition: transform 0.3s ease;
 
   &.is-visible {
     transform: translateX(0);
+  }
+}
+
+/* ========================================
+   Panel Resize Handle
+   ======================================== */
+
+.node-panel-resize-handle {
+  /* Layout */
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 4px;
+  z-index: 11;
+
+  /* Visual */
+  background: var(--divider);
+  cursor: col-resize;
+
+  /* Other */
+  user-select: none;
+  transition: background 0.15s ease;
+
+  &:hover {
+    /* Visual */
+    background: var(--color-gray-100);
+  }
+
+  &:active {
+    /* Visual */
+    background: var(--color-gray-110);
   }
 }
 

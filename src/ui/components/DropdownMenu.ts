@@ -19,8 +19,6 @@ export class DropdownMenu {
   constructor() {
     this.menu = document.createElement('div');
     this.menu.className = 'menu-wrapper';
-    this.menu.style.minWidth = '160px';
-    this.menu.style.padding = 'var(--pd-xs) 0';
     document.body.appendChild(this.menu);
     this.setupEventListeners();
   }
@@ -88,18 +86,21 @@ export class DropdownMenu {
     this.ignoreClicksUntil = Date.now() + 300;
     
     // Position menu
-    this.menu.style.top = `${y}px`;
-    this.menu.style.left = `${x}px`;
-    this.menu.style.transform = 'none';
+    let menuLeft = x;
+    let menuTop = y;
     
     // Ensure menu stays within viewport
     const rect = this.menu.getBoundingClientRect();
     if (rect.right > window.innerWidth) {
-      this.menu.style.left = `${x - rect.width}px`;
+      menuLeft = x - rect.width;
     }
     if (rect.bottom > window.innerHeight) {
-      this.menu.style.top = `${y - rect.height}px`;
+      menuTop = y - rect.height;
     }
+    
+    this.menu.style.setProperty('--menu-top', `${menuTop}px`);
+    this.menu.style.setProperty('--menu-left', `${menuLeft}px`);
+    this.menu.style.setProperty('--menu-transform', 'none');
   }
   
   hide(): void {

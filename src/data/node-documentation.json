@@ -1,7 +1,7 @@
 {
   "helpItems": {
     "node:uv-coordinates": {
-      "title": "UV Coordinates",
+      "title": "UV Coords",
       "titleType": "node",
       "category": "Inputs",
       "icon": "chart-scatter",
@@ -66,7 +66,7 @@
       ]
     },
     "node:fragment-coordinates": {
-      "title": "Fragment Coordinates",
+      "title": "Frag Coords",
       "titleType": "node",
       "category": "Inputs",
       "icon": "chart-scatter",
@@ -87,7 +87,7 @@
       ]
     },
     "node:constant-float": {
-      "title": "Constant Float",
+      "title": "Float",
       "titleType": "node",
       "category": "Inputs",
       "icon": "constant",
@@ -109,7 +109,7 @@
       ]
     },
     "node:constant-vec2": {
-      "title": "Constant Vec2",
+      "title": "Vec2",
       "titleType": "node",
       "category": "Inputs",
       "icon": "chart-scatter",
@@ -131,7 +131,7 @@
       ]
     },
     "node:constant-vec3": {
-      "title": "Constant Vec3",
+      "title": "Vec3",
       "titleType": "node",
       "category": "Inputs",
       "icon": "chart-scatter-3d",
@@ -154,7 +154,7 @@
       ]
     },
     "node:constant-vec4": {
-      "title": "Constant Vec4",
+      "title": "Vec4",
       "titleType": "node",
       "category": "Inputs",
       "icon": "chart-scatter-3d",
@@ -199,7 +199,7 @@
       ]
     },
     "node:bezier-curve": {
-      "title": "Bezier Curve",
+      "title": "Bezier",
       "titleType": "node",
       "category": "Inputs",
       "icon": "ease-in-out-control-points",
@@ -1242,7 +1242,7 @@
       ]
     },
     "node:audio-file-input": {
-      "title": "Audio File Input",
+      "title": "Audio File",
       "titleType": "node",
       "category": "Audio",
       "icon": "audio-waveform",
@@ -1907,7 +1907,7 @@
       ]
     },
     "node:polar-coordinates": {
-      "title": "Polar Coordinates",
+      "title": "Polar Coords",
       "titleType": "node",
       "category": "Distort",
       "icon": "spiral",
@@ -2282,7 +2282,7 @@
       "category": "Patterns",
       "icon": "hexagon",
       "tagline": "Perfect for creating hexagonal grid patterns for tiling, cellular structures, or game board layouts",
-      "description": "Generates hexagonal grid patterns by dividing space into hexagonal cells. Hexagonal grids are useful for creating tiling patterns, cellular structures, or game board layouts. The node calculates which hexagonal cell each coordinate belongs to and can output various features like cell ID, distance to cell center, or edge detection. Hexagonal grids provide more uniform spacing than square grids and create visually interesting patterns. The grid can be scaled, rotated, and offset to create different arrangements.",
+      "description": "Generates a seamless, regular hexagonal tiling pattern. Control the cell size, the gap (margin) between cells, and a per-cell rotation (rotates each hexagon’s shape without rotating the grid). A separate grid rotation rotates the overall tiling, and intensity controls the output strength.",
       "inputs": [
         {
           "name": "in",
@@ -2359,7 +2359,7 @@
       ]
     },
     "node:plane-grid": {
-      "title": "Plane Grid",
+      "title": "Grid",
       "titleType": "node",
       "category": "Patterns",
       "icon": "grid",
@@ -2386,7 +2386,7 @@
       ]
     },
     "node:box-torus-sdf": {
-      "title": "Box Torus SDF",
+      "title": "SDF",
       "titleType": "node",
       "category": "Shapes",
       "icon": "box",
@@ -3015,12 +3015,12 @@
       ]
     },
     "node:final-output": {
-      "title": "Final Output",
+      "title": "Output",
       "titleType": "node",
       "category": "Output",
       "icon": "screen-share",
       "tagline": "Marks the final output node for the shader, converting input to final color output",
-      "description": "Marks the final output node for the shader, indicating where the rendering pipeline ends. The node accepts a vec3 RGB color input and outputs it as the final shader result. The compiler automatically handles type conversion if a different type is connected (float becomes grayscale, vec2/vec4 are converted appropriately). This node is required in every shader graph to define the final output. Only one Final Output node should be present in a graph, and it serves as the entry point for the compiled shader code.",
+      "description": "Marks the final output node for the shader, indicating where the rendering pipeline ends. This is a terminal node with no outputs - it marks the end of the computation graph. The node accepts a vec3 RGB color input, and the compiler uses this input connection to determine the final shader output. The compiler automatically handles type conversion if a different type is connected (float becomes grayscale, vec2/vec4 are converted appropriately). This node is required in every shader graph to define the final output. Only one Final Output node should be present in a graph, and it serves as the entry point for the compiled shader code.",
       "inputs": [
         {
           "name": "in",
@@ -3028,13 +3028,7 @@
           "description": "The final RGB color to output (accepts float, vec2, vec3, or vec4 with automatic conversion)"
         }
       ],
-      "outputs": [
-        {
-          "name": "out",
-          "type": "vec3",
-          "description": "The final shader output color"
-        }
-      ],
+      "outputs": [],
       "relatedItems": [
         "node:color-map",
         "type:vec3"

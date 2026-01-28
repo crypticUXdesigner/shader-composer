@@ -3,11 +3,12 @@
 
 import type { ParameterInputMode } from './nodeSpec';
 
-export type ParameterValue = 
+export type ParameterValue =
   | number                        // For float/int parameters
   | string                        // For string parameters (swizzle, etc.)
   | [number, number, number, number]  // For vec4 parameters (bezier curves)
-  | number[];                     // For array parameters (color stops)
+  | number[]                      // For array parameters (color stops)
+  | number[][];                   // For array-of-arrays (e.g. frequencyBands)
 
 export interface NodeInstance {
   // Identity
@@ -26,7 +27,6 @@ export interface NodeInstance {
   
   // Metadata
   label?: string;                 // Optional custom label (overrides displayName)
-  collapsed?: boolean;            // Whether node UI is collapsed (default: false)
   color?: string;                 // Optional node color (hex, e.g., "#FF0000")
 }
 

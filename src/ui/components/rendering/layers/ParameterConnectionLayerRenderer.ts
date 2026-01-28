@@ -3,22 +3,31 @@
  * 
  * Phase 3.3: Optimized with path caching - caches connection paths and only
  * recalculates when port positions change.
+ * 
+ * PERF_CONNECTION_RENDERING: Refactored to use ConnectionPathCache for better
+ * cache management and selective invalidation.
  */
 
 import type { LayerRenderer } from '../LayerRenderer';
 import { RenderLayer } from '../RenderState';
 import type { RenderState } from '../RenderState';
-import type { NodeGraph, Connection } from '../../../../types/nodeGraph';
+import type { NodeGraph, Connection, NodeInstance } from '../../../../types/nodeGraph';
 import type { NodeSpec } from '../../../../types/nodeSpec';
 import type { NodeRenderMetrics } from '../../NodeRenderer';
 import { getCSSColor, getCSSVariableAsNumber } from '../../../../utils/cssTokens';
+import { ConnectionPathCache } from '../ConnectionPathCache';
 
 export interface ParameterConnectionLayerContext {
   graph: NodeGraph;
+  /** When set, used to read the current graph (e.g. after setGraph). Prefer over stale graph. */
+  getGraph?: () => NodeGraph;
   nodeSpecs: Map<string, NodeSpec>;
   nodeMetrics: Map<string, NodeRenderMetrics>;
-  selectedConnectionIds: Set<string>;
+  /** Resolve selected connection IDs at render time so selection updates are visible. */
+  getSelectedConnectionIds: () => Set<string>;
   isConnectionVisible?: (conn: Connection) => boolean;
+  // PERF_VIEWPORT_CULLING: Check if a node is visible in viewport
+  isNodeVisible?: (node: NodeInstance, metrics: NodeRenderMetrics) => boolean;
   // Phase 3.4: Recalculate metrics for dragged nodes before rendering connections
   recalculateMetricsForNodes?: (nodeIds: string[]) => void;
   getDraggedNodeIds?: () => string[];
@@ -27,21 +36,12 @@ export interface ParameterConnectionLayerContext {
   renderState?: RenderState;
 }
 
-interface CachedConnectionPath {
-  path: Path2D;
-  sourceX: number;
-  sourceY: number;
-  targetX: number;
-  targetY: number;
-}
-
 export class ParameterConnectionLayerRenderer implements LayerRenderer {
   layer = RenderLayer.ParameterConnections;
   private context: ParameterConnectionLayerContext;
   
-  // Phase 3.3: Cache connection paths to avoid recalculating every frame
-  private pathCache: Map<string, CachedConnectionPath> = new Map();
-  private positionCache: Map<string, { sourceX: number; sourceY: number; targetX: number; targetY: number }> = new Map();
+  // PERF_CONNECTION_RENDERING: Use dedicated cache class for better management
+  private pathCache: ConnectionPathCache = new ConnectionPathCache();
   
   constructor(context: ParameterConnectionLayerContext) {
     this.context = context;
@@ -63,26 +63,48 @@ export class ParameterConnectionLayerRenderer implements LayerRenderer {
       }
     }
     
+    const graph = this.context.getGraph ? this.context.getGraph() : this.context.graph;
+    // PERF_VIEWPORT_CULLING: Build visible node set once for efficient culling
+    // This avoids checking visibility for every connection
+    const visibleNodeIds = new Set<string>();
+    if (this.context.isNodeVisible) {
+      for (const node of graph.nodes) {
+        const metrics = this.context.nodeMetrics.get(node.id);
+        if (metrics && this.context.isNodeVisible(node, metrics)) {
+          visibleNodeIds.add(node.id);
+        }
+      }
+    }
+    
     // Render parameter connections (connections to parameter ports)
-    for (const conn of this.context.graph.connections) {
+    for (const conn of graph.connections) {
       if (conn.targetParameter) {
-        // If viewport culling is enabled, check if connection is visible
-        // Check visibility before rendering (viewport culling)
-        if (this.context.isConnectionVisible && !this.context.isConnectionVisible(conn)) {
+        // PERF_VIEWPORT_CULLING: Use visible node set for efficient culling
+        // Skip connections where both nodes are off-screen
+        if (this.context.isNodeVisible && visibleNodeIds.size > 0) {
+          const sourceVisible = visibleNodeIds.has(conn.sourceNodeId);
+          const targetVisible = visibleNodeIds.has(conn.targetNodeId);
+          
+          // Skip if both nodes are off-screen
+          if (!sourceVisible && !targetVisible) {
+            continue;
+          }
+        } else if (this.context.isConnectionVisible && !this.context.isConnectionVisible(conn)) {
+          // Fallback to isConnectionVisible if isNodeVisible not available
           continue; // Skip off-screen connections
         }
         
         // Note: Dirty region filtering removed - without FrameBuffer we can't do true incremental rendering
         // Always render all visible connections to ensure nothing disappears
         
-        this.renderConnection(ctx, conn);
+        this.renderConnection(ctx, conn, graph);
       }
     }
   }
   
-  private renderConnection(ctx: CanvasRenderingContext2D, conn: Connection): void {
-    const sourceNode = this.context.graph.nodes.find(n => n.id === conn.sourceNodeId);
-    const targetNode = this.context.graph.nodes.find(n => n.id === conn.targetNodeId);
+  private renderConnection(ctx: CanvasRenderingContext2D, conn: Connection, graph: NodeGraph): void {
+    const sourceNode = graph.nodes.find(n => n.id === conn.sourceNodeId);
+    const targetNode = graph.nodes.find(n => n.id === conn.targetNodeId);
     
     if (!sourceNode || !targetNode) return;
     
@@ -93,7 +115,8 @@ export class ParameterConnectionLayerRenderer implements LayerRenderer {
     
     if (!sourceSpec || !targetSpec || !sourceMetrics || !targetMetrics) return;
     
-    const isSelected = this.context.selectedConnectionIds.has(conn.id);
+    const selectedIds = this.context.getSelectedConnectionIds();
+    const isSelected = selectedIds.has(conn.id);
     
     // Get actual port positions
     const sourcePortPos = sourceMetrics.portPositions.get(`output:${conn.sourcePort}`);
@@ -102,37 +125,25 @@ export class ParameterConnectionLayerRenderer implements LayerRenderer {
     
     if (!sourcePortPos || !targetPortPos) return;
     
-    const sourceX = sourcePortPos.x;
-    const sourceY = sourcePortPos.y;
-    const targetX = targetPortPos.x;
-    const targetY = targetPortPos.y;
+    const sourcePos = { x: sourcePortPos.x, y: sourcePortPos.y };
+    const targetPos = { x: targetPortPos.x, y: targetPortPos.y };
     
-    // Phase 3.3: Check if positions changed (cache hit/miss)
-    const cached = this.positionCache.get(conn.id);
-    const positionsChanged = !cached || 
-      cached.sourceX !== sourceX || cached.sourceY !== sourceY ||
-      cached.targetX !== targetX || cached.targetY !== targetY;
+    // PERF_CONNECTION_RENDERING: Use cache to get or calculate path
+    let path = this.pathCache.getPath(conn.id, sourcePos, targetPos);
     
-    let path: Path2D;
-    
-    if (!positionsChanged && this.pathCache.has(conn.id)) {
-      // Use cached path
-      const cachedPath = this.pathCache.get(conn.id)!;
-      path = cachedPath.path;
-    } else {
-      // Calculate new path
-      const cp1X = sourceX + 100;
-      const cp1Y = sourceY;
-      const cp2X = targetX - 100;
-      const cp2Y = targetY;
+    if (!path) {
+      // Calculate new path - positions changed or cache miss
+      const cp1X = sourcePos.x + 100;
+      const cp1Y = sourcePos.y;
+      const cp2X = targetPos.x - 100;
+      const cp2Y = targetPos.y;
       
       path = new Path2D();
-      path.moveTo(sourceX, sourceY);
-      path.bezierCurveTo(cp1X, cp1Y, cp2X, cp2Y, targetX, targetY);
+      path.moveTo(sourcePos.x, sourcePos.y);
+      path.bezierCurveTo(cp1X, cp1Y, cp2X, cp2Y, targetPos.x, targetPos.y);
       
-      // Cache path and positions
-      this.pathCache.set(conn.id, { path, sourceX, sourceY, targetX, targetY });
-      this.positionCache.set(conn.id, { sourceX, sourceY, targetX, targetY });
+      // Cache the new path
+      this.pathCache.setPath(conn.id, path, sourcePos, targetPos);
     }
     
     // Get connection color based on source port type
@@ -174,8 +185,16 @@ export class ParameterConnectionLayerRenderer implements LayerRenderer {
    * Invalidate cache for a specific connection (e.g., when connection is deleted)
    */
   invalidateConnection(connectionId: string): void {
-    this.pathCache.delete(connectionId);
-    this.positionCache.delete(connectionId);
+    this.pathCache.invalidate(connectionId);
+  }
+  
+  /**
+   * Invalidate all connections involving a specific node
+   * PERF_CONNECTION_RENDERING: More efficient than clearing entire cache
+   */
+  invalidateNodeConnections(nodeId: string): void {
+    const graph = this.context.getGraph ? this.context.getGraph() : this.context.graph;
+    this.pathCache.invalidateNodeConnections(nodeId, graph.connections);
   }
   
   /**
@@ -183,6 +202,5 @@ export class ParameterConnectionLayerRenderer implements LayerRenderer {
    */
   clearCache(): void {
     this.pathCache.clear();
-    this.positionCache.clear();
   }
 }

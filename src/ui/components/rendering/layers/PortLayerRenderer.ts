@@ -37,7 +37,9 @@ export class PortLayerRenderer implements LayerRenderer {
   }
   
   render(_ctx: CanvasRenderingContext2D, _state: RenderState): void {
-    // Render all node ports
+    // PERF_VIEWPORT_CULLING: renderNodePorts() internally culls ports for off-screen nodes
+    // by checking isNodeVisible before rendering each node's ports
+    // Render all visible node ports
     this.context.renderNodePorts();
   }
 }

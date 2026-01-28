@@ -184,8 +184,7 @@
         "parameters": {
           "filePath": "po9t - The Quiet Between Us.mp3",
           "autoPlay": 1
-        },
-        "collapsed": false
+        }
       },
       {
         "id": "node-1769374912643-w7spx5ehr",
@@ -215,8 +214,7 @@
           ],
           "smoothing": 0.1,
           "fftSize": 4096
-        },
-        "collapsed": false
+        }
       },
       {
         "id": "node-1769374912643-2mhj67a59",
@@ -231,8 +229,7 @@
           "inMin": 0,
           "inMax": 1,
           "outMin": 0.08
-        },
-        "collapsed": false
+        }
       },
       {
         "id": "node-1769374912643-p0km3fjy2",
@@ -247,8 +244,7 @@
           "outMin": 0.08000000000000002,
           "outMax": 1,
           "clamp": 1
-        },
-        "collapsed": false
+        }
       },
       {
         "id": "node-1769374912643-lc1kg9p1c",
@@ -263,8 +259,7 @@
           "outMin": 0,
           "outMax": 0.724323866236495,
           "clamp": 1
-        },
-        "collapsed": false
+        }
       },
       {
         "id": "node-1769374912643-t6yc6safb",
@@ -279,8 +274,7 @@
           "outMin": 0.8,
           "outMax": 1,
           "clamp": 1
-        },
-        "collapsed": false
+        }
       },
       {
         "id": "node-1769374912643-gfwu9k07i",
@@ -303,7 +297,6 @@
           "primitiveGlowIntensity": 2,
           "primitiveRaymarchSteps": 200
         },
-        "collapsed": false,
         "parameterInputModes": {
           "primitiveSizeX": "multiply"
         }
@@ -318,8 +311,7 @@
         "parameters": {
           "mode": 10,
           "opacity": 1
-        },
-        "collapsed": false
+        }
       },
       {
         "id": "node-1769374912643-9mpd6smfo",
@@ -329,29 +321,16 @@
           "y": 2453
         },
         "parameters": {
-          "vfFrequencyX": 1,
-          "vfFrequencyY": 31.5,
-          "vfFrequencyZ": 4.5,
-          "vfAmplitude": 1.3,
-          "vfAmplitudeX": 0.5399999999999999,
-          "vfAmplitudeY": 1.04,
-          "vfAmplitudeZ": 1,
-          "vfRadialStrength": 11.8,
-          "vfRadialCenterX": -0.3,
-          "vfRadialCenterY": -0.5,
-          "vfHarmonicAmplitude": 1.18,
-          "vfTimeOffset": 14.000000000000002,
           "vectorFieldFrequencyX": 1.6,
+          "vectorFieldFrequencyY": 2.6,
           "vectorFieldFrequencyZ": 3.4000000000000004,
           "vectorFieldAmplitude": 5,
           "vectorFieldRadialStrength": 20,
           "vectorFieldSpeed": 1.76,
           "vectorFieldDistanceContribution": 0.2,
           "vectorFieldComplexity": 6.039999999999999,
-          "vectorFieldFrequencyY": 2.6,
           "animationSpeed": 1.2
         },
-        "collapsed": false,
         "parameterInputModes": {
           "vectorFieldComplexity": "multiply"
         }
@@ -368,8 +347,7 @@
           "scaleY": 1.099,
           "centerX": 0,
           "centerY": 0
-        },
-        "collapsed": false
+        }
       },
       {
         "id": "node-1769374912643-1ocksf9f6",
@@ -385,7 +363,6 @@
           "turbulenceTimeSpeed": 1,
           "turbulenceTimeOffset": 0
         },
-        "collapsed": false,
         "parameterInputModes": {
           "turbulenceStrength": "multiply"
         }

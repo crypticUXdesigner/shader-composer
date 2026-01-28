@@ -11,6 +11,7 @@ export const addNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Add',
   description: 'Adds two values together',
+  icon: 'plus',
   inputs: [
     { name: 'a', type: 'float' },
     { name: 'b', type: 'float' }
@@ -29,6 +30,7 @@ export const subtractNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Subtract',
   description: 'Subtracts second value from first',
+  icon: 'minus',
   inputs: [
     { name: 'a', type: 'float' },
     { name: 'b', type: 'float' }
@@ -47,6 +49,7 @@ export const multiplyNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Multiply',
   description: 'Multiplies two values',
+  icon: 'multiply-x',
   inputs: [
     { name: 'a', type: 'float' },
     { name: 'b', type: 'float' }
@@ -65,6 +68,7 @@ export const divideNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Divide',
   description: 'Divides first value by second',
+  icon: 'divide',
   inputs: [
     { name: 'a', type: 'float' },
     { name: 'b', type: 'float' }
@@ -83,6 +87,7 @@ export const powerNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Power',
   description: 'Raises first value to the power of second',
+  icon: 'power',
   inputs: [
     { name: 'base', type: 'float' },
     { name: 'exponent', type: 'float' }
@@ -101,6 +106,7 @@ export const squareRootNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Square Root',
   description: 'Square root of input',
+  icon: 'sqrt',
   inputs: [
     { name: 'in', type: 'float' }
   ],
@@ -118,6 +124,7 @@ export const absoluteNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Absolute',
   description: 'Absolute value of input',
+  icon: 'arrows-left-right',
   inputs: [
     { name: 'in', type: 'float' }
   ],
@@ -135,6 +142,7 @@ export const floorNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Floor',
   description: 'Floor (round down) of input',
+  icon: 'arrow-down',
   inputs: [
     { name: 'in', type: 'float' }
   ],
@@ -152,6 +160,7 @@ export const ceilNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Ceil',
   description: 'Ceiling (round up) of input',
+  icon: 'arrow-up',
   inputs: [
     { name: 'in', type: 'float' }
   ],
@@ -169,6 +178,7 @@ export const fractNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Fract',
   description: 'Fractional part of input',
+  icon: 'hash',
   inputs: [
     { name: 'in', type: 'float' }
   ],
@@ -186,6 +196,7 @@ export const moduloNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Modulo',
   description: 'Modulo (remainder) operation',
+  icon: 'percentage',
   inputs: [
     { name: 'a', type: 'float' },
     { name: 'b', type: 'float' }
@@ -204,6 +215,7 @@ export const minNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Min',
   description: 'Minimum of two values',
+  icon: 'math-min',
   inputs: [
     { name: 'a', type: 'float' },
     { name: 'b', type: 'float' }
@@ -222,6 +234,7 @@ export const maxNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Max',
   description: 'Maximum of two values',
+  icon: 'math-max',
   inputs: [
     { name: 'a', type: 'float' },
     { name: 'b', type: 'float' }
@@ -240,6 +253,7 @@ export const clampNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Clamp',
   description: 'Clamps value between min and max',
+  icon: 'math-max-min',
   inputs: [
     { name: 'in', type: 'float' },
     { name: 'min', type: 'float' },
@@ -259,6 +273,7 @@ export const mixNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Mix',
   description: 'Linear interpolation between two values',
+  icon: 'arrows-left-right',
   inputs: [
     { name: 'a', type: 'float' },
     { name: 'b', type: 'float' },
@@ -278,6 +293,7 @@ export const stepNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Step',
   description: 'Step function (0.0 if x < edge, 1.0 otherwise)',
+  icon: 'arrow-right',
   inputs: [
     { name: 'edge', type: 'float' },
     { name: 'x', type: 'float' }
@@ -296,6 +312,7 @@ export const smoothstepNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Smoothstep',
   description: 'Smooth Hermite interpolation between edge0 and edge1',
+  icon: 'wave-sine',
   inputs: [
     { name: 'edge0', type: 'float' },
     { name: 'edge1', type: 'float' },
@@ -316,6 +333,7 @@ export const sineNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Sine',
   description: 'Sine function',
+  icon: 'trig-wave',
   inputs: [
     { name: 'in', type: 'float' }
   ],
@@ -333,6 +351,7 @@ export const cosineNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Cosine',
   description: 'Cosine function',
+  icon: 'math-cos',
   inputs: [
     { name: 'in', type: 'float' }
   ],
@@ -350,6 +369,7 @@ export const tangentNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Tangent',
   description: 'Tangent function',
+  icon: 'math-tg',
   inputs: [
     { name: 'in', type: 'float' }
   ],
@@ -367,6 +387,7 @@ export const arcSineNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Arc Sine',
   description: 'Arc sine (inverse sine)',
+  icon: 'math-function-y',
   inputs: [
     { name: 'in', type: 'float' }
   ],
@@ -384,6 +405,7 @@ export const arcCosineNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Arc Cosine',
   description: 'Arc cosine (inverse cosine)',
+  icon: 'math-function-y',
   inputs: [
     { name: 'in', type: 'float' }
   ],
@@ -401,6 +423,7 @@ export const arcTangentNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Arc Tangent',
   description: 'Arc tangent (inverse tangent)',
+  icon: 'math-function-y',
   inputs: [
     { name: 'in', type: 'float' }
   ],
@@ -418,6 +441,7 @@ export const arcTangent2NodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Arc Tangent 2',
   description: 'Arc tangent of y/x (handles all quadrants)',
+  icon: 'math-symbols',
   inputs: [
     { name: 'y', type: 'float' },
     { name: 'x', type: 'float' }
@@ -437,6 +461,7 @@ export const exponentialNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Exponential',
   description: 'e raised to the power of input',
+  icon: 'math-xy',
   inputs: [
     { name: 'in', type: 'float' }
   ],
@@ -454,6 +479,7 @@ export const naturalLogarithmNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Natural Logarithm',
   description: 'Natural logarithm (base e)',
+  icon: 'math-function',
   inputs: [
     { name: 'in', type: 'float' }
   ],
@@ -472,6 +498,7 @@ export const lengthNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Length',
   description: 'Length (magnitude) of vector',
+  icon: 'ruler',
   inputs: [
     { name: 'in', type: 'vec2' }
   ],
@@ -489,6 +516,7 @@ export const distanceNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Distance',
   description: 'Distance between two points',
+  icon: 'ruler',
   inputs: [
     { name: 'a', type: 'vec2' },
     { name: 'b', type: 'vec2' }
@@ -507,6 +535,7 @@ export const dotProductNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Dot Product',
   description: 'Dot product of two vectors',
+  icon: 'vector-dot',
   inputs: [
     { name: 'a', type: 'vec2' },
     { name: 'b', type: 'vec2' }
@@ -525,6 +554,7 @@ export const crossProductNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Cross Product',
   description: 'Cross product of two 3D vectors',
+  icon: 'vector-cross',
   inputs: [
     { name: 'a', type: 'vec3' },
     { name: 'b', type: 'vec3' }
@@ -543,6 +573,7 @@ export const normalizeNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Normalize',
   description: 'Normalizes vector to unit length',
+  icon: 'normalize',
   inputs: [
     { name: 'in', type: 'vec2' }
   ],
@@ -560,6 +591,7 @@ export const reflectNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Reflect',
   description: 'Reflects vector off surface with normal',
+  icon: 'calculator',
   inputs: [
     { name: 'I', type: 'vec2' },
     { name: 'N', type: 'vec2' }
@@ -578,6 +610,7 @@ export const refractNodeSpec: NodeSpec = {
   category: 'Math',
   displayName: 'Refract',
   description: 'Refracts vector through surface',
+  icon: 'calculator',
   inputs: [
     { name: 'I', type: 'vec2' },
     { name: 'N', type: 'vec2' },

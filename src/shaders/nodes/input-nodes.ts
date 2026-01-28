@@ -7,8 +7,9 @@ import type { NodeSpec } from '../../types';
 export const uvCoordinatesNodeSpec: NodeSpec = {
   id: 'uv-coordinates',
   category: 'Inputs',
-  displayName: 'UV Coordinates',
+  displayName: 'UV Coords',
   description: 'Outputs normalized UV coordinates (0-1)',
+  icon: 'chart-scatter',
   inputs: [],
   outputs: [
     {
@@ -28,6 +29,7 @@ export const timeNodeSpec: NodeSpec = {
   category: 'Inputs',
   displayName: 'Time',
   description: 'Outputs the current time value',
+  icon: 'time-clock',
   inputs: [],
   outputs: [
     {
@@ -47,6 +49,7 @@ export const resolutionNodeSpec: NodeSpec = {
   category: 'Inputs',
   displayName: 'Resolution',
   description: 'Outputs the screen resolution as vec2',
+  icon: 'chart-scatter',
   inputs: [],
   outputs: [
     {
@@ -64,8 +67,9 @@ export const resolutionNodeSpec: NodeSpec = {
 export const fragmentCoordinatesNodeSpec: NodeSpec = {
   id: 'fragment-coordinates',
   category: 'Inputs',
-  displayName: 'Fragment Coordinates',
+  displayName: 'Frag Coords',
   description: 'Outputs the fragment coordinates (gl_FragCoord.xy)',
+  icon: 'chart-scatter',
   inputs: [],
   outputs: [
     {
@@ -83,8 +87,9 @@ export const fragmentCoordinatesNodeSpec: NodeSpec = {
 export const constantFloatNodeSpec: NodeSpec = {
   id: 'constant-float',
   category: 'Inputs',
-  displayName: 'Constant Float',
+  displayName: 'Float',
   description: 'Outputs a constant float value',
+  icon: 'constant',
   inputs: [],
   outputs: [
     {
@@ -110,8 +115,9 @@ export const constantFloatNodeSpec: NodeSpec = {
 export const constantVec2NodeSpec: NodeSpec = {
   id: 'constant-vec2',
   category: 'Inputs',
-  displayName: 'Constant Vec2',
+  displayName: 'Vec2',
   description: 'Outputs a constant vec2 value',
+  icon: 'chart-scatter',
   inputs: [],
   outputs: [
     {
@@ -144,8 +150,9 @@ export const constantVec2NodeSpec: NodeSpec = {
 export const constantVec3NodeSpec: NodeSpec = {
   id: 'constant-vec3',
   category: 'Inputs',
-  displayName: 'Constant Vec3',
+  displayName: 'Vec3',
   description: 'Outputs a constant vec3 value',
+  icon: 'chart-scatter-3d',
   inputs: [],
   outputs: [
     {
@@ -185,8 +192,9 @@ export const constantVec3NodeSpec: NodeSpec = {
 export const constantVec4NodeSpec: NodeSpec = {
   id: 'constant-vec4',
   category: 'Inputs',
-  displayName: 'Constant Vec4',
+  displayName: 'Vec4',
   description: 'Outputs a constant vec4 value',
+  icon: 'chart-scatter-3d',
   inputs: [],
   outputs: [
     {

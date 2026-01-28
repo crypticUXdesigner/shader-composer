@@ -8,7 +8,7 @@ import { getHelpContent, resolveRelatedItems, findNodesUsingType } from '../../u
 import type { NodeSpec } from '../../types/nodeSpec';
 import { createIconElement } from '../../utils/icons';
 import { createNodeIconElement } from '../../utils/icons';
-import { getNodeIcon } from '../../utils/nodeSpecAdapter';
+import { getNodeIcon } from '../../utils/nodeSpecUtils';
 import { getCSSColor } from '../../utils/cssTokens';
 
 export interface ShowOptions {
@@ -17,6 +17,14 @@ export interface ShowOptions {
   triggerElement?: HTMLElement;
   screenX?: number;
   screenY?: number;
+  typeLabelBounds?: {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+    width: number;
+    height: number;
+  };
   nodeSpecs?: Map<string, NodeSpec>;
 }
 
@@ -68,6 +76,7 @@ export class ContextualHelpCallout {
       
       const now = Date.now();
       if (now < this.ignoreClicksUntil) {
+        // Still in ignore period - don't hide
         return;
       }
       
@@ -78,14 +87,18 @@ export class ContextualHelpCallout {
       }
       
       // If click is on close button, don't handle it here (its own handler will)
-      if (target.closest('.help-popover-close')) {
+      if (target.closest('.help-popover-close') || target.closest('.close')) {
         return;
       }
       
       // Check if click is outside the callout
       if (!this.callout.contains(target)) {
-        e.stopPropagation();
-        this.hide();
+        // Only hide if callout is actually visible in DOM
+        const computedStyle = window.getComputedStyle(this.callout);
+        if (computedStyle.display !== 'none' && computedStyle.visibility !== 'hidden') {
+          e.stopPropagation();
+          this.hide();
+        }
       }
     };
     document.addEventListener('mousedown', this.mousedownHandler, true);
@@ -133,6 +146,14 @@ export class ContextualHelpCallout {
    * Show help callout
    */
   async show(options: ShowOptions): Promise<void> {
+    console.log('[ContextualHelpCallout] show() called with:', options);
+    console.log('[ContextualHelpCallout] Callout element:', {
+      exists: !!this.callout,
+      parentNode: this.callout?.parentNode,
+      className: this.callout?.className,
+      isVisible: this.callout?.classList.contains('is-visible')
+    });
+    
     let content: HelpContent | null = null;
 
     // Get content from helpId or use provided content
@@ -142,6 +163,7 @@ export class ContextualHelpCallout {
         console.warn(`Help content not found for: ${options.helpId}`);
         return;
       }
+      console.log('[ContextualHelpCallout] Content loaded:', content);
     } else if (options.content) {
       content = options.content;
     } else {
@@ -168,12 +190,19 @@ export class ContextualHelpCallout {
       return;
     }
 
-    // Position callout (this will also add is-visible class)
-    this.positionCallout(screenX, screenY);
-
-    // Mark as visible
+    // Mark as visible BEFORE positioning to prevent event handlers from hiding it
     this._isVisible = true;
-    this.ignoreClicksUntil = Date.now() + 300;
+    this.ignoreClicksUntil = Date.now() + 500; // Increased timeout to prevent immediate hiding
+    
+    // Position callout (this will also add is-visible class)
+    this.positionCallout(screenX, screenY, options.typeLabelBounds);
+    
+    console.log('[ContextualHelpCallout] Callout shown successfully:', {
+      helpId: options.helpId,
+      isVisible: this._isVisible,
+      calloutElement: this.callout,
+      hasContent: this.callout.innerHTML.length > 0
+    });
   }
 
   private renderContent(content: HelpContent): void {
@@ -247,82 +276,13 @@ export class ContextualHelpCallout {
 
     this.callout.appendChild(header);
 
-    // Category icon (if applicable)
-    if (content.category) {
-      const categoryRow = document.createElement('div');
-      categoryRow.className = 'category';
-      // For now, we'll skip category icons as they need to be defined in the help data
-      // This can be extended later
-      this.callout.appendChild(categoryRow);
-    }
-
-    // Related items (nodes that use this type)
-    if (content.titleType === 'type' && this.nodeSpecs.size > 0) {
-      const relatedNodes = findNodesUsingType(content.title, this.nodeSpecs);
-      if (relatedNodes.length > 0) {
-        const relatedRow = document.createElement('div');
-        relatedRow.className = 'related';
-        const relatedLabel = document.createElement('div');
-        relatedLabel.className = 'related-label';
-        relatedLabel.textContent = 'Used by:';
-        relatedRow.appendChild(relatedLabel);
-
-        const iconsContainer = document.createElement('div');
-        iconsContainer.className = 'related-icons';
-        
-        relatedNodes.slice(0, 12).forEach((nodeSpec: NodeSpec) => { // Limit to 12 icons
-          const iconWrapper = document.createElement('div');
-          iconWrapper.className = 'related-icon';
-          iconWrapper.title = nodeSpec.displayName;
-          const iconIdentifier = getNodeIcon(nodeSpec);
-          // Variant is auto-selected by createNodeIconElement based on icon identifier
-          const icon = createNodeIconElement(iconIdentifier, 20, 'currentColor', undefined);
-          iconWrapper.appendChild(icon);
-          iconsContainer.appendChild(iconWrapper);
-        });
-
-        relatedRow.appendChild(iconsContainer);
-        this.callout.appendChild(relatedRow);
-      }
-    }
-
-    // Also show related items from help content
-    if (content.relatedItems && content.relatedItems.length > 0 && this.nodeSpecs.size > 0) {
-      const resolved = resolveRelatedItems(content.relatedItems, this.nodeSpecs);
-      if (resolved.nodes.length > 0) {
-        const relatedRow = document.createElement('div');
-        relatedRow.className = 'related';
-        const relatedLabel = document.createElement('div');
-        relatedLabel.className = 'related-label';
-        relatedLabel.textContent = 'Related:';
-        relatedRow.appendChild(relatedLabel);
-
-        const iconsContainer = document.createElement('div');
-        iconsContainer.className = 'related-icons';
-        
-        resolved.nodes.slice(0, 8).forEach((nodeSpec: NodeSpec) => {
-          const iconWrapper = document.createElement('div');
-          iconWrapper.className = 'related-icon';
-          iconWrapper.title = nodeSpec.displayName;
-          const iconIdentifier = getNodeIcon(nodeSpec);
-          // Variant is auto-selected by createNodeIconElement based on icon identifier
-          const icon = createNodeIconElement(iconIdentifier, 20, 'currentColor', undefined);
-          iconWrapper.appendChild(icon);
-          iconsContainer.appendChild(iconWrapper);
-        });
-
-        relatedRow.appendChild(iconsContainer);
-        this.callout.appendChild(relatedRow);
-      }
-    }
-
-    // Description
+    // Description (order: 2)
     const description = document.createElement('div');
     description.className = 'description';
     description.textContent = content.description;
     this.callout.appendChild(description);
 
-    // Examples
+    // Examples (order: 3)
     if (content.examples && content.examples.length > 0) {
       const examplesSection = document.createElement('div');
       examplesSection.className = 'examples';
@@ -341,63 +301,219 @@ export class ContextualHelpCallout {
       examplesSection.appendChild(examplesList);
       this.callout.appendChild(examplesSection);
     }
+
+    // Related items (nodes that use this type) - "Used by" (order: 4)
+    if (content.titleType === 'type' && this.nodeSpecs.size > 0) {
+      const relatedNodes = findNodesUsingType(content.title, this.nodeSpecs);
+      if (relatedNodes.length > 0) {
+        const relatedRow = document.createElement('div');
+        relatedRow.className = 'related';
+        const relatedLabel = document.createElement('div');
+        relatedLabel.className = 'related-label';
+        relatedLabel.textContent = 'Used by:';
+        relatedRow.appendChild(relatedLabel);
+
+        const itemsContainer = document.createElement('div');
+        itemsContainer.className = 'related-items';
+        
+        relatedNodes.slice(0, 12).forEach((nodeSpec: NodeSpec) => { // Limit to 12 items
+          const item = document.createElement('div');
+          item.className = 'related-item';
+          item.title = nodeSpec.displayName;
+          
+          const iconIdentifier = getNodeIcon(nodeSpec);
+          const icon = createNodeIconElement(iconIdentifier, 20, 'currentColor', undefined);
+          item.appendChild(icon);
+          
+          const label = document.createElement('span');
+          label.className = 'related-item-label';
+          label.textContent = nodeSpec.displayName;
+          item.appendChild(label);
+          
+          itemsContainer.appendChild(item);
+        });
+
+        relatedRow.appendChild(itemsContainer);
+        this.callout.appendChild(relatedRow);
+      }
+    }
+
+    // Related items from help content - "Related" (order: 5)
+    if (content.relatedItems && content.relatedItems.length > 0 && this.nodeSpecs.size > 0) {
+      const resolved = resolveRelatedItems(content.relatedItems, this.nodeSpecs);
+      if (resolved.nodes.length > 0) {
+        const relatedRow = document.createElement('div');
+        relatedRow.className = 'related';
+        const relatedLabel = document.createElement('div');
+        relatedLabel.className = 'related-label';
+        relatedLabel.textContent = 'Related:';
+        relatedRow.appendChild(relatedLabel);
+
+        const itemsContainer = document.createElement('div');
+        itemsContainer.className = 'related-items';
+        
+        resolved.nodes.slice(0, 8).forEach((nodeSpec: NodeSpec) => {
+          const item = document.createElement('div');
+          item.className = 'related-item';
+          item.title = nodeSpec.displayName;
+          
+          const iconIdentifier = getNodeIcon(nodeSpec);
+          const icon = createNodeIconElement(iconIdentifier, 20, 'currentColor', undefined);
+          item.appendChild(icon);
+          
+          const label = document.createElement('span');
+          label.className = 'related-item-label';
+          label.textContent = nodeSpec.displayName;
+          item.appendChild(label);
+          
+          itemsContainer.appendChild(item);
+        });
+
+        relatedRow.appendChild(itemsContainer);
+        this.callout.appendChild(relatedRow);
+      }
+    }
   }
 
-  private positionCallout(screenX: number, screenY: number): void {
-    const margin = 8; // Gap from trigger element
+  private positionCallout(screenX: number, screenY: number, typeLabelBounds?: ShowOptions['typeLabelBounds']): void {
+    const margin = 12; // Gap from trigger element
     const safeMargin = 16; // Safe distance from viewport edges
     
-    // Default position: below and right-aligned with trigger
-    let left = screenX;
-    let top = screenY + margin;
-
     // Show callout to measure it (use CSS class, not inline display)
     this.callout.classList.add('is-visible');
     this.callout.style.visibility = 'hidden';
-    this.callout.style.top = `${top}px`;
-    this.callout.style.left = `${left}px`;
+    this.callout.style.top = '0px';
+    this.callout.style.left = '0px';
+    
+    // Force a layout recalculation by reading a layout property
+    void this.callout.offsetHeight;
+    
     const rect = this.callout.getBoundingClientRect();
     const calloutWidth = rect.width;
     const calloutHeight = rect.height;
+    
+    // If dimensions are 0, use fallback values
+    if (calloutWidth === 0 || calloutHeight === 0) {
+      console.warn('[ContextualHelpCallout] Callout has zero dimensions, using fallback:', {
+        width: calloutWidth,
+        height: calloutHeight,
+        innerHTML: this.callout.innerHTML.substring(0, 100)
+      });
+      return;
+    }
 
-    // Adjust position to stay within viewport
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
-
-    // Check right edge
-    if (left + calloutWidth > viewportWidth - safeMargin) {
-      // Try flipping to left side of trigger
-      left = screenX - calloutWidth;
-      // If that's also off-screen, align to right edge
-      if (left < safeMargin) {
-        left = viewportWidth - calloutWidth - safeMargin;
+    
+    // Use type label bounds if available, otherwise use point coordinates
+    const anchorLeft = typeLabelBounds?.left ?? screenX;
+    const anchorTop = typeLabelBounds?.top ?? screenY;
+    const anchorRight = typeLabelBounds?.right ?? screenX;
+    const anchorBottom = typeLabelBounds?.bottom ?? screenY;
+    const anchorWidth = typeLabelBounds?.width ?? 0;
+    const anchorHeight = typeLabelBounds?.height ?? 0;
+    
+    // Try multiple positions in order of preference and choose the best one
+    interface PositionOption {
+      left: number;
+      top: number;
+      score: number; // Higher is better
+    }
+    
+    const positions: PositionOption[] = [];
+    
+    // 1. Below, aligned to left edge of type label (preferred for input ports)
+    positions.push({
+      left: anchorLeft,
+      top: anchorBottom + margin,
+      score: 100
+    });
+    
+    // 2. Above, aligned to left edge of type label (preferred if not enough space below)
+    positions.push({
+      left: anchorLeft,
+      top: anchorTop - calloutHeight - margin,
+      score: 90
+    });
+    
+    // 3. To the right, vertically centered with type label
+    positions.push({
+      left: anchorRight + margin,
+      top: anchorTop + (anchorHeight / 2) - (calloutHeight / 2),
+      score: 80
+    });
+    
+    // 4. To the left, vertically centered with type label
+    positions.push({
+      left: anchorLeft - calloutWidth - margin,
+      top: anchorTop + (anchorHeight / 2) - (calloutHeight / 2),
+      score: 70
+    });
+    
+    // Score each position based on available space and viewport constraints
+    for (const pos of positions) {
+      // Check viewport bounds
+      const fitsHorizontally = pos.left >= safeMargin && pos.left + calloutWidth <= viewportWidth - safeMargin;
+      const fitsVertically = pos.top >= safeMargin && pos.top + calloutHeight <= viewportHeight - safeMargin;
+      
+      if (!fitsHorizontally || !fitsVertically) {
+        // Adjust position to fit within viewport
+        if (pos.left < safeMargin) {
+          pos.left = safeMargin;
+        } else if (pos.left + calloutWidth > viewportWidth - safeMargin) {
+          pos.left = viewportWidth - calloutWidth - safeMargin;
+        }
+        
+        if (pos.top < safeMargin) {
+          pos.top = safeMargin;
+        } else if (pos.top + calloutHeight > viewportHeight - safeMargin) {
+          pos.top = viewportHeight - calloutHeight - safeMargin;
+        }
+        
+        // Reduce score for positions that needed adjustment
+        pos.score -= 20;
       }
+      
+      // Calculate available space around position
+      const spaceAbove = pos.top - safeMargin;
+      const spaceBelow = viewportHeight - safeMargin - (pos.top + calloutHeight);
+      const spaceLeft = pos.left - safeMargin;
+      const spaceRight = viewportWidth - safeMargin - (pos.left + calloutWidth);
+      
+      // Boost score for positions with more available space
+      const totalSpace = spaceAbove + spaceBelow + spaceLeft + spaceRight;
+      pos.score += Math.min(totalSpace / 100, 10); // Cap bonus at 10
     }
-
-    // Check left edge
-    if (left < safeMargin) {
-      left = safeMargin;
-    }
-
-    // Check bottom edge
-    if (top + calloutHeight > viewportHeight - safeMargin) {
-      // Flip above trigger
-      top = screenY - calloutHeight - margin;
-      // If that's also off-screen, align to bottom edge
-      if (top < safeMargin) {
-        top = viewportHeight - calloutHeight - safeMargin;
-      }
-    }
-
-    // Check top edge
-    if (top < safeMargin) {
-      top = safeMargin;
-    }
-
+    
+    // Sort by score (highest first) and pick the best position
+    positions.sort((a, b) => b.score - a.score);
+    const bestPosition = positions[0];
+    
     // Apply final position
-    this.callout.style.top = `${top}px`;
-    this.callout.style.left = `${left}px`;
+    this.callout.style.top = `${bestPosition.top}px`;
+    this.callout.style.left = `${bestPosition.left}px`;
     this.callout.style.visibility = 'visible';
+    
+    // Force a reflow to ensure styles are applied
+    void this.callout.offsetHeight;
+    
+    // Debug: log positioning info
+    const computedStyle = window.getComputedStyle(this.callout);
+    console.log('[ContextualHelpCallout] Positioned callout:', {
+      screenX,
+      screenY,
+      typeLabelBounds,
+      finalLeft: bestPosition.left,
+      finalTop: bestPosition.top,
+      score: bestPosition.score,
+      width: calloutWidth,
+      height: calloutHeight,
+      viewport: { width: viewportWidth, height: viewportHeight },
+      isVisible: this.callout.classList.contains('is-visible'),
+      visibility: computedStyle.visibility,
+      display: computedStyle.display,
+      hasContent: this.callout.innerHTML.length > 0
+    });
   }
 
   hide(): void {

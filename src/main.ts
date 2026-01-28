@@ -4,18 +4,21 @@
  * This replaces the old layer-based system with the new node-based system.
  */
 
-import { elementLibrary } from './shaders/elements/index';
 import { NodeShaderCompiler } from './shaders/NodeShaderCompiler';
 import { NodeEditor } from './ui/components/NodeEditor';
 import { NodeEditorLayout } from './ui/components/NodeEditorLayout';
 import { BottomBar } from './ui/components/BottomBar';
+import { ErrorDisplay } from './ui/components/ErrorDisplay';
 import { RuntimeManager } from './runtime/RuntimeManager';
-import { visualElementToNodeSpec } from './utils/nodeSpecAdapter';
+import { createRuntimeManager } from './runtime/factories';
 import { nodeSystemSpecs } from './shaders/nodes/index';
 import { listPresets, loadPreset, copyGraphToClipboard } from './utils/presetManager';
 import { exportImage } from './utils/export';
 import { getCSSColor } from './utils/cssTokens';
 import { loadTablerIconData } from './utils/tabler-icons-loader';
+import { globalErrorHandler } from './utils/errorHandling';
+import { safeDestroy } from './utils/Disposable';
+import type { Disposable } from './utils/Disposable';
 import type { NodeGraph } from './data-model/types';
 import type { NodeSpec } from './types';
 
@@ -27,6 +30,11 @@ class App {
   private compiler!: NodeShaderCompiler;
   private nodeSpecs!: NodeSpec[];
   private animationFrameId: number | null = null;
+  private errorDisplay!: ErrorDisplay;
+  
+  // Visibility detection for conditional rendering
+  private isVisible: boolean = true;
+  private intersectionObserver: IntersectionObserver | null = null;
   
   constructor() {
     this.initialize();
@@ -64,9 +72,19 @@ class App {
     // Connect bottom bar to layout for panel offset
     this.layout.setBottomBar(this.bottomBar);
     
-    // Convert visual elements to node specs and add node system specific specs
-    const elementSpecs = elementLibrary.map(visualElementToNodeSpec);
-    this.nodeSpecs = [...elementSpecs, ...nodeSystemSpecs];
+    // Create error display component
+    const errorDisplayContainer = document.createElement('div');
+    errorDisplayContainer.id = 'error-display-container';
+    mainContainer.appendChild(errorDisplayContainer);
+    this.errorDisplay = new ErrorDisplay(errorDisplayContainer);
+    
+    // Set up error handler to display errors
+    globalErrorHandler.onError((error: import('./utils/errorHandling').AppError) => {
+      this.errorDisplay.showError(error);
+    });
+    
+    // All node specs are now native NodeSpecs (VisualElements have been migrated)
+    this.nodeSpecs = nodeSystemSpecs;
     
     // Create compiler
     const nodeSpecsMap = new Map<string, NodeSpec>();
@@ -84,14 +102,12 @@ class App {
     `;
     this.layout.getPreviewContainer().appendChild(previewCanvas);
     
-    // Create runtime manager
-    this.runtimeManager = new RuntimeManager(
+    // Create runtime manager using factory function with error handler
+    this.runtimeManager = createRuntimeManager(
       previewCanvas,
       this.compiler,
-      (error) => {
-        console.error('Shader error:', error);
-        // TODO: Display error in UI
-      }
+      undefined, // Old error callback (deprecated, kept for backward compatibility)
+      globalErrorHandler // New error handler
     );
     
     // Automatically load first available preset
@@ -101,12 +117,15 @@ class App {
     try {
       const presets = await listPresets();
       if (presets.length > 0) {
-        // Load the first preset alphabetically
-        const firstPreset = presets[0];
-        console.log(`[App] Loading first preset: ${firstPreset.displayName} (${firstPreset.name})`);
-        initialGraph = await loadPreset(firstPreset.name);
+        // Prefer "testing" preset, otherwise load the first preset alphabetically
+        let selectedPreset = presets.find(p => p.name === 'testing');
+        if (!selectedPreset) {
+          selectedPreset = presets[0];
+        }
+        console.log(`[App] Loading preset: ${selectedPreset.displayName} (${selectedPreset.name})`);
+        initialGraph = await loadPreset(selectedPreset.name);
         if (initialGraph) {
-          loadedPresetName = firstPreset.name;
+          loadedPresetName = selectedPreset.name;
           // Generate new IDs to avoid conflicts
           const newGraphId = `graph-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
           initialGraph.id = newGraphId;
@@ -125,13 +144,19 @@ class App {
             conn.targetNodeId = nodeIdMap.get(conn.targetNodeId) || conn.targetNodeId;
           }
           
-          // Reset view state
-          initialGraph.viewState = {
-            zoom: 1.0,
-            panX: 0,
-            panY: 0,
-            selectedNodeIds: []
-          };
+          // Preserve viewState from preset if it exists, otherwise it will be set to default
+          // The viewState will be applied when setGraph is called on the canvas
+          if (!initialGraph.viewState) {
+            initialGraph.viewState = {
+              zoom: 1.0,
+              panX: 0,
+              panY: 0,
+              selectedNodeIds: []
+            };
+          } else {
+            // Clear selectedNodeIds to avoid conflicts with new node IDs
+            initialGraph.viewState.selectedNodeIds = [];
+          }
         }
       }
     } catch (error) {
@@ -172,13 +197,32 @@ class App {
           this.runtimeManager.updateParameter(nodeId, paramName, value);
         },
         onFileParameterChanged: async (nodeId, paramName, file) => {
-          await this.runtimeManager.onAudioFileParameterChange(nodeId, paramName, file);
+          console.log(`[main] onFileParameterChanged callback: nodeId=${nodeId}, paramName=${paramName}, file=`, file.name);
+          try {
+            await this.runtimeManager.onAudioFileParameterChange(nodeId, paramName, file);
+            console.log(`[main] Audio file parameter change completed`);
+          } catch (error) {
+            console.error(`[main] Error in onAudioFileParameterChange:`, error);
+            throw error;
+          }
         }
       }
     );
     
     // Set audio manager reference in canvas for real-time value display
     this.nodeEditor.getCanvasComponent().setAudioManager(this.runtimeManager.getAudioManager());
+    
+    // If viewState was not preserved from preset (default values), fit to view to show all nodes
+    if (initialGraph.viewState && 
+        initialGraph.viewState.zoom === 1.0 && 
+        initialGraph.viewState.panX === 0 && 
+        initialGraph.viewState.panY === 0 &&
+        initialGraph.nodes.length > 0) {
+      // Use setTimeout to ensure canvas is ready and metrics are calculated
+      setTimeout(() => {
+        this.nodeEditor.getCanvasComponent().fitToView();
+      }, 0);
+    }
     
     // Setup bottom bar callbacks
     this.bottomBar.setCallbacks({
@@ -255,17 +299,31 @@ class App {
           conn.targetNodeId = nodeIdMap.get(conn.targetNodeId) || conn.targetNodeId;
         }
         
-        // Reset view state
-        presetGraph.viewState = {
-          zoom: 1.0,
-          panX: 0,
-          panY: 0,
-          selectedNodeIds: []
-        };
+        // Preserve viewState from preset if it exists, otherwise use fitToView
+        if (!presetGraph.viewState) {
+          presetGraph.viewState = {
+            zoom: 1.0,
+            panX: 0,
+            panY: 0,
+            selectedNodeIds: []
+          };
+        } else {
+          // Clear selectedNodeIds to avoid conflicts with new node IDs
+          presetGraph.viewState.selectedNodeIds = [];
+        }
         
         // Load the graph into the editor
         this.nodeEditor.setGraph(presetGraph);
         await this.runtimeManager.setGraph(presetGraph);
+        
+        // If viewState was not preserved from preset, fit to view to show all nodes
+        if (!presetGraph.viewState || 
+            (presetGraph.viewState.zoom === 1.0 && presetGraph.viewState.panX === 0 && presetGraph.viewState.panY === 0)) {
+          // Use setTimeout to ensure canvas is ready and metrics are calculated
+          setTimeout(() => {
+            this.nodeEditor.getCanvasComponent().fitToView();
+          }, 0);
+        }
         
         // Update the dropdown to reflect the loaded preset
         this.layout.setSelectedPreset(presetName);
@@ -297,16 +355,68 @@ class App {
     // Set initial graph in runtime (await to ensure audio files load)
     await this.runtimeManager.setGraph(initialGraph);
     
+    // Setup visibility detection
+    this.setupVisibilityDetection();
+    
     // Start animation loop
     this.startAnimation();
   }
   
+  private setupVisibilityDetection(): void {
+    // Detect tab visibility
+    document.addEventListener('visibilitychange', () => {
+      this.isVisible = !document.hidden;
+      if (!this.isVisible) {
+        // Pause animation when tab is hidden
+        this.stopAnimation();
+      } else {
+        // Resume animation when tab becomes visible
+        this.startAnimation();
+      }
+    });
+    
+    // Detect canvas visibility (IntersectionObserver)
+    const previewCanvas = this.layout.getPreviewContainer().querySelector('canvas');
+    if (previewCanvas) {
+      this.intersectionObserver = new IntersectionObserver((entries) => {
+        const isVisible = entries[0].isIntersecting;
+        this.isVisible = isVisible && !document.hidden;
+        
+        if (!this.isVisible) {
+          this.stopAnimation();
+        } else {
+          this.startAnimation();
+        }
+      }, {
+        threshold: 0.1 // Consider visible if 10% is visible
+      });
+      
+      this.intersectionObserver.observe(previewCanvas);
+    }
+  }
+  
   private startAnimation(): void {
+    // Don't start if not visible
+    if (!this.isVisible) {
+      return;
+    }
+    
+    // Cancel existing animation if running
+    if (this.animationFrameId !== null) {
+      return;
+    }
+    
     let lastFrameTime = performance.now();
     let lastZoomUpdate = performance.now();
     const ZOOM_UPDATE_INTERVAL = 100; // Update zoom display every 100ms
     
     const animate = (currentTime: number) => {
+      // Check visibility before continuing
+      if (!this.isVisible) {
+        this.animationFrameId = null;
+        return;
+      }
+      
       // Calculate frame time for FPS tracking
       const frameTime = currentTime - lastFrameTime;
       lastFrameTime = currentTime;
@@ -321,10 +431,11 @@ class App {
         this.layout.updateZoomDisplay(zoom);
       }
       
-      // Update time uniform
+      // Update time uniform (only if visible and dirty)
       const time = (currentTime / 1000.0) % 1000.0;
       this.runtimeManager.setTime(time);
       
+      // Continue animation loop
       this.animationFrameId = requestAnimationFrame(animate);
     };
     
@@ -348,8 +459,31 @@ class App {
   }
   
   destroy(): void {
+    // Stop animation first
     this.stopAnimation();
-    // Cleanup if needed
+    
+    // Cleanup visibility observer
+    if (this.intersectionObserver) {
+      this.intersectionObserver.disconnect();
+      this.intersectionObserver = null;
+    }
+    
+    // Clean up components in reverse order of creation
+    // RuntimeManager depends on other components, so clean it up first
+    safeDestroy(this.runtimeManager);
+    
+    // Then clean up UI components
+    safeDestroy(this.nodeEditor as unknown as Disposable);
+    safeDestroy(this.bottomBar as unknown as Disposable);
+    safeDestroy(this.layout as unknown as Disposable);
+    
+    // Clear references
+    this.runtimeManager = null as any;
+    this.nodeEditor = null as any;
+    this.bottomBar = null as any;
+    this.layout = null as any;
+    this.compiler = null as any;
+    this.nodeSpecs = null as any;
   }
 }
 

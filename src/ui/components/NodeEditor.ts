@@ -8,11 +8,24 @@ import { CopyPasteManager } from './CopyPasteManager';
 import { ContextualHelpCallout } from './ContextualHelpCallout';
 import type { NodeGraph, NodeInstance, Connection } from '../../types/nodeGraph';
 import type { NodeSpec } from '../../types/nodeSpec';
+import {
+  updateNodePosition,
+  updateNodeParameter,
+  updateNodeParameterInputMode,
+  updateNodeLabel,
+  addNode as addNodeImmutable,
+  removeNode as removeNodeImmutable,
+  addConnection as addConnectionImmutable,
+  removeConnection as removeConnectionImmutable,
+  updateViewState,
+  addNodes,
+  addConnections,
+} from '../../data-model/immutableUpdates';
 
 export interface NodeEditorCallbacks {
   onGraphChanged?: (graph: NodeGraph) => void;
   onConnectionRemoved?: (connectionId: string) => void;
-  onParameterChanged?: (nodeId: string, paramName: string, value: number) => void;
+  onParameterChanged?: (nodeId: string, paramName: string, value: number | number[][]) => void;
   onFileParameterChanged?: (nodeId: string, paramName: string, file: File) => void;
   onError?: (error: { type: string, errors?: string[], error?: string, timestamp: number }) => void;
 }
@@ -50,11 +63,13 @@ export class NodeEditor {
     // Push initial state
     this.undoRedoManager.pushState(graph);
     
-    // Create canvas
+    // Create canvas (tabindex so it receives focus on click; required for Delete/Backspace to work)
     this.canvas = document.createElement('canvas');
+    this.canvas.tabIndex = 0;
     this.canvas.style.width = '100%';
     this.canvas.style.height = '100%';
     this.canvas.style.display = 'block';
+    this.canvas.style.outline = 'none'; // avoid focus ring when clicking to select
     this.container.appendChild(this.canvas);
     
     // Create canvas component (audioManager will be set later via setAudioManager)
@@ -84,38 +99,49 @@ export class NodeEditor {
       onNodeMoved: (nodeId, x, y) => {
         const node = this.graph.nodes.find(n => n.id === nodeId);
         if (node) {
-          node.position.x = x;
-          node.position.y = y;
+          // Use immutable update
+          this.graph = updateNodePosition(this.graph as any, nodeId, { x, y });
+          this.canvasComponent.setGraph(this.graph);
           // Update metrics for moved node
-          const spec = this.nodeSpecs.get(node.type);
-          if (spec) {
-            const metrics = this.canvasComponent.getNodeRenderer().calculateMetrics(node, spec);
-            this.canvasComponent.getNodeMetrics().set(node.id, metrics);
+          const updatedNode = this.graph.nodes.find(n => n.id === nodeId);
+          if (updatedNode) {
+            const spec = this.nodeSpecs.get(updatedNode.type);
+            if (spec) {
+              const metrics = this.canvasComponent.getNodeRenderer().calculateMetrics(updatedNode, spec);
+              this.canvasComponent.getNodeMetrics().set(updatedNode.id, metrics);
+            }
           }
           this.updateViewState();
           this.notifyGraphChanged();
         }
       },
       onNodeSelected: (nodeId, multiSelect) => {
-        // Update selection state
-        if (!this.graph.viewState) {
-          this.graph.viewState = {
-            zoom: 1.0,
-            panX: 0,
-            panY: 0,
-            selectedNodeIds: []
-          };
-        }
+        // Update selection state using immutable update
+        const currentViewState = this.graph.viewState || {
+          zoom: 1.0,
+          panX: 0,
+          panY: 0,
+          selectedNodeIds: []
+        };
+        
+        let newSelectedIds: string[];
         if (!multiSelect) {
-          this.graph.viewState.selectedNodeIds = nodeId ? [nodeId] : [];
+          newSelectedIds = nodeId ? [nodeId] : [];
         } else if (nodeId) {
-          const selected = this.graph.viewState.selectedNodeIds || [];
+          const selected = currentViewState.selectedNodeIds || [];
           if (selected.includes(nodeId)) {
-            this.graph.viewState.selectedNodeIds = selected.filter(id => id !== nodeId);
+            newSelectedIds = selected.filter(id => id !== nodeId);
           } else {
-            this.graph.viewState.selectedNodeIds = [...selected, nodeId];
+            newSelectedIds = [...selected, nodeId];
           }
+        } else {
+          newSelectedIds = currentViewState.selectedNodeIds || [];
         }
+        
+        this.graph = updateViewState(this.graph as any, {
+          ...currentViewState,
+          selectedNodeIds: newSelectedIds
+        }) as any;
         this.updateViewState();
       },
       onConnectionCreated: (sourceNodeId, sourcePort, targetNodeId, targetPort?, targetParameter?) => {
@@ -140,8 +166,8 @@ export class NodeEditor {
                    c.targetParameter === targetParameter
             );
             if (existingConnection) {
-              // Remove existing connection
-              this.graph.connections = this.graph.connections.filter(c => c.id !== existingConnection!.id);
+              // Remove existing connection using immutable update
+              this.graph = removeConnectionImmutable(this.graph as any, existingConnection.id) as any;
               // Notify about connection removal to ensure recompilation
               this.callbacks.onConnectionRemoved?.(existingConnection.id);
             }
@@ -151,16 +177,18 @@ export class NodeEditor {
               c => c.targetNodeId === targetNodeId && c.targetPort === targetPort
             );
             if (existingConnection) {
-              // Remove existing connection
-              this.graph.connections = this.graph.connections.filter(c => c.id !== existingConnection!.id);
+              // Remove existing connection using immutable update
+              this.graph = removeConnectionImmutable(this.graph as any, existingConnection.id) as any;
               // Notify about connection removal to ensure recompilation
               this.callbacks.onConnectionRemoved?.(existingConnection.id);
             }
           }
           
-          // Add the new connection
-          this.graph.connections.push(connection);
+          // Bake current viewport into graph before setGraph so the canvas does not jump
           this.updateViewState();
+          // Add the new connection using immutable update
+          this.graph = addConnectionImmutable(this.graph as any, connection) as any;
+          this.canvasComponent.setGraph(this.graph);
           this.notifyGraphChanged();
         }
       },
@@ -168,17 +196,19 @@ export class NodeEditor {
         // TODO: Handle connection selection
       },
       onNodeDeleted: (nodeId) => {
-        // Remove node and all its connections
-        this.graph.nodes = this.graph.nodes.filter(n => n.id !== nodeId);
-        this.graph.connections = this.graph.connections.filter(
-          c => c.sourceNodeId !== nodeId && c.targetNodeId !== nodeId
-        );
+        // Bake current viewport into graph before setGraph so the canvas does not jump
         this.updateViewState();
+        // Remove node and all its connections using immutable update
+        this.graph = removeNodeImmutable(this.graph as any, nodeId) as any;
+        this.canvasComponent.setGraph(this.graph);
         this.notifyGraphChanged();
       },
       onConnectionDeleted: (connectionId) => {
-        this.graph.connections = this.graph.connections.filter(c => c.id !== connectionId);
+        // Bake current viewport into graph before setGraph so the canvas does not jump
         this.updateViewState();
+        // Remove connection using immutable update
+        this.graph = removeConnectionImmutable(this.graph as any, connectionId) as any;
+        this.canvasComponent.setGraph(this.graph);
         // Notify about connection removal specifically to ensure recompilation
         this.callbacks.onConnectionRemoved?.(connectionId);
         this.notifyGraphChanged();
@@ -187,51 +217,76 @@ export class NodeEditor {
         // Update parameter value in graph
         this.updateParameter(nodeId, paramName, value);
       },
-      onFileParameterChanged: (nodeId, paramName, file) => {
-        // Handle file parameter change
-        this.callbacks.onFileParameterChanged?.(nodeId, paramName, file);
+      onFileParameterChanged: async (nodeId, paramName, file) => {
+        console.log(`[NodeEditor] onFileParameterChanged called: nodeId=${nodeId}, paramName=${paramName}, file=`, file.name);
+        try {
+          // Handle file parameter change
+          await this.callbacks.onFileParameterChanged?.(nodeId, paramName, file);
+          console.log(`[NodeEditor] File parameter change callback completed`);
+          
+          // Get the updated graph from RuntimeManager (it mutates its own graph reference)
+          // We need to ensure our graph reference is the same, or get the updated one
+          // Since RuntimeManager mutates the graph in place, our reference should be updated
+          const node = this.graph.nodes.find(n => n.id === nodeId);
+          console.log(`[NodeEditor] Node found:`, !!node, `filePath value:`, node?.parameters.filePath);
+          
+          // Force canvas refresh - mark the node as dirty and trigger render
+          // Even though setGraph should handle this, we'll explicitly mark the node dirty
+          this.canvasComponent.setGraph(this.graph);
+          // Also explicitly request a render to ensure it happens
+          this.canvasComponent.render();
+          console.log(`[NodeEditor] Canvas refresh completed`);
+        } catch (error) {
+          console.error(`[NodeEditor] Error in onFileParameterChanged:`, error);
+          throw error;
+        }
       },
       onParameterInputModeChanged: (nodeId, paramName, mode) => {
-        // Update parameter input mode in graph
-        const node = this.graph.nodes.find(n => n.id === nodeId);
-        if (node) {
-          if (!node.parameterInputModes) {
-            node.parameterInputModes = {};
-          }
-          node.parameterInputModes[paramName] = mode;
-          this.updateViewState();
-          this.notifyGraphChanged();
-        }
+        // Update parameter input mode using immutable update
+        this.graph = updateNodeParameterInputMode(this.graph as any, nodeId, paramName, mode) as any;
+        this.canvasComponent.setGraph(this.graph);
+        this.updateViewState();
+        this.notifyGraphChanged();
       },
       onNodeLabelChanged: (nodeId, label) => {
-        // Update node label in graph
-        const node = this.graph.nodes.find(n => n.id === nodeId);
-        if (node) {
-          if (label === undefined) {
-            // Remove label to revert to original displayName
-            delete node.label;
-          } else {
-            // Set the new label
-            node.label = label;
-          }
-          // Update metrics for the node (label affects width calculation)
-          const spec = this.nodeSpecs.get(node.type);
+        // Update node label using immutable update
+        this.graph = updateNodeLabel(this.graph as any, nodeId, label) as any;
+        this.canvasComponent.setGraph(this.graph);
+        // Update metrics for the node (label affects width calculation)
+        const updatedNode = this.graph.nodes.find(n => n.id === nodeId);
+        if (updatedNode) {
+          const spec = this.nodeSpecs.get(updatedNode.type);
           if (spec) {
-            const metrics = this.canvasComponent.getNodeRenderer().calculateMetrics(node, spec);
-            this.canvasComponent.getNodeMetrics().set(node.id, metrics);
+            const metrics = this.canvasComponent.getNodeRenderer().calculateMetrics(updatedNode, spec);
+            this.canvasComponent.getNodeMetrics().set(updatedNode.id, metrics);
           }
-          this.updateViewState();
-          this.notifyGraphChanged();
         }
+        this.updateViewState();
+        this.notifyGraphChanged();
       },
-      onTypeLabelClick: (portType, screenX, screenY) => {
+      onTypeLabelClick: (portType, screenX, screenY, typeLabelBounds) => {
         // Show help callout for the clicked type
+        console.log('[NodeEditor] onTypeLabelClick called:', portType, screenX, screenY, typeLabelBounds);
         this.helpCallout.show({
           helpId: `type:${portType}`,
           screenX,
           screenY,
+          typeLabelBounds,
           nodeSpecs: this.nodeSpecs
         });
+      },
+      onNodeDoubleClick: (nodeId, screenX, screenY) => {
+        // Show help callout for the double-clicked node
+        const node = this.graph.nodes.find(n => n.id === nodeId);
+        if (node) {
+          console.log('[NodeEditor] onNodeDoubleClick called:', nodeId, node.type, screenX, screenY);
+          this.helpCallout.show({
+            helpId: `node:${node.type}`,
+            screenX,
+            screenY,
+            nodeSpecs: this.nodeSpecs
+          });
+        }
       }
     });
   }
@@ -254,8 +309,8 @@ export class NodeEditor {
     // Handle parameter connections
     if (connection.targetParameter) {
       const paramSpec = targetSpec.parameters[connection.targetParameter];
-      if (!paramSpec || (paramSpec.type !== 'float' && paramSpec.type !== 'int')) {
-        return false; // Parameter doesn't exist or isn't float/int
+      if (!paramSpec || paramSpec.type !== 'float') {
+        return false; // Parameter doesn't exist or isn't float
       }
       
       const sourcePort = sourceSpec.outputs.find(p => p.name === connection.sourcePort);
@@ -313,12 +368,12 @@ export class NodeEditor {
   
   private updateViewState(): void {
     const viewState = this.canvasComponent.getViewState();
-    this.graph.viewState = {
+    this.graph = updateViewState(this.graph as any, {
       zoom: viewState.zoom,
       panX: viewState.panX,
       panY: viewState.panY,
-      selectedNodeIds: viewState.selectedNodeIds
-    };
+      selectedNodeIds: Array.from(viewState.selectedNodeIds)
+    }) as any;
   }
   
   private notifyGraphChanged(): void {
@@ -392,8 +447,7 @@ export class NodeEditor {
       id: 'temp',
       type: nodeType,
       position: { x: 0, y: 0 },
-      parameters,
-      collapsed: false
+      parameters
     };
     
     // Calculate metrics to get header dimensions
@@ -409,15 +463,15 @@ export class NodeEditor {
       id: this.generateId('node'),
       type: nodeType,
       position: { x: adjustedX, y: adjustedY },
-      parameters,
-      collapsed: false
+      parameters
     };
     
     // Update graph's viewState with current viewport before calling setGraph
     // This prevents the viewport from jumping when setGraph overwrites from graph.viewState
     this.updateViewState();
     
-    this.graph.nodes.push(node);
+    // Add node using immutable update
+    this.graph = addNodeImmutable(this.graph as any, node) as any;
     // Update metrics for new node (recalculate with actual node instance)
     const finalMetrics = this.canvasComponent.getNodeRenderer().calculateMetrics(node, spec);
     this.canvasComponent.getNodeMetrics().set(node.id, finalMetrics);
@@ -427,10 +481,11 @@ export class NodeEditor {
     return node;
   }
   
-  updateParameter(nodeId: string, paramName: string, value: number): void {
+  updateParameter(nodeId: string, paramName: string, value: number | number[][]): void {
     const node = this.graph.nodes.find(n => n.id === nodeId);
     if (node) {
-      node.parameters[paramName] = value;
+      // Update parameter using immutable update
+      this.graph = updateNodeParameter(this.graph as any, nodeId, paramName, value as any) as any;
       this.callbacks.onParameterChanged?.(nodeId, paramName, value);
       // Trigger canvas render to update parameter display
       this.canvasComponent.render();
@@ -455,9 +510,9 @@ export class NodeEditor {
     const pasted = this.copyPasteManager.paste(x, y);
     if (!pasted) return;
     
-    // Add pasted nodes and connections
-    this.graph.nodes.push(...pasted.nodes);
-    this.graph.connections.push(...pasted.connections);
+    // Add pasted nodes and connections using immutable updates
+    this.graph = addNodes(this.graph as any, pasted.nodes) as any;
+    this.graph = addConnections(this.graph as any, pasted.connections) as any;
     
     // Update metrics for new nodes
     for (const node of pasted.nodes) {
@@ -472,12 +527,12 @@ export class NodeEditor {
     // This prevents the viewport from jumping when setGraph overwrites from graph.viewState
     const viewState = this.canvasComponent.getViewState();
     viewState.selectedNodeIds = pasted.nodes.map(n => n.id);
-    this.graph.viewState = {
+    this.graph = updateViewState(this.graph as any, {
       zoom: viewState.zoom,
       panX: viewState.panX,
       panY: viewState.panY,
-      selectedNodeIds: viewState.selectedNodeIds
-    };
+      selectedNodeIds: Array.from(viewState.selectedNodeIds)
+    }) as any;
     
     this.canvasComponent.setGraph(this.graph);
     this.notifyGraphChanged();
@@ -512,12 +567,12 @@ export class NodeEditor {
     const allNodeIds = this.graph.nodes.map(n => n.id);
     const viewState = this.canvasComponent.getViewState();
     viewState.selectedNodeIds = allNodeIds;
-    this.graph.viewState = {
+    this.graph = updateViewState(this.graph as any, {
       zoom: this.graph.viewState?.zoom ?? 1.0,
       panX: this.graph.viewState?.panX ?? 0,
       panY: this.graph.viewState?.panY ?? 0,
       selectedNodeIds: allNodeIds
-    };
+    }) as any;
     this.canvasComponent.setGraph(this.graph);
   }
   

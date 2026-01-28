@@ -10,6 +10,7 @@ export const oklchColorNodeSpec: NodeSpec = {
   category: 'Inputs',
   displayName: 'OKLCH Color',
   description: 'Defines an OKLCH color value',
+  icon: 'color-picker',
   inputs: [],
   outputs: [
     { name: 'out', type: 'vec3' }
@@ -45,8 +46,9 @@ export const oklchColorNodeSpec: NodeSpec = {
 export const bezierCurveNodeSpec: NodeSpec = {
   id: 'bezier-curve',
   category: 'Inputs',
-  displayName: 'Bezier Curve',
+  displayName: 'Bezier',
   description: 'Defines a cubic bezier curve for color interpolation',
+  icon: 'ease-in-out-control-points',
   inputs: [],
   outputs: [
     { name: 'out', type: 'vec4' }
@@ -100,6 +102,7 @@ export const bayerDitherNodeSpec: NodeSpec = {
   category: 'Effects',
   displayName: 'Bayer Dither',
   description: 'Applies Bayer dithering to a float value using fragment coordinates',
+  icon: 'grain',
   inputs: [
     { name: 'in', type: 'float' },
     { name: 'fragCoord', type: 'vec2' },
@@ -150,6 +153,7 @@ export const oklchColorMapBezierNodeSpec: NodeSpec = {
   category: 'Blend',
   displayName: 'OKLCH Color Map (Bezier Mode)',
   description: 'Converts float value to RGB color using OKLCH color space with cubic bezier curve interpolation',
+  icon: 'ease-in-out-control-points',
   inputs: [
     { name: 'in', type: 'float' },
     { name: 'startColor', type: 'vec3' },
@@ -253,6 +257,7 @@ export const oklchColorMapThresholdNodeSpec: NodeSpec = {
   category: 'Blend',
   displayName: 'OKLCH Color Map (Threshold Mode)',
   description: 'Converts float value to RGB color using OKLCH color space with threshold-based color stops and optional dithering',
+  icon: 'color-palette',
   inputs: [
     { name: 'in', type: 'float' },
     { name: 'startColor', type: 'vec3' },
@@ -450,6 +455,7 @@ export const toneMappingNodeSpec: NodeSpec = {
   category: 'Effects',
   displayName: 'Tone Mapping',
   description: 'Applies tone mapping adjustments (exposure, contrast, saturation) to color',
+  icon: 'contrast-2',
   inputs: [
     { name: 'in', type: 'vec3' }
   ],

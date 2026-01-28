@@ -1,9 +1,9 @@
 // Handles rendering of individual nodes with ports, parameters, etc.
 
 import type { NodeInstance } from '../../types/nodeGraph';
-import type { NodeSpec, LayoutElement } from '../../types/nodeSpec';
-import { getNodeColorByCategory, getNodeIcon } from '../../utils/nodeSpecAdapter';
-import { getCSSColor, getCSSColorRGBA, getCSSVariable, getCSSVariableAsNumber } from '../../utils/cssTokens';
+import type { NodeSpec } from '../../types/nodeSpec';
+import { getNodeColorByCategory, getNodeIcon } from '../../utils/nodeSpecUtils';
+import { getCSSColor, getCSSColorRGBA, getCSSVariableAsNumber } from '../../utils/cssTokens';
 import { renderIconOnCanvas } from '../../utils/icons';
 import { NodeMetricsCalculator } from './rendering/NodeMetricsCalculator';
 import { NodeHeaderRenderer } from './rendering/NodeHeaderRenderer';
@@ -12,6 +12,7 @@ import { getParameterUIRegistry } from './rendering/ParameterUIRegistry';
 import { ParameterLayoutManager } from './rendering/layout/ParameterLayoutManager';
 import type { ElementMetrics } from './rendering/layout/LayoutElementRenderer';
 import { NodeCache } from './rendering/NodeCache';
+import { renderStringParameter, renderArrayParameter } from '../utils/stringArrayRendering';
 
 export interface NodeRenderMetrics {
   width: number;
@@ -40,7 +41,8 @@ export interface NodeRenderMetrics {
   parameterInputPortPositions: Map<string, { x: number; y: number }>;  // Parameter name → port position
   
   // Layout system element metrics (only set when using parameterLayout)
-  elementMetrics?: Map<LayoutElement, ElementMetrics>;
+  // Uses string keys (element type + index) for stable lookups across object instances
+  elementMetrics?: Map<string, ElementMetrics>;
 }
 
 export class NodeRenderer {
@@ -481,13 +483,13 @@ export class NodeRenderer {
     skipPorts: boolean = false,
     fullNodeHeight?: number
   ): void {
-    const headerPadding = getCSSVariableAsNumber('node-header-padding', 12);
-    const iconSize = getCSSVariableAsNumber('node-header-icon-size', 36);
-    const iconBoxWidth = getCSSVariableAsNumber('node-icon-box-width', 48);
-    const iconBoxHeight = getCSSVariableAsNumber('node-icon-box-height', 48);
-    const iconBoxRadius = getCSSVariableAsNumber('node-icon-box-radius', 8);
-    const iconBoxNameSpacing = getCSSVariableAsNumber('node-icon-box-name-spacing', 4);
-    const nameSize = getCSSVariableAsNumber('node-header-name-size', 14);
+    const headerPadding = getCSSVariableAsNumber('node-header-padding', 24);
+    const iconSize = getCSSVariableAsNumber('node-header-icon-size', 60);
+    const iconBoxWidth = getCSSVariableAsNumber('node-icon-box-width', 90);
+    const iconBoxHeight = getCSSVariableAsNumber('node-icon-box-height', 90);
+    const iconBoxRadius = getCSSVariableAsNumber('node-icon-box-radius', 36);
+    const iconBoxNameSpacing = getCSSVariableAsNumber('node-icon-box-name-spacing', 24);
+    const nameSize = getCSSVariableAsNumber('node-header-name-size', 24);
     const nameWeight = getCSSVariableAsNumber('node-header-name-weight', 600);
     const nameColor = getCSSColor('node-header-name-color', getCSSColor('color-gray-130', '#ebeff0'));
     const portSize = getCSSVariableAsNumber('node-port-size', 8);
@@ -503,61 +505,61 @@ export class NodeRenderer {
     // Clip to parent node bounds to ensure header respects the container
     this.ctx.save();
     this.ctx.clip(nodePath);
-    
-    // Draw header background with radial gradient using header-specific category colors
-    const headerBgColorStart = this.getHeaderCategoryColor(spec.category);
-    const headerBgColorEnd = this.getHeaderCategoryColorEnd(spec.category);
-    
-    // Get header gradient ellipse parameters (separate from node gradient)
-    const headerEllipseWidthPercent = getCSSVariableAsNumber('node-header-bg-gradient-ellipse-width', 100);
-    const headerEllipseHeightPercent = getCSSVariableAsNumber('node-header-bg-gradient-ellipse-height', 100);
-    const headerEllipseXPercent = getCSSVariableAsNumber('node-header-bg-gradient-ellipse-x', 50);
-    const headerEllipseYPercent = getCSSVariableAsNumber('node-header-bg-gradient-ellipse-y', 50);
-    
-    // Calculate ellipse dimensions and position
-    const headerEllipseWidth = (width * headerEllipseWidthPercent) / 100;
-    const headerEllipseHeight = (height * headerEllipseHeightPercent) / 100;
-    const headerEllipseX = x + (width * headerEllipseXPercent) / 100;
-    const headerEllipseY = y + (height * headerEllipseYPercent) / 100;
-    
-    // Use the larger dimension for the radial gradient radius to ensure it covers the entire header
-    const headerGradientRadius = Math.max(headerEllipseWidth, headerEllipseHeight) / 2;
-    
-    // Create radial gradient
-    const headerGradient = this.ctx.createRadialGradient(
-      headerEllipseX, headerEllipseY, 0,
-      headerEllipseX, headerEllipseY, headerGradientRadius
-    );
-    headerGradient.addColorStop(0, headerBgColorStart);
-    headerGradient.addColorStop(1, headerBgColorEnd);
-    
-    // Fill header with gradient (clipping will handle the rounded corners)
-    this.ctx.fillStyle = headerGradient;
-    this.ctx.fillRect(x, y, width, height);
-    
-    // Calculate icon/box/label group height for vertical centering
-    const groupHeight = iconBoxHeight + iconBoxNameSpacing + nameSize;
-    
-    // Center the icon/box/label group vertically in the header
-    const iconBoxX = x + width / 2 - iconBoxWidth / 2;
-    const iconBoxY = y + (height - groupHeight) / 2;
-    const iconBoxBg = this.getCategoryIconBoxBg(spec.category);
-    this.ctx.fillStyle = iconBoxBg;
-    this.drawRoundedRect(iconBoxX, iconBoxY, iconBoxWidth, iconBoxHeight, iconBoxRadius);
-    this.ctx.fill();
-    
-    // Draw icon (centered in icon box)
-    const iconX = x + width / 2;
-    const iconY = iconBoxY + iconBoxHeight / 2;
-    const iconIdentifier = getNodeIcon(spec);
-    renderIconOnCanvas(this.ctx, iconIdentifier, iconX, iconY, iconSize, nameColor);
-    
-    // Draw node name (below icon box)
-    const nameY = iconBoxY + iconBoxHeight + iconBoxNameSpacing;
-    this.ctx.fillStyle = nameColor;
-    this.ctx.font = `${nameWeight} ${nameSize}px "Space Grotesk", sans-serif`;
-    this.ctx.textAlign = 'center';
-    this.ctx.textBaseline = 'top';
+      
+      // Draw header background with radial gradient using header-specific category colors
+      const headerBgColorStart = this.getHeaderCategoryColor(spec.category);
+      const headerBgColorEnd = this.getHeaderCategoryColorEnd(spec.category);
+      
+      // Get header gradient ellipse parameters (separate from node gradient)
+      const headerEllipseWidthPercent = getCSSVariableAsNumber('node-header-bg-gradient-ellipse-width', 100);
+      const headerEllipseHeightPercent = getCSSVariableAsNumber('node-header-bg-gradient-ellipse-height', 100);
+      const headerEllipseXPercent = getCSSVariableAsNumber('node-header-bg-gradient-ellipse-x', 50);
+      const headerEllipseYPercent = getCSSVariableAsNumber('node-header-bg-gradient-ellipse-y', 50);
+      
+      // Calculate ellipse dimensions and position
+      const headerEllipseWidth = (width * headerEllipseWidthPercent) / 100;
+      const headerEllipseHeight = (height * headerEllipseHeightPercent) / 100;
+      const headerEllipseX = x + (width * headerEllipseXPercent) / 100;
+      const headerEllipseY = y + (height * headerEllipseYPercent) / 100;
+      
+      // Use the larger dimension for the radial gradient radius to ensure it covers the entire header
+      const headerGradientRadius = Math.max(headerEllipseWidth, headerEllipseHeight) / 2;
+      
+      // Create radial gradient
+      const headerGradient = this.ctx.createRadialGradient(
+        headerEllipseX, headerEllipseY, 0,
+        headerEllipseX, headerEllipseY, headerGradientRadius
+      );
+      headerGradient.addColorStop(0, headerBgColorStart);
+      headerGradient.addColorStop(1, headerBgColorEnd);
+      
+      // Fill header with gradient (clipping will handle the rounded corners)
+      this.ctx.fillStyle = headerGradient;
+      this.ctx.fillRect(x, y, width, height);
+      
+      // Calculate icon/box/label group height for vertical centering
+      const groupHeight = iconBoxHeight + iconBoxNameSpacing + nameSize;
+      
+      // Center the icon/box/label group vertically in the header
+      const iconBoxX = x + width / 2 - iconBoxWidth / 2;
+      const iconBoxY = y + (height - groupHeight) / 2;
+      const iconBoxBg = this.getCategoryIconBoxBg(spec.category);
+      this.ctx.fillStyle = iconBoxBg;
+      this.drawRoundedRect(iconBoxX, iconBoxY, iconBoxWidth, iconBoxHeight, iconBoxRadius);
+      this.ctx.fill();
+      
+      // Draw icon (centered in icon box)
+      const iconX = x + width / 2;
+      const iconY = iconBoxY + iconBoxHeight / 2;
+      const iconIdentifier = getNodeIcon(spec);
+      renderIconOnCanvas(this.ctx, iconIdentifier, iconX, iconY, iconSize, nameColor);
+      
+      // Draw node name (below icon box)
+      const nameY = iconBoxY + iconBoxHeight + iconBoxNameSpacing;
+      this.ctx.fillStyle = nameColor;
+      this.ctx.font = `${nameWeight} ${nameSize}px "Space Grotesk", sans-serif`;
+      this.ctx.textAlign = 'center';
+      this.ctx.textBaseline = 'top';
     this.ctx.fillText(node.label || spec.displayName, iconX, nameY);
     
     // Restore clipping
@@ -724,7 +726,8 @@ export class NodeRenderer {
     _connectingPortName?: string | null,
     _isConnectingParameter?: boolean,
     connectedParameters?: Set<string>,
-    effectiveParameterValues?: Map<string, number | null>
+    effectiveParameterValues?: Map<string, number | null>,
+    useRemapRangeTokens: boolean = false
   ): void {
     const gridPadding = getCSSVariableAsNumber('node-body-padding', 18);
     const gridGap = getCSSVariableAsNumber('param-grid-gap', 12);
@@ -762,15 +765,19 @@ export class NodeRenderer {
     const outMinValue = outMinSpec?.min ?? 0;
     const outMaxValue = outMaxSpec?.max ?? 1;
     
-    // Range editor tokens for slider UI
+    // Range editor tokens for slider UI; use remap-range-* when drawing a remap-range layout element
     const editorBg = getCSSColor('range-editor-bg', getCSSColor('color-gray-20', '#020203'));
     const editorRadius = getCSSVariableAsNumber('range-editor-radius', 12);
     const editorPadding = getCSSVariableAsNumber('range-editor-padding', 12);
     const sliderBg = getCSSColor('range-editor-slider-bg', getCSSColor('color-gray-30', '#0a0b0d'));
     const sliderRadius = getCSSVariableAsNumber('range-editor-slider-radius', 30);
     const sliderTrackColor = getCSSColor('range-editor-slider-track-color', getCSSColor('color-gray-60', '#5a5f66'));
-    const sliderInputActiveColor = getCSSColor('range-editor-slider-input-active-color', getCSSColor('color-green-90', '#6ee7b7'));
-    const sliderOutputActiveColor = getCSSColor('range-editor-slider-output-active-color', getCSSColor('color-purple-90', '#8b5cf6'));
+    let sliderInputActiveColor = getCSSColor('range-editor-slider-input-active-color', getCSSColor('color-green-90', '#6ee7b7'));
+    let sliderOutputActiveColor = getCSSColor('range-editor-slider-output-active-color', getCSSColor('color-purple-90', '#8b5cf6'));
+    if (useRemapRangeTokens) {
+      sliderInputActiveColor = getCSSColor('remap-range-slider-input-color', getCSSColor('range-editor-slider-input-active-color', sliderInputActiveColor));
+      sliderOutputActiveColor = getCSSColor('remap-range-slider-output-color', getCSSColor('range-editor-slider-output-active-color', sliderOutputActiveColor));
+    }
     const sliderWidth = getCSSVariableAsNumber('range-editor-slider-width', 18);
     const handleSize = getCSSVariableAsNumber('range-editor-handle-size', 12);
     const handleBg = getCSSColor('range-editor-handle-bg', getCSSColor('color-blue-90', '#6565dc'));
@@ -1058,7 +1065,7 @@ export class NodeRenderer {
     isConnected: boolean,
     effectiveValue: number | null,
     node: NodeInstance,
-    _spec: NodeSpec,
+    spec: NodeSpec,
     isHovered: boolean = false,
     skipPorts: boolean = false
   ): void {
@@ -1107,8 +1114,10 @@ export class NodeRenderer {
     // Port center aligns with label text center (label uses textBaseline='top')
     const portY = paramNameY + labelHeight / 2;
     
-    // Draw parameter port (top-left corner) - only if not skipping
-    if (!skipPorts && (paramSpec.type === 'float' || paramSpec.type === 'int')) {
+    const hasPort = !spec.parameterLayout?.parametersWithoutPorts?.includes(paramName);
+    
+    // Draw parameter port (top-left corner) - only if not skipping and parameter has a port
+    if (!skipPorts && paramSpec.type === 'float' && hasPort) {
       this.renderPort(portX, portY, 'float', isHovered, false, portSize / getCSSVariableAsNumber('port-radius', 4));
     }
     
@@ -1123,26 +1132,28 @@ export class NodeRenderer {
     const inputFieldCenterY = labelBottom + labelInputSpacing;
     const inputFieldX = cellX + cellWidth / 2; // Horizontally centered like knob
     
-    // Draw mode button (left side, vertically centered with input field, horizontally aligned with port) - EXACT SAME AS renderParameterCell
-    const modeButtonX = portX; // Same X as port (horizontally centered with port)
-    const modeButtonY = inputFieldCenterY; // Vertically centered with input field
-    const inputMode = node.parameterInputModes?.[paramName] || paramSpec.inputMode || 'override';
-    const modeSymbol = inputMode === 'override' ? '=' : inputMode === 'add' ? '+' : inputMode === 'subtract' ? '-' : '*';
-    const modeButtonBg = getCSSColor('param-mode-button-bg', getCSSColor('color-gray-50', '#111317'));
-    this.ctx.fillStyle = modeButtonBg;
-    this.ctx.beginPath();
-    this.ctx.arc(modeButtonX, modeButtonY, modeButtonSize / 2, 0, Math.PI * 2);
-    this.ctx.fill();
-    // Use different color based on connection state
-    const modeButtonColorToken = isConnected ? 'param-mode-button-color-connected' : 'param-mode-button-color-static';
-    this.ctx.fillStyle = getCSSColor(modeButtonColorToken, isConnected ? getCSSColor('color-gray-130', '#ebeff0') : getCSSColor('color-gray-60', '#5a5f66'));
-    const modeButtonFontSize = getCSSVariableAsNumber('param-mode-button-font-size', 10);
-    const modeButtonFontWeight = getCSSVariableAsNumber('param-mode-button-font-weight', 400);
-    const modeButtonTextOffsetY = getCSSVariableAsNumber('param-mode-button-text-offset-y', 0);
-    this.ctx.font = `${modeButtonFontWeight} ${modeButtonFontSize}px "Space Grotesk", sans-serif`;
-    this.ctx.textAlign = 'center';
-    this.ctx.textBaseline = 'middle';
-    this.ctx.fillText(modeSymbol, modeButtonX, modeButtonY + modeButtonTextOffsetY);
+    // Draw mode button (left side, vertically centered with input field, horizontally aligned with port) - only if parameter has a port
+    if (hasPort && paramSpec.type === 'float') {
+      const modeButtonX = portX; // Same X as port (horizontally centered with port)
+      const modeButtonY = inputFieldCenterY; // Vertically centered with input field
+      const inputMode = node.parameterInputModes?.[paramName] || paramSpec.inputMode || 'override';
+      const modeSymbol = inputMode === 'override' ? '=' : inputMode === 'add' ? '+' : inputMode === 'subtract' ? '-' : '*';
+      const modeButtonBg = getCSSColor('param-mode-button-bg', getCSSColor('color-gray-50', '#111317'));
+      this.ctx.fillStyle = modeButtonBg;
+      this.ctx.beginPath();
+      this.ctx.arc(modeButtonX, modeButtonY, modeButtonSize / 2, 0, Math.PI * 2);
+      this.ctx.fill();
+      // Use different color based on connection state
+      const modeButtonColorToken = isConnected ? 'param-mode-button-color-connected' : 'param-mode-button-color-static';
+      this.ctx.fillStyle = getCSSColor(modeButtonColorToken, isConnected ? getCSSColor('color-gray-130', '#ebeff0') : getCSSColor('color-gray-60', '#5a5f66'));
+      const modeButtonFontSize = getCSSVariableAsNumber('param-mode-button-font-size', 10);
+      const modeButtonFontWeight = getCSSVariableAsNumber('param-mode-button-font-weight', 400);
+      const modeButtonTextOffsetY = getCSSVariableAsNumber('param-mode-button-text-offset-y', 0);
+      this.ctx.font = `${modeButtonFontWeight} ${modeButtonFontSize}px "Space Grotesk", sans-serif`;
+      this.ctx.textAlign = 'center';
+      this.ctx.textBaseline = 'middle';
+      this.ctx.fillText(modeSymbol, modeButtonX, modeButtonY + modeButtonTextOffsetY);
+    }
     
     // Draw input field (replaces knob) - positioned at inputFieldCenterY
     const displayValue = effectiveValue !== null ? effectiveValue : paramValue;
@@ -1349,7 +1360,8 @@ export class NodeRenderer {
     this.ctx.textBaseline = 'alphabetic';
   }
   
-  // Render parameter grid section
+  // Render parameter grid section (LEGACY - no longer used, migration complete)
+  // @ts-ignore - kept for reference but not used
   private renderParameterGrid(
     node: NodeInstance,
     spec: NodeSpec,
@@ -1589,10 +1601,10 @@ export class NodeRenderer {
           );
         } else if (paramSpec.type === 'string') {
           // Render string parameter (button style)
-          this.renderStringParameter(gridPos.cellX, gridPos.cellY, gridPos.cellWidth, gridPos.cellHeight, paramName, paramSpec, paramValue as string, node.id);
+          renderStringParameter(this.ctx, gridPos.cellX, gridPos.cellY, gridPos.cellWidth, gridPos.cellHeight, paramName, paramSpec, paramValue as string);
         } else if (paramSpec.type === 'array') {
           // Render array parameter
-          this.renderFrequencyBandsParameter(gridPos.cellX, gridPos.cellY, gridPos.cellWidth, gridPos.cellHeight, paramName, paramSpec, paramValue, node.id);
+          renderArrayParameter(this.ctx, gridPos.cellX, gridPos.cellY, gridPos.cellWidth, gridPos.cellHeight, paramName, paramSpec, paramValue);
         }
       });
       
@@ -1677,24 +1689,9 @@ export class NodeRenderer {
     const { headerHeight } = metrics;
     const borderRadius = getCSSVariableAsNumber('node-box-border-radius', 10);
     
-    // Draw default shadow (non-selected state)
-    const shadowOffsetX = 0;
-    const shadowOffsetY = 2;
-    const shadowBlur = 8;
-    const shadowColor = getCSSVariable('node-shadow-color', 'rgba(0, 0, 0, 0.15)');
-    
-    ctx.save();
-    ctx.shadowOffsetX = shadowOffsetX;
-    ctx.shadowOffsetY = shadowOffsetY;
-    ctx.shadowBlur = shadowBlur;
-    ctx.shadowColor = shadowColor;
-    ctx.fillStyle = 'transparent';
-    this.drawRoundedRectOnContext(ctx, x, y, width, height, borderRadius);
-    ctx.fill();
-    ctx.restore();
-    
     // Draw node background with gradient using category colors
-    const bgColorStart = getNodeColorByCategory(spec.category);
+    const bgColorStartToken = getNodeColorByCategory(spec.category);
+    const bgColorStart = getCSSColor(bgColorStartToken, getCSSColor('category-color-default', getCSSColor('color-gray-100', '#747e87')));
     const bgColorEnd = this.getCategoryColorEnd(spec.category);
     
     // Get gradient ellipse parameters
@@ -1845,25 +1842,6 @@ export class NodeRenderer {
     
     // If not using cache, render static content directly
     if (!useCached) {
-      // Draw 3D box shadow (draw shadow shape before main box)
-      const shadowOffsetX = 0;
-      const shadowOffsetY = isSelected ? 4 : 2;
-      const shadowBlur = isSelected ? 12 : 8;
-      const shadowColor = isSelected 
-        ? getCSSVariable('node-shadow-color-selected-rgba', 'rgba(68, 72, 191, 0.3)')
-        : getCSSVariable('node-shadow-color', 'rgba(0, 0, 0, 0.15)');
-      
-      // Draw shadow
-      this.ctx.save();
-      this.ctx.shadowOffsetX = shadowOffsetX;
-      this.ctx.shadowOffsetY = shadowOffsetY;
-      this.ctx.shadowBlur = shadowBlur;
-      this.ctx.shadowColor = shadowColor;
-      this.ctx.fillStyle = 'transparent';
-      this.drawRoundedRect(x, y, width, height, borderRadius);
-      this.ctx.fill();
-      this.ctx.restore();
-      
       // Draw selection highlight (subtle background)
       if (isSelected) {
         const selectionColor = getCSSColorRGBA('node-bg-selected', { r: 4, g: 16, b: 51, a: 1 });
@@ -1873,7 +1851,8 @@ export class NodeRenderer {
       }
       
       // Draw node background with gradient using category colors
-      const bgColorStart = getNodeColorByCategory(spec.category);
+      const bgColorStartToken = getNodeColorByCategory(spec.category);
+      const bgColorStart = getCSSColor(bgColorStartToken, getCSSColor('category-color-default', getCSSColor('color-gray-100', '#747e87')));
       const bgColorEnd = this.getCategoryColorEnd(spec.category);
       
       // Get gradient ellipse parameters
@@ -1909,6 +1888,17 @@ export class NodeRenderer {
       // Fill the entire node area - clipping will handle rounded corners
       this.ctx.fillRect(x, y, width, height);
       this.ctx.restore();
+      
+      // Draw selection highlight (if selected) - bright overlay to make node brighter
+      if (isSelected) {
+        this.ctx.save();
+        this.drawRoundedRect(x, y, width, height, borderRadius);
+        this.ctx.clip();
+        // Use a bright white overlay to make the node brighter when selected
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+        this.ctx.fillRect(x, y, width, height);
+        this.ctx.restore();
+      }
       
       // Draw border
       const borderColor = isSelected 
@@ -1980,26 +1970,10 @@ export class NodeRenderer {
     } else {
       // Using cached content - render dynamic overlays on top
       
-      // Draw selection shadow (if selected)
+      // Draw selection highlight (if selected)
       if (isSelected) {
-        const shadowOffsetX = 0;
-        const shadowOffsetY = 4;
-        const shadowBlur = 12;
-        const shadowColor = getCSSVariable('node-shadow-color-selected-rgba', 'rgba(68, 72, 191, 0.3)');
-        
-        this.ctx.save();
-        this.ctx.shadowOffsetX = shadowOffsetX;
-        this.ctx.shadowOffsetY = shadowOffsetY;
-        this.ctx.shadowBlur = shadowBlur;
-        this.ctx.shadowColor = shadowColor;
-        this.ctx.fillStyle = 'transparent';
-        this.drawRoundedRect(x, y, width, height, borderRadius);
-        this.ctx.fill();
-        this.ctx.restore();
-        
-        // Draw selection highlight
-        const selectionColor = getCSSColorRGBA('node-bg-selected', { r: 4, g: 16, b: 51, a: 1 });
-        this.ctx.fillStyle = `rgba(${selectionColor.r}, ${selectionColor.g}, ${selectionColor.b}, 0.1)`;
+        // Use a bright white overlay to make the node brighter when selected
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
         this.drawRoundedRect(x, y, width, height, borderRadius);
         this.ctx.fill();
         
@@ -2047,10 +2021,18 @@ export class NodeRenderer {
     
     // Always render parameters (they change frequently and can't be cached effectively)
     // Render parameter grid (if not collapsed)
-    if (!node.collapsed && Object.keys(spec.parameters).length > 0) {
-      // Use new layout system if parameterLayout is defined
-      if (spec.parameterLayout && metrics.elementMetrics && this.layoutManager) {
+    if (Object.keys(spec.parameters).length > 0) {
+      // Use new layout system (always, migration complete)
+      if (metrics.elementMetrics && this.layoutManager) {
+        // Clip body rendering to node's rounded rectangle bounds.
+        // IMPORTANT: Always restore the canvas state even if element rendering throws.
+        const bodyClipPath = new Path2D();
+        this.drawRoundedRectToPath(bodyClipPath, x, y, width, height, borderRadius);
+
+        this.ctx.save();
         try {
+          this.ctx.clip(bodyClipPath);
+
           // Use layout manager to render elements
           this.layoutManager.render(
             node,
@@ -2071,7 +2053,7 @@ export class NodeRenderer {
               skipPorts
             }
           );
-          
+
           // Render string and array parameters that aren't handled by element renderers
           // TODO: Move this to element renderers or extract to shared utility
           this.renderStringAndArrayParameters(
@@ -2080,41 +2062,13 @@ export class NodeRenderer {
             metrics
           );
         } catch (error) {
-          console.error('Error rendering with layout system, falling back to legacy:', error);
-          // Fall through to legacy rendering
-          const paramGridY = y + headerHeight;
-          this.renderParameterGrid(
-            node,
-            spec,
-            x,
-            paramGridY,
-            width,
-            metrics,
-            isSelected,
-            effectiveParameterValues,
-            hoveredPortName && isHoveredParameter ? hoveredPortName : null,
-            isHoveredParameter,
-            connectedParameters,
-            skipPorts
-          );
+          console.error('Error rendering with layout system:', error);
+          // Log error but don't fall back to legacy (migration complete)
+        } finally {
+          this.ctx.restore();
         }
       } else {
-        // Fallback to legacy rendering (also used when layout system is disabled)
-        const paramGridY = y + headerHeight;
-        this.renderParameterGrid(
-          node,
-          spec,
-          x,
-          paramGridY,
-          width,
-          metrics,
-          isSelected,
-          effectiveParameterValues,
-          hoveredPortName && isHoveredParameter ? hoveredPortName : null,
-          isHoveredParameter,
-          connectedParameters,
-          skipPorts
-        );
+        console.warn('Node metrics missing elementMetrics - layout system not initialized');
       }
     }
   }
@@ -2196,20 +2150,30 @@ export class NodeRenderer {
     // Track which parameters have been rendered by other elements
     const renderedParams = new Set<string>();
     
-    // Range editor parameters (used by slider-ui)
+    // Range editor parameters (used by remap-range)
     const rangeParams = ['inMin', 'inMax', 'outMin', 'outMax'];
     
     // Iterate through layout elements and render them
-    for (const element of layout.elements) {
-      const elementMetrics = metrics.elementMetrics.get(element);
+    for (let i = 0; i < layout.elements.length; i++) {
+      const element = layout.elements[i];
+      // Generate stable key (same logic as ParameterLayoutManager)
+      const elementKey = (() => {
+        const type = (element as any).type || 'unknown';
+        if (type === 'grid' && 'parameters' in element) {
+          const params = (element as any).parameters || [];
+          return `${type}-${i}-${params.join(',')}`;
+        }
+        return `${type}-${i}`;
+      })();
+      const elementMetrics = metrics.elementMetrics.get(elementKey);
       if (!elementMetrics) continue;
       
-      if (element.type === 'slider-ui') {
-        // Render slider UI (range editor)
+      if (element.type === 'remap-range') {
+        // Render remap range (range editor)
         // elementMetrics positions are in absolute coordinates
         // Validate positions to prevent rendering artifacts
         if (!elementMetrics.x || !elementMetrics.y || !elementMetrics.width || !elementMetrics.height) {
-          console.warn('Invalid slider-ui element metrics, skipping render');
+          console.warn('Invalid remap-range element metrics, skipping render');
           continue;
         }
         
@@ -2241,7 +2205,8 @@ export class NodeRenderer {
           connectingPortName,
           isConnectingParameter,
           connectedParameters,
-          effectiveParameterValues
+          effectiveParameterValues,
+          true // useRemapRangeTokens — remap-range layout element uses remap-range-slider-input/output-color
         );
         
         // Mark range parameters as rendered (they're rendered by the slider UI, not individually)
@@ -2316,7 +2281,7 @@ export class NodeRenderer {
           : Object.keys(spec.parameters);
         
         // Render each parameter using positions from metrics
-        // Skip parameters that were already rendered by other elements (e.g., slider-ui)
+        // Skip parameters that were already rendered by other elements (e.g., remap-range)
         elementParams.forEach((paramName) => {
           // Skip if already rendered
           if (renderedParams.has(paramName)) return;
@@ -2417,9 +2382,9 @@ export class NodeRenderer {
     const valueWidth = 50;
     const modeWidth = 20; // Reduced width to bring it closer
     
-    // Parameter input port (left side, for float/int parameters)
+    // Parameter input port (left side, for float parameters only)
     const paramInputPortPos = metrics.parameterInputPortPositions.get(paramName);
-    if (paramInputPortPos && (paramSpec.type === 'float' || paramSpec.type === 'int')) {
+    if (paramInputPortPos && paramSpec.type === 'float') {
       // Note: isConnecting for parameters is handled via isConnectingParameter
       const isConnecting = false; // Parameters don't use the connecting state from regular ports
       this.renderPort(paramInputPortPos.x, paramInputPortPos.y, 'float', isHovered, isConnecting);
@@ -2463,109 +2428,6 @@ export class NodeRenderer {
     this.ctx.textAlign = 'left';
   }
   
-  private renderFrequencyBandsParameter(
-    x: number, y: number, width: number, height: number,
-    paramName: string, paramSpec: import('../../types/nodeSpec').ParameterSpec, value: any, _nodeId: string
-  ): void {
-    const padding = 8;
-    const valueWidth = 50;
-    
-    // Parameter label (left side) - match style of other parameters
-    const paramLabelColor = getCSSColor('node-param-label-color', getCSSColor('color-gray-100', '#747e87'));
-    this.ctx.fillStyle = paramLabelColor;
-    this.ctx.font = '12px "Space Grotesk", sans-serif';
-    this.ctx.textAlign = 'left';
-    const labelText = paramSpec.label || paramName;
-    this.ctx.fillText(labelText, x + padding, y + height / 2 + 4);
-    
-    // Display frequency bands (right side) - match style of other parameter values
-    const bandsTextColor = getCSSColor('node-param-value-color', '#333333');
-    this.ctx.fillStyle = bandsTextColor;
-    this.ctx.font = '11px "JetBrains Mono", monospace';
-    this.ctx.textAlign = 'right';
-    
-    if (Array.isArray(value) && value.length > 0) {
-      // Format bands as "20-120, 120-300, ..." (compact, no "Hz" suffix to save space)
-      const bandsText = value.map((band: any, index: number) => {
-        if (Array.isArray(band) && band.length >= 2) {
-          const minHz = Math.round(band[0]);
-          const maxHz = Math.round(band[1]);
-          return `${minHz}-${maxHz}`;
-        }
-        return `B${index}`;
-      }).join(', ');
-      
-      // Calculate available width for value (similar to renderParameter)
-      const valueX = x + width - valueWidth - padding;
-      const labelWidth = this.ctx.measureText(labelText).width;
-      const availableWidth = valueX - (x + padding + labelWidth) - 8; // 8px gap between label and value
-      
-      // Truncate if too long
-      let displayText = bandsText;
-      if (this.ctx.measureText(displayText).width > availableWidth) {
-        // Truncate and add ellipsis
-        while (this.ctx.measureText(displayText + '...').width > availableWidth && displayText.length > 0) {
-          displayText = displayText.slice(0, -1);
-        }
-        displayText += '...';
-      }
-      
-      this.ctx.fillText(displayText, valueX + valueWidth, y + height / 2 + 4);
-    } else {
-      this.ctx.fillText('No bands', x + width - padding, y + height / 2 + 4);
-    }
-    
-    this.ctx.textAlign = 'left';
-  }
-
-  private renderStringParameter(
-    x: number, y: number, width: number, height: number,
-    paramName: string, paramSpec: import('../../types/nodeSpec').ParameterSpec, value: string, _nodeId: string
-  ): void {
-    const padding = 8;
-    const buttonWidth = 100;
-    
-    // Parameter label (left side)
-    const paramLabelColor = getCSSColor('node-param-label-color', getCSSColor('color-gray-100', '#747e87'));
-    this.ctx.fillStyle = paramLabelColor;
-    this.ctx.font = '12px "Space Grotesk", sans-serif';
-    this.ctx.textAlign = 'left';
-    this.ctx.fillText(paramSpec.label || paramName, x + padding, y + height / 2 + 4);
-    
-    // Button area (right side)
-    const buttonX = x + width - buttonWidth - padding;
-    const buttonBg = getCSSColor('node-bg', getCSSColor('color-gray-30', '#050507'));
-    const buttonBorder = getCSSColor('node-border', getCSSColor('color-gray-100', '#747e87'));
-    
-    // Draw button background
-    this.ctx.fillStyle = buttonBg;
-    this.ctx.strokeStyle = buttonBorder;
-    this.ctx.lineWidth = 1;
-    this.drawRoundedRect(buttonX, y + 2, buttonWidth, height - 4, 4);
-    this.ctx.fill();
-    this.ctx.stroke();
-    
-    // Button text - show filename if file is selected, otherwise show "Select File"
-    const buttonTextColor = getCSSColor('node-param-value-color', '#333333');
-    this.ctx.fillStyle = buttonTextColor;
-    this.ctx.font = '11px "Space Grotesk", sans-serif';
-    this.ctx.textAlign = 'center';
-    
-    let buttonText = 'Select File';
-    if (value && value.trim() !== '') {
-      // Extract filename from path (handle both full paths and just filenames)
-      const filename = value.split('/').pop() || value.split('\\').pop() || value;
-      // Truncate if too long
-      if (filename.length > 15) {
-        buttonText = filename.substring(0, 12) + '...';
-      } else {
-        buttonText = filename;
-      }
-    }
-    
-    this.ctx.fillText(buttonText, buttonX + buttonWidth / 2, y + height / 2 + 4);
-    this.ctx.textAlign = 'left';
-  }
 
   // Render just the port circle (without highlight)
   private renderPortCircle(x: number, y: number, type: string, isHovered: boolean = false, isConnecting: boolean = false, scale: number = 1.0, opacity: number = 1.0): void {
@@ -2691,6 +2553,38 @@ export class NodeRenderer {
   ): { x: number; y: number } | null {
     const key = `${isOutput ? 'output' : 'input'}:${portName}`;
     return metrics.portPositions.get(key) || null;
+  }
+  
+  /**
+   * Render a string parameter (wrapper for renderStringParameter utility)
+   */
+  private renderStringParameter(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    paramName: string,
+    paramSpec: import('../../types/nodeSpec').ParameterSpec,
+    value: string,
+    _nodeId: string
+  ): void {
+    renderStringParameter(this.ctx, x, y, width, height, paramName, paramSpec, value);
+  }
+  
+  /**
+   * Render a frequency bands parameter (wrapper for renderArrayParameter utility)
+   */
+  private renderFrequencyBandsParameter(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    paramName: string,
+    paramSpec: import('../../types/nodeSpec').ParameterSpec,
+    value: any,
+    _nodeId: string
+  ): void {
+    renderArrayParameter(this.ctx, x, y, width, height, paramName, paramSpec, value);
   }
 }
 

@@ -33,20 +33,20 @@ export class NodePortRenderer {
     isConnectingParameter?: boolean,
     connectedParameters?: Set<string>
   ): void {
-    const { width } = metrics;
-    const x = node.position.x;
-    const y = node.position.y;
-    
-    const headerPadding = getCSSVariableAsNumber('node-header-padding', 12);
-    const portSize = getCSSVariableAsNumber('node-port-size', 8);
-    const inputPortSpacing = getCSSVariableAsNumber('node-header-input-port-spacing', 28);
-    
     // Render header I/O ports with labels
-    spec.inputs.forEach((port, index) => {
-      const portY = y + headerPadding + (index * inputPortSpacing) + portSize;
+    // Use port positions from metrics (calculated by HeaderFlexboxLayout) to ensure
+    // visual alignment with connections and hit-testing
+    spec.inputs.forEach((port) => {
+      const portPos = metrics.portPositions.get(`input:${port.name}`);
+      if (!portPos) {
+        console.warn(`No port position found for input port: ${port.name}`);
+        return;
+      }
+      
+      const portX = portPos.x;
+      const portY = portPos.y;
       const isHovered = hoveredPortName === port.name && !isHoveredParameter;
       const isConnecting = connectingPortName === port.name && !isConnectingParameter;
-      const portX = x;
       
       // Draw port circle first (without highlight)
       this.renderPortCircle(portX, portY, port.type, isHovered, isConnecting);
@@ -109,11 +109,17 @@ export class NodePortRenderer {
       this.ctx.fillText(portLabel, nameTextX, nameTextY);
     });
     
-    spec.outputs.forEach((port, index) => {
-      const portY = y + headerPadding + (index * inputPortSpacing) + portSize;
+    spec.outputs.forEach((port) => {
+      const portPos = metrics.portPositions.get(`output:${port.name}`);
+      if (!portPos) {
+        console.warn(`No port position found for output port: ${port.name}`);
+        return;
+      }
+      
+      const portX = portPos.x;
+      const portY = portPos.y;
       const isHovered = hoveredPortName === port.name && !isHoveredParameter;
       const isConnecting = connectingPortName === port.name && !isConnectingParameter;
-      const portX = x + width;
       
       // Draw port circle first (without highlight)
       this.renderPortCircle(portX, portY, port.type, isHovered, isConnecting);
@@ -178,39 +184,38 @@ export class NodePortRenderer {
     });
     
     // Render parameter input ports
-    if (!node.collapsed) {
-      const portSizeParam = getCSSVariableAsNumber('param-port-size', 6);
-      const portRadius = getCSSVariableAsNumber('port-radius', 4);
-      
-      // Special handling for bezier curve nodes
-      const isBezierNode = this.isBezierCurveNode(spec);
-      if (isBezierNode) {
-        this.renderBezierParameterPorts(
-          node,
-          spec,
-          metrics,
-          hoveredPortName,
-          isHoveredParameter,
-          connectingPortName,
-          isConnectingParameter,
-          connectedParameters
-        );
-      } else {
-        // Regular parameter ports
-        for (const [paramName, gridPos] of metrics.parameterGridPositions.entries()) {
-          const paramSpec = spec.parameters[paramName];
-          if (paramSpec && (paramSpec.type === 'float' || paramSpec.type === 'int')) {
-            const isHovered = hoveredPortName === paramName && isHoveredParameter;
-            const isConnecting = connectingPortName === paramName && isConnectingParameter;
-            this.renderPort(
-              gridPos.portX,
-              gridPos.portY,
-              'float',
-              isHovered,
-              isConnecting,
-              portSizeParam / portRadius
-            );
-          }
+    const portSizeParam = getCSSVariableAsNumber('param-port-size', 6);
+    const portRadius = getCSSVariableAsNumber('port-radius', 4);
+    
+    // Special handling for bezier curve nodes
+    const isBezierNode = this.isBezierCurveNode(spec);
+    if (isBezierNode) {
+      this.renderBezierParameterPorts(
+        node,
+        spec,
+        metrics,
+        hoveredPortName,
+        isHoveredParameter,
+        connectingPortName,
+        isConnectingParameter,
+        connectedParameters
+      );
+    } else {
+      // Regular parameter ports
+      for (const [paramName, gridPos] of metrics.parameterGridPositions.entries()) {
+        if (spec.parameterLayout?.parametersWithoutPorts?.includes(paramName)) continue;
+        const paramSpec = spec.parameters[paramName];
+        if (paramSpec && paramSpec.type === 'float') {
+          const isHovered = hoveredPortName === paramName && isHoveredParameter;
+          const isConnecting = connectingPortName === paramName && isConnectingParameter;
+          this.renderPort(
+            gridPos.portX,
+            gridPos.portY,
+            'float',
+            isHovered,
+            isConnecting,
+            portSizeParam / portRadius
+          );
         }
       }
     }
@@ -278,39 +283,46 @@ export class NodePortRenderer {
       const paramSpec = spec.parameters[paramName];
       if (!paramSpec) return;
       
+      const hasPort = !spec.parameterLayout?.parametersWithoutPorts?.includes(paramName);
       const isConnected = connectedParameters?.has(paramName) ?? false;
       const isHovered = hoveredPortName === paramName && isHoveredParameter === true;
       const isConnecting = connectingPortName === paramName && isConnectingParameter === true;
       
-      // Draw port (using same rendering as header nodes)
-      this.renderPortCircle(portX, portY[index], 'float', isHovered, isConnecting);
+      // Draw port (using same rendering as header nodes) - only if parameter has a port
+      if (hasPort) {
+        this.renderPortCircle(portX, portY[index], 'float', isHovered, isConnecting);
+      }
       
-      // Draw mode button
-      const inputMode = node.parameterInputModes?.[paramName] || paramSpec.inputMode || 'override';
-      const modeSymbol = inputMode === 'override' ? '=' : inputMode === 'add' ? '+' : inputMode === 'subtract' ? '-' : '*';
-      this.ctx.fillStyle = modeButtonBg;
-      this.ctx.beginPath();
-      this.ctx.arc(modeButtonX, modeButtonY[index], modeButtonSize / 2, 0, Math.PI * 2);
-      this.ctx.fill();
-      const modeButtonColorToken = isConnected ? 'param-mode-button-color-connected' : 'param-mode-button-color-static';
-      this.ctx.fillStyle = getCSSColor(modeButtonColorToken, isConnected ? getCSSColor('color-gray-130', '#ebeff0') : getCSSColor('color-gray-60', '#5a5f66'));
-      const modeButtonFontSize = getCSSVariableAsNumber('param-mode-button-font-size', 10);
-      const modeButtonFontWeight = getCSSVariableAsNumber('param-mode-button-font-weight', 400);
-      this.ctx.font = `${modeButtonFontWeight} ${modeButtonFontSize}px "Space Grotesk", sans-serif`;
-      this.ctx.textAlign = 'center';
-      this.ctx.textBaseline = 'middle';
-      this.ctx.fillText(modeSymbol, modeButtonX, modeButtonY[index]);
+      // Draw mode button - only if parameter has a port
+      if (hasPort) {
+        const inputMode = node.parameterInputModes?.[paramName] || paramSpec.inputMode || 'override';
+        const modeSymbol = inputMode === 'override' ? '=' : inputMode === 'add' ? '+' : inputMode === 'subtract' ? '-' : '*';
+        this.ctx.fillStyle = modeButtonBg;
+        this.ctx.beginPath();
+        this.ctx.arc(modeButtonX, modeButtonY[index], modeButtonSize / 2, 0, Math.PI * 2);
+        this.ctx.fill();
+        const modeButtonColorToken = isConnected ? 'param-mode-button-color-connected' : 'param-mode-button-color-static';
+        this.ctx.fillStyle = getCSSColor(modeButtonColorToken, isConnected ? getCSSColor('color-gray-130', '#ebeff0') : getCSSColor('color-gray-60', '#5a5f66'));
+        const modeButtonFontSize = getCSSVariableAsNumber('param-mode-button-font-size', 10);
+        const modeButtonFontWeight = getCSSVariableAsNumber('param-mode-button-font-weight', 400);
+        this.ctx.font = `${modeButtonFontWeight} ${modeButtonFontSize}px "Space Grotesk", sans-serif`;
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText(modeSymbol, modeButtonX, modeButtonY[index]);
+        
+        // Draw port highlight
+        this.renderPortHighlight(portX, portY[index], isHovered, isConnecting);
+      }
       
-      // Draw port highlight
-      this.renderPortHighlight(portX, portY[index], isHovered, isConnecting);
-      
-      // Draw name label (after mode button with 12px spacing)
+      // Draw name label (after mode button with 12px spacing, or after port if no mode button)
       const paramLabel = paramSpec.label || paramName;
       this.ctx.fillStyle = labelColor;
       this.ctx.font = `${labelFontWeight} ${labelFontSize}px "Space Grotesk", sans-serif`;
       this.ctx.textAlign = 'left';
       this.ctx.textBaseline = 'middle';
-      this.ctx.fillText(paramLabel, labelX, labelY[index]);
+      // Adjust label X position if no mode button (label should be after port instead)
+      const labelXPos = hasPort ? labelX : (portX + portRadius + portLabelSpacing);
+      this.ctx.fillText(paramLabel, labelXPos, labelY[index]);
     });
     
     this.ctx.textAlign = 'left';

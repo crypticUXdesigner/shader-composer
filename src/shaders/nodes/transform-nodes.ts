@@ -10,6 +10,7 @@ export const translateNodeSpec: NodeSpec = {
   category: 'Distort',
   displayName: 'Translate',
   description: 'Translates coordinates by x and y offsets',
+  icon: 'arrow-move-right',
   inputs: [
     {
       name: 'in',
@@ -48,6 +49,7 @@ export const rotateNodeSpec: NodeSpec = {
   category: 'Distort',
   displayName: 'Rotate',
   description: 'Rotates coordinates around a center point',
+  icon: 'rotate',
   inputs: [
     {
       name: 'in',
@@ -97,6 +99,7 @@ export const scaleNodeSpec: NodeSpec = {
   category: 'Distort',
   displayName: 'Scale',
   description: 'Scales coordinates around a center point',
+  icon: 'arrow-autofit-height',
   inputs: [
     {
       name: 'in',

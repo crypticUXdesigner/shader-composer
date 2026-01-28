@@ -6,10 +6,18 @@
   position: fixed;
   display: none;
   flex-direction: column;
+  top: var(--menu-top, auto);
+  left: var(--menu-left, auto);
+  transform: var(--menu-transform, none);
 
   /* Box model */
   border: var(--frame-border);
-  border-radius: var(--frame-border-radius);
+  border-radius: var(--radius-md);
+  padding: var(--pd-md) 0;
+  min-width: var(--menu-min-width);
+  width: 200px;
+  max-width: var(--menu-max-width);
+  max-height: var(--menu-max-height);
 
   /* Visual */
   background: var(--frame-bg);
@@ -17,6 +25,7 @@
 
   /* Other */
   z-index: var(--message-z-index);
+  overflow: hidden;
 
   &.is-visible {
     /* Layout */

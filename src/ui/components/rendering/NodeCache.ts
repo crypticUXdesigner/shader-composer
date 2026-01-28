@@ -38,7 +38,6 @@ export class NodeCache {
     // Include factors that affect static rendering
     const parts = [
       node.type,
-      node.collapsed ? 'collapsed' : 'expanded',
       node.label || spec.displayName,
       metrics.width,
       metrics.height,

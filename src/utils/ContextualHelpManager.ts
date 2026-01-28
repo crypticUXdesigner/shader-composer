@@ -26,7 +26,7 @@ export interface HelpData {
 let helpData: HelpData | null = null;
 
 /**
- * Load help data from JSON file
+ * Load help data from JSON files
  */
 export async function loadHelpData(): Promise<HelpData> {
   if (helpData) {
@@ -34,21 +34,39 @@ export async function loadHelpData(): Promise<HelpData> {
   }
 
   try {
-    // Use Vite's import.meta.glob for dynamic import
-    const helpModules = import.meta.glob('/src/data/contextual-help.json', { eager: false });
-    const helpPath = '/src/data/contextual-help.json';
+    // Load both contextual-help.json and node-documentation.json
+    const helpModules = import.meta.glob(['/src/data/contextual-help.json', '/src/data/node-documentation.json'], { eager: false });
+    const contextualHelpPath = '/src/data/contextual-help.json';
+    const nodeDocPath = '/src/data/node-documentation.json';
     
-    if (!(helpPath in helpModules)) {
-      throw new Error('Help data file not found');
+    const mergedData: HelpData = {
+      helpItems: {},
+      categories: {}
+    };
+
+    // Load contextual help data
+    if (contextualHelpPath in helpModules) {
+      const contextualModule = await helpModules[contextualHelpPath]();
+      const contextualData = (contextualModule as { default: HelpData }).default;
+      Object.assign(mergedData.helpItems, contextualData.helpItems);
+      Object.assign(mergedData.categories, contextualData.categories);
     }
-    
-    // Dynamically import the help data module
-    const module = await helpModules[helpPath]();
-    // Vite imports JSON files as default exports
-    helpData = (module as { default: HelpData }).default;
+
+    // Load node documentation data
+    if (nodeDocPath in helpModules) {
+      const nodeDocModule = await helpModules[nodeDocPath]();
+      const nodeDocData = (nodeDocModule as { default: HelpData }).default;
+      Object.assign(mergedData.helpItems, nodeDocData.helpItems);
+      // Merge categories if they exist
+      if (nodeDocData.categories) {
+        Object.assign(mergedData.categories, nodeDocData.categories);
+      }
+    }
+
+    helpData = mergedData;
     return helpData;
   } catch (error) {
-    console.error('Failed to load contextual help data:', error);
+    console.error('Failed to load help data:', error);
     // Return empty data structure as fallback
     return {
       helpItems: {},

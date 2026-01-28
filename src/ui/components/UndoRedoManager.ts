@@ -2,6 +2,7 @@
 // Manages undo/redo history for graph operations
 
 import type { NodeGraph } from '../../types/nodeGraph';
+import { deepCopyGraph } from '../../data-model/immutableUpdates';
 
 export class UndoRedoManager {
   private history: NodeGraph[] = [];
@@ -12,8 +13,8 @@ export class UndoRedoManager {
     // Remove any states after current index (when undoing then making new change)
     this.history = this.history.slice(0, this.currentIndex + 1);
     
-    // Add new state (deep copy)
-    const stateCopy = this.deepCopyGraph(graph);
+    // Add new state (deep copy using efficient immutable copy)
+    const stateCopy = deepCopyGraph(graph as any) as any;
     this.history.push(stateCopy);
     
     // Limit history size
@@ -30,7 +31,7 @@ export class UndoRedoManager {
     }
     
     this.currentIndex--;
-    return this.deepCopyGraph(this.history[this.currentIndex]);
+    return deepCopyGraph(this.history[this.currentIndex] as any) as any;
   }
   
   redo(): NodeGraph | null {
@@ -39,7 +40,7 @@ export class UndoRedoManager {
     }
     
     this.currentIndex++;
-    return this.deepCopyGraph(this.history[this.currentIndex]);
+    return deepCopyGraph(this.history[this.currentIndex] as any) as any;
   }
   
   canUndo(): boolean {
@@ -48,10 +49,6 @@ export class UndoRedoManager {
   
   canRedo(): boolean {
     return this.currentIndex < this.history.length - 1;
-  }
-  
-  private deepCopyGraph(graph: NodeGraph): NodeGraph {
-    return JSON.parse(JSON.stringify(graph));
   }
   
   clear(): void {

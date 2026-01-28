@@ -60,8 +60,8 @@
 
 /* Canvas text sizes (px-based for precise rendering) */
 --canvas-text-xs: 11px;
---canvas-text-sm: 12px;
---canvas-text-md: 13px;
+--canvas-text-sm: 13px;
+--canvas-text-md: 15px;
 --canvas-text-lg: 18px;
 --canvas-text-xl: 19px;
 --canvas-text-2xl: 20px;

@@ -9,6 +9,7 @@ export const colorMapNodeSpec: NodeSpec = {
   category: 'Blend',
   displayName: 'Color Map',
   description: 'Converts float value to vec3 color (grayscale)',
+  icon: 'color-swatch',
   inputs: [
     {
       name: 'in',

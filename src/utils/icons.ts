@@ -39,8 +39,13 @@ const iconNameMap: Record<IconName, string> = {
   'layout-sidebar-right': 'layout-sidebar-right',
   'layout-grid': 'layout-grid',
   'transition-left': 'transition-left',
+  'square-x': 'square-x',
   'preset': 'wash-dry-shade',
   'search': 'search',
+  'arrows-maximize': 'arrows-maximize',
+  'arrows-minimize': 'arrows-minimize',
+  'copy': 'copy',
+  'photo': 'photo',
 };
 
 export type IconName = 
@@ -68,8 +73,13 @@ export type IconName =
   | 'layout-sidebar-right'
   | 'layout-grid'
   | 'transition-left'
+  | 'square-x'
   | 'preset'
-  | 'search';
+  | 'search'
+  | 'arrows-maximize'
+  | 'arrows-minimize'
+  | 'copy'
+  | 'photo';
 
 // Helper to get icon path data from Tabler nodes
 function getIconPathData(iconName: string, variant: 'line' | 'filled'): Array<{ d: string }> {
@@ -182,6 +192,7 @@ export type NodeIconIdentifier =
   | 'box'
   | 'infinity'
   | 'sparkles-2'
+  | 'grain'
   | 'noise'
   | 'hexagon'
   | 'ring'

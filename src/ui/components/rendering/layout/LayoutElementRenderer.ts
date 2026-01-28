@@ -1,6 +1,6 @@
 /**
  * Base interface for layout element renderers
- * Each element type (auto-grid, grid, slider-ui, etc.) implements this
+ * Each element type (auto-grid, grid, remap-range, bezier-editor, etc.) implements this
  * 
  * ## Coordinate System
  * 

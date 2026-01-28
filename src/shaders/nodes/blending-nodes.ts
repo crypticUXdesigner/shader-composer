@@ -9,6 +9,7 @@ export const blendModeNodeSpec: NodeSpec = {
   category: 'Blend',
   displayName: 'Blend Mode',
   description: 'Applies blending mode between two values',
+  icon: 'blend-mode',
   inputs: [
     { name: 'base', type: 'float' },
     { name: 'blend', type: 'float' }

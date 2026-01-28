@@ -9,14 +9,38 @@ import type { NodeInstance } from '../../../../types/nodeGraph';
 import type { NodeSpec, LayoutElement } from '../../../../types/nodeSpec';
 import type { NodeRenderMetrics } from '../../NodeRenderer';
 import { getCSSVariableAsNumber } from '../../../../utils/cssTokens';
+import { autoGenerateLayout } from '../../../../utils/layoutMigration';
 import { AutoGridElementRenderer } from './elements/AutoGridElement';
 import { GridElementRenderer } from './elements/GridElement';
-import { SliderUIElementRenderer } from './elements/SliderUIElement';
+import { RemapRangeElementRenderer } from './elements/RemapRangeElement';
+import { FrequencyRangeElementRenderer } from './elements/FrequencyRangeElement';
 import { BezierEditorElementRenderer } from './elements/BezierEditorElement';
 import type { LayoutElementRenderer, ElementMetrics } from './LayoutElementRenderer';
+import { BodyFlexboxLayout } from '../BodyFlexboxLayout';
+
+/**
+ * Generate a stable key for a layout element
+ * Uses element type and index to create a unique identifier
+ * that works even when element objects are different instances
+ */
+function getElementKey(element: LayoutElement, index: number): string {
+  const type = (element as any).type || 'unknown';
+  // For grid elements, include parameters to make them unique
+  if (type === 'grid' && 'parameters' in element) {
+    const params = (element as any).parameters || [];
+    return `${type}-${index}-${params.join(',')}`;
+  }
+  // For frequency-range, include bandIndex for uniqueness when multiple bands
+  if (type === 'frequency-range' && 'bandIndex' in element) {
+    return `${type}-${index}-${(element as any).bandIndex ?? 0}`;
+  }
+  // For other elements, type + index is sufficient
+  return `${type}-${index}`;
+}
 
 export class ParameterLayoutManager {
   private elementRenderers: LayoutElementRenderer[];
+  private bodyLayout: BodyFlexboxLayout;
   
   constructor(ctx: CanvasRenderingContext2D) {
     
@@ -24,9 +48,12 @@ export class ParameterLayoutManager {
     this.elementRenderers = [
       new AutoGridElementRenderer(ctx),
       new GridElementRenderer(ctx),
-      new SliderUIElementRenderer(ctx),
+      new RemapRangeElementRenderer(ctx),
+      new FrequencyRangeElementRenderer(ctx),
       new BezierEditorElementRenderer(ctx)
     ];
+    
+    this.bodyLayout = new BodyFlexboxLayout();
   }
   
   /**
@@ -35,14 +62,14 @@ export class ParameterLayoutManager {
   calculateMetrics(
     node: NodeInstance,
     spec: NodeSpec,
-    _nodeX: number,
-    _nodeY: number,
+    nodeX: number,
+    nodeY: number,
     nodeWidth: number,
     headerHeight: number,
     existingMetrics: Partial<NodeRenderMetrics>
   ): {
     totalHeight: number;
-    elementMetrics: Map<LayoutElement, ElementMetrics>;
+    elementMetrics: Map<string, ElementMetrics>;
     parameterGridPositions: Map<string, {
       cellX: number;
       cellY: number;
@@ -59,11 +86,11 @@ export class ParameterLayoutManager {
     }>;
   } {
     const gridPadding = getCSSVariableAsNumber('node-body-padding', 18);
-    const bodyTopPadding = getCSSVariableAsNumber('param-body-top-padding', 24);
     const availableWidth = nodeWidth - gridPadding * 2;
+    const bodyStartY = nodeY + headerHeight;
     
-    // Get layout or default to auto-grid
-    const layout = spec.parameterLayout || { elements: [{ type: 'auto-grid' }] };
+    // Get layout or auto-generate (same logic as render method)
+    const layout = spec.parameterLayout || autoGenerateLayout(spec);
     
     // Build full metrics object for element renderers
     const fullMetrics: NodeRenderMetrics = {
@@ -76,7 +103,8 @@ export class ParameterLayoutManager {
       parameterInputPortPositions: existingMetrics.parameterInputPortPositions || new Map()
     };
     
-    const elementMetrics = new Map<LayoutElement, ElementMetrics>();
+    // Use string keys instead of element objects for stable lookups
+    const elementMetrics = new Map<string, ElementMetrics>();
     const parameterGridPositions = new Map<string, {
       cellX: number;
       cellY: number;
@@ -92,13 +120,79 @@ export class ParameterLayoutManager {
       valueY: number;
     }>();
     
-    let currentY = bodyTopPadding;
-    
-    // Calculate metrics for each element
-    for (const element of layout.elements) {
+    // First pass: Calculate element heights (needed for flexbox layout)
+    const slotHeights = new Map<LayoutElement, number>();
+    for (let i = 0; i < layout.elements.length; i++) {
+      const element = layout.elements[i];
       const renderer = this.getElementRenderer(element);
       if (!renderer) {
         console.warn(`No renderer found for layout element type: ${(element as any).type}`);
+        continue;
+      }
+      
+      // Calculate metrics with temporary startY (will be adjusted by flexbox)
+      // Use a temporary startY that represents relative position within body
+      const tempMetrics = renderer.calculateMetrics(
+        element,
+        node,
+        spec,
+        availableWidth,
+        0, // Temporary - will be recalculated with actual positions
+        fullMetrics
+      );
+      
+      // Validate height before storing
+      const height = tempMetrics?.height;
+      if (height === undefined || height === null || !isFinite(height) || height <= 0) {
+        console.warn(`Invalid height calculated for element ${i} (type: ${(element as any).type}), height: ${height}. Using minimum height.`);
+        slotHeights.set(element, 20); // Minimum height fallback
+      } else {
+        slotHeights.set(element, height);
+      }
+    }
+    
+    // Use BodyFlexboxLayout to calculate slot positions
+    const bodyLayout = this.bodyLayout.calculateLayout(
+      nodeX,
+      bodyStartY,
+      nodeWidth,
+      layout,
+      slotHeights
+    );
+    
+    // Second pass: Recalculate element metrics with actual positions from flexbox
+    for (let i = 0; i < layout.elements.length; i++) {
+      const element = layout.elements[i];
+      const elementKey = getElementKey(element, i);
+      const slotLayout = bodyLayout.slots[i];
+      
+      if (!slotLayout) {
+        console.warn(`No slot layout found for element ${i}`);
+        continue;
+      }
+      
+      const renderer = this.getElementRenderer(element);
+      if (!renderer) {
+        continue;
+      }
+      
+      // Calculate startY relative to body start (for element renderer)
+      // Validate slotLayout has valid properties before using it
+      if (slotLayout.y === undefined || slotLayout.y === null || 
+          slotLayout.x === undefined || slotLayout.x === null ||
+          slotLayout.width === undefined || slotLayout.width === null ||
+          slotLayout.height === undefined || slotLayout.height === null ||
+          !isFinite(slotLayout.x) || !isFinite(slotLayout.y) ||
+          !isFinite(slotLayout.width) || !isFinite(slotLayout.height) ||
+          slotLayout.width <= 0 || slotLayout.height <= 0) {
+        console.warn(`Invalid slot layout for element ${i}, skipping metrics calculation`);
+        continue;
+      }
+      
+      const startY = slotLayout.y - bodyStartY;
+      // Validate startY is a valid number
+      if (!isFinite(startY)) {
+        console.warn(`Invalid startY calculated for element ${i}, skipping metrics calculation`);
         continue;
       }
       
@@ -107,25 +201,43 @@ export class ParameterLayoutManager {
         node,
         spec,
         availableWidth,
-        currentY,
+        startY,
         fullMetrics
       );
       
-      elementMetrics.set(element, metrics);
+      // Validate metrics before storing
+      if (!metrics || 
+          metrics.x === undefined || metrics.x === null ||
+          metrics.y === undefined || metrics.y === null ||
+          metrics.width === undefined || metrics.width === null ||
+          metrics.height === undefined || metrics.height === null ||
+          !isFinite(metrics.x) || !isFinite(metrics.y) ||
+          !isFinite(metrics.width) || !isFinite(metrics.height) ||
+          metrics.width <= 0 || metrics.height <= 0) {
+        console.warn(`Invalid metrics returned from calculateMetrics for element ${i}, skipping`);
+        continue;
+      }
       
-      // Extract parameter positions if this element provides them
+      // Update element metrics with flexbox-calculated position
+      elementMetrics.set(elementKey, {
+        ...metrics,
+        x: slotLayout.x,
+        y: slotLayout.y,
+        width: slotLayout.width,
+        height: slotLayout.height
+      });
+      
+      // Extract parameter positions from correctly positioned metrics
       if (metrics.parameterGridPositions) {
         for (const [paramName, pos] of metrics.parameterGridPositions) {
           parameterGridPositions.set(paramName, pos);
         }
       }
-      
-      // Move to next element (stack vertically, no overlap)
-      currentY += metrics.height;
     }
     
-    const totalHeight = currentY + gridPadding; // Add bottom padding
-    
+    // Body height comes from BodyFlexboxLayout (top padding + slot extent + bottom padding).
+    const totalHeight = bodyLayout.container.height;
+
     return {
       totalHeight,
       elementMetrics,
@@ -144,7 +256,7 @@ export class ParameterLayoutManager {
     _nodeWidth: number,
     _headerHeight: number,
     metrics: NodeRenderMetrics,
-    elementMetrics: Map<LayoutElement, ElementMetrics>,
+    elementMetrics: Map<string, ElementMetrics>,
     renderState: {
       hoveredPortName?: string | null;
       isHoveredParameter?: boolean;
@@ -155,13 +267,18 @@ export class ParameterLayoutManager {
       skipPorts?: boolean;
     }
   ): void {
-    const layout = spec.parameterLayout || { elements: [{ type: 'auto-grid' }] };
+    // Use the same layout generation logic as calculateMetrics
+    // This ensures consistency between calculateMetrics and render
+    const layout = spec.parameterLayout || autoGenerateLayout(spec);
     
     // Render elements in order
-    for (const element of layout.elements) {
-      const metricsForElement = elementMetrics.get(element);
+    for (let i = 0; i < layout.elements.length; i++) {
+      const element = layout.elements[i];
+      const elementKey = getElementKey(element, i);
+      
+      const metricsForElement = elementMetrics.get(elementKey);
       if (!metricsForElement) {
-        console.warn(`No metrics found for layout element type: ${(element as any).type}`);
+        // Skip if metrics not found (should not happen in normal operation)
         continue;
       }
       

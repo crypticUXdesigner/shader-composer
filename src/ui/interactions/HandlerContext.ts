@@ -35,11 +35,8 @@ export interface HandlerContext {
   onNodeMoved?: (nodeId: string, x: number, y: number) => void;
   onNodeSelected?: (nodeId: string | null, multiSelect: boolean) => void;
   onConnectionCreated?: (sourceNodeId: string, sourcePort: string, targetNodeId: string, targetPort?: string, targetParameter?: string) => void;
-  onParameterChanged?: (nodeId: string, paramName: string, value: number) => void;
+  onParameterChanged?: (nodeId: string, paramName: string, value: number | number[][]) => void;
   onParameterInputModeChanged?: (nodeId: string, paramName: string, mode: import('../../types/nodeSpec').ParameterInputMode) => void;
-  
-  // Feature flags (deprecated - always returns true, kept for backwards compatibility)
-  isFeatureEnabled(flag: string): boolean;
   
   // Keyboard state
   isSpacePressed?(): boolean;
@@ -91,7 +88,7 @@ export interface HandlerContext {
   onConnectionSelected?: (connectionId: string, multiSelect: boolean) => void;
   
   // Connection state management (for PortConnectHandler to update NodeEditorCanvas state)
-  setConnectionState?: (state: {
+  setConnectionState?: (state: Partial<{
     isConnecting: boolean;
     connectionStartNodeId: string | null;
     connectionStartPort: string | null;
@@ -105,7 +102,7 @@ export interface HandlerContext {
       isOutput: boolean;
       parameter?: string;
     } | null;
-  }) => void;
+  }>) => void;
   
   // Pan state management (for CanvasPanHandler to update NodeEditorCanvas state)
   setPanState?: (state: {

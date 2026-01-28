@@ -20,36 +20,6 @@ export interface ParameterGroup {
   defaultCollapsed: boolean;
 }
 
-export type ElementType = 'coordinate-modifier' | 'content-generator' | 'post-processor';
-
-export interface VisualElement {
-  id: string;
-  displayName: string;
-  description: string;
-  category: string;
-  
-  // Element type - determines behavior and ordering
-  elementType?: ElementType; // If not specified, defaults to 'content-generator'
-  
-  // GLSL code components
-  functions: string;
-  mainCode: string;
-  uniforms: string[];
-  postColorCode?: string; // Optional code for post-color-mapping stage (used when postColorMapping is true or mode-dependent)
-  
-  // Parameters
-  parameters: Record<string, ParameterConfig>;
-  parameterGroups: ParameterGroup[];
-  
-  // Dependencies
-  requires?: string[];
-  
-  // Post-processing mode
-  postColorMapping?: boolean; // If true, element code is inserted after color mapping (default: false)
-  
-  // Application order
-  order: number;
-}
 
 export interface OKLCHColor {
   l: number;  // Lightness (0-1)
@@ -137,11 +107,12 @@ export interface SavedConfig {
 }
 
 // Node-based shader system types (version 2.0)
-export type ParameterValue = 
+export type ParameterValue =
   | number                        // For float/int parameters
   | string                        // For string parameters (swizzle, etc.)
   | [number, number, number, number]  // For vec4 parameters (bezier curves)
-  | number[];                     // For array parameters (color stops)
+  | number[]                      // For array parameters (color stops)
+  | number[][];                   // For array-of-arrays (e.g. frequencyBands)
 
 export interface NodeInstance {
   // Identity
@@ -160,7 +131,6 @@ export interface NodeInstance {
   
   // Metadata
   label?: string;                 // Optional custom label (overrides displayName)
-  collapsed?: boolean;            // Whether node UI is collapsed (default: false)
   color?: string;                 // Optional node color (hex, e.g., "#FF0000")
 }
 

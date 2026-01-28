@@ -94,24 +94,27 @@ export async function exportImage(
         case 'int':
           exportGl.uniform1i(location, typeof paramValue === 'number' ? Math.round(paramValue) : uniform.defaultValue as number);
           break;
-        case 'vec2':
+        case 'vec2': {
           const v2 = Array.isArray(paramValue) && paramValue.length >= 2
-            ? [paramValue[0], paramValue[1]]
+            ? [Number(paramValue[0]), Number(paramValue[1])]
             : (uniform.defaultValue as [number, number]);
           exportGl.uniform2f(location, v2[0], v2[1]);
           break;
-        case 'vec3':
+        }
+        case 'vec3': {
           const v3 = Array.isArray(paramValue) && paramValue.length >= 3
-            ? [paramValue[0], paramValue[1], paramValue[2]]
+            ? [Number(paramValue[0]), Number(paramValue[1]), Number(paramValue[2])]
             : (uniform.defaultValue as [number, number, number]);
           exportGl.uniform3f(location, v3[0], v3[1], v3[2]);
           break;
-        case 'vec4':
+        }
+        case 'vec4': {
           const v4 = Array.isArray(paramValue) && paramValue.length >= 4
-            ? [paramValue[0], paramValue[1], paramValue[2], paramValue[3]]
+            ? [Number(paramValue[0]), Number(paramValue[1]), Number(paramValue[2]), Number(paramValue[3])]
             : (uniform.defaultValue as [number, number, number, number]);
           exportGl.uniform4f(location, v4[0], v4[1], v4[2], v4[3]);
           break;
+        }
       }
     }
 

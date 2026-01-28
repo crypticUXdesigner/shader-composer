@@ -1,0 +1,190 @@
+{
+    "format": "shader-composer-node-graph",
+    "formatVersion": "2.0",
+    "graph": {
+      "id": "graph-1769639814950-9r6quomf9",
+      "name": "Sphere Shader",
+      "version": "2.0",
+      "nodes": [
+        {
+          "id": "node-1769639814950-2pne737vl",
+          "type": "final-output",
+          "position": {
+            "x": 7872,
+            "y": 924
+          },
+          "parameters": {}
+        },
+        {
+          "id": "node-1769639814950-ss7f1punm",
+          "type": "uv-coordinates",
+          "position": {
+            "x": 4035,
+            "y": 674
+          },
+          "parameters": {}
+        },
+        {
+          "id": "node-1769639814950-u1ts3xogl",
+          "type": "hexagonal-grid",
+          "position": {
+            "x": 4563,
+            "y": 673
+          },
+          "parameters": {
+            "hexSize": 0.25,
+            "hexGap": 0,
+            "hexCellRotation": 0,
+            "hexSizeVariation": 0,
+            "hexSizeVariationSteps": 0,
+            "hexRotation": 0,
+            "hexIntensity": 0.35,
+            "hexIntensityVariation": 0,
+            "hexSoftness": 0.01,
+            "hexEdgeThickness": 0,
+            "hexEdgeIntensity": 0,
+            "hexRimWidth": 0,
+            "hexRimIntensity": 0,
+            "hexSeed": 0,
+            "hexPulseSpeed": 0.6,
+            "hexPulseDepth": 0.19999999999999998,
+            "hexWaveDirection": 0,
+            "hexWaveFrequency": 40,
+            "hexWaveSpeed": 1.6,
+            "hexWaveDepth": 0.4
+          }
+        },
+        {
+          "id": "node-1769639814950-zrrf5hbe3",
+          "type": "oklch-color-map-bezier",
+          "position": {
+            "x": 7024,
+            "y": 1096
+          },
+          "parameters": {
+            "stops": 10
+          }
+        },
+        {
+          "id": "node-1769639814950-vl5i9jb8m",
+          "type": "oklch-color",
+          "position": {
+            "x": 6188,
+            "y": 1655
+          },
+          "parameters": {
+            "l": 0.14,
+            "c": 0.064,
+            "h": 7.2
+          }
+        },
+        {
+          "id": "node-1769639814950-p5cgeogtv",
+          "type": "oklch-color",
+          "position": {
+            "x": 6209,
+            "y": 2137
+          },
+          "parameters": {
+            "l": 1,
+            "c": 0.268,
+            "h": 280.8
+          }
+        },
+        {
+          "id": "node-1769639814950-rbyjvaycy",
+          "type": "bayer-dither",
+          "position": {
+            "x": 6118,
+            "y": 717
+          },
+          "parameters": {
+            "strength": 0.5,
+            "pixelSize": 1
+          }
+        },
+        {
+          "id": "node-1769639814950-y0nq53bxp",
+          "type": "resolution",
+          "position": {
+            "x": 5465,
+            "y": 1284
+          },
+          "parameters": {}
+        },
+        {
+          "id": "node-1769639814950-0kghd269k",
+          "type": "fragment-coordinates",
+          "position": {
+            "x": 5465,
+            "y": 982
+          },
+          "parameters": {}
+        }
+      ],
+      "connections": [
+        {
+          "id": "conn-1769639814950-4effk9oy2",
+          "sourceNodeId": "node-1769639814950-ss7f1punm",
+          "sourcePort": "out",
+          "targetNodeId": "node-1769639814950-u1ts3xogl",
+          "targetPort": "in"
+        },
+        {
+          "id": "conn-1769639814950-gj9h6v8gs",
+          "sourceNodeId": "node-1769639814950-zrrf5hbe3",
+          "sourcePort": "out",
+          "targetNodeId": "node-1769639814950-2pne737vl",
+          "targetPort": "in"
+        },
+        {
+          "id": "conn-1769639814950-2f33rch0q",
+          "sourceNodeId": "node-1769639814950-vl5i9jb8m",
+          "sourcePort": "out",
+          "targetNodeId": "node-1769639814950-zrrf5hbe3",
+          "targetPort": "startColor"
+        },
+        {
+          "id": "conn-1769639814950-qfdifdvsp",
+          "sourceNodeId": "node-1769639814950-p5cgeogtv",
+          "sourcePort": "out",
+          "targetNodeId": "node-1769639814950-zrrf5hbe3",
+          "targetPort": "endColor"
+        },
+        {
+          "id": "conn-1769639814950-nk37a0dyh",
+          "sourceNodeId": "node-1769639814950-0kghd269k",
+          "sourcePort": "out",
+          "targetNodeId": "node-1769639814950-rbyjvaycy",
+          "targetPort": "fragCoord"
+        },
+        {
+          "id": "conn-1769639814950-hc84c3abd",
+          "sourceNodeId": "node-1769639814950-y0nq53bxp",
+          "sourcePort": "out",
+          "targetNodeId": "node-1769639814950-rbyjvaycy",
+          "targetPort": "resolution"
+        },
+        {
+          "id": "conn-1769639814950-8xoo4z3ff",
+          "sourceNodeId": "node-1769639814950-u1ts3xogl",
+          "sourcePort": "out",
+          "targetNodeId": "node-1769639814950-rbyjvaycy",
+          "targetPort": "in"
+        },
+        {
+          "id": "conn-1769639814950-2864tsdfv",
+          "sourceNodeId": "node-1769639814950-rbyjvaycy",
+          "sourcePort": "out",
+          "targetNodeId": "node-1769639814950-zrrf5hbe3",
+          "targetPort": "in"
+        }
+      ],
+      "viewState": {
+        "zoom": 0.46111438393265003,
+        "panX": -2634.3625866044754,
+        "panY": -13.215155350559904,
+        "selectedNodeIds": []
+      }
+    }
+  }
