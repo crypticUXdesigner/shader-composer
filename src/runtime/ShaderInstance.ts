@@ -63,12 +63,17 @@ export class ShaderInstance implements Disposable {
     }
     
     // Create fragment shader
-    this.fragmentShader = this.createShader(
+    const fragmentError = this.createShaderAndCaptureError(
       this.gl.FRAGMENT_SHADER,
       compilationResult.shaderCode
     );
+    this.fragmentShader = fragmentError.shader;
     if (!this.fragmentShader) {
-      throw new Error('Failed to create fragment shader');
+      throw new ShaderCompilationError(
+        'Fragment shader compile failed',
+        fragmentError.infoLog || 'Unknown error',
+        compilationResult.shaderCode
+      );
     }
     
     // Create and link program
@@ -94,28 +99,35 @@ export class ShaderInstance implements Disposable {
   }
   
   /**
-   * Create and compile a shader.
+   * Create and compile a shader; on failure return null and the info log.
    */
-  private createShader(type: number, source: string): WebGLShader | null {
+  private createShaderAndCaptureError(type: number, source: string): { shader: WebGLShader | null; infoLog: string | null } {
     const shader = this.gl.createShader(type);
-    if (!shader) return null;
-    
+    if (!shader) return { shader: null, infoLog: 'createShader returned null' };
+
     this.gl.shaderSource(shader, source);
     this.gl.compileShader(shader);
-    
+
     if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
-      const error = this.gl.getShaderInfoLog(shader);
+      const infoLog = this.gl.getShaderInfoLog(shader);
       const shaderType = type === this.gl.VERTEX_SHADER ? 'VERTEX' : 'FRAGMENT';
-      console.error(`[${shaderType} Shader] compile error:`, error);
+      console.error(`[${shaderType} Shader] compile error:`, infoLog);
       console.error(`[${shaderType} Shader] source (first 2000 chars):`, source.substring(0, 2000));
       if (source.length > 2000) {
         console.error(`[${shaderType} Shader] source (last 500 chars):`, source.substring(source.length - 500));
       }
       this.gl.deleteShader(shader);
-      return null;
+      return { shader: null, infoLog };
     }
-    
-    return shader;
+
+    return { shader, infoLog: null };
+  }
+
+  /**
+   * Create and compile a shader.
+   */
+  private createShader(type: number, source: string): WebGLShader | null {
+    return this.createShaderAndCaptureError(type, source).shader;
   }
   
   /**

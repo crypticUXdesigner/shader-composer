@@ -50,9 +50,9 @@ export class ParameterDragHandler implements InteractionHandler {
       return false;
     }
     
-    // Check if clicking on a parameter
+    // Check if clicking on a parameter (never handle mode button – that’s a click, not a drag)
     const paramHit = this.context.hitTestParameter?.(event.screenPosition.x, event.screenPosition.y);
-    if (paramHit && !paramHit.isString) {
+    if (paramHit && !paramHit.isString && !paramHit.isModeButton) {
       return true;
     }
     
@@ -61,7 +61,7 @@ export class ParameterDragHandler implements InteractionHandler {
   
   onStart(event: InteractionEvent): void {
     const paramHit = this.context.hitTestParameter?.(event.screenPosition.x, event.screenPosition.y);
-    if (!paramHit || paramHit.isString) return;
+    if (!paramHit || paramHit.isString || paramHit.isModeButton) return;
     
     const graph = this.context.getGraph();
     const node = graph.nodes.find(n => n.id === paramHit.nodeId);

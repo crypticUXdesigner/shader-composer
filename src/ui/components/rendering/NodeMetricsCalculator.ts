@@ -207,9 +207,14 @@ export class NodeMetricsCalculator {
     // Organize parameters by groups (needed for width calculation)
     const { groupedParams, ungroupedParams } = this.organizeParametersByGroups(spec);
     
-    // Adjust width if needed for parameter grid
+    // Adjust width if needed for parameter grid (or bezier). Color-picker-only nodes use min-width only; swatch fills width.
     const isBezierNode = this.isBezierCurveNode(spec);
-    if (Object.keys(spec.parameters).length > 0) {
+    const layout = spec.parameterLayout || autoGenerateLayout(spec);
+    const isColorPickerOnly =
+      layout.elements?.length === 1 &&
+      (layout.elements[0] as { type?: string }).type === 'color-picker';
+
+    if (Object.keys(spec.parameters).length > 0 && !isColorPickerOnly) {
       const gridPadding = getCSSVariableAsNumber('node-body-padding', 18);
       
       if (isBezierNode) {

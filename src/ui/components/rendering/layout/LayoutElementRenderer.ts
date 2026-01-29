@@ -90,6 +90,7 @@ export interface LayoutElementRenderer {
       connectedParameters?: Set<string>;
       effectiveParameterValues?: Map<string, number | null>;
       skipPorts?: boolean;
+      audioRemapLiveValues?: { incoming: number | null; outgoing: number | null };
     }
   ): void;
 }

@@ -12,7 +12,8 @@
         {
           "name": "out",
           "type": "vec2",
-          "description": "Normalized UV coordinates in the range 0.0 to 1.0"
+          "description": "Normalized UV coordinates in the range 0.0 to 1.0",
+          "suggestedTargets": ["node:translate", "node:scale", "node:rotate", "node:multiply", "node:fbm-noise", "node:simplex-noise", "node:hexagonal-grid", "node:wave-patterns"]
         }
       ],
       "relatedItems": [
@@ -33,7 +34,8 @@
         {
           "name": "out",
           "type": "float",
-          "description": "The current time value, continuously increasing from shader start"
+          "description": "The current time value, continuously increasing from shader start",
+          "suggestedTargets": ["node:sine", "node:cosine", "node:multiply", "node:fbm-noise", "node:wave-patterns", "node:scanlines", "node:particle-system"]
         }
       ],
       "relatedItems": [
@@ -55,7 +57,8 @@
         {
           "name": "out",
           "type": "vec2",
-          "description": "Screen resolution as (width, height) in pixels"
+          "description": "Screen resolution as (width, height) in pixels",
+          "suggestedTargets": ["node:divide", "node:uv-coordinates", "node:polar-coordinates", "node:bayer-dither"]
         }
       ],
       "relatedItems": [
@@ -77,7 +80,8 @@
         {
           "name": "out",
           "type": "vec2",
-          "description": "Fragment coordinates in pixel units (x, y)"
+          "description": "Fragment coordinates in pixel units (x, y)",
+          "suggestedTargets": ["node:divide", "node:translate", "node:bayer-dither", "node:polar-coordinates"]
         }
       ],
       "relatedItems": [
@@ -98,7 +102,8 @@
         {
           "name": "out",
           "type": "float",
-          "description": "The constant float value set by the parameter"
+          "description": "The constant float value set by the parameter",
+          "suggestedTargets": ["node:add", "node:multiply", "node:mix", "node:sine", "node:clamp", "node:remap", "node:translate", "node:scale"]
         }
       ],
       "relatedItems": [
@@ -120,7 +125,8 @@
         {
           "name": "out",
           "type": "vec2",
-          "description": "The constant vec2 value with (x, y) components"
+          "description": "The constant vec2 value with (x, y) components",
+          "suggestedTargets": ["node:translate", "node:scale", "node:rotate", "node:uv-coordinates", "node:add", "node:multiply"]
         }
       ],
       "relatedItems": [
@@ -142,7 +148,8 @@
         {
           "name": "out",
           "type": "vec3",
-          "description": "The constant vec3 value with (x, y, z) components"
+          "description": "The constant vec3 value with (x, y, z) components",
+          "suggestedTargets": ["node:oklch-color-map-bezier", "node:color-map", "node:mix", "node:normalize", "node:final-output"]
         }
       ],
       "relatedItems": [
@@ -165,7 +172,8 @@
         {
           "name": "out",
           "type": "vec4",
-          "description": "The constant vec4 value with (x, y, z, w) components"
+          "description": "The constant vec4 value with (x, y, z, w) components",
+          "suggestedTargets": ["node:mix", "node:blend-mode", "node:gradient-mask", "node:oklch-color-map-bezier"]
         }
       ],
       "relatedItems": [
@@ -188,7 +196,8 @@
         {
           "name": "out",
           "type": "vec3",
-          "description": "OKLCH color value as (lightness, chroma, hue)"
+          "description": "OKLCH color value as (lightness, chroma, hue)",
+          "suggestedTargets": ["node:oklch-color-map-bezier", "node:oklch-color-map-threshold", "node:color-map", "node:mix"]
         }
       ],
       "relatedItems": [
@@ -210,7 +219,8 @@
         {
           "name": "out",
           "type": "vec4",
-          "description": "Bezier curve control points as (x1, y1, x2, y2)"
+          "description": "Bezier curve control points as (x1, y1, x2, y2)",
+          "suggestedTargets": ["node:oklch-color-map-bezier", "node:mix", "node:smoothstep"]
         }
       ],
       "relatedItems": [
@@ -232,19 +242,22 @@
         {
           "name": "a",
           "type": "float",
-          "description": "The first value to add"
+          "description": "The first value to add",
+          "suggestedSources": ["type:float", "node:constant-float", "node:time", "node:multiply", "node:sine", "node:audio-remap"]
         },
         {
           "name": "b",
           "type": "float",
-          "description": "The second value to add"
+          "description": "The second value to add",
+          "suggestedSources": ["type:float", "node:constant-float", "node:time", "node:multiply", "node:sine", "node:audio-remap"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The sum of both input values"
+          "description": "The sum of both input values",
+          "suggestedTargets": ["node:multiply", "node:mix", "node:translate", "node:final-output", "node:remap", "node:clamp"]
         }
       ],
       "relatedItems": [
@@ -265,19 +278,22 @@
         {
           "name": "a",
           "type": "float",
-          "description": "The value to subtract from"
+          "description": "The value to subtract from",
+          "suggestedSources": ["type:float", "node:constant-float", "node:time", "node:add", "node:multiply", "node:uv-coordinates"]
         },
         {
           "name": "b",
           "type": "float",
-          "description": "The value to subtract"
+          "description": "The value to subtract",
+          "suggestedSources": ["type:float", "node:constant-float", "node:time", "node:add", "node:multiply"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The difference between the two values"
+          "description": "The difference between the two values",
+          "suggestedTargets": ["node:add", "node:multiply", "node:absolute", "node:distance", "node:clamp", "node:remap"]
         }
       ],
       "relatedItems": [
@@ -298,19 +314,22 @@
         {
           "name": "a",
           "type": "float",
-          "description": "The first value to multiply"
+          "description": "The first value to multiply",
+          "suggestedSources": ["type:float", "node:constant-float", "node:time", "node:add", "node:sine", "node:uv-coordinates"]
         },
         {
           "name": "b",
           "type": "float",
-          "description": "The second value to multiply"
+          "description": "The second value to multiply",
+          "suggestedSources": ["type:float", "node:constant-float", "node:time", "node:add", "node:sine"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The product of both input values"
+          "description": "The product of both input values",
+          "suggestedTargets": ["node:add", "node:mix", "node:translate", "node:final-output", "node:color-map", "node:remap"]
         }
       ],
       "relatedItems": [
@@ -331,19 +350,22 @@
         {
           "name": "a",
           "type": "float",
-          "description": "The dividend (value to be divided)"
+          "description": "The dividend (value to be divided)",
+          "suggestedSources": ["type:float", "node:constant-float", "node:fragment-coordinates", "node:resolution", "node:length", "node:distance"]
         },
         {
           "name": "b",
           "type": "float",
-          "description": "The divisor (value to divide by)"
+          "description": "The divisor (value to divide by)",
+          "suggestedSources": ["type:float", "node:constant-float", "node:resolution", "node:length"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The quotient of the division"
+          "description": "The quotient of the division",
+          "suggestedTargets": ["node:multiply", "node:add", "node:uv-coordinates", "node:remap", "node:polar-coordinates"]
         }
       ],
       "relatedItems": [
@@ -363,19 +385,22 @@
         {
           "name": "base",
           "type": "float",
-          "description": "The base value to raise to a power"
+          "description": "The base value to raise to a power",
+          "suggestedSources": ["type:float", "node:constant-float", "node:add", "node:multiply", "node:smoothstep", "node:fbm-noise"]
         },
         {
           "name": "exponent",
           "type": "float",
-          "description": "The exponent to raise the base to"
+          "description": "The exponent to raise the base to",
+          "suggestedSources": ["type:float", "node:constant-float", "node:divide"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The result of base raised to the exponent"
+          "description": "The result of base raised to the exponent",
+          "suggestedTargets": ["node:multiply", "node:mix", "node:color-map", "node:remap", "node:clamp"]
         }
       ],
       "relatedItems": [
@@ -395,14 +420,16 @@
         {
           "name": "in",
           "type": "float",
-          "description": "The value to calculate the square root of"
+          "description": "The value to calculate the square root of",
+          "suggestedSources": ["type:float", "node:length", "node:distance", "node:dot-product", "node:multiply"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The square root of the input value"
+          "description": "The square root of the input value",
+          "suggestedTargets": ["node:length", "node:normalize", "node:distance", "node:multiply", "node:mix"]
         }
       ],
       "relatedItems": [
@@ -423,14 +450,16 @@
         {
           "name": "in",
           "type": "float",
-          "description": "The value to get the absolute value of"
+          "description": "The value to get the absolute value of",
+          "suggestedSources": ["type:float", "node:subtract", "node:sine", "node:fbm-noise", "node:distance"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The absolute value (always positive or zero)"
+          "description": "The absolute value (always positive or zero)",
+          "suggestedTargets": ["node:multiply", "node:mix", "node:length", "node:clamp", "node:remap"]
         }
       ],
       "relatedItems": [
@@ -450,14 +479,16 @@
         {
           "name": "in",
           "type": "float",
-          "description": "The value to round down"
+          "description": "The value to round down",
+          "suggestedSources": ["type:float", "node:constant-float", "node:multiply", "node:fract", "node:uv-coordinates"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The largest integer less than or equal to the input"
+          "description": "The largest integer less than or equal to the input",
+          "suggestedTargets": ["node:add", "node:multiply", "node:hexagonal-grid", "node:plane-grid", "node:modulo"]
         }
       ],
       "relatedItems": [
@@ -478,14 +509,16 @@
         {
           "name": "in",
           "type": "float",
-          "description": "The value to round up"
+          "description": "The value to round up",
+          "suggestedSources": ["type:float", "node:constant-float", "node:multiply", "node:fract", "node:divide"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The smallest integer greater than or equal to the input"
+          "description": "The smallest integer greater than or equal to the input",
+          "suggestedTargets": ["node:add", "node:multiply", "node:hexagonal-grid", "node:modulo"]
         }
       ],
       "relatedItems": [
@@ -506,14 +539,16 @@
         {
           "name": "in",
           "type": "float",
-          "description": "The value to extract the fractional part from"
+          "description": "The value to extract the fractional part from",
+          "suggestedSources": ["type:float", "node:multiply", "node:uv-coordinates", "node:time", "node:distance", "node:length"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The fractional part (always 0.0 to 1.0)"
+          "description": "The fractional part (always 0.0 to 1.0)",
+          "suggestedTargets": ["node:hexagonal-grid", "node:plane-grid", "node:rings", "node:smoothstep", "node:mix", "node:color-map"]
         }
       ],
       "relatedItems": [
@@ -534,19 +569,22 @@
         {
           "name": "a",
           "type": "float",
-          "description": "The dividend value"
+          "description": "The dividend value",
+          "suggestedSources": ["type:float", "node:time", "node:uv-coordinates", "node:multiply", "node:add"]
         },
         {
           "name": "b",
           "type": "float",
-          "description": "The divisor value"
+          "description": "The divisor value",
+          "suggestedSources": ["type:float", "node:constant-float"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The remainder of the division"
+          "description": "The remainder of the division",
+          "suggestedTargets": ["node:sine", "node:cosine", "node:fract", "node:smoothstep", "node:rings"]
         }
       ],
       "relatedItems": [
@@ -566,19 +604,22 @@
         {
           "name": "a",
           "type": "float",
-          "description": "The first value to compare"
+          "description": "The first value to compare",
+          "suggestedSources": ["type:float", "node:constant-float", "node:add", "node:multiply", "node:smoothstep"]
         },
         {
           "name": "b",
           "type": "float",
-          "description": "The second value to compare"
+          "description": "The second value to compare",
+          "suggestedSources": ["type:float", "node:constant-float", "node:add", "node:multiply"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The smaller of the two input values"
+          "description": "The smaller of the two input values",
+          "suggestedTargets": ["node:clamp", "node:mix", "node:max", "node:remap", "node:color-map"]
         }
       ],
       "relatedItems": [
@@ -598,19 +639,22 @@
         {
           "name": "a",
           "type": "float",
-          "description": "The first value to compare"
+          "description": "The first value to compare",
+          "suggestedSources": ["type:float", "node:constant-float", "node:add", "node:multiply", "node:sine"]
         },
         {
           "name": "b",
           "type": "float",
-          "description": "The second value to compare"
+          "description": "The second value to compare",
+          "suggestedSources": ["type:float", "node:constant-float", "node:add", "node:multiply"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The larger of the two input values"
+          "description": "The larger of the two input values",
+          "suggestedTargets": ["node:clamp", "node:mix", "node:min", "node:remap", "node:color-map"]
         }
       ],
       "relatedItems": [
@@ -630,24 +674,28 @@
         {
           "name": "in",
           "type": "float",
-          "description": "The value to clamp"
+          "description": "The value to clamp",
+          "suggestedSources": ["type:float", "node:add", "node:multiply", "node:sine", "node:fbm-noise", "node:audio-remap"]
         },
         {
           "name": "min",
           "type": "float",
-          "description": "The minimum allowed value"
+          "description": "The minimum allowed value",
+          "suggestedSources": ["type:float", "node:constant-float"]
         },
         {
           "name": "max",
           "type": "float",
-          "description": "The maximum allowed value"
+          "description": "The maximum allowed value",
+          "suggestedSources": ["type:float", "node:constant-float"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The clamped value (between min and max)"
+          "description": "The clamped value (between min and max)",
+          "suggestedTargets": ["node:mix", "node:remap", "node:color-map", "node:final-output", "node:smoothstep"]
         }
       ],
       "relatedItems": [
@@ -669,24 +717,28 @@
         {
           "name": "a",
           "type": "float",
-          "description": "The first value (returned when t = 0.0)"
+          "description": "The first value (returned when t = 0.0)",
+          "suggestedSources": ["type:float", "node:constant-float", "node:sine", "node:add", "node:fbm-noise"]
         },
         {
           "name": "b",
           "type": "float",
-          "description": "The second value (returned when t = 1.0)"
+          "description": "The second value (returned when t = 1.0)",
+          "suggestedSources": ["type:float", "node:constant-float", "node:sine", "node:add", "node:fbm-noise"]
         },
         {
           "name": "t",
           "type": "float",
-          "description": "The blend factor (typically 0.0 to 1.0)"
+          "description": "The blend factor (typically 0.0 to 1.0)",
+          "suggestedSources": ["type:float", "node:constant-float", "node:smoothstep", "node:uv-coordinates", "node:audio-remap"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The interpolated value between a and b"
+          "description": "The interpolated value between a and b",
+          "suggestedTargets": ["node:final-output", "node:color-map", "node:blend-mode", "node:translate", "node:scale"]
         }
       ],
       "relatedItems": [
@@ -706,19 +758,22 @@
         {
           "name": "edge",
           "type": "float",
-          "description": "The threshold value to compare against"
+          "description": "The threshold value to compare against",
+          "suggestedSources": ["type:float", "node:constant-float", "node:smoothstep", "node:remap"]
         },
         {
           "name": "x",
           "type": "float",
-          "description": "The value to compare with the edge"
+          "description": "The value to compare with the edge",
+          "suggestedSources": ["type:float", "node:fbm-noise", "node:distance", "node:sine", "node:uv-coordinates"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "0.0 if x < edge, 1.0 otherwise"
+          "description": "0.0 if x < edge, 1.0 otherwise",
+          "suggestedTargets": ["node:mix", "node:select", "node:compare", "node:gradient-mask", "node:oklch-color-map-threshold"]
         }
       ],
       "relatedItems": [
@@ -738,24 +793,28 @@
         {
           "name": "edge0",
           "type": "float",
-          "description": "The lower edge of the transition (returns 0.0 below this)"
+          "description": "The lower edge of the transition (returns 0.0 below this)",
+          "suggestedSources": ["type:float", "node:constant-float", "node:remap"]
         },
         {
           "name": "edge1",
           "type": "float",
-          "description": "The upper edge of the transition (returns 1.0 above this)"
+          "description": "The upper edge of the transition (returns 1.0 above this)",
+          "suggestedSources": ["type:float", "node:constant-float", "node:remap"]
         },
         {
           "name": "x",
           "type": "float",
-          "description": "The input value to evaluate"
+          "description": "The input value to evaluate",
+          "suggestedSources": ["type:float", "node:fbm-noise", "node:distance", "node:sine", "node:uv-coordinates", "node:fract"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "Smoothly interpolated value between 0.0 and 1.0"
+          "description": "Smoothly interpolated value between 0.0 and 1.0",
+          "suggestedTargets": ["node:mix", "node:color-map", "node:gradient-mask", "node:twist-distortion", "node:translate"]
         }
       ],
       "relatedItems": [
@@ -776,14 +835,16 @@
         {
           "name": "in",
           "type": "float",
-          "description": "The angle in radians"
+          "description": "The angle in radians",
+          "suggestedSources": ["type:float", "node:time", "node:multiply", "node:constant-float", "node:uv-coordinates"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The sine value (between -1.0 and 1.0)"
+          "description": "The sine value (between -1.0 and 1.0)",
+          "suggestedTargets": ["node:add", "node:multiply", "node:mix", "node:wave-patterns", "node:translate", "node:rotate"]
         }
       ],
       "relatedItems": [
@@ -804,14 +865,16 @@
         {
           "name": "in",
           "type": "float",
-          "description": "The angle in radians"
+          "description": "The angle in radians",
+          "suggestedSources": ["type:float", "node:time", "node:multiply", "node:constant-float", "node:arc-tangent-2", "node:uv-coordinates"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The cosine value (between -1.0 and 1.0)"
+          "description": "The cosine value (between -1.0 and 1.0)",
+          "suggestedTargets": ["node:add", "node:multiply", "node:mix", "node:wave-patterns", "node:rotate", "node:vector-field"]
         }
       ],
       "relatedItems": [
@@ -832,14 +895,16 @@
         {
           "name": "in",
           "type": "float",
-          "description": "The angle in radians"
+          "description": "The angle in radians",
+          "suggestedSources": ["type:float", "node:time", "node:arc-tangent-2", "node:constant-float", "node:uv-coordinates"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The tangent value"
+          "description": "The tangent value",
+          "suggestedTargets": ["node:arc-tangent", "node:multiply", "node:add", "node:mix"]
         }
       ],
       "relatedItems": [
@@ -860,14 +925,16 @@
         {
           "name": "in",
           "type": "float",
-          "description": "The sine value (must be between -1.0 and 1.0)"
+          "description": "The sine value (must be between -1.0 and 1.0)",
+          "suggestedSources": ["type:float", "node:sine", "node:cosine", "node:clamp", "node:mix"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The angle in radians (between -π/2 and π/2)"
+          "description": "The angle in radians (between -π/2 and π/2)",
+          "suggestedTargets": ["node:sine", "node:cosine", "node:rotate", "node:multiply"]
         }
       ],
       "relatedItems": [
@@ -888,14 +955,16 @@
         {
           "name": "in",
           "type": "float",
-          "description": "The cosine value (must be between -1.0 and 1.0)"
+          "description": "The cosine value (must be between -1.0 and 1.0)",
+          "suggestedSources": ["type:float", "node:sine", "node:cosine", "node:dot-product", "node:clamp"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The angle in radians (between 0.0 and π)"
+          "description": "The angle in radians (between 0.0 and π)",
+          "suggestedTargets": ["node:sine", "node:cosine", "node:rotate", "node:multiply"]
         }
       ],
       "relatedItems": [
@@ -916,14 +985,16 @@
         {
           "name": "in",
           "type": "float",
-          "description": "The tangent value (ratio)"
+          "description": "The tangent value (ratio)",
+          "suggestedSources": ["type:float", "node:tangent", "node:divide", "node:constant-float"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The angle in radians (between -π/2 and π/2)"
+          "description": "The angle in radians (between -π/2 and π/2)",
+          "suggestedTargets": ["node:sine", "node:cosine", "node:rotate", "node:multiply"]
         }
       ],
       "relatedItems": [
@@ -943,19 +1014,22 @@
         {
           "name": "y",
           "type": "float",
-          "description": "The y-coordinate of the point"
+          "description": "The y-coordinate of the point",
+          "suggestedSources": ["type:float", "node:split-vector", "node:uv-coordinates", "node:polar-coordinates", "node:constant-float"]
         },
         {
           "name": "x",
           "type": "float",
-          "description": "The x-coordinate of the point"
+          "description": "The x-coordinate of the point",
+          "suggestedSources": ["type:float", "node:split-vector", "node:uv-coordinates", "node:polar-coordinates", "node:constant-float"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The angle in radians (between -π and π)"
+          "description": "The angle in radians (between -π and π)",
+          "suggestedTargets": ["node:rotate", "node:sine", "node:cosine", "node:kaleidoscope", "node:polar-coordinates"]
         }
       ],
       "relatedItems": [
@@ -976,14 +1050,16 @@
         {
           "name": "in",
           "type": "float",
-          "description": "The exponent to raise e to"
+          "description": "The exponent to raise e to",
+          "suggestedSources": ["type:float", "node:time", "node:multiply", "node:natural-logarithm", "node:sine"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "e raised to the power of the input"
+          "description": "e raised to the power of the input",
+          "suggestedTargets": ["node:natural-logarithm", "node:multiply", "node:mix", "node:color-map"]
         }
       ],
       "relatedItems": [
@@ -1003,14 +1079,16 @@
         {
           "name": "in",
           "type": "float",
-          "description": "The value to calculate the logarithm of (must be > 0)"
+          "description": "The value to calculate the logarithm of (must be > 0)",
+          "suggestedSources": ["type:float", "node:exponential", "node:distance", "node:length", "node:add"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The natural logarithm of the input"
+          "description": "The natural logarithm of the input",
+          "suggestedTargets": ["node:exponential", "node:multiply", "node:power", "node:remap"]
         }
       ],
       "relatedItems": [
@@ -1030,14 +1108,16 @@
         {
           "name": "in",
           "type": "vec2",
-          "description": "The vector to calculate the length of"
+          "description": "The vector to calculate the length of",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:polar-coordinates", "node:constant-vec2"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The magnitude (length) of the vector"
+          "description": "The magnitude (length) of the vector",
+          "suggestedTargets": ["node:normalize", "node:distance", "node:smoothstep", "node:rings", "node:gradient-mask"]
         }
       ],
       "relatedItems": [
@@ -1058,19 +1138,22 @@
         {
           "name": "a",
           "type": "vec2",
-          "description": "The first point"
+          "description": "The first point",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:constant-vec2"]
         },
         {
           "name": "b",
           "type": "vec2",
-          "description": "The second point"
+          "description": "The second point",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:constant-vec2", "node:translate"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The distance between the two points"
+          "description": "The distance between the two points",
+          "suggestedTargets": ["node:smoothstep", "node:gradient-mask", "node:rings", "node:voronoi-noise", "node:sphere-raymarch"]
         }
       ],
       "relatedItems": [
@@ -1090,19 +1173,22 @@
         {
           "name": "a",
           "type": "vec2",
-          "description": "The first vector"
+          "description": "The first vector",
+          "suggestedSources": ["type:vec2", "node:normalize", "node:uv-coordinates", "node:lighting-shading", "node:constant-vec2"]
         },
         {
           "name": "b",
           "type": "vec2",
-          "description": "The second vector"
+          "description": "The second vector",
+          "suggestedSources": ["type:vec2", "node:normalize", "node:normal-mapping", "node:constant-vec2"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The dot product of the two vectors"
+          "description": "The dot product of the two vectors",
+          "suggestedTargets": ["node:lighting-shading", "node:mix", "node:smoothstep", "node:color-map", "node:vector-field"]
         }
       ],
       "relatedItems": [
@@ -1122,19 +1208,22 @@
         {
           "name": "a",
           "type": "vec3",
-          "description": "The first 3D vector"
+          "description": "The first 3D vector",
+          "suggestedSources": ["type:vec3", "node:normalize", "node:normal-mapping", "node:constant-vec3"]
         },
         {
           "name": "b",
           "type": "vec3",
-          "description": "The second 3D vector"
+          "description": "The second 3D vector",
+          "suggestedSources": ["type:vec3", "node:normalize", "node:normal-mapping", "node:constant-vec3"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "vec3",
-          "description": "The cross product vector (perpendicular to both inputs)"
+          "description": "The cross product vector (perpendicular to both inputs)",
+          "suggestedTargets": ["node:normalize", "node:normal-mapping", "node:lighting-shading"]
         }
       ],
       "relatedItems": [
@@ -1154,14 +1243,16 @@
         {
           "name": "in",
           "type": "vec2",
-          "description": "The vector to normalize"
+          "description": "The vector to normalize",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:polar-coordinates", "node:distance"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "vec2",
-          "description": "The normalized vector (length = 1.0)"
+          "description": "The normalized vector (length = 1.0)",
+          "suggestedTargets": ["node:dot-product", "node:reflect", "node:refract", "node:vector-field", "node:lighting-shading"]
         }
       ],
       "relatedItems": [
@@ -1182,19 +1273,22 @@
         {
           "name": "I",
           "type": "vec2",
-          "description": "The incident vector (direction hitting the surface)"
+          "description": "The incident vector (direction hitting the surface)",
+          "suggestedSources": ["type:vec2", "node:normalize", "node:uv-coordinates", "node:normal-mapping"]
         },
         {
           "name": "N",
           "type": "vec2",
-          "description": "The surface normal vector (should be normalized)"
+          "description": "The surface normal vector (should be normalized)",
+          "suggestedSources": ["type:vec2", "node:normalize", "node:normal-mapping", "node:constant-vec2"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "vec2",
-          "description": "The reflected vector direction"
+          "description": "The reflected vector direction",
+          "suggestedTargets": ["node:dot-product", "node:lighting-shading", "node:normalize"]
         }
       ],
       "relatedItems": [
@@ -1215,24 +1309,28 @@
         {
           "name": "I",
           "type": "vec2",
-          "description": "The incident vector (direction entering the surface)"
+          "description": "The incident vector (direction entering the surface)",
+          "suggestedSources": ["type:vec2", "node:normalize", "node:uv-coordinates", "node:normal-mapping"]
         },
         {
           "name": "N",
           "type": "vec2",
-          "description": "The surface normal vector (should be normalized)"
+          "description": "The surface normal vector (should be normalized)",
+          "suggestedSources": ["type:vec2", "node:normalize", "node:normal-mapping", "node:constant-vec2"]
         },
         {
           "name": "eta",
           "type": "float",
-          "description": "The ratio of indices of refraction (n1/n2)"
+          "description": "The ratio of indices of refraction (n1/n2)",
+          "suggestedSources": ["type:float", "node:constant-float", "node:divide"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "vec2",
-          "description": "The refracted vector direction"
+          "description": "The refracted vector direction",
+          "suggestedTargets": ["node:normalize", "node:dot-product", "node:lighting-shading"]
         }
       ],
       "relatedItems": [
@@ -1253,17 +1351,20 @@
         {
           "name": "currentTime",
           "type": "float",
-          "description": "The current playback time in seconds, useful for synchronizing animations with audio position"
+          "description": "The current playback time in seconds, useful for synchronizing animations with audio position",
+          "suggestedTargets": ["node:audio-analyzer", "node:multiply", "node:modulo", "node:sine", "node:remap"]
         },
         {
           "name": "duration",
           "type": "float",
-          "description": "The total duration of the loaded audio file in seconds"
+          "description": "The total duration of the loaded audio file in seconds",
+          "suggestedTargets": ["node:divide", "node:remap", "node:audio-remap"]
         },
         {
           "name": "isPlaying",
           "type": "float",
-          "description": "Returns 1.0 when audio is playing, 0.0 when paused or stopped"
+          "description": "Returns 1.0 when audio is playing, 0.0 when paused or stopped",
+          "suggestedTargets": ["node:mix", "node:multiply", "node:step"]
         }
       ],
       "relatedItems": [
@@ -1282,29 +1383,34 @@
         {
           "name": "audioFile",
           "type": "float",
-          "description": "Connect to an Audio File Input node to provide the audio source for analysis"
+          "description": "Connect to an Audio File Input node to provide the audio source for analysis",
+          "suggestedSources": ["node:audio-file-input"]
         }
       ],
       "outputs": [
         {
           "name": "band0",
           "type": "float",
-          "description": "The amplitude value for the first frequency band (typically bass frequencies)"
+          "description": "The amplitude value for the first frequency band (typically bass frequencies)",
+          "suggestedTargets": ["node:audio-remap", "node:multiply", "node:mix", "node:translate", "node:scale"]
         },
         {
           "name": "band1",
           "type": "float",
-          "description": "The amplitude value for the second frequency band (typically low-mid frequencies)"
+          "description": "The amplitude value for the second frequency band (typically low-mid frequencies)",
+          "suggestedTargets": ["node:audio-remap", "node:multiply", "node:mix", "node:color-map"]
         },
         {
           "name": "band2",
           "type": "float",
-          "description": "The amplitude value for the third frequency band (typically mid frequencies)"
+          "description": "The amplitude value for the third frequency band (typically mid frequencies)",
+          "suggestedTargets": ["node:audio-remap", "node:multiply", "node:mix"]
         },
         {
           "name": "band3",
           "type": "float",
-          "description": "The amplitude value for the fourth frequency band (typically treble frequencies)"
+          "description": "The amplitude value for the fourth frequency band (typically treble frequencies)",
+          "suggestedTargets": ["node:audio-remap", "node:multiply", "node:mix", "node:glow-bloom"]
         }
       ],
       "relatedItems": [
@@ -1323,14 +1429,16 @@
         {
           "name": "audioValue",
           "type": "float",
-          "description": "The audio value to remap, typically from an Audio Analyzer band output"
+          "description": "The audio value to remap, typically from an Audio Analyzer band output",
+          "suggestedSources": ["node:audio-analyzer", "type:float"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The remapped value in the output range, ready to drive shader parameters"
+          "description": "The remapped value in the output range, ready to drive shader parameters",
+          "suggestedTargets": ["node:multiply", "node:mix", "node:translate", "node:scale", "node:color-map", "node:add"]
         }
       ],
       "relatedItems": [
@@ -1349,19 +1457,22 @@
         {
           "name": "base",
           "type": "float",
-          "description": "The base value that will be blended with the blend input"
+          "description": "The base value that will be blended with the blend input",
+          "suggestedSources": ["type:float", "node:color-map", "node:oklch-color-map-bezier", "node:mix", "node:uv-coordinates"]
         },
         {
           "name": "blend",
           "type": "float",
-          "description": "The value to blend with the base using the selected blend mode"
+          "description": "The value to blend with the base using the selected blend mode",
+          "suggestedSources": ["type:float", "node:color-map", "node:fbm-noise", "node:mix", "node:gradient-mask"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The result of blending the base and blend inputs using the selected mode, mixed with the base according to the opacity parameter"
+          "description": "The result of blending the base and blend inputs using the selected mode, mixed with the base according to the opacity parameter",
+          "suggestedTargets": ["node:final-output", "node:mix", "node:color-grading"]
         }
       ],
       "relatedItems": [
@@ -1371,7 +1482,7 @@
       ]
     },
     "node:oklch-color-map-bezier": {
-      "title": "OKLCH Color Map (Bezier Mode)",
+      "title": "Color Map Smooth",
       "titleType": "node",
       "category": "Blend",
       "icon": "ease-in-out-control-points",
@@ -1425,7 +1536,7 @@
       ]
     },
     "node:oklch-color-map-threshold": {
-      "title": "OKLCH Color Map (Threshold Mode)",
+      "title": "Color Map Stepped",
       "titleType": "node",
       "category": "Blend",
       "icon": "color-palette",
@@ -1500,14 +1611,16 @@
         {
           "name": "in",
           "type": "float",
-          "description": "The float value to convert to grayscale color (typically 0-1)"
+          "description": "The float value to convert to grayscale color (typically 0-1)",
+          "suggestedSources": ["type:float", "node:fbm-noise", "node:smoothstep", "node:sine", "node:distance", "node:audio-remap"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "vec3",
-          "description": "The grayscale RGB color (all channels set to the input value)"
+          "description": "The grayscale RGB color (all channels set to the input value)",
+          "suggestedTargets": ["node:final-output", "node:mix", "node:blend-mode", "node:tone-mapping", "node:glow-bloom"]
         }
       ],
       "relatedItems": [
@@ -1528,14 +1641,16 @@
         {
           "name": "in",
           "type": "vec4",
-          "description": "The input color to apply glow effects to"
+          "description": "The input color to apply glow effects to",
+          "suggestedSources": ["node:color-map", "node:oklch-color-map-bezier", "node:mix", "node:blend-mode"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "vec4",
-          "description": "The color with glow and bloom effects applied"
+          "description": "The color with glow and bloom effects applied",
+          "suggestedTargets": ["node:final-output", "node:edge-detection", "node:color-grading", "node:chromatic-aberration"]
         }
       ],
       "relatedItems": [
@@ -1556,14 +1671,16 @@
         {
           "name": "in",
           "type": "vec4",
-          "description": "The input color to blur"
+          "description": "The input color to blur",
+          "suggestedSources": ["node:glow-bloom", "node:color-map", "node:mix", "node:edge-detection"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "vec4",
-          "description": "The blurred color output"
+          "description": "The blurred color output",
+          "suggestedTargets": ["node:final-output", "node:glow-bloom", "node:edge-detection"]
         }
       ],
       "relatedItems": [
@@ -1583,14 +1700,16 @@
         {
           "name": "in",
           "type": "vec4",
-          "description": "The input color to detect edges in"
+          "description": "The input color to detect edges in",
+          "suggestedSources": ["node:glow-bloom", "node:color-map", "node:blur", "node:mix"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "vec4",
-          "description": "The color with edge detection effects applied"
+          "description": "The color with edge detection effects applied",
+          "suggestedTargets": ["node:final-output", "node:block-edge-brightness", "node:mix", "node:color-grading"]
         }
       ],
       "relatedItems": [
@@ -1611,14 +1730,16 @@
         {
           "name": "in",
           "type": "vec4",
-          "description": "The input color to apply chromatic aberration to"
+          "description": "The input color to apply chromatic aberration to",
+          "suggestedSources": ["node:glow-bloom", "node:color-map", "node:blur", "node:mix", "node:edge-detection"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "vec4",
-          "description": "The color with RGB channel separation applied"
+          "description": "The color with RGB channel separation applied",
+          "suggestedTargets": ["node:final-output", "node:rgb-separation", "node:scanlines", "node:block-color-glitch"]
         }
       ],
       "relatedItems": [
@@ -1638,14 +1759,16 @@
         {
           "name": "in",
           "type": "vec4",
-          "description": "The input color to apply color grading to"
+          "description": "The input color to apply color grading to",
+          "suggestedSources": ["node:glow-bloom", "node:color-map", "node:tone-mapping", "node:mix", "node:blend-mode"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "vec4",
-          "description": "The color-graded output with adjusted curves and levels"
+          "description": "The color-graded output with adjusted curves and levels",
+          "suggestedTargets": ["node:final-output", "node:tone-mapping", "node:chromatic-aberration"]
         }
       ],
       "relatedItems": [
@@ -1666,14 +1789,16 @@
         {
           "name": "in",
           "type": "vec4",
-          "description": "The input color to separate RGB channels from"
+          "description": "The input color to separate RGB channels from",
+          "suggestedSources": ["node:color-map", "node:glow-bloom", "node:blur", "node:mix"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "vec4",
-          "description": "The color with RGB channel separation applied"
+          "description": "The color with RGB channel separation applied",
+          "suggestedTargets": ["node:final-output", "node:chromatic-aberration", "node:block-color-glitch"]
         }
       ],
       "relatedItems": [
@@ -1694,14 +1819,16 @@
         {
           "name": "in",
           "type": "vec4",
-          "description": "The input color to apply scanlines to"
+          "description": "The input color to apply scanlines to",
+          "suggestedSources": ["node:color-map", "node:glow-bloom", "node:chromatic-aberration", "node:mix"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "vec4",
-          "description": "The color with scanline overlay applied"
+          "description": "The color with scanline overlay applied",
+          "suggestedTargets": ["node:final-output", "node:rgb-separation", "node:block-color-glitch"]
         }
       ],
       "relatedItems": [
@@ -1722,14 +1849,16 @@
         {
           "name": "in",
           "type": "vec4",
-          "description": "The input color to apply block edge brightness to"
+          "description": "The input color to apply block edge brightness to",
+          "suggestedSources": ["node:edge-detection", "node:color-map", "node:block-color-glitch", "node:mix"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "vec4",
-          "description": "The color with brightness variation at block edges"
+          "description": "The color with brightness variation at block edges",
+          "suggestedTargets": ["node:block-color-glitch", "node:final-output", "node:mix", "node:chromatic-aberration"]
         }
       ],
       "relatedItems": [
@@ -1749,14 +1878,16 @@
         {
           "name": "in",
           "type": "vec4",
-          "description": "The input color to apply block glitch effects to"
+          "description": "The input color to apply block glitch effects to",
+          "suggestedSources": ["node:color-map", "node:edge-detection", "node:block-edge-brightness", "node:mix"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "vec4",
-          "description": "The color with block-based glitch effects applied"
+          "description": "The color with block-based glitch effects applied",
+          "suggestedTargets": ["node:final-output", "node:chromatic-aberration", "node:rgb-separation", "node:scanlines"]
         }
       ],
       "relatedItems": [
@@ -1777,14 +1908,16 @@
         {
           "name": "in",
           "type": "vec4",
-          "description": "The input color to apply normal mapping to"
+          "description": "The input color to apply normal mapping to",
+          "suggestedSources": ["node:fbm-noise", "node:simplex-noise", "node:color-map", "node:hexagonal-grid"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "vec4",
-          "description": "The color with normal mapping and lighting applied"
+          "description": "The color with normal mapping and lighting applied",
+          "suggestedTargets": ["node:lighting-shading", "node:final-output", "node:dot-product"]
         }
       ],
       "relatedItems": [
@@ -1804,14 +1937,16 @@
         {
           "name": "in",
           "type": "vec4",
-          "description": "The input color to apply lighting to"
+          "description": "The input color to apply lighting to",
+          "suggestedSources": ["node:normal-mapping", "node:fbm-noise", "node:color-map", "node:hexagonal-grid"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "vec4",
-          "description": "The color with lighting and shading applied"
+          "description": "The color with lighting and shading applied",
+          "suggestedTargets": ["node:final-output", "node:mix", "node:normal-mapping"]
         }
       ],
       "relatedItems": [
@@ -1832,14 +1967,16 @@
         {
           "name": "in",
           "type": "vec2",
-          "description": "The input 2D coordinates to translate"
+          "description": "The input 2D coordinates to translate",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:scale", "node:rotate", "node:polar-coordinates"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "vec2",
-          "description": "The translated coordinates with X and Y offsets applied"
+          "description": "The translated coordinates with X and Y offsets applied",
+          "suggestedTargets": ["node:scale", "node:rotate", "node:fbm-noise", "node:simplex-noise", "node:hexagonal-grid", "node:distance"]
         }
       ],
       "relatedItems": [
@@ -1860,14 +1997,16 @@
         {
           "name": "in",
           "type": "vec2",
-          "description": "The input 2D coordinates to rotate"
+          "description": "The input 2D coordinates to rotate",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:scale", "node:polar-coordinates"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "vec2",
-          "description": "The rotated coordinates around the specified center point"
+          "description": "The rotated coordinates around the specified center point",
+          "suggestedTargets": ["node:translate", "node:scale", "node:fbm-noise", "node:kaleidoscope", "node:hexagonal-grid"]
         }
       ],
       "relatedItems": [
@@ -1889,14 +2028,16 @@
         {
           "name": "in",
           "type": "vec2",
-          "description": "The input 2D coordinates to scale"
+          "description": "The input 2D coordinates to scale",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:rotate", "node:polar-coordinates"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "vec2",
-          "description": "The scaled coordinates around the specified center point"
+          "description": "The scaled coordinates around the specified center point",
+          "suggestedTargets": ["node:translate", "node:rotate", "node:fbm-noise", "node:simplex-noise", "node:hexagonal-grid", "node:wave-patterns"]
         }
       ],
       "relatedItems": [
@@ -1917,14 +2058,16 @@
         {
           "name": "in",
           "type": "vec2",
-          "description": "The input 2D Cartesian coordinates to convert"
+          "description": "The input 2D Cartesian coordinates to convert",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:scale", "node:rotate"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "vec2",
-          "description": "The transformed coordinates after polar conversion, scaling, and rotation"
+          "description": "The transformed coordinates after polar conversion, scaling, and rotation",
+          "suggestedTargets": ["node:rings", "node:kaleidoscope", "node:twist-distortion", "node:arc-tangent-2", "node:length"]
         }
       ],
       "relatedItems": [
@@ -1946,14 +2089,16 @@
         {
           "name": "in",
           "type": "vec2",
-          "description": "The input 2D coordinates to apply kaleidoscope transformation to"
+          "description": "The input 2D coordinates to apply kaleidoscope transformation to",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:polar-coordinates", "node:rotate", "node:translate"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "vec2",
-          "description": "The mirrored coordinates creating symmetric kaleidoscope patterns"
+          "description": "The mirrored coordinates creating symmetric kaleidoscope patterns",
+          "suggestedTargets": ["node:fbm-noise", "node:simplex-noise", "node:hexagonal-grid", "node:color-map"]
         }
       ],
       "relatedItems": [
@@ -1974,14 +2119,16 @@
         {
           "name": "in",
           "type": "vec2",
-          "description": "The input 2D coordinates to apply twist distortion to"
+          "description": "The input 2D coordinates to apply twist distortion to",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:polar-coordinates", "node:rotate", "node:translate"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "vec2",
-          "description": "The twisted coordinates with rotational distortion applied"
+          "description": "The twisted coordinates with rotational distortion applied",
+          "suggestedTargets": ["node:fbm-noise", "node:simplex-noise", "node:wave-patterns", "node:color-map"]
         }
       ],
       "relatedItems": [
@@ -2003,14 +2150,16 @@
         {
           "name": "in",
           "type": "vec2",
-          "description": "The input 2D coordinates to apply turbulence distortion to"
+          "description": "The input 2D coordinates to apply turbulence distortion to",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:fbm-noise", "node:vector-field"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "vec2",
-          "description": "The warped coordinates after multi-stage turbulence distortion"
+          "description": "The warped coordinates after multi-stage turbulence distortion",
+          "suggestedTargets": ["node:fbm-noise", "node:simplex-noise", "node:color-map", "node:translate"]
         }
       ],
       "relatedItems": [
@@ -2031,14 +2180,16 @@
         {
           "name": "in",
           "type": "vec2",
-          "description": "The input 2D coordinates to apply vector field distortion to"
+          "description": "The input 2D coordinates to apply vector field distortion to",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:turbulence", "node:normalize"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "vec2",
-          "description": "The distorted coordinates after vector field transformation"
+          "description": "The distorted coordinates after vector field transformation",
+          "suggestedTargets": ["node:turbulence", "node:fbm-noise", "node:translate", "node:color-map"]
         }
       ],
       "relatedItems": [
@@ -2061,14 +2212,16 @@
         {
           "name": "in",
           "type": "vec2",
-          "description": "The input UV coordinates to sample the noise pattern"
+          "description": "The input UV coordinates to sample the noise pattern",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:scale", "node:polar-coordinates"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The fBm noise value (typically 0.0 to 1.0 range)"
+          "description": "The fBm noise value (typically 0.0 to 1.0 range)",
+          "suggestedTargets": ["node:color-map", "node:mix", "node:smoothstep", "node:remap", "node:gradient-mask", "node:translate"]
         }
       ],
       "relatedItems": [
@@ -2090,14 +2243,16 @@
         {
           "name": "in",
           "type": "vec2",
-          "description": "The input UV coordinates to sample the value noise pattern"
+          "description": "The input UV coordinates to sample the value noise pattern",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:scale", "node:time"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The fBm value noise result (typically 0.0 to 1.0 range)"
+          "description": "The fBm value noise result (typically 0.0 to 1.0 range)",
+          "suggestedTargets": ["node:color-map", "node:mix", "node:smoothstep", "node:remap"]
         }
       ],
       "relatedItems": [
@@ -2118,14 +2273,16 @@
         {
           "name": "in",
           "type": "vec2",
-          "description": "The input UV coordinates to generate rings from"
+          "description": "The input UV coordinates to generate rings from",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:polar-coordinates", "node:translate", "node:distance"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The ring pattern value (typically 0.0 to 1.0 range)"
+          "description": "The ring pattern value (typically 0.0 to 1.0 range)",
+          "suggestedTargets": ["node:color-map", "node:mix", "node:smoothstep", "node:gradient-mask"]
         }
       ],
       "relatedItems": [
@@ -2231,14 +2388,16 @@
         {
           "name": "in",
           "type": "vec2",
-          "description": "The input UV coordinates to generate waves from"
+          "description": "The input UV coordinates to generate waves from",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:scale", "node:time"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The wave pattern value (typically -1.0 to 1.0 range)"
+          "description": "The wave pattern value (typically -1.0 to 1.0 range)",
+          "suggestedTargets": ["node:color-map", "node:mix", "node:smoothstep", "node:translate", "node:blending-modes"]
         }
       ],
       "relatedItems": [
@@ -2259,14 +2418,16 @@
         {
           "name": "in",
           "type": "vec4",
-          "description": "The input color to apply the gradient mask to"
+          "description": "The input color to apply the gradient mask to",
+          "suggestedSources": ["node:color-map", "node:oklch-color-map-bezier", "node:mix", "node:blend-mode"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "vec4",
-          "description": "The masked color output with gradient blending applied"
+          "description": "The masked color output with gradient blending applied",
+          "suggestedTargets": ["node:final-output", "node:mix", "node:blend-mode", "node:glow-bloom"]
         }
       ],
       "relatedItems": [
@@ -2277,7 +2438,7 @@
       ]
     },
     "node:hexagonal-grid": {
-      "title": "Hexagonal Grid",
+      "title": "Hexagons",
       "titleType": "node",
       "category": "Patterns",
       "icon": "hexagon",
@@ -2287,14 +2448,16 @@
         {
           "name": "in",
           "type": "vec2",
-          "description": "The input UV coordinates to generate the hexagonal grid from"
+          "description": "The input UV coordinates to generate the hexagonal grid from",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:scale", "node:rotate"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The hexagonal grid pattern value"
+          "description": "The hexagonal grid pattern value",
+          "suggestedTargets": ["node:color-map", "node:mix", "node:smoothstep", "node:gradient-mask"]
         }
       ],
       "relatedItems": [
@@ -2314,14 +2477,16 @@
         {
           "name": "in",
           "type": "vec2",
-          "description": "The input UV coordinates to sample the Simplex noise"
+          "description": "The input UV coordinates to sample the Simplex noise",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:scale", "node:time"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The Simplex noise value (typically -1.0 to 1.0 range)"
+          "description": "The Simplex noise value (typically -1.0 to 1.0 range)",
+          "suggestedTargets": ["node:color-map", "node:mix", "node:fbm-noise", "node:smoothstep", "node:remap"]
         }
       ],
       "relatedItems": [
@@ -2479,19 +2644,22 @@
         {
           "name": "a",
           "type": "float",
-          "description": "The first value to compare"
+          "description": "The first value to compare",
+          "suggestedSources": ["type:float", "node:fbm-noise", "node:distance", "node:sine", "node:uv-coordinates"]
         },
         {
           "name": "b",
           "type": "float",
-          "description": "The second value to compare against"
+          "description": "The second value to compare against",
+          "suggestedSources": ["type:float", "node:constant-float", "node:remap", "node:smoothstep"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "1.0 if the comparison is true, 0.0 otherwise"
+          "description": "1.0 if the comparison is true, 0.0 otherwise",
+          "suggestedTargets": ["node:select", "node:mix", "node:step", "node:gradient-mask"]
         }
       ],
       "relatedItems": [
@@ -2511,24 +2679,28 @@
         {
           "name": "condition",
           "type": "float",
-          "description": "The condition value (values > 0.5 select trueValue)"
+          "description": "The condition value (values > 0.5 select trueValue)",
+          "suggestedSources": ["type:float", "node:compare", "node:step", "node:smoothstep", "node:fbm-noise"]
         },
         {
           "name": "trueValue",
           "type": "float",
-          "description": "The value returned when condition is true"
+          "description": "The value returned when condition is true",
+          "suggestedSources": ["type:float", "node:constant-float", "node:color-map", "node:mix"]
         },
         {
           "name": "falseValue",
           "type": "float",
-          "description": "The value returned when condition is false"
+          "description": "The value returned when condition is false",
+          "suggestedSources": ["type:float", "node:constant-float", "node:color-map", "node:mix"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The selected value based on the condition"
+          "description": "The selected value based on the condition",
+          "suggestedTargets": ["node:mix", "node:color-map", "node:final-output", "node:gradient-mask"]
         }
       ],
       "relatedItems": [
@@ -2629,34 +2801,40 @@
         {
           "name": "in",
           "type": "float",
-          "description": "The value to remap from the input range"
+          "description": "The value to remap from the input range",
+          "suggestedSources": ["type:float", "node:fbm-noise", "node:sine", "node:distance", "node:audio-analyzer"]
         },
         {
           "name": "inMin",
           "type": "float",
-          "description": "The minimum value of the input range"
+          "description": "The minimum value of the input range",
+          "suggestedSources": ["type:float", "node:constant-float"]
         },
         {
           "name": "inMax",
           "type": "float",
-          "description": "The maximum value of the input range"
+          "description": "The maximum value of the input range",
+          "suggestedSources": ["type:float", "node:constant-float"]
         },
         {
           "name": "outMin",
           "type": "float",
-          "description": "The minimum value of the output range"
+          "description": "The minimum value of the output range",
+          "suggestedSources": ["type:float", "node:constant-float"]
         },
         {
           "name": "outMax",
           "type": "float",
-          "description": "The maximum value of the output range"
+          "description": "The maximum value of the output range",
+          "suggestedSources": ["type:float", "node:constant-float"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The remapped value in the output range"
+          "description": "The remapped value in the output range",
+          "suggestedTargets": ["node:mix", "node:color-map", "node:smoothstep", "node:translate", "node:audio-remap"]
         }
       ],
       "relatedItems": [
@@ -2813,24 +2991,28 @@
         {
           "name": "a",
           "type": "float",
-          "description": "The first value (returned when t = 0.0)"
+          "description": "The first value (returned when t = 0.0)",
+          "suggestedSources": ["type:float", "node:constant-float", "node:sine", "node:fbm-noise", "node:color-map"]
         },
         {
           "name": "b",
           "type": "float",
-          "description": "The second value (returned when t = 1.0)"
+          "description": "The second value (returned when t = 1.0)",
+          "suggestedSources": ["type:float", "node:constant-float", "node:sine", "node:fbm-noise", "node:color-map"]
         },
         {
           "name": "t",
           "type": "float",
-          "description": "The blend factor (typically 0.0 to 1.0)"
+          "description": "The blend factor (typically 0.0 to 1.0)",
+          "suggestedSources": ["type:float", "node:smoothstep", "node:uv-coordinates", "node:audio-remap"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The linearly interpolated value between a and b"
+          "description": "The linearly interpolated value between a and b",
+          "suggestedTargets": ["node:final-output", "node:color-map", "node:blend-mode", "node:translate"]
         }
       ],
       "relatedItems": [
@@ -2877,29 +3059,34 @@
         {
           "name": "in",
           "type": "vec4",
-          "description": "The vector to split into components"
+          "description": "The vector to split into components",
+          "suggestedSources": ["type:vec2", "type:vec3", "type:vec4", "node:uv-coordinates", "node:polar-coordinates", "node:constant-vec2"]
         }
       ],
       "outputs": [
         {
           "name": "x",
           "type": "float",
-          "description": "The x component of the input vector"
+          "description": "The x component of the input vector",
+          "suggestedTargets": ["node:arc-tangent-2", "node:combine-vector", "node:multiply", "node:add"]
         },
         {
           "name": "y",
           "type": "float",
-          "description": "The y component of the input vector"
+          "description": "The y component of the input vector",
+          "suggestedTargets": ["node:arc-tangent-2", "node:combine-vector", "node:multiply", "node:add"]
         },
         {
           "name": "z",
           "type": "float",
-          "description": "The z component of the input vector"
+          "description": "The z component of the input vector",
+          "suggestedTargets": ["node:combine-vector", "node:multiply", "node:color-map"]
         },
         {
           "name": "w",
           "type": "float",
-          "description": "The w component of the input vector"
+          "description": "The w component of the input vector",
+          "suggestedTargets": ["node:combine-vector", "node:mix"]
         }
       ],
       "relatedItems": [
@@ -2919,29 +3106,34 @@
         {
           "name": "x",
           "type": "float",
-          "description": "The x component of the output vector"
+          "description": "The x component of the output vector",
+          "suggestedSources": ["type:float", "node:split-vector", "node:constant-float", "node:uv-coordinates"]
         },
         {
           "name": "y",
           "type": "float",
-          "description": "The y component of the output vector"
+          "description": "The y component of the output vector",
+          "suggestedSources": ["type:float", "node:split-vector", "node:constant-float", "node:uv-coordinates"]
         },
         {
           "name": "z",
           "type": "float",
-          "description": "The z component of the output vector"
+          "description": "The z component of the output vector",
+          "suggestedSources": ["type:float", "node:split-vector", "node:constant-float", "node:color-map"]
         },
         {
           "name": "w",
           "type": "float",
-          "description": "The w component of the output vector"
+          "description": "The w component of the output vector",
+          "suggestedSources": ["type:float", "node:split-vector", "node:constant-float"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "vec4",
-          "description": "The combined vector (type promoted/demoted by compiler as needed)"
+          "description": "The combined vector (type promoted/demoted by compiler as needed)",
+          "suggestedTargets": ["node:translate", "node:uv-coordinates", "node:mix", "node:split-vector"]
         }
       ],
       "relatedItems": [
@@ -2961,24 +3153,28 @@
         {
           "name": "in",
           "type": "float",
-          "description": "The input value to apply dithering to"
+          "description": "The input value to apply dithering to",
+          "suggestedSources": ["type:float", "node:color-map", "node:fbm-noise", "node:smoothstep", "node:oklch-color-map-threshold"]
         },
         {
           "name": "fragCoord",
           "type": "vec2",
-          "description": "Fragment coordinates for dithering pattern calculation"
+          "description": "Fragment coordinates for dithering pattern calculation",
+          "suggestedSources": ["node:fragment-coordinates", "node:uv-coordinates"]
         },
         {
           "name": "resolution",
           "type": "vec2",
-          "description": "Screen resolution for dithering calculations"
+          "description": "Screen resolution for dithering calculations",
+          "suggestedSources": ["node:resolution"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The dithered value with Bayer pattern applied"
+          "description": "The dithered value with Bayer pattern applied",
+          "suggestedTargets": ["node:color-map", "node:oklch-color-map-threshold", "node:mix"]
         }
       ],
       "relatedItems": [
@@ -2998,14 +3194,16 @@
         {
           "name": "in",
           "type": "vec3",
-          "description": "The input RGB color to apply tone mapping to"
+          "description": "The input RGB color to apply tone mapping to",
+          "suggestedSources": ["node:color-map", "node:oklch-color-map-bezier", "node:color-grading", "node:mix", "node:blend-mode"]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "vec3",
-          "description": "The tone-mapped color with exposure, contrast, and saturation adjustments"
+          "description": "The tone-mapped color with exposure, contrast, and saturation adjustments",
+          "suggestedTargets": ["node:final-output", "node:color-grading"]
         }
       ],
       "relatedItems": [
@@ -3025,7 +3223,8 @@
         {
           "name": "in",
           "type": "vec3",
-          "description": "The final RGB color to output (accepts float, vec2, vec3, or vec4 with automatic conversion)"
+          "description": "The final RGB color to output (accepts float, vec2, vec3, or vec4 with automatic conversion)",
+          "suggestedSources": ["node:color-map", "node:tone-mapping", "node:color-grading", "node:blend-mode", "node:mix", "node:glow-bloom"]
         }
       ],
       "outputs": [],

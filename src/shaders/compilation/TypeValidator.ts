@@ -7,19 +7,26 @@ export class TypeValidator {
   constructor(private nodeSpecs: Map<string, NodeSpec>) {}
 
   /**
-   * Check if two types are compatible (exact match or promotion)
+   * Check if two types are compatible (exact match, promotion, or demotion)
    */
   private areTypesCompatible(source: string, target: string): boolean {
     if (source === target) return true;
 
-    // Check promotion rules
+    // Promotion: narrower type can feed wider type
     const promotions: Record<string, string[]> = {
       'float': ['vec2', 'vec3', 'vec4'],
       'vec2': ['vec3', 'vec4'],
       'vec3': ['vec4']
     };
+    if (promotions[source]?.includes(target)) return true;
 
-    return promotions[source]?.includes(target) || false;
+    // Demotion: wider type can feed narrower type (extract components in codegen)
+    const demotions: Record<string, string[]> = {
+      'vec4': ['float', 'vec2', 'vec3'],
+      'vec3': ['float', 'vec2'],
+      'vec2': ['float']
+    };
+    return demotions[source]?.includes(target) || false;
   }
 
   /**

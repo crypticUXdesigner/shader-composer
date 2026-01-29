@@ -162,13 +162,14 @@ export class OverlayManager {
     const textWidth = Math.max(textMetrics.width, 100); // Minimum width for input
     const textHeight = nameSize;
     
-    // Convert canvas position to screen position
-    const labelLeft = iconX - textWidth / 2;
+    // Label center in canvas space (iconX is already horizontal center; nameY is baseline, so center Y is above it)
+    const labelCenterX = iconX;
+    const labelCenterY = nameY - textHeight / 2;
     
     this.uiElementManager.showLabelInput(
       labelHit.nodeId,
       node.label,
-      { x: labelLeft, y: nameY },
+      { x: labelCenterX, y: labelCenterY },
       { width: textWidth, height: textHeight + 8 },
       (newLabel) => {
         this.onNodeLabelChanged?.(labelHit.nodeId, newLabel);
@@ -350,6 +351,34 @@ export class OverlayManager {
       finalScreenY,
       wrappedItems,
       () => {} // onSelect not needed since action handles it
+    );
+  }
+
+  /**
+   * Handle color picker (OKLCH) click – show HSV-style popover
+   */
+  handleColorPickerClick(nodeId: string, screenX: number, screenY: number): void {
+    const node = this.graph.nodes.find(n => n.id === nodeId);
+    const spec = this.nodeSpecs.get(node?.type || '');
+    if (!node || !spec || spec.id !== 'oklch-color') return;
+
+    const l = (node.parameters.l ?? spec.parameters.l?.default ?? 0.5) as number;
+    const c = (node.parameters.c ?? spec.parameters.c?.default ?? 0.1) as number;
+    const h = (node.parameters.h ?? spec.parameters.h?.default ?? 0) as number;
+
+    const popoverY = screenY + 8;
+
+    this.uiElementManager.showColorPicker(
+      nodeId,
+      { l, c, h },
+      screenX,
+      popoverY,
+      (newL, newC, newH) => {
+        this.onParameterChanged?.(nodeId, 'l', newL);
+        this.onParameterChanged?.(nodeId, 'c', newC);
+        this.onParameterChanged?.(nodeId, 'h', newH);
+        this.render();
+      }
     );
   }
 }

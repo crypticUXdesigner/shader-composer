@@ -5,11 +5,25 @@
 
 import type { NodeSpec } from '../types/nodeSpec';
 
+export interface HelpPort {
+  name: string;
+  type: string;
+  description: string;
+  /** For input ports: node/type IDs that can feed this input ("node:constant-float", "type:float"). */
+  suggestedSources?: string[];
+  /** For output ports: node IDs this output can connect to ("node:add", "node:multiply"). */
+  suggestedTargets?: string[];
+}
+
 export interface HelpContent {
   title: string;
   titleType: 'type' | 'node' | 'parameter' | 'category' | string;
   category?: string;
   description: string;
+  /** Input ports: name, type, and user-facing description for each input */
+  inputs?: HelpPort[];
+  /** Output ports: name, type, and user-facing description for each output */
+  outputs?: HelpPort[];
   examples?: string[];
   relatedItems?: string[]; // Format: "type:float" or "node:constant-float"
   icon?: string;

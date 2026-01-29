@@ -422,31 +422,10 @@
 --bezier-editor-label-spacing: 4px;
 --bezier-param-port-spacing: var(--scale-11); /* 54px */
 
-/* === COLOR PICKER TOKENS === */
---color-picker-size: 180px;
---color-picker-bg: var(--color-gray-20);
---color-picker-border: 0 solid var(--color-gray-70);
---color-picker-radius: 12px;
---color-picker-padding: 12px;
---color-picker-swatch-size: 60px;
---color-picker-swatch-radius: 6px;
---color-picker-swatch-border: 1px solid var(--color-gray-70);
---color-picker-hue-ring-width: 8px;
---color-picker-hue-ring-radius: 50px;
---color-picker-hue-ring-border: 2px solid var(--color-gray-130);
---color-picker-slider-width: 120px;
---color-picker-slider-height: 8px;
---color-picker-slider-bg: var(--color-gray-30);
---color-picker-slider-track-color: var(--color-gray-60);
---color-picker-slider-handle-size: 12px;
---color-picker-slider-handle-bg: var(--color-blue-90);
---color-picker-slider-handle-border: 2px solid var(--color-gray-130);
---color-picker-input-width: 60px;
---color-picker-input-height: 24px;
---color-picker-input-font-size: var(--canvas-text-sm); /* 12px */
---color-picker-label-font-size: var(--canvas-text-xs); /* 11px */
---color-picker-label-color: var(--color-gray-110);
---color-picker-label-spacing: 4px;
+/* === COLOR PICKER (in-node swatch only; popover tokens live in tokens-dom) === */
+/* In-node swatch: height dictates row height; width fills available space; no vertical padding */
+--color-picker-node-swatch-height: 120px;
+--color-picker-node-swatch-radius: 12px;
 
 /* === 2D VECTOR EDITOR TOKENS === */
 --vector2d-editor-size: 160px;
@@ -679,6 +658,10 @@
 --remap-range-slider-input-color: var(--color-purple-90);   /* Left/input range fill */
 --remap-range-slider-output-color: var(--color-green-90); /* Right/output range fill */
 --remap-range-connection-color: var(--color-blue-90);
+/* Remap Range – needle markers (live incoming/outgoing value) */
+--remap-range-needle-color: #ffffff;
+--remap-range-needle-width: 3px;
+--remap-range-needle-extend: 4px;
 
 /* Bezier Editor Container */
 --bezier-editor-gap: 6px;

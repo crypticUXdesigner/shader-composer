@@ -124,7 +124,8 @@ export class KnobParameterRenderer extends ParameterRenderer {
 
     const min = paramSpec.min ?? 0;
     const max = paramSpec.max ?? 1;
-    const isAnimated = state.effectiveValue !== null;
+    // Show animated/connected style when port is connected or when we have a live effective value
+    const isAnimated = state.isConnected || state.effectiveValue !== null;
     const knobSize = getCSSVariableAsNumber('knob-size', 45);
     this.renderRotaryKnob(ctx, metrics.knobX, metrics.knobY, knobSize, displayValue, min, max, isAnimated);
 

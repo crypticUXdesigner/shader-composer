@@ -32,6 +32,8 @@ export interface MouseEventHandlerDependencies {
   selectionManager: SelectionManager;
   viewStateManager: ViewStateManager;
   graph: NodeGraph;
+  /** When set, used so the handler always sees the current graph (avoids stale ref after setGraph). */
+  getGraph?: () => NodeGraph;
   nodeSpecs: Map<string, NodeSpec>;
   nodeMetrics: Map<string, NodeRenderMetrics>;
   nodeComponents: Map<string, any>; // NodeComponent type
@@ -48,7 +50,6 @@ export interface MouseEventHandlerDependencies {
   // Callbacks
   onNodeDeleted?: (nodeId: string) => void;
   onTypeLabelClick?: (portType: string, screenX: number, screenY: number, typeLabelBounds?: { left: number; top: number; right: number; bottom: number; width: number; height: number }) => void;
-  onNodeDoubleClick?: (nodeId: string, screenX: number, screenY: number) => void;
   onParameterInputModeChanged?: (nodeId: string, paramName: string, mode: import('../../../../types/nodeSpec').ParameterInputMode) => void;
   onParameterChanged?: (nodeId: string, paramName: string, value: number | number[][]) => void;
   onConnectionCreated?: (sourceNodeId: string, sourcePort: string, targetNodeId: string, targetPort?: string, targetParameter?: string) => void;
@@ -62,6 +63,7 @@ export interface MouseEventHandlerDependencies {
   handleFileParameterClick: (nodeId: string, paramName: string, screenX: number, screenY: number) => void;
   handleFrequencyBandsParameterClick: (nodeId: string, paramName: string, screenX: number, screenY: number) => void;
   handleEnumParameterClick: (nodeId: string, paramName: string, screenX: number, screenY: number) => void;
+  handleColorPickerClick?: (nodeId: string, screenX: number, screenY: number) => void;
   calculateSmartGuides: (draggingNode: NodeInstance, proposedX: number, proposedY: number) => {
     snappedX: number;
     snappedY: number;
@@ -168,6 +170,11 @@ export interface MouseEventHandlerDependencies {
 
 export class MouseEventHandler {
   private deps: MouseEventHandlerDependencies;
+  
+  /** Current graph (use getGraph when set so mode button and other ops see latest state after setGraph). */
+  private get graph(): NodeGraph {
+    return this.deps.getGraph?.() ?? this.deps.graph;
+  }
   
   // Interaction state (managed locally, synced with NodeEditorCanvas)
   private backgroundDragThreshold: number = 5;
@@ -283,17 +290,17 @@ export class MouseEventHandler {
       return;
     }
     
-    // Check for parameter mode selector hit (highest priority for parameter area)
-    const modeHit = this.deps.hitTestManager.hitTestParameterMode(mouseX, mouseY);
-    if (modeHit && !this.deps.isSpacePressed) {
-      const node = this.deps.graph.nodes.find(n => n.id === modeHit.nodeId);
+    // Check for parameter hit (includes mode button when isModeButton)
+    const paramHit = this.deps.hitTestManager.hitTestParameter(mouseX, mouseY);
+    if (paramHit?.isModeButton && !this.deps.isSpacePressed) {
+      const node = this.graph.nodes.find(n => n.id === paramHit.nodeId);
       const spec = this.deps.nodeSpecs.get(node?.type || '');
       if (node && spec) {
-        const paramSpec = spec.parameters[modeHit.paramName];
+        const paramSpec = spec.parameters[paramHit.paramName];
         if (paramSpec && paramSpec.type === 'float') {
           // Cycle through modes: override -> add -> subtract -> multiply -> override
           const modes: import('../../../../types/nodeSpec').ParameterInputMode[] = ['override', 'add', 'subtract', 'multiply'];
-          const currentMode = node.parameterInputModes?.[modeHit.paramName] || paramSpec.inputMode || 'override';
+          const currentMode = node.parameterInputModes?.[paramHit.paramName] || paramSpec.inputMode || 'override';
           const currentIndex = modes.indexOf(currentMode);
           const nextIndex = (currentIndex + 1) % modes.length;
           const nextMode = modes[nextIndex];
@@ -302,10 +309,10 @@ export class MouseEventHandler {
           if (!node.parameterInputModes) {
             node.parameterInputModes = {};
           }
-          node.parameterInputModes[modeHit.paramName] = nextMode;
+          node.parameterInputModes[paramHit.paramName] = nextMode;
           
           // Notify callback
-          this.deps.onParameterInputModeChanged?.(modeHit.nodeId, modeHit.paramName, nextMode);
+          this.deps.onParameterInputModeChanged?.(paramHit.nodeId, paramHit.paramName, nextMode);
           
           this.deps.handlerContext.render();
           return;
@@ -356,6 +363,22 @@ export class MouseEventHandler {
       // Let the editor handle clicks (it will close on outside click)
       return;
     }
+
+    // Check if color picker popover is open - if so, let it handle clicks
+    if (this.deps.uiElementManager.isColorPickerVisible()) {
+      return;
+    }
+
+    // Check color picker (OKLCH swatch/button) before parameter hit – open popover
+    if (this.getActiveTool() === 'cursor' && this.deps.handleColorPickerClick) {
+      const colorPickerHit = this.deps.hitTestManager.hitTestColorPicker(mouseX, mouseY);
+      if (colorPickerHit) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.deps.handleColorPickerClick(colorPickerHit.nodeId, mouseX, mouseY);
+        return;
+      }
+    }
     
     // Use interaction handler system for parameter dragging (only for cursor tool)
     if (this.deps.interactionManager && this.getActiveTool() === 'cursor') {
@@ -375,7 +398,7 @@ export class MouseEventHandler {
 
         // Handle frequency-range element (slider / start / end) - start drag
         if (paramHit.frequencyBand && paramHit.scale != null) {
-          const node = this.deps.graph.nodes.find(n => n.id === paramHit.nodeId);
+          const node = this.graph.nodes.find(n => n.id === paramHit.nodeId);
           if (!node) return;
           const raw = node.parameters[paramHit.paramName];
           const bands: number[][] = Array.isArray(raw)
@@ -400,7 +423,7 @@ export class MouseEventHandler {
         }
 
         // Check if this is an enum parameter - handle dropdown before drag handler
-        const node = this.deps.graph.nodes.find(n => n.id === paramHit.nodeId);
+        const node = this.graph.nodes.find(n => n.id === paramHit.nodeId);
         const spec = this.deps.nodeSpecs.get(node?.type || '');
         if (node && spec) {
           const paramSpec = spec.parameters[paramHit.paramName];
@@ -416,7 +439,28 @@ export class MouseEventHandler {
             }
           }
         }
-        
+
+        // Explicit mode-button check: if click is on the mode button for this param, cycle mode instead of starting drag
+        const modeHit = this.deps.hitTestManager.hitTestParameterMode(mouseX, mouseY);
+        if (modeHit && modeHit.nodeId === paramHit.nodeId && modeHit.paramName === paramHit.paramName) {
+          const modeNode = this.graph.nodes.find(n => n.id === modeHit.nodeId);
+          const modeSpec = this.deps.nodeSpecs.get(modeNode?.type || '');
+          if (modeNode && modeSpec) {
+            const modeParamSpec = modeSpec.parameters[modeHit.paramName];
+            if (modeParamSpec && modeParamSpec.type === 'float') {
+              const modes: import('../../../../types/nodeSpec').ParameterInputMode[] = ['override', 'add', 'subtract', 'multiply'];
+              const currentMode = modeNode.parameterInputModes?.[modeHit.paramName] || modeParamSpec.inputMode || 'override';
+              const nextIndex = (modes.indexOf(currentMode) + 1) % modes.length;
+              const nextMode = modes[nextIndex];
+              if (!modeNode.parameterInputModes) modeNode.parameterInputModes = {};
+              modeNode.parameterInputModes[modeHit.paramName] = nextMode;
+              this.deps.onParameterInputModeChanged?.(modeHit.nodeId, modeHit.paramName, nextMode);
+              this.deps.handlerContext.render();
+              return;
+            }
+          }
+        }
+
         const event = this.deps.createInteractionEvent(InteractionType.ParameterDrag, e, paramHit);
         if (this.deps.interactionManager.start(event)) {
           return; // Event handled by handler
@@ -636,17 +680,22 @@ export class MouseEventHandler {
           } else if (portHit) {
             // Port hover already set cursor to crosshair above
           } else if (paramHit) {
-            // Check if this is a toggle parameter
-            const node = this.deps.graph.nodes.find(n => n.id === paramHit.nodeId);
-            const spec = this.deps.nodeSpecs.get(node?.type || '');
-            if (node && spec) {
-              const paramSpec = spec.parameters[paramHit.paramName];
-              const isToggle = paramSpec && paramSpec.type === 'int' && 
-                paramSpec.min === 0 && 
-                paramSpec.max === 1;
-              this.deps.canvas.style.cursor = isToggle ? 'pointer' : 'ns-resize';
+            // Frequency-range (horizontal slider): edges use ew-resize, start/end use default
+            if (paramHit.frequencyBand) {
+              this.deps.canvas.style.cursor = (paramHit.frequencyBand.field === 'sliderLow' || paramHit.frequencyBand.field === 'sliderHigh') ? 'ew-resize' : 'default';
             } else {
-              this.deps.canvas.style.cursor = 'ns-resize';
+              // Check if this is a toggle parameter
+              const node = this.graph.nodes.find(n => n.id === paramHit.nodeId);
+              const spec = this.deps.nodeSpecs.get(node?.type || '');
+              if (node && spec) {
+                const paramSpec = spec.parameters[paramHit.paramName];
+                const isToggle = paramSpec && paramSpec.type === 'int' && 
+                  paramSpec.min === 0 && 
+                  paramSpec.max === 1;
+                this.deps.canvas.style.cursor = isToggle ? 'pointer' : 'ns-resize';
+              } else {
+                this.deps.canvas.style.cursor = 'ns-resize';
+              }
             }
           } else if (this.getActiveTool() === 'hand') {
             this.deps.canvas.style.cursor = 'grab';
@@ -694,7 +743,7 @@ export class MouseEventHandler {
       
       if (distance > this.nodeDragThreshold) {
         // Start dragging
-        const draggedNode = this.deps.graph.nodes.find(n => n.id === state.interaction.potentialNodeDragId);
+        const draggedNode = this.graph.nodes.find(n => n.id === state.interaction.potentialNodeDragId);
         const selectedNodesInitialPositions = new Map<string, { x: number; y: number }>();
         
         if (draggedNode) {
@@ -703,7 +752,7 @@ export class MouseEventHandler {
           // Store initial positions of all selected nodes (including the dragged one)
           const selection = this.deps.getSelectionState();
           for (const selectedNodeId of selection.selectedNodeIds) {
-            const selectedNode = this.deps.graph.nodes.find(n => n.id === selectedNodeId);
+            const selectedNode = this.graph.nodes.find(n => n.id === selectedNodeId);
             if (selectedNode) {
               selectedNodesInitialPositions.set(selectedNodeId, {
                 x: selectedNode.position.x,
@@ -767,17 +816,22 @@ export class MouseEventHandler {
           // Check for parameter value hover
           const paramHit = this.deps.hitTestManager.hitTestParameter(mouseX, mouseY);
           if (paramHit) {
-            // Check if this is a toggle parameter - use pointer cursor for toggles
-            const node = this.deps.graph.nodes.find(n => n.id === paramHit.nodeId);
-            const spec = this.deps.nodeSpecs.get(node?.type || '');
-            if (node && spec) {
-              const paramSpec = spec.parameters[paramHit.paramName];
-              const isToggle = paramSpec && paramSpec.type === 'int' && 
-                paramSpec.min === 0 && 
-                paramSpec.max === 1;
-              this.deps.canvas.style.cursor = isToggle ? 'pointer' : 'ns-resize';
+            // Frequency-range (horizontal slider): edges use ew-resize, start/end use default
+            if (paramHit.frequencyBand) {
+              this.deps.canvas.style.cursor = (paramHit.frequencyBand.field === 'sliderLow' || paramHit.frequencyBand.field === 'sliderHigh') ? 'ew-resize' : 'default';
             } else {
-              this.deps.canvas.style.cursor = 'ns-resize';
+              // Check if this is a toggle parameter - use pointer cursor for toggles
+              const node = this.graph.nodes.find(n => n.id === paramHit.nodeId);
+              const spec = this.deps.nodeSpecs.get(node?.type || '');
+              if (node && spec) {
+                const paramSpec = spec.parameters[paramHit.paramName];
+                const isToggle = paramSpec && paramSpec.type === 'int' && 
+                  paramSpec.min === 0 && 
+                  paramSpec.max === 1;
+                this.deps.canvas.style.cursor = isToggle ? 'pointer' : 'ns-resize';
+              } else {
+                this.deps.canvas.style.cursor = 'ns-resize';
+              }
             }
           } else if (this.getActiveTool() === 'hand') {
             this.deps.canvas.style.cursor = 'grab';
@@ -809,7 +863,7 @@ export class MouseEventHandler {
     // Old fallback code removed - handlers are always used
     const currentStateForDrag = this.getState();
     if (currentStateForDrag.interaction.isDraggingNode && currentStateForDrag.interaction.draggingNodeId && currentStateForDrag.interaction.draggingNodeInitialPos) {
-      const node = this.deps.graph.nodes.find(n => n.id === currentStateForDrag.interaction.draggingNodeId)!;
+      const node = this.graph.nodes.find(n => n.id === currentStateForDrag.interaction.draggingNodeId)!;
       const canvasPos = this.deps.screenToCanvas(mouseX - currentStateForDrag.interaction.dragOffsetX, mouseY - currentStateForDrag.interaction.dragOffsetY);
       
       // Calculate smart guides and snap position for the primary dragged node
@@ -822,7 +876,7 @@ export class MouseEventHandler {
       // Move all selected nodes by the same delta
       const movedNodeIds: string[] = [];
       for (const [nodeId, initialPos] of currentStateForDrag.interaction.selectedNodesInitialPositions.entries()) {
-        const selectedNode = this.deps.graph.nodes.find(n => n.id === nodeId);
+        const selectedNode = this.graph.nodes.find(n => n.id === nodeId);
         if (selectedNode) {
           selectedNode.position.x = Math.round(initialPos.x + deltaX);
           selectedNode.position.y = Math.round(initialPos.y + deltaY);
@@ -840,7 +894,7 @@ export class MouseEventHandler {
       // Mark all connections connected to moved nodes as dirty (connections need to redraw when endpoints move)
       const connectionsToUpdate: string[] = [];
       for (const nodeId of movedNodeIds) {
-        for (const conn of this.deps.graph.connections) {
+        for (const conn of this.graph.connections) {
           if (conn.sourceNodeId === nodeId || conn.targetNodeId === nodeId) {
             connectionsToUpdate.push(conn.id);
           }
@@ -863,7 +917,7 @@ export class MouseEventHandler {
     } else {
       const currentStateForParam = this.getState();
       if (currentStateForParam.interaction.isDraggingParameter && currentStateForParam.interaction.draggingParameterNodeId && currentStateForParam.interaction.draggingParameterName) {
-        const node = this.deps.graph.nodes.find(n => n.id === currentStateForParam.interaction.draggingParameterNodeId);
+        const node = this.graph.nodes.find(n => n.id === currentStateForParam.interaction.draggingParameterNodeId);
         const spec = this.deps.nodeSpecs.get(node?.type || '');
         const fb = currentStateForParam.interaction.draggingFrequencyBand;
         if (node && spec && fb) {
@@ -970,7 +1024,7 @@ export class MouseEventHandler {
       } else {
         const currentStateForBezier = this.getState();
         if (currentStateForBezier.interaction.isDraggingBezierControl && currentStateForBezier.interaction.draggingBezierNodeId !== null && currentStateForBezier.interaction.draggingBezierControlIndex !== null && currentStateForBezier.interaction.dragBezierStartValues) {
-          const node = this.deps.graph.nodes.find(n => n.id === currentStateForBezier.interaction.draggingBezierNodeId);
+          const node = this.graph.nodes.find(n => n.id === currentStateForBezier.interaction.draggingBezierNodeId);
           const spec = this.deps.nodeSpecs.get(node?.type || '');
           const metrics = this.deps.nodeMetrics.get(node?.id || '');
           if (!node || !spec || !metrics) return;
@@ -1147,14 +1201,6 @@ export class MouseEventHandler {
       }
     }
 
-    // Handle double-click on node to show help
-    if (!finalState.pan.isPanning && !finalState.interaction.isDraggingNode && !finalState.connection.isConnecting && !finalState.interaction.isDraggingParameter && e.detail === 2) {
-      const nodeId = this.deps.hitTestManager.hitTestNode(e.clientX, e.clientY);
-      if (nodeId && this.deps.onNodeDoubleClick) {
-        this.deps.onNodeDoubleClick(nodeId, e.clientX, e.clientY);
-      }
-    }
-    
     // Reset all interaction state
     this.setState({
       pan: {

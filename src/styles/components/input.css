@@ -168,3 +168,19 @@
     color: var(--color-teal-70);
   }
 }
+
+/* Label edit overlay – backdrop */
+.label-edit-overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: var(--search-dialog-overlay);
+}
+
+/* Label edit overlay (node header rename) – centered; left/top/min-width set inline */
+.input.label-edit-overlay {
+  position: fixed;
+  z-index: 1000;
+  transform: translate(-50%, -70%);
+  width: 240px;
+}

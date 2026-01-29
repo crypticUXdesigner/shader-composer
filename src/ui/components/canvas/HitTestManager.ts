@@ -360,6 +360,34 @@ export class HitTestManager {
   }
 
   /**
+   * Hit test for color picker (OKLCH swatch on node).
+   * Returns nodeId if the point is over a color-picker element's swatch.
+   */
+  hitTestColorPicker(mouseX: number, mouseY: number): { nodeId: string } | null {
+    const canvasPos = this.screenToCanvas(mouseX, mouseY);
+    for (const node of this.graph.nodes) {
+      const spec = this.nodeSpecs.get(node.type);
+      const metrics = this.nodeMetrics.get(node.id);
+      if (!spec?.parameterLayout?.elements || !metrics?.elementMetrics) continue;
+      const layout = spec.parameterLayout.elements;
+      for (let i = 0; i < layout.length; i++) {
+        const el = layout[i] as { type?: string };
+        if (el?.type !== 'color-picker') continue;
+        const key = `color-picker-${i}`;
+        const em = metrics.elementMetrics.get(key);
+        if (!em || em.x == null || em.y == null) continue;
+        const swatch = em.colorPickerSwatchRect as { x: number; y: number; w: number; h: number } | undefined;
+        if (!swatch) continue;
+        if (canvasPos.x >= em.x + swatch.x && canvasPos.x <= em.x + swatch.x + swatch.w &&
+            canvasPos.y >= em.y + swatch.y && canvasPos.y <= em.y + swatch.y + swatch.h) {
+          return { nodeId: node.id };
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
    * Hit test for parameters
    * Returns parameter information if mouse is over a parameter, null otherwise
    */
@@ -368,6 +396,7 @@ export class HitTestManager {
     paramName: string;
     isString?: boolean;
     isArray?: boolean;
+    isModeButton?: boolean;
     frequencyBand?: { bandIndex: number; field: 'start' | 'end' | 'sliderLow' | 'sliderHigh' };
     scale?: 'linear' | 'audio';
   } | null {
@@ -388,14 +417,40 @@ export class HitTestManager {
 
     const canvasPos = this.screenToCanvas(mouseX, mouseY);
     
-    for (const node of this.graph.nodes) {
+    // Iterate nodes in reverse order (front to back) so we hit the topmost node first
+    for (let i = this.graph.nodes.length - 1; i >= 0; i--) {
+      const node = this.graph.nodes[i];
       const spec = this.nodeSpecs.get(node.type);
       const metrics = this.nodeMetrics.get(node.id);
       if (!spec || !metrics) continue;
       
+      const hasPort = (paramName: string) =>
+        !spec.parameterLayout?.parametersWithoutPorts?.includes(paramName);
+
       for (const [paramName, gridPos] of metrics.parameterGridPositions.entries()) {
         const paramSpec = spec.parameters[paramName];
         if (!paramSpec) continue;
+
+        // Test mode button first (same position as render: portX, knobY) so it's clickable
+        // before the larger knob hit region. Only for float params that have a port.
+        // Support both absolute and node-local coordinates (layout may use either).
+        if (paramSpec.type === 'float' && hasPort(paramName)) {
+          const modeButtonSize = getCSSVariableAsNumber('param-mode-button-size', 20);
+          const modeButtonRadius = modeButtonSize / 2;
+          const r2 = modeButtonRadius * modeButtonRadius;
+          const inCircle = (cx: number, cy: number) => {
+            const dx = canvasPos.x - cx;
+            const dy = canvasPos.y - cy;
+            return dx * dx + dy * dy <= r2;
+          };
+          const modeButtonX = gridPos.portX;
+          const modeButtonY = gridPos.knobY;
+          const modeButtonXLocal = node.position.x + gridPos.portX;
+          const modeButtonYLocal = node.position.y + gridPos.knobY;
+          if (inCircle(modeButtonX, modeButtonY) || inCircle(modeButtonXLocal, modeButtonYLocal)) {
+            return { nodeId: node.id, paramName, isString: false, isModeButton: true };
+          }
+        }
 
         // Parameter and remap hit regions are derived from the same token/size inputs as
         // rendering (see value-box, parameter-cell, port, remap layout in ParameterHitRegions).
@@ -562,40 +617,34 @@ export class HitTestManager {
 
   /**
    * Hit test for parameter mode selectors
-   * Returns node ID and parameter name if mouse is over a mode selector, null otherwise
+   * Returns node ID and parameter name if mouse is over a mode selector, null otherwise.
+   * Uses same dual coordinate system (absolute + node-local) as hitTestParameter mode button test.
    */
   hitTestParameterMode(mouseX: number, mouseY: number): { nodeId: string, paramName: string } | null {
     const canvasPos = this.screenToCanvas(mouseX, mouseY);
-    
-    for (const node of this.graph.nodes) {
+    const hasPort = (spec: NodeSpec, paramName: string) =>
+      !spec.parameterLayout?.parametersWithoutPorts?.includes(paramName);
+
+    for (let i = this.graph.nodes.length - 1; i >= 0; i--) {
+      const node = this.graph.nodes[i];
       const spec = this.nodeSpecs.get(node.type);
       const metrics = this.nodeMetrics.get(node.id);
       if (!spec || !metrics) continue;
-      
-      // Use parameterGridPositions for the new grid layout
+
       for (const [paramName, gridPos] of metrics.parameterGridPositions.entries()) {
         const paramSpec = spec.parameters[paramName];
-        if (!paramSpec) continue;
-        
-        // Only check mode selector for float parameters (they can have input connections)
-        if (paramSpec.type !== 'float') continue;
-        
-        // Mode button is on the left side of the knob, vertically centered with knob, horizontally aligned with port
+        if (!paramSpec || paramSpec.type !== 'float' || !hasPort(spec, paramName)) continue;
+
         const modeButtonSize = getCSSVariableAsNumber('param-mode-button-size', 20);
-        const modeButtonX = gridPos.portX; // Same X as port (horizontally aligned with port)
-        const modeButtonY = gridPos.knobY; // Same Y as knob center (vertically centered with knob)
         const modeButtonRadius = modeButtonSize / 2;
-        
-        // Check if click is within the circular mode button area
-        const dx = canvasPos.x - modeButtonX;
-        const dy = canvasPos.y - modeButtonY;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        if (distance <= modeButtonRadius) {
-          return { 
-            nodeId: node.id, 
-            paramName
-          };
+        const r2 = modeButtonRadius * modeButtonRadius;
+        const inCircle = (cx: number, cy: number) => {
+          const dx = canvasPos.x - cx;
+          const dy = canvasPos.y - cy;
+          return dx * dx + dy * dy <= r2;
+        };
+        if (inCircle(gridPos.portX, gridPos.knobY) || inCircle(node.position.x + gridPos.portX, node.position.y + gridPos.knobY)) {
+          return { nodeId: node.id, paramName };
         }
       }
     }

@@ -1,10 +1,11 @@
 /**
  * UIElementManager
  * 
- * Manages UI elements overlaying the canvas (input fields, dropdowns, frequency bands editor).
+ * Manages UI elements overlaying the canvas (input fields, dropdowns, frequency bands editor, color picker).
  */
 import { DropdownMenu, type DropdownMenuItem } from '../DropdownMenu';
 import { FrequencyBandsEditor } from '../FrequencyBandsEditor';
+import { ColorPickerPopover, type OKLCHTriple } from '../ColorPickerPopover';
 
 export interface UIElementContext {
   getCanvas: () => HTMLCanvasElement;
@@ -17,8 +18,10 @@ export interface UIElementContext {
 export class UIElementManager {
   private parameterInputElement: HTMLInputElement | null = null;
   private labelInputElement: HTMLInputElement | null = null;
+  private labelInputBackdropElement: HTMLElement | null = null;
   private enumDropdown: DropdownMenu | null = null;
   private frequencyBandsEditor: FrequencyBandsEditor | null = null;
+  private colorPickerPopover: ColorPickerPopover | null = null;
   private context?: UIElementContext;
 
   /**
@@ -122,7 +125,7 @@ export class UIElementManager {
   showLabelInput(
     _nodeId: string,
     label: string | undefined,
-    position: { x: number; y: number },
+    _position: { x: number; y: number },
     size: { width: number; height: number },
     onCommit: (label: string | undefined) => void,
     onCancel: () => void
@@ -133,25 +136,18 @@ export class UIElementManager {
     this.hideLabelInput();
 
     const zoom = this.context.getZoom();
-    const screenPos = this.context.canvasToScreen(position.x, position.y);
+    const canvas = this.context.getCanvas();
+    const rect = canvas.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
 
     const input = document.createElement('input');
     input.type = 'text';
     input.value = label || '';
-    input.style.position = 'absolute';
-    input.style.left = `${screenPos.x}px`;
-    input.style.top = `${screenPos.y}px`;
-    input.style.width = `${size.width * zoom}px`;
-    input.style.height = `${size.height * zoom}px`;
-    input.style.fontSize = `${14 * zoom}px`;
-    input.style.padding = `${4 * zoom}px ${8 * zoom}px`;
-    input.style.border = '1px solid var(--color-border, #333)';
-    input.style.borderRadius = '4px';
-    input.style.backgroundColor = 'var(--color-bg, #1a1a1a)';
-    input.style.color = 'var(--color-text, #fff)';
-    input.style.fontFamily = '"Space Grotesk", sans-serif';
-    input.style.zIndex = '1000';
-    input.style.outline = 'none';
+    input.className = 'input primary lg label-edit-overlay';
+    input.style.left = `${centerX}px`;
+    input.style.top = `${centerY}px`;
+    input.style.minWidth = `${Math.max(size.width * zoom, 120)}px`;
 
     const handleCommit = () => {
       const newLabel = input.value.trim() || undefined;
@@ -164,6 +160,10 @@ export class UIElementManager {
       this.hideLabelInput();
     };
 
+    const backdrop = document.createElement('div');
+    backdrop.className = 'label-edit-overlay-backdrop';
+    backdrop.addEventListener('click', handleCommit);
+
     input.addEventListener('blur', handleCommit);
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
@@ -175,9 +175,11 @@ export class UIElementManager {
       }
     });
 
+    document.body.appendChild(backdrop);
     document.body.appendChild(input);
     input.focus();
     input.select();
+    this.labelInputBackdropElement = backdrop;
     this.labelInputElement = input;
   }
 
@@ -185,6 +187,10 @@ export class UIElementManager {
    * Hide label input field
    */
   hideLabelInput(): void {
+    if (this.labelInputBackdropElement) {
+      this.labelInputBackdropElement.remove();
+      this.labelInputBackdropElement = null;
+    }
     if (this.labelInputElement) {
       this.labelInputElement.remove();
       this.labelInputElement = null;
@@ -292,6 +298,38 @@ export class UIElementManager {
   }
 
   /**
+   * Show color picker popover (OKLCH, HSV-style UI)
+   */
+  showColorPicker(
+    nodeId: string,
+    initial: OKLCHTriple,
+    screenX: number,
+    screenY: number,
+    onApply: (l: number, c: number, h: number) => void
+  ): void {
+    if (!this.colorPickerPopover) {
+      this.colorPickerPopover = new ColorPickerPopover({});
+    }
+    this.colorPickerPopover.show(nodeId, initial, screenX, screenY, onApply);
+  }
+
+  /**
+   * Hide color picker popover
+   */
+  hideColorPicker(): void {
+    if (this.colorPickerPopover?.isVisible()) {
+      this.colorPickerPopover.close();
+    }
+  }
+
+  /**
+   * Check if color picker is visible
+   */
+  isColorPickerVisible(): boolean {
+    return this.colorPickerPopover?.isVisible() ?? false;
+  }
+
+  /**
    * Check if any UI element is active
    */
   isAnyUIActive(): boolean {
@@ -299,7 +337,8 @@ export class UIElementManager {
       this.isParameterInputActive() ||
       this.isLabelInputActive() ||
       this.isEnumDropdownVisible() ||
-      this.isFrequencyBandsEditorVisible()
+      this.isFrequencyBandsEditorVisible() ||
+      this.isColorPickerVisible()
     );
   }
 
@@ -311,6 +350,7 @@ export class UIElementManager {
     this.hideLabelInput();
     this.hideEnumDropdown();
     this.hideFrequencyBandsEditor();
+    this.hideColorPicker();
   }
 
   /**

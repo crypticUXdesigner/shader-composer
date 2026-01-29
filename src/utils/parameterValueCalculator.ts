@@ -67,6 +67,9 @@ export function computeEffectiveParameterValue(
   }
 }
 
+/** Max depth when following input chains (e.g. one-minus -> audio-analyzer) to avoid infinite recursion */
+const MAX_INPUT_CHAIN_DEPTH = 8;
+
 /**
  * Get the current value from an input connection
  */
@@ -74,14 +77,39 @@ function getInputValue(
   connection: Connection,
   graph: NodeGraph,
   nodeSpecs: Map<string, NodeSpec>,
-  audioManager?: IAudioManager
+  audioManager?: IAudioManager,
+  depth: number = 0
 ): number | null {
+  if (depth > MAX_INPUT_CHAIN_DEPTH) return null;
+
   const sourceNode = graph.nodes.find(n => n.id === connection.sourceNodeId);
   if (!sourceNode) return null;
   
   const sourceSpec = nodeSpecs.get(sourceNode.type);
   if (!sourceSpec) return null;
   
+  // Handle one-minus: follow input and return 1.0 - value (so UI shows live value)
+  if (sourceNode.type === 'one-minus') {
+    const inConn = graph.connections.find(
+      c => c.targetNodeId === sourceNode.id && c.targetPort === 'in'
+    );
+    if (!inConn) return null;
+    const inValue = getInputValue(inConn, graph, nodeSpecs, audioManager, depth + 1);
+    if (inValue === null) return null;
+    return 1.0 - inValue;
+  }
+
+  // Handle negate: follow input and return -value
+  if (sourceNode.type === 'negate') {
+    const inConn = graph.connections.find(
+      c => c.targetNodeId === sourceNode.id && c.targetPort === 'in'
+    );
+    if (!inConn) return null;
+    const inValue = getInputValue(inConn, graph, nodeSpecs, audioManager, depth + 1);
+    if (inValue === null) return null;
+    return -inValue;
+  }
+
   // Handle audio-analyzer nodes - get current band values
   if (sourceNode.type === 'audio-analyzer') {
     // If no audio manager, return null (can't compute value)
@@ -203,7 +231,92 @@ function getInputValue(
 }
 
 /**
- * Check if a parameter has an input connection that we can track
+ * Get live incoming (audioValue) and outgoing (remapped) values for an audio-remap node.
+ * Used to draw needle markers on the remap range UI.
+ */
+export function getAudioRemapLiveValues(
+  node: NodeInstance,
+  graph: NodeGraph,
+  _nodeSpecs: Map<string, NodeSpec>,
+  audioManager?: IAudioManager
+): { incoming: number | null; outgoing: number | null } {
+  if (node.type !== 'audio-remap') {
+    return { incoming: null, outgoing: null };
+  }
+
+  const audioInputConn = graph.connections.find(
+    (c) => c.targetNodeId === node.id && c.targetPort === 'audioValue'
+  );
+  if (!audioInputConn || !audioManager) {
+    return { incoming: null, outgoing: null };
+  }
+
+  const audioInputNode = graph.nodes.find((n) => n.id === audioInputConn.sourceNodeId);
+  if (!audioInputNode || audioInputNode.type !== 'audio-analyzer') {
+    return { incoming: null, outgoing: null };
+  }
+
+  const analyzerState = audioManager.getAnalyzerNodeState(audioInputNode.id);
+  if (!analyzerState?.smoothedBandValues?.length) {
+    return { incoming: null, outgoing: null };
+  }
+
+  const bandMatch = audioInputConn.sourcePort.match(/^band(\d+)$/);
+  if (!bandMatch) return { incoming: null, outgoing: null };
+
+  const bandIndex = parseInt(bandMatch[1], 10);
+  if (bandIndex < 0 || bandIndex >= analyzerState.smoothedBandValues.length) {
+    return { incoming: null, outgoing: null };
+  }
+
+  const audioValue = analyzerState.smoothedBandValues[bandIndex];
+  if (typeof audioValue !== 'number' || isNaN(audioValue)) {
+    return { incoming: null, outgoing: null };
+  }
+
+  const inMin = typeof node.parameters.inMin === 'number' ? node.parameters.inMin : 0;
+  const inMax = typeof node.parameters.inMax === 'number' ? node.parameters.inMax : 1;
+  const outMin = typeof node.parameters.outMin === 'number' ? node.parameters.outMin : 0;
+  const outMax = typeof node.parameters.outMax === 'number' ? node.parameters.outMax : 1;
+  const clamp = typeof node.parameters.clamp === 'number' ? Math.round(node.parameters.clamp) : 1;
+
+  const range = inMax - inMin;
+  const normalized = range !== 0 ? (audioValue - inMin) / range : 0;
+  const clamped = clamp ? Math.max(0, Math.min(1, normalized)) : normalized;
+  const outRange = outMax - outMin;
+  const remapped = outMin + clamped * outRange;
+
+  return { incoming: audioValue, outgoing: remapped };
+}
+
+/**
+ * Check if we can get a live value from the source of this connection (direct or via one-minus/negate chain).
+ */
+function isConnectionTrackable(
+  connection: Connection,
+  graph: NodeGraph,
+  depth: number
+): boolean {
+  if (depth > MAX_INPUT_CHAIN_DEPTH) return false;
+
+  const sourceNode = graph.nodes.find(n => n.id === connection.sourceNodeId);
+  if (!sourceNode) return false;
+
+  if (sourceNode.type === 'audio-analyzer' || sourceNode.type === 'audio-remap') {
+    return true;
+  }
+  if (sourceNode.type === 'one-minus' || sourceNode.type === 'negate') {
+    const inConn = graph.connections.find(
+      c => c.targetNodeId === sourceNode.id && c.targetPort === 'in'
+    );
+    if (!inConn) return false;
+    return isConnectionTrackable(inConn, graph, depth + 1);
+  }
+  return false;
+}
+
+/**
+ * Check if a parameter has an input connection that we can track (live value from audio or through one-minus/negate)
  */
 export function hasTrackableInput(
   node: NodeInstance,
@@ -213,12 +326,6 @@ export function hasTrackableInput(
   const connection = graph.connections.find(
     conn => conn.targetNodeId === node.id && conn.targetParameter === paramName
   );
-  
   if (!connection) return false;
-  
-  const sourceNode = graph.nodes.find(n => n.id === connection.sourceNodeId);
-  if (!sourceNode) return false;
-  
-  // We can track audio-analyzer and audio-remap nodes
-  return sourceNode.type === 'audio-analyzer' || sourceNode.type === 'audio-remap';
+  return isConnectionTrackable(connection, graph, 0);
 }

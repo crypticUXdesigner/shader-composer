@@ -25,9 +25,12 @@ import {
 export interface NodeEditorCallbacks {
   onGraphChanged?: (graph: NodeGraph) => void;
   onConnectionRemoved?: (connectionId: string) => void;
-  onParameterChanged?: (nodeId: string, paramName: string, value: number | number[][]) => void;
+  /** Optional 4th arg is the updated graph (after parameter change) so runtime can stay in sync. */
+  onParameterChanged?: (nodeId: string, paramName: string, value: number | number[][], graph?: NodeGraph) => void;
   onFileParameterChanged?: (nodeId: string, paramName: string, file: File) => void;
   onError?: (error: { type: string, errors?: string[], error?: string, timestamp: number }) => void;
+  /** Called when selection changes (e.g. to update Help button state) */
+  onSelectionChanged?: (selectedNodeIds: string[]) => void;
 }
 
 export class NodeEditor {
@@ -41,6 +44,7 @@ export class NodeEditor {
   private undoRedoManager: UndoRedoManager;
   private copyPasteManager: CopyPasteManager;
   private helpCallout: ContextualHelpCallout;
+  private helpOpenFromToolbar: boolean = false;
   
   constructor(
     container: HTMLElement,
@@ -88,6 +92,9 @@ export class NodeEditor {
     // Create contextual help callout
     this.helpCallout = new ContextualHelpCallout();
     this.helpCallout.setNodeSpecs(this.nodeSpecs);
+    this.helpCallout.setOnClose(() => {
+      this.helpOpenFromToolbar = false;
+    });
     
     // Setup drag and drop from panel to canvas
     this.setupPanelDragAndDrop();
@@ -143,6 +150,21 @@ export class NodeEditor {
           selectedNodeIds: newSelectedIds
         }) as any;
         this.updateViewState();
+        this.callbacks.onSelectionChanged?.(newSelectedIds);
+        // When Help popover is open from toolbar, update its content only when exactly one node is selected
+        if (this.helpOpenFromToolbar && this.helpCallout.isVisible() && newSelectedIds.length === 1) {
+          const node = this.graph.nodes.find(n => n.id === newSelectedIds[0]);
+          if (node) {
+            const center = this.getCanvasCenterInScreen();
+            this.helpCallout.show({
+              helpId: `node:${node.type}`,
+              screenX: center.x,
+              screenY: center.y,
+              positionMode: 'center',
+              nodeSpecs: this.nodeSpecs
+            });
+          }
+        }
       },
       onConnectionCreated: (sourceNodeId, sourcePort, targetNodeId, targetPort?, targetParameter?) => {
         // Create new connection
@@ -244,8 +266,9 @@ export class NodeEditor {
       onParameterInputModeChanged: (nodeId, paramName, mode) => {
         // Update parameter input mode using immutable update
         this.graph = updateNodeParameterInputMode(this.graph as any, nodeId, paramName, mode) as any;
-        this.canvasComponent.setGraph(this.graph);
+        // Bake current viewport into graph before setGraph so the canvas does not pan/jump
         this.updateViewState();
+        this.canvasComponent.setGraph(this.graph);
         this.notifyGraphChanged();
       },
       onNodeLabelChanged: (nodeId, label) => {
@@ -274,19 +297,6 @@ export class NodeEditor {
           typeLabelBounds,
           nodeSpecs: this.nodeSpecs
         });
-      },
-      onNodeDoubleClick: (nodeId, screenX, screenY) => {
-        // Show help callout for the double-clicked node
-        const node = this.graph.nodes.find(n => n.id === nodeId);
-        if (node) {
-          console.log('[NodeEditor] onNodeDoubleClick called:', nodeId, node.type, screenX, screenY);
-          this.helpCallout.show({
-            helpId: `node:${node.type}`,
-            screenX,
-            screenY,
-            nodeSpecs: this.nodeSpecs
-          });
-        }
       }
     });
   }
@@ -400,6 +410,33 @@ export class NodeEditor {
     return this.canvasComponent;
   }
   
+  /** Canvas center in screen coordinates (for centering the Help popover) */
+  private getCanvasCenterInScreen(): { x: number; y: number } {
+    const r = this.canvas.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  }
+  
+  /**
+   * Show Help popover for the single selected node, centered on the canvas.
+   * Call only when exactly one node is selected. Popover stays open until closed;
+   * changing selection to another single node updates content; empty/multiple selection does not.
+   */
+  showHelpForSelection(): void {
+    const selectedIds = Array.from(this.canvasComponent.getViewState().selectedNodeIds);
+    if (selectedIds.length !== 1) return;
+    const node = this.graph.nodes.find(n => n.id === selectedIds[0]);
+    if (!node) return;
+    const center = this.getCanvasCenterInScreen();
+    this.helpOpenFromToolbar = true;
+    this.helpCallout.show({
+      helpId: `node:${node.type}`,
+      screenX: center.x,
+      screenY: center.y,
+      positionMode: 'center',
+      nodeSpecs: this.nodeSpecs
+    });
+  }
+  
   undo(): boolean {
     const state = this.undoRedoManager.undo();
     if (state) {
@@ -486,9 +523,12 @@ export class NodeEditor {
     if (node) {
       // Update parameter using immutable update
       this.graph = updateNodeParameter(this.graph as any, nodeId, paramName, value as any) as any;
-      this.callbacks.onParameterChanged?.(nodeId, paramName, value);
-      // Trigger canvas render to update parameter display
-      this.canvasComponent.render();
+      // Bake current viewport into graph before setGraph so the canvas does not pan/jump
+      this.updateViewState();
+      // Sync canvas with updated graph so knob/value display updates during drag
+      this.canvasComponent.setGraph(this.graph);
+      // Pass updated graph so runtime can sync (critical for audio-analyzer frequencyBands → remap signal flow)
+      this.callbacks.onParameterChanged?.(nodeId, paramName, value, this.graph);
       // Parameter changes don't trigger undo (they're too frequent)
       // Only structure changes trigger undo
     }

@@ -2,7 +2,7 @@
 // Implements split-screen layout with collapsible shader preview
 
 import { createIconElement } from '../../utils/icons';
-import { getCSSColor, getCSSVariable } from '../../utils/cssTokens';
+import { getCSSColor, getCSSVariable, getCSSVariableAsNumber } from '../../utils/cssTokens';
 import { DropdownMenu, type DropdownMenuItem } from './DropdownMenu';
 import { globalErrorHandler } from '../../utils/errorHandling';
 
@@ -25,6 +25,9 @@ export class NodeEditorLayout {
   private presetButton!: HTMLElement;
   private zoomDisplay!: HTMLElement;
   private zoomValueDisplay!: HTMLElement;
+  private helpButton!: HTMLButtonElement;
+  private isHelpEnabled?: () => boolean;
+  private onHelpClick?: () => void;
   private presetDropdown!: DropdownMenu;
   private currentPresetName: string | null = null;
   private presetList: Array<{ name: string; displayName: string }> = [];
@@ -56,6 +59,19 @@ export class NodeEditorLayout {
   private getTopBarHeight(): number {
     if (!this.buttonContainer) return 0;
     return this.buttonContainer.getBoundingClientRect().height;
+  }
+
+  /**
+   * Get the bottom bar height in pixels (same safe space as top bar for the preview box)
+   */
+  private getBottomBarHeight(): number {
+    const el = this.container.querySelector('.bottom-bar');
+    return el ? el.getBoundingClientRect().height : 0;
+  }
+
+  /** Bottom safe inset: bottom bar height, or at least SAFE_DISTANCE when bar is missing */
+  private getBottomSafeInset(): number {
+    return Math.max(this.getBottomBarHeight(), this.SAFE_DISTANCE);
   }
   
   private onCopyPreset?: () => Promise<void> | void;
@@ -226,6 +242,29 @@ export class NodeEditorLayout {
   }): void {
     this.onZoomChange = callbacks.onZoomChange;
     this.getZoom = callbacks.getZoom;
+  }
+  
+  /**
+   * Set callbacks for Help button (enabled when exactly one node is selected)
+   */
+  setHelpCallbacks(callbacks: {
+    isHelpEnabled?: () => boolean;
+    onHelpClick?: () => void;
+  }): void {
+    this.isHelpEnabled = callbacks.isHelpEnabled;
+    this.onHelpClick = callbacks.onHelpClick;
+  }
+  
+  /**
+   * Update Help button enabled state (call when selection changes).
+   * When selectedIds is provided, use it directly; otherwise call isHelpEnabled().
+   */
+  updateHelpButtonState(selectedIds?: string[]): void {
+    if (!this.helpButton) return;
+    const enabled = selectedIds !== undefined
+      ? selectedIds.length === 1
+      : (this.isHelpEnabled?.() ?? false);
+    this.helpButton.disabled = !enabled;
   }
   
   /**
@@ -600,6 +639,26 @@ export class NodeEditorLayout {
     
     this.topBarRightSection.appendChild(this.zoomDisplay);
     
+    // Help button (right side - after zoom)
+    this.helpButton = document.createElement('button');
+    this.helpButton.type = 'button';
+    this.helpButton.className = 'button secondary sm both';
+    this.helpButton.title = 'Help';
+    this.helpButton.disabled = true;
+    const helpIcon = createIconElement('help-circle', 16, 'currentColor', undefined, 'line');
+    this.helpButton.appendChild(helpIcon);
+    const helpLabel = document.createElement('span');
+    helpLabel.textContent = 'Help';
+    this.helpButton.appendChild(helpLabel);
+    this.helpButton.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (this.onHelpClick) {
+        this.onHelpClick();
+      }
+    });
+    this.topBarRightSection.appendChild(this.helpButton);
+    
     // Node panel container (left side, hidden by default)
     this.nodePanelContainer = document.createElement('div');
     this.nodePanelContainer.className = 'node-panel-container';
@@ -800,11 +859,12 @@ export class NodeEditorLayout {
       } else {
         // Check if the current position is at a corner and update snappedCorner
         const safeDist = this.SAFE_DISTANCE;
+        const bottomInset = this.getBottomSafeInset();
         const widgetHeight = this.state.cornerWidgetSize.height;
         const x = this.state.cornerWidgetPosition.x;
         const y = this.state.cornerWidgetPosition.y;
         const maxX = containerRect.width - widgetWidth - safeDist;
-        const maxY = containerRect.height - widgetHeight - safeDist;
+        const maxY = containerRect.height - widgetHeight - bottomInset;
         
         // Check if at a corner (use topBarHeight for top edge)
         if (Math.abs(x - safeDist) < this.SNAP_DISTANCE && Math.abs(y - topBarHeight) < this.SNAP_DISTANCE) {
@@ -879,28 +939,31 @@ export class NodeEditorLayout {
     const topBarHeight = this.getTopBarHeight();
     
     if (this.state.previewState === 'expanded') {
-      // Split-screen mode
+      // Split-screen mode: same safe space at top (topbar) and bottom (bottom bar)
+      const bottomInset = this.getBottomSafeInset();
       const leftWidth = (width - panelOffset) * this.state.dividerPosition;
       const rightWidth = (width - panelOffset) * (1 - this.state.dividerPosition);
       
-      // Node editor container overlays the top bar (starts at top: 0)
+      // Node editor container: full height with bottom safe space
       this.nodeEditorContainer.style.left = `${panelOffset}px`;
       this.nodeEditorContainer.style.width = `${leftWidth}px`;
       this.nodeEditorContainer.style.display = 'block';
       this.nodeEditorContainer.style.top = `0px`;
-      this.nodeEditorContainer.style.bottom = `0px`;
+      this.nodeEditorContainer.style.bottom = `${bottomInset}px`;
       
-      // Divider also overlays the top bar (starts at top: 0)
+      // Divider: same vertical range
       this.divider.style.left = `${panelOffset + leftWidth}px`;
       this.divider.style.top = `0px`;
-      this.divider.style.height = `100%`;
+      this.divider.style.bottom = `${bottomInset}px`;
+      this.divider.style.height = '';
       this.divider.style.display = 'block';
       
-      // Preview container full height so shader is visually below/behind the topbar
+      // Preview container: full height with top/bottom safe space (topbar and bottom bar)
       this.previewContainer.style.left = `${panelOffset + leftWidth + 4}px`;
       this.previewContainer.style.top = `0px`;
+      this.previewContainer.style.bottom = `${bottomInset}px`;
       this.previewContainer.style.width = `${rightWidth - 4}px`;
-      this.previewContainer.style.height = `100%`;
+      this.previewContainer.style.height = '';
       this.previewContainer.style.display = 'block';
       this.previewContainer.style.position = 'absolute';
       this.previewContainer.style.border = 'none';
@@ -937,10 +1000,11 @@ export class NodeEditorLayout {
       let widgetY = this.state.cornerWidgetPosition.y;
       
       // If snapped to a corner, recalculate position based on that corner
-      // Use top bar height for top edge, SAFE_DISTANCE for other edges
+      // Use top bar height for top edge, bottom bar height for bottom edge
       if (this.snappedCorner) {
+        const bottomInset = this.getBottomSafeInset();
         const maxX = width - widgetWidth - this.SAFE_DISTANCE;
-        const maxY = height - widgetHeight - this.SAFE_DISTANCE;
+        const maxY = height - widgetHeight - bottomInset;
         
         switch (this.snappedCorner) {
           case 'top-left':
@@ -962,9 +1026,10 @@ export class NodeEditorLayout {
         }
       } else {
         // Not snapped - constrain position to viewport with safe distance
-        // Use top bar height for top edge, SAFE_DISTANCE for other edges
+        // Use top bar height for top edge, bottom bar height for bottom edge
+        const bottomInset = this.getBottomSafeInset();
         const maxX = width - widgetWidth - this.SAFE_DISTANCE;
-        const maxY = height - widgetHeight - this.SAFE_DISTANCE;
+        const maxY = height - widgetHeight - bottomInset;
         widgetX = Math.max(this.SAFE_DISTANCE, Math.min(maxX, widgetX));
         widgetY = Math.max(topBarHeight, Math.min(maxY, widgetY));
       }
@@ -1119,15 +1184,16 @@ export class NodeEditorLayout {
     // Check if we're moving away from a snapped corner
     // If moved more than snap distance, clear the snap
     const topBarHeight = this.getTopBarHeight();
+    const bottomInset = this.getBottomSafeInset();
     if (this.snappedCorner) {
       const safeDist = this.SAFE_DISTANCE;
       const snapDist = this.SNAP_DISTANCE;
       const widgetWidth = this.state.cornerWidgetSize.width;
       const widgetHeight = this.state.cornerWidgetSize.height;
-      
+
       let expectedX = 0;
       let expectedY = 0;
-      
+
       switch (this.snappedCorner) {
         case 'top-left':
           expectedX = safeDist;
@@ -1139,11 +1205,11 @@ export class NodeEditorLayout {
           break;
         case 'bottom-left':
           expectedX = safeDist;
-          expectedY = containerRect.height - widgetHeight - safeDist;
+          expectedY = containerRect.height - widgetHeight - bottomInset;
           break;
         case 'bottom-right':
           expectedX = containerRect.width - widgetWidth - safeDist;
-          expectedY = containerRect.height - widgetHeight - safeDist;
+          expectedY = containerRect.height - widgetHeight - bottomInset;
           break;
       }
       
@@ -1187,7 +1253,7 @@ export class NodeEditorLayout {
     const resizeStartX = (this as any)._resizeStartX as number;
     const resizeStartY = (this as any)._resizeStartY as number;
     
-    const minWidth = 160;
+    const minWidth = getCSSVariableAsNumber('node-box-min-width', 400);
     const minHeight = 120;
     const maxWidth = containerRect.width * 0.5;
     const maxHeight = containerRect.height * 0.5;
@@ -1224,16 +1290,17 @@ export class NodeEditorLayout {
       }
     }
     
-    // Constrain position and size to viewport bounds (use top bar height for top edge)
+    // Constrain position and size to viewport bounds (use top bar height for top, bottom bar for bottom)
     const topBarHeight = this.getTopBarHeight();
+    const bottomInset = this.getBottomSafeInset();
     const minX = this.SAFE_DISTANCE;
     const maxX = containerRect.width - newWidth - this.SAFE_DISTANCE;
     const minY = topBarHeight;
-    const maxY = containerRect.height - newHeight - this.SAFE_DISTANCE;
-    
+    const maxY = containerRect.height - newHeight - bottomInset;
+
     newX = Math.max(minX, Math.min(maxX, newX));
     newY = Math.max(minY, Math.min(maxY, newY));
-    
+
     // Adjust width/height if position was constrained
     if (resizeX === -1 && newX === minX) {
       newWidth = containerRect.width - newX - this.SAFE_DISTANCE;
@@ -1241,9 +1308,9 @@ export class NodeEditorLayout {
       newWidth = this.resizeStartWidth;
       newX = resizeStartX;
     }
-    
+
     if (resizeY === -1 && newY === minY) {
-      newHeight = containerRect.height - newY - this.SAFE_DISTANCE;
+      newHeight = containerRect.height - newY - bottomInset;
     } else if (resizeY === -1 && newY === maxY) {
       newHeight = this.resizeStartHeight;
       newY = resizeStartY;
@@ -1298,14 +1365,15 @@ export class NodeEditorLayout {
     viewportHeight: number
   ): { x: number; y: number } {
     const safeDist = this.SAFE_DISTANCE;
+    const bottomInset = this.getBottomSafeInset();
     const snapDist = this.SNAP_DISTANCE;
     const topBarHeight = this.getTopBarHeight();
-    
-    // Calculate distances to each edge (use top bar height for top edge)
+
+    // Calculate distances to each edge (top bar for top, bottom bar for bottom)
     const distToLeft = x - safeDist;
     const distToRight = (viewportWidth - safeDist) - (x + width);
     const distToTop = y - topBarHeight;
-    const distToBottom = (viewportHeight - safeDist) - (y + height);
+    const distToBottom = (viewportHeight - bottomInset) - (y + height);
     
     let snappedX = x;
     let snappedY = y;
@@ -1330,9 +1398,9 @@ export class NodeEditorLayout {
       snappedY = topBarHeight;
       snappedToTop = true;
     }
-    // Snap to bottom edge
+    // Snap to bottom edge (above bottom bar)
     else if (Math.abs(distToBottom) < snapDist) {
-      snappedY = viewportHeight - height - safeDist;
+      snappedY = viewportHeight - height - bottomInset;
       snappedToBottom = true;
     }
     
@@ -1350,12 +1418,12 @@ export class NodeEditorLayout {
       this.snappedCorner = null;
     }
     
-    // Constrain to viewport bounds (use top bar height for top edge)
+    // Constrain to viewport bounds (top bar for top edge, bottom bar for bottom edge)
     const minX = safeDist;
     const maxX = viewportWidth - width - safeDist;
     const minY = topBarHeight;
-    const maxY = viewportHeight - height - safeDist;
-    
+    const maxY = viewportHeight - height - bottomInset;
+
     snappedX = Math.max(minX, Math.min(maxX, snappedX));
     snappedY = Math.max(minY, Math.min(maxY, snappedY));
     

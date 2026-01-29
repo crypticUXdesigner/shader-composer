@@ -21,6 +21,8 @@ export interface NodeComponentState extends ComponentState {
   isConnectingParameter: boolean | undefined;
   connectedParameters: Set<string>;
   skipPorts: boolean;
+  /** Live incoming/outgoing values for audio-remap node (for needle markers) */
+  audioRemapLiveValues?: { incoming: number | null; outgoing: number | null };
 }
 
 /**
@@ -80,7 +82,8 @@ export class NodeComponent extends CanvasComponent {
       this.getState().connectingPortName,
       this.getState().isConnectingParameter,
       this.getState().connectedParameters,
-      this.getState().skipPorts
+      this.getState().skipPorts,
+      this.getState().audioRemapLiveValues
     );
   }
   
@@ -143,6 +146,15 @@ export class NodeComponent extends CanvasComponent {
     this.metrics = this.calculateMetrics();
   }
   
+  /**
+   * Update the node reference (e.g. when graph is replaced via setGraph).
+   * Ensures the component renders with current node data (e.g. parameter values during drag).
+   */
+  updateNode(node: NodeInstance): void {
+    this.node = node;
+    this.nodeMetrics = null;
+  }
+
   /**
    * Get the underlying node instance
    */

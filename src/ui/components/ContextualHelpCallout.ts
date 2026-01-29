@@ -17,6 +17,8 @@ export interface ShowOptions {
   triggerElement?: HTMLElement;
   screenX?: number;
   screenY?: number;
+  /** When 'center', screenX/screenY are the center of the popover (e.g. canvas center) */
+  positionMode?: 'anchor' | 'center';
   typeLabelBounds?: {
     left: number;
     top: number;
@@ -33,9 +35,14 @@ export class ContextualHelpCallout {
   private _isVisible: boolean = false;
   private ignoreClicksUntil: number = 0;
   private nodeSpecs: Map<string, NodeSpec> = new Map();
+  private onCloseCallback: (() => void) | null = null;
   
   isVisible(): boolean {
     return this._isVisible;
+  }
+  
+  setOnClose(callback: (() => void) | null): void {
+    this.onCloseCallback = callback;
   }
   
   constructor() {
@@ -195,7 +202,7 @@ export class ContextualHelpCallout {
     this.ignoreClicksUntil = Date.now() + 500; // Increased timeout to prevent immediate hiding
     
     // Position callout (this will also add is-visible class)
-    this.positionCallout(screenX, screenY, options.typeLabelBounds);
+    this.positionCallout(screenX, screenY, options.typeLabelBounds, options.positionMode ?? 'anchor');
     
     console.log('[ContextualHelpCallout] Callout shown successfully:', {
       helpId: options.helpId,
@@ -203,6 +210,45 @@ export class ContextualHelpCallout {
       calloutElement: this.callout,
       hasContent: this.callout.innerHTML.length > 0
     });
+  }
+
+  /**
+   * Append a "Use:" or "Connect to:" row to a port item, resolving node/type IDs to labels and chips.
+   */
+  private appendPortSuggestions(container: HTMLElement, label: string, ids: string[]): void {
+    const resolved = resolveRelatedItems(ids, this.nodeSpecs);
+    if (resolved.nodes.length === 0 && resolved.types.length === 0) {
+      return;
+    }
+    const row = document.createElement('div');
+    row.className = 'port-suggestions';
+    const labelEl = document.createElement('span');
+    labelEl.className = 'port-suggestions-label';
+    labelEl.textContent = label;
+    row.appendChild(labelEl);
+    const items = document.createElement('div');
+    items.className = 'port-suggestions-items';
+    for (const type of resolved.types) {
+      const pill = document.createElement('span');
+      pill.className = 'port-suggestion-type';
+      pill.textContent = type;
+      items.appendChild(pill);
+    }
+    for (const nodeSpec of resolved.nodes) {
+      const chip = document.createElement('div');
+      chip.className = 'related-item';
+      chip.title = nodeSpec.displayName;
+      const iconIdentifier = getNodeIcon(nodeSpec);
+      const icon = createNodeIconElement(iconIdentifier, 20, 'currentColor', undefined);
+      chip.appendChild(icon);
+      const span = document.createElement('span');
+      span.className = 'related-item-label';
+      span.textContent = nodeSpec.displayName;
+      chip.appendChild(span);
+      items.appendChild(chip);
+    }
+    row.appendChild(items);
+    container.appendChild(row);
   }
 
   private renderContent(content: HelpContent): void {
@@ -281,6 +327,80 @@ export class ContextualHelpCallout {
     description.className = 'description';
     description.textContent = content.description;
     this.callout.appendChild(description);
+
+    // Inputs (order: 2.5) – explain each input port
+    if (content.inputs && content.inputs.length > 0) {
+      const inputsSection = document.createElement('div');
+      inputsSection.className = 'ports inputs';
+      const inputsLabel = document.createElement('div');
+      inputsLabel.className = 'ports-label';
+      inputsLabel.textContent = 'Inputs';
+      inputsSection.appendChild(inputsLabel);
+      const inputsList = document.createElement('div');
+      inputsList.className = 'ports-list';
+      for (const port of content.inputs) {
+        const item = document.createElement('div');
+        item.className = 'port-item';
+        const nameRow = document.createElement('div');
+        nameRow.className = 'port-name-row';
+        const nameEl = document.createElement('span');
+        nameEl.className = 'port-name';
+        nameEl.textContent = port.name;
+        const typeEl = document.createElement('span');
+        typeEl.className = 'port-type';
+        typeEl.textContent = port.type;
+        nameRow.appendChild(nameEl);
+        nameRow.appendChild(typeEl);
+        item.appendChild(nameRow);
+        const descEl = document.createElement('div');
+        descEl.className = 'port-description';
+        descEl.textContent = port.description;
+        item.appendChild(descEl);
+        if (port.suggestedSources && port.suggestedSources.length > 0) {
+          this.appendPortSuggestions(item, 'Use:', port.suggestedSources);
+        }
+        inputsList.appendChild(item);
+      }
+      inputsSection.appendChild(inputsList);
+      this.callout.appendChild(inputsSection);
+    }
+
+    // Outputs (order: 2.6) – explain each output port
+    if (content.outputs && content.outputs.length > 0) {
+      const outputsSection = document.createElement('div');
+      outputsSection.className = 'ports outputs';
+      const outputsLabel = document.createElement('div');
+      outputsLabel.className = 'ports-label';
+      outputsLabel.textContent = 'Outputs';
+      outputsSection.appendChild(outputsLabel);
+      const outputsList = document.createElement('div');
+      outputsList.className = 'ports-list';
+      for (const port of content.outputs) {
+        const item = document.createElement('div');
+        item.className = 'port-item';
+        const nameRow = document.createElement('div');
+        nameRow.className = 'port-name-row';
+        const nameEl = document.createElement('span');
+        nameEl.className = 'port-name';
+        nameEl.textContent = port.name;
+        const typeEl = document.createElement('span');
+        typeEl.className = 'port-type';
+        typeEl.textContent = port.type;
+        nameRow.appendChild(nameEl);
+        nameRow.appendChild(typeEl);
+        item.appendChild(nameRow);
+        const descEl = document.createElement('div');
+        descEl.className = 'port-description';
+        descEl.textContent = port.description;
+        item.appendChild(descEl);
+        if (port.suggestedTargets && port.suggestedTargets.length > 0) {
+          this.appendPortSuggestions(item, 'Connect to:', port.suggestedTargets);
+        }
+        outputsList.appendChild(item);
+      }
+      outputsSection.appendChild(outputsList);
+      this.callout.appendChild(outputsSection);
+    }
 
     // Examples (order: 3)
     if (content.examples && content.examples.length > 0) {
@@ -375,7 +495,7 @@ export class ContextualHelpCallout {
     }
   }
 
-  private positionCallout(screenX: number, screenY: number, typeLabelBounds?: ShowOptions['typeLabelBounds']): void {
+  private positionCallout(screenX: number, screenY: number, typeLabelBounds?: ShowOptions['typeLabelBounds'], positionMode: 'anchor' | 'center' = 'anchor'): void {
     const margin = 12; // Gap from trigger element
     const safeMargin = 16; // Safe distance from viewport edges
     
@@ -404,6 +524,18 @@ export class ContextualHelpCallout {
 
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
+    
+    if (positionMode === 'center') {
+      // Center the popover at (screenX, screenY), clamped to viewport
+      let left = screenX - calloutWidth / 2;
+      let top = screenY - calloutHeight / 2;
+      left = Math.max(safeMargin, Math.min(viewportWidth - calloutWidth - safeMargin, left));
+      top = Math.max(safeMargin, Math.min(viewportHeight - calloutHeight - safeMargin, top));
+      this.callout.style.left = `${left}px`;
+      this.callout.style.top = `${top}px`;
+      this.callout.style.visibility = 'visible';
+      return;
+    }
     
     // Use type label bounds if available, otherwise use point coordinates
     const anchorLeft = typeLabelBounds?.left ?? screenX;
@@ -521,8 +653,10 @@ export class ContextualHelpCallout {
     }
     this._isVisible = false;
     this.callout.classList.remove('is-visible');
-    // Reset ignore clicks timer
     this.ignoreClicksUntil = 0;
+    if (this.onCloseCallback) {
+      this.onCloseCallback();
+    }
   }
 
   destroy(): void {

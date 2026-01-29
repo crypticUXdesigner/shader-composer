@@ -153,7 +153,6 @@ export class NodeEditorCanvas {
   private onSpacebarStateChange?: (isPressed: boolean) => void;
   private isDialogVisible?: () => boolean;
   private onTypeLabelClick?: (portType: string, screenX: number, screenY: number, typeLabelBounds?: { left: number; top: number; right: number; bottom: number; width: number; height: number }) => void;
-  private onNodeDoubleClick?: (nodeId: string, screenX: number, screenY: number) => void;
   private audioManager?: IAudioManager;
   private effectiveValueUpdateInterval: number | null = null;
   
@@ -906,6 +905,7 @@ export class NodeEditorCanvas {
       selectionManager: this.selectionManager,
       viewStateManager: this.viewStateManager,
       graph: this.graph,
+      getGraph: () => this.graph,
       nodeSpecs: this.nodeSpecs,
       nodeMetrics: this.nodeMetrics,
       nodeComponents: this.nodeComponents,
@@ -919,7 +919,6 @@ export class NodeEditorCanvas {
       canvas: this.canvas,
       onNodeDeleted: this.onNodeDeleted,
       onTypeLabelClick: this.onTypeLabelClick,
-      onNodeDoubleClick: this.onNodeDoubleClick,
       onParameterInputModeChanged: this.onParameterInputModeChanged,
       onParameterChanged: this.onParameterChanged,
       onConnectionCreated: this.onConnectionCreated,
@@ -931,6 +930,7 @@ export class NodeEditorCanvas {
       handleFileParameterClick: (nodeId, paramName, screenX, screenY) => this.overlayManager.handleFileParameterClick(nodeId, paramName, screenX, screenY),
       handleFrequencyBandsParameterClick: (nodeId, paramName, screenX, screenY) => this.overlayManager.handleFrequencyBandsParameterClick(nodeId, paramName, screenX, screenY),
       handleEnumParameterClick: (nodeId, paramName, screenX, screenY) => this.overlayManager.handleEnumParameterClick(nodeId, paramName, screenX, screenY),
+      handleColorPickerClick: (nodeId, screenX, screenY) => this.overlayManager.handleColorPickerClick(nodeId, screenX, screenY),
       calculateSmartGuides: (draggingNode, proposedX, proposedY) => this.calculateSmartGuides(draggingNode, proposedX, proposedY),
       getViewStateInternal: () => this.getViewStateInternal(),
       getSelectionState: () => this.getSelectionState(),
@@ -963,6 +963,7 @@ export class NodeEditorCanvas {
     this.canvas.addEventListener('mousemove', (e) => this.mouseEventHandler.handleMouseMove(e));
     this.canvas.addEventListener('mouseup', (e) => this.mouseEventHandler.handleMouseUp(e));
     this.canvas.addEventListener('mouseleave', () => this.mouseEventHandler.handleMouseLeave());
+    this.canvas.addEventListener('dblclick', (e) => this.handleCanvasDoubleClick(e));
     this.canvas.addEventListener('wheel', (e) => this.wheelEventHandler.handleWheel(e));
     this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     
@@ -1179,11 +1180,19 @@ export class NodeEditorCanvas {
     this.overlayManager.hideParameterInput();
   }
   
+  /**
+   * Handle double-click on canvas: if over a node header label, show label edit overlay.
+   * Coordinates must be client (viewport) coordinates; hit test uses screenToCanvas which expects them.
+   */
+  private handleCanvasDoubleClick(e: MouseEvent): void {
+    this.showLabelInput(e.clientX, e.clientY);
+  }
+
   // Show text input overlay for label editing
   public showLabelInput(screenX: number, screenY: number): boolean {
     return this.overlayManager.showLabelInput(screenX, screenY);
   }
-  
+
   // Hide label input overlay
   public hideLabelInput(): void {
     this.overlayManager.hideLabelInput();
@@ -1319,6 +1328,14 @@ export class NodeEditorCanvas {
     this.renderingOrchestrator.render();
   }
   
+  /**
+   * Request a canvas redraw on the next animation frame (batched by RenderingOrchestrator).
+   * Used by the main loop to drive audio-reactive UI (e.g. remap needles) every frame.
+   */
+  public requestRender(): void {
+    this.renderingOrchestrator.requestRender();
+  }
+  
   // renderNode, renderNodePorts, and related methods are now handled by RenderingOrchestrator
   
   private startEffectiveValueUpdates(): void {
@@ -1376,6 +1393,8 @@ export class NodeEditorCanvas {
   
   public setAudioManager(audioManager: IAudioManager | undefined): void {
     this.audioManager = audioManager;
+    this.renderingOrchestrator.updateDependencies({ audioManager: this.audioManager });
+    this.renderingOrchestrator.requestRender();
   }
   
   // renderRegularConnections and renderParameterConnections are now handled by ConnectionLayerRenderer and ParameterConnectionLayerRenderer
@@ -1508,7 +1527,7 @@ export class NodeEditorCanvas {
     // Calculate zoom to fit content
     const zoomX = canvasWidth / paddedWidth;
     const zoomY = canvasHeight / paddedHeight;
-    const zoom = Math.max(0.10, Math.min(zoomX, zoomY, 1.0)); // Cap zoom at 1.0 (100%) to avoid too much zoom, minimum 0.10
+    const zoom = Math.max(0.10, Math.min(zoomX, zoomY)); // Zoom out as much as needed to fit content (min 0.10)
     
     // Calculate pan to center content
     const panX = (canvasWidth / 2) - (centerX * zoom);
@@ -1621,6 +1640,7 @@ export class NodeEditorCanvas {
       },
       onNodeMoved: this.onNodeMoved,
       onNodeSelected: this.onNodeSelected,
+      getOnNodeSelected: () => this.onNodeSelected,
       onConnectionCreated: this.onConnectionCreated,
       getOnConnectionCreated: () => this.onConnectionCreated,
       onConnectionSelected: this.onConnectionSelected,
@@ -1649,7 +1669,6 @@ export class NodeEditorCanvas {
     onSpacebarStateChange?: (isPressed: boolean) => void;
     isDialogVisible?: () => boolean;
     onTypeLabelClick?: (portType: string, screenX: number, screenY: number, typeLabelBounds?: { left: number; top: number; right: number; bottom: number; width: number; height: number }) => void;
-    onNodeDoubleClick?: (nodeId: string, screenX: number, screenY: number) => void;
   }): void {
     this.onNodeMoved = callbacks.onNodeMoved;
     this.onNodeSelected = callbacks.onNodeSelected;
@@ -1664,17 +1683,13 @@ export class NodeEditorCanvas {
     this.onSpacebarStateChange = callbacks.onSpacebarStateChange;
     this.isDialogVisible = callbacks.isDialogVisible;
     this.onTypeLabelClick = callbacks.onTypeLabelClick;
-    this.onNodeDoubleClick = callbacks.onNodeDoubleClick;
     
-    // Update mouse handler's callback reference since it was created before callbacks were set
+    // Update mouse handler's callback references since it was created before callbacks were set
     // The mouse handler stores callbacks in its deps property
     if (this.mouseEventHandler && (this.mouseEventHandler as any).deps) {
-      (this.mouseEventHandler as any).deps.onTypeLabelClick = this.onTypeLabelClick;
-      (this.mouseEventHandler as any).deps.onNodeDoubleClick = this.onNodeDoubleClick;
-      console.log('[NodeEditorCanvas] Updated mouse handler callbacks:', {
-        onTypeLabelClick: !!this.onTypeLabelClick,
-        onNodeDoubleClick: !!this.onNodeDoubleClick
-      });
+      const deps = (this.mouseEventHandler as any).deps;
+      deps.onTypeLabelClick = this.onTypeLabelClick;
+      deps.onNodeSelected = this.onNodeSelected;
     }
     
     // Update OverlayManager's callback references so it uses the latest callbacks

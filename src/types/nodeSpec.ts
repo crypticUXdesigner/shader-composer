@@ -73,7 +73,15 @@ export type LayoutElement =
   | RemapRangeElement
   | FrequencyRangeElement
   | BezierEditorElement
+  | ColorPickerElement
   | CustomElement;
+
+/** OKLCH color picker: one row with swatch + picker button; parameters l, c, h. */
+export interface ColorPickerElement {
+  type: 'color-picker';
+  /** Parameter names [l, c, h] */
+  parameters?: ['l', 'c', 'h'];
+}
 
 // Default: auto-generates grid from all parameters, respects parameterGroups
 export interface AutoGridElement {

@@ -198,7 +198,7 @@ export class MainCodeGenerator {
         continue;
       }
 
-      const nodeCode = this.generateNodeCode(node, nodeSpec, graph, variableNames, uniformNames, functionNameMap);
+      const nodeCode = this.generateNodeCode(node, nodeSpec, graph, executionOrder, variableNames, uniformNames, functionNameMap);
       mainCode.push(`  // Node: ${nodeSpec.displayName} (${nodeId})`);
       // Wrap each node's code in a block scope to prevent variable name collisions
       mainCode.push('  {');
@@ -259,6 +259,7 @@ export class MainCodeGenerator {
     node: NodeInstance,
     nodeSpec: NodeSpec,
     graph: NodeGraph,
+    executionOrder: string[],
     variableNames: Map<string, Map<string, string>>,
     uniformNames: Map<string, string>,
     functionNameMap: Map<string, Map<string, string>> = new Map()
@@ -298,52 +299,58 @@ export class MainCodeGenerator {
       }
     }
 
-    // Get parameter input variable names (from parameter connections)
+    // Get parameter input variable names (from parameter connections).
+    // When multiple connections target the same parameter (invalid but possible), prefer the source
+    // that is topologically closest to this node (latest in execution order), so e.g. one-minus -> hexGap
+    // wins over audio-analyzer -> hexGap when both exist.
     const parameterInputVars = new Map<string, string>();
+    const paramSourceIndex = new Map<string, number>(); // paramName -> executionOrder index of chosen source
+    const targetIndex = executionOrder.indexOf(node.id);
+    // If node not in execution order (e.g. should not happen), allow any source so we don't drop all param connections
+    const effectiveTargetIndex = targetIndex < 0 ? executionOrder.length : targetIndex;
     for (const conn of graph.connections) {
-      if (conn.targetNodeId === node.id && conn.targetParameter) {
-        const sourceNode = graph.nodes.find(n => n.id === conn.sourceNodeId);
-        if (!sourceNode) continue;
+      if (conn.targetNodeId !== node.id || !conn.targetParameter) continue;
+      const sourceNode = graph.nodes.find(n => n.id === conn.sourceNodeId);
+      if (!sourceNode) continue;
 
-        const sourceSpec = this.nodeSpecs.get(sourceNode.type);
-        if (!sourceSpec) continue;
+      const sourceSpec = this.nodeSpecs.get(sourceNode.type);
+      if (!sourceSpec) continue;
 
-        const sourceOutput = sourceSpec.outputs.find(o => o.name === conn.sourcePort);
-        const paramSpec = nodeSpec.parameters[conn.targetParameter];
-        
-        // Only allow float parameters to have input connections
-        if (!sourceOutput || !paramSpec || paramSpec.type !== 'float') continue;
+      const sourceOutput = sourceSpec.outputs.find(o => o.name === conn.sourcePort);
+      const paramSpec = nodeSpec.parameters[conn.targetParameter];
+      if (!sourceOutput || !paramSpec || paramSpec.type !== 'float') continue;
 
-        const sourceVarName = variableNames.get(conn.sourceNodeId)?.get(conn.sourcePort);
-        if (!sourceVarName) {
-          console.warn(
-            `[NodeShaderCompiler] Variable name not found for connection: ` +
-            `${conn.sourceNodeId}.${conn.sourcePort} -> ${node.id}.${conn.targetParameter}`
-          );
-          continue;
-        }
+      const sourceIndex = executionOrder.indexOf(conn.sourceNodeId);
+      if (sourceIndex < 0 || sourceIndex >= effectiveTargetIndex) continue; // source must run before target
+      const existingIndex = paramSourceIndex.get(conn.targetParameter) ?? -1;
+      if (sourceIndex <= existingIndex) continue; // keep connection whose source is later (closer to target)
 
-        // Promote to appropriate type based on parameter type (float only)
-        let promotedVar = sourceVarName;
-        // Parameter is float - convert int inputs to float, extract first component for vec types
-        if (sourceOutput.type === 'int') {
-          promotedVar = `float(${sourceVarName})`;
-        } else if (sourceOutput.type !== 'float') {
-          // Extract first component for vec types
-          promotedVar = `${sourceVarName}.x`;
-        }
-        // Debug logging for turbulence time offset
-        if (nodeSpec.id === 'turbulence' && conn.targetParameter === 'turbulenceTimeOffset') {
-          console.log(`[Turbulence TimeOffset Connection] Found connection for ${node.id}:`, {
-            sourceNodeId: conn.sourceNodeId,
-            sourcePort: conn.sourcePort,
-            sourceVarName,
-            promotedVar,
-            targetParameter: conn.targetParameter
-          });
-        }
-        parameterInputVars.set(conn.targetParameter, promotedVar);
+      let sourceVarName = variableNames.get(conn.sourceNodeId)?.get(conn.sourcePort);
+      if (!sourceVarName) {
+        sourceVarName = this.generateOutputVariableName(conn.sourceNodeId, conn.sourcePort);
+        console.warn(
+          `[NodeShaderCompiler] Variable name not in map for connection, using fallback: ` +
+          `${conn.sourceNodeId}.${conn.sourcePort} -> ${node.id}.${conn.targetParameter} => ${sourceVarName}`
+        );
       }
+
+      let promotedVar = sourceVarName;
+      if (sourceOutput.type === 'int') {
+        promotedVar = `float(${sourceVarName})`;
+      } else if (sourceOutput.type !== 'float') {
+        promotedVar = `${sourceVarName}.x`;
+      }
+      if (nodeSpec.id === 'turbulence' && conn.targetParameter === 'turbulenceTimeOffset') {
+        console.log(`[Turbulence TimeOffset Connection] Found connection for ${node.id}:`, {
+          sourceNodeId: conn.sourceNodeId,
+          sourcePort: conn.sourcePort,
+          sourceVarName,
+          promotedVar,
+          targetParameter: conn.targetParameter
+        });
+      }
+      parameterInputVars.set(conn.targetParameter, promotedVar);
+      paramSourceIndex.set(conn.targetParameter, sourceIndex);
     }
 
     // Initialize inputs that aren't connected (use defaults)
@@ -424,6 +431,31 @@ export class MainCodeGenerator {
   }
 
   /**
+   * Generate output variable name for a node/port (same convention as VariableNameGenerator).
+   * Used as fallback when building parameterInputVars so parameter connections are always wired.
+   */
+  private generateOutputVariableName(nodeId: string, portName: string): string {
+    const sanitizedId = nodeId.replace(/[^a-zA-Z0-9]/g, '_');
+    const sanitizedPort = portName.replace(/[^a-zA-Z0-9]/g, '_');
+    return `node_${sanitizedId}_${sanitizedPort}`;
+  }
+
+  /**
+   * Format a numeric parameter value for GLSL so float context (e.g. clamp(x, 0.0, 1.0)) gets
+   * a float literal; GLSL treats "0" as int and clamp(int, float, float) has no matching overload.
+   */
+  private formatParamLiteralForGlsl(
+    value: number,
+    paramSpec?: { type?: string } | null
+  ): string {
+    const isFloat = paramSpec?.type !== 'int';
+    if (isFloat && typeof value === 'number') {
+      return Number.isInteger(value) ? `${value}.0` : String(value);
+    }
+    return String(Math.round(value));
+  }
+
+  /**
    * Get default value for an unconnected input
    */
   private getInputDefaultValue(type: string): string {
@@ -463,7 +495,9 @@ export class MainCodeGenerator {
   }
 
   /**
-   * Generate type promotion code
+   * Generate type promotion or demotion code for input connections.
+   * Promotion: float→vec2/vec3/vec4, vec2→vec3/vec4, vec3→vec4.
+   * Demotion: vec4→vec3/vec2/float, vec3→vec2/float, vec2→float (extract components).
    */
   private generatePromotionCode(
     sourceVar: string,
@@ -487,12 +521,28 @@ export class MainCodeGenerator {
       }
     };
 
-    const promotion = promotions[sourceType]?.[targetType];
-    if (!promotion) {
-      throw new Error(`Cannot promote ${sourceType} to ${targetType}`);
-    }
+    const demotions: Record<string, Record<string, string>> = {
+      'vec4': {
+        'float': `${sourceVar}.r`,
+        'vec2': `${sourceVar}.xy`,
+        'vec3': `${sourceVar}.rgb`
+      },
+      'vec3': {
+        'float': `${sourceVar}.r`,
+        'vec2': `${sourceVar}.xy`
+      },
+      'vec2': {
+        'float': `${sourceVar}.x`
+      }
+    };
 
-    return promotion;
+    const promotion = promotions[sourceType]?.[targetType];
+    if (promotion) return promotion;
+
+    const demotion = demotions[sourceType]?.[targetType];
+    if (demotion) return demotion;
+
+    throw new Error(`Cannot convert ${sourceType} to ${targetType}`);
   }
 
   /**
@@ -560,7 +610,7 @@ export class MainCodeGenerator {
           // For other string parameters, we can't use them as uniforms in GLSL
           // They should be handled at compile time or not used in shader code
           // For now, just remove the placeholder to avoid errors
-          const regex = new RegExp(`\\$param\\.${this.escapeRegex(paramName)}`, 'g');
+          const regex = new RegExp(`\\$param\\.${this.escapeRegex(paramName)}\\b`, 'g');
           result = result.replace(regex, '""');
         }
       } else {
@@ -577,7 +627,8 @@ export class MainCodeGenerator {
           
           if (inputMode === 'override') {
             // Override mode: use input value directly (consistent with function code handling)
-            const regex = new RegExp(`\\$param\\.${this.escapeRegex(paramName)}`, 'g');
+            // \b ensures we only replace the full param name (e.g. hexSize not hexSizeVariationSteps)
+            const regex = new RegExp(`\\$param\\.${this.escapeRegex(paramName)}\\b`, 'g');
             result = result.replace(regex, paramInputVar);
           } else {
             // Add/subtract/multiply mode: need to combine with config value
@@ -623,34 +674,32 @@ export class MainCodeGenerator {
                 nodeParamValue: node.parameters[paramName]
               });
             }
-            const regex = new RegExp(`\\$param\\.${this.escapeRegex(paramName)}`, 'g');
+            const regex = new RegExp(`\\$param\\.${this.escapeRegex(paramName)}\\b`, 'g');
             result = result.replace(regex, combinedExpr);
           }
         } else {
           // Regular parameter - use uniform
           const uniformName = uniformNames.get(`${node.id}.${paramName}`) || '';
           if (uniformName) {
-            const regex = new RegExp(`\\$param\\.${this.escapeRegex(paramName)}`, 'g');
+            const regex = new RegExp(`\\$param\\.${this.escapeRegex(paramName)}\\b`, 'g');
             result = result.replace(regex, uniformName);
           } else if (paramSpec) {
-            // No uniform found - use default value directly
-            const defaultValue = paramSpec.default !== undefined ? String(paramSpec.default) : 
-                                paramSpec.type === 'int' ? '0' : '0.0';
-            const regex = new RegExp(`\\$param\\.${this.escapeRegex(paramName)}`, 'g');
+            // No uniform found - use default value directly (float literals must be "0.0" not "0" for clamp etc.)
+            const rawDefault: number = paramSpec.default !== undefined && typeof paramSpec.default === 'number'
+              ? paramSpec.default
+              : (paramSpec.type === 'int' ? 0 : 0.0);
+            const defaultValue = this.formatParamLiteralForGlsl(rawDefault, paramSpec);
+            const regex = new RegExp(`\\$param\\.${this.escapeRegex(paramName)}\\b`, 'g');
             result = result.replace(regex, defaultValue);
           } else {
             // paramSpec is undefined - try to use value from node.parameters directly
-            // This handles cases where parameter exists in code but not in spec
             const paramValue = node.parameters[paramName];
-            if (paramValue !== undefined) {
-              // Use the actual parameter value
-              const valueStr = String(paramValue);
-              const regex = new RegExp(`\\$param\\.${this.escapeRegex(paramName)}`, 'g');
+            if (paramValue !== undefined && typeof paramValue === 'number') {
+              const valueStr = this.formatParamLiteralForGlsl(paramValue, undefined);
+              const regex = new RegExp(`\\$param\\.${this.escapeRegex(paramName)}\\b`, 'g');
               result = result.replace(regex, valueStr);
             } else {
-              // No value found - use safe default (0.0 for float, 0 for int)
-              // Try to infer type from usage context, default to float
-              const regex = new RegExp(`\\$param\\.${this.escapeRegex(paramName)}`, 'g');
+              const regex = new RegExp(`\\$param\\.${this.escapeRegex(paramName)}\\b`, 'g');
               result = result.replace(regex, '0.0');
             }
           }
@@ -659,16 +708,14 @@ export class MainCodeGenerator {
     }
 
     // Final cleanup pass: catch any remaining $param.* placeholders that weren't replaced
-    // This is a safety net for edge cases
+    // Use float literals (e.g. 0.0) so clamp(float, float, float) gets valid args in GLSL
     result = result.replace(/\$param\.\w+/g, (match) => {
-      // Extract parameter name
       const paramName = match.replace('$param.', '');
-      // Try to find it in node.parameters as last resort
+      const paramSpec = nodeSpec.parameters[paramName];
       const paramValue = node.parameters[paramName];
-      if (paramValue !== undefined) {
-        return String(paramValue);
+      if (paramValue !== undefined && typeof paramValue === 'number') {
+        return this.formatParamLiteralForGlsl(paramValue, paramSpec);
       }
-      // Default to 0.0 if nothing found
       return '0.0';
     });
 

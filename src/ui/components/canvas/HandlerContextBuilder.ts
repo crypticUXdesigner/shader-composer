@@ -121,6 +121,7 @@ export interface HandlerContextDependencies {
   // Callbacks (optional). Prefer getters when callbacks may be set after context creation.
   onNodeMoved?: (nodeId: string, x: number, y: number) => void;
   onNodeSelected?: (nodeId: string | null, multiSelect: boolean) => void;
+  getOnNodeSelected?: () => HandlerContextDependencies['onNodeSelected'];
   onConnectionCreated?: (sourceNodeId: string, sourcePort: string, targetNodeId: string, targetPort?: string, targetParameter?: string) => void;
   getOnConnectionCreated?: () => HandlerContextDependencies['onConnectionCreated'];
   onConnectionSelected?: (connectionId: string | null, multiSelect: boolean) => void;
@@ -212,7 +213,10 @@ export class HandlerContextBuilder {
       render: () => this.deps.render(),
       setCursor: (cursor) => { this.deps.canvas.style.cursor = cursor; },
       onNodeMoved: this.deps.onNodeMoved,
-      onNodeSelected: this.deps.onNodeSelected,
+      onNodeSelected: (nodeId, multiSelect) => {
+        const fn = this.deps.getOnNodeSelected?.() ?? this.deps.onNodeSelected;
+        fn?.(nodeId, multiSelect);
+      },
       onConnectionCreated: (...args) => {
         const fn = this.deps.getOnConnectionCreated?.() ?? this.deps.onConnectionCreated;
         if (fn) fn(...args);

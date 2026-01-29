@@ -15,6 +15,7 @@ import { GridElementRenderer } from './elements/GridElement';
 import { RemapRangeElementRenderer } from './elements/RemapRangeElement';
 import { FrequencyRangeElementRenderer } from './elements/FrequencyRangeElement';
 import { BezierEditorElementRenderer } from './elements/BezierEditorElement';
+import { ColorPickerElementRenderer } from './elements/ColorPickerElement';
 import type { LayoutElementRenderer, ElementMetrics } from './LayoutElementRenderer';
 import { BodyFlexboxLayout } from '../BodyFlexboxLayout';
 
@@ -50,7 +51,8 @@ export class ParameterLayoutManager {
       new GridElementRenderer(ctx),
       new RemapRangeElementRenderer(ctx),
       new FrequencyRangeElementRenderer(ctx),
-      new BezierEditorElementRenderer(ctx)
+      new BezierEditorElementRenderer(ctx),
+      new ColorPickerElementRenderer(ctx)
     ];
     
     this.bodyLayout = new BodyFlexboxLayout();
@@ -265,6 +267,7 @@ export class ParameterLayoutManager {
       connectedParameters?: Set<string>;
       effectiveParameterValues?: Map<string, number | null>;
       skipPorts?: boolean;
+      audioRemapLiveValues?: { incoming: number | null; outgoing: number | null };
     }
   ): void {
     // Use the same layout generation logic as calculateMetrics

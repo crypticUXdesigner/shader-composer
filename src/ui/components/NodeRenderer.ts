@@ -776,7 +776,8 @@ export class NodeRenderer {
     let sliderOutputActiveColor = getCSSColor('range-editor-slider-output-active-color', getCSSColor('color-purple-90', '#8b5cf6'));
     if (useRemapRangeTokens) {
       sliderInputActiveColor = getCSSColor('remap-range-slider-input-color', getCSSColor('range-editor-slider-input-active-color', sliderInputActiveColor));
-      sliderOutputActiveColor = getCSSColor('remap-range-slider-output-color', getCSSColor('range-editor-slider-output-active-color', sliderOutputActiveColor));
+      // Output (end) slider: green; skip range-editor fallback (purple) so we never show wrong color
+      sliderOutputActiveColor = getCSSColor('remap-range-slider-output-color', getCSSColor('color-green-90', '#6ee7b7'));
     }
     const sliderWidth = getCSSVariableAsNumber('range-editor-slider-width', 18);
     const handleSize = getCSSVariableAsNumber('range-editor-handle-size', 12);
@@ -1811,7 +1812,8 @@ export class NodeRenderer {
     connectingPortName?: string | null,
     isConnectingParameter?: boolean,
     connectedParameters?: Set<string>,
-    skipPorts: boolean = false
+    skipPorts: boolean = false,
+    audioRemapLiveValues?: { incoming: number | null; outgoing: number | null }
   ): void {
     const { width, height, headerHeight } = metrics;
     const x = node.position.x;
@@ -2050,7 +2052,8 @@ export class NodeRenderer {
               isConnectingParameter,
               connectedParameters,
               effectiveParameterValues,
-              skipPorts
+              skipPorts,
+              audioRemapLiveValues
             }
           );
 

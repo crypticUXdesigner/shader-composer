@@ -46,6 +46,7 @@ const iconNameMap: Record<IconName, string> = {
   'arrows-minimize': 'arrows-minimize',
   'copy': 'copy',
   'photo': 'photo',
+  'help-circle': 'help-circle',
 };
 
 export type IconName = 
@@ -79,7 +80,8 @@ export type IconName =
   | 'arrows-maximize'
   | 'arrows-minimize'
   | 'copy'
-  | 'photo';
+  | 'photo'
+  | 'help-circle';
 
 // Helper to get icon path data from Tabler nodes
 function getIconPathData(iconName: string, variant: 'line' | 'filled'): Array<{ d: string }> {

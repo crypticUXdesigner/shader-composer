@@ -16,7 +16,7 @@ import { ViewStateManager } from './ViewStateManager';
 import { ConnectionStateManager } from './ConnectionStateManager';
 import { getCSSColor, getCSSVariableAsNumber } from '../../../utils/cssTokens';
 import { isRectVisibleWithMargin, type Viewport } from '../../../utils/viewport';
-import { computeEffectiveParameterValue } from '../../../utils/parameterValueCalculator';
+import { computeEffectiveParameterValue, getAudioRemapLiveValues } from '../../../utils/parameterValueCalculator';
 import type { IAudioManager } from '../../../runtime/types';
 
 export interface RenderingOrchestratorDependencies {
@@ -223,6 +223,9 @@ export class RenderingOrchestrator {
       component = new NodeComponent(this.dependencies.ctx, node, spec, this.dependencies.nodeRenderer);
       this.dependencies.nodeComponents.set(node.id, component);
       component.mount();
+    } else {
+      // Sync node reference so parameter/value updates (e.g. during drag) are visible
+      component.updateNode(node);
     }
     
     // Update component state
@@ -268,6 +271,17 @@ export class RenderingOrchestrator {
       }
     }
     
+    // Compute live incoming/outgoing values for audio-remap (for needle markers)
+    let audioRemapLiveValues: { incoming: number | null; outgoing: number | null } | undefined;
+    if (node.type === 'audio-remap') {
+      audioRemapLiveValues = getAudioRemapLiveValues(
+        node,
+        this.dependencies.graph,
+        this.dependencies.nodeSpecs,
+        this.dependencies.audioManager
+      );
+    }
+
     // Update component state
     component.setState({
       isSelected,
@@ -277,7 +291,8 @@ export class RenderingOrchestrator {
       connectingPortName,
       isConnectingParameter,
       connectedParameters,
-      skipPorts
+      skipPorts,
+      audioRemapLiveValues
     });
     
     // Always invalidate and recalculate metrics - they depend on node.position which changes when dragging

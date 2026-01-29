@@ -117,8 +117,8 @@ class App {
     try {
       const presets = await listPresets();
       if (presets.length > 0) {
-        // Prefer "testing" preset, otherwise load the first preset alphabetically
-        let selectedPreset = presets.find(p => p.name === 'testing');
+        // Prefer "hexagon" preset, otherwise load the first preset alphabetically
+        let selectedPreset = presets.find(p => p.name === 'hexagon');
         if (!selectedPreset) {
           selectedPreset = presets[0];
         }
@@ -193,8 +193,8 @@ class App {
         onConnectionRemoved: (connectionId) => {
           this.runtimeManager.onConnectionRemoved(connectionId);
         },
-        onParameterChanged: (nodeId, paramName, value) => {
-          this.runtimeManager.updateParameter(nodeId, paramName, value);
+        onParameterChanged: (nodeId, paramName, value, graph) => {
+          this.runtimeManager.updateParameter(nodeId, paramName, value, graph);
         },
         onFileParameterChanged: async (nodeId, paramName, file) => {
           console.log(`[main] onFileParameterChanged callback: nodeId=${nodeId}, paramName=${paramName}, file=`, file.name);
@@ -205,6 +205,9 @@ class App {
             console.error(`[main] Error in onAudioFileParameterChange:`, error);
             throw error;
           }
+        },
+        onSelectionChanged: (selectedNodeIds) => {
+          this.layout.updateHelpButtonState(selectedNodeIds);
         }
       }
     );
@@ -212,13 +215,8 @@ class App {
     // Set audio manager reference in canvas for real-time value display
     this.nodeEditor.getCanvasComponent().setAudioManager(this.runtimeManager.getAudioManager());
     
-    // If viewState was not preserved from preset (default values), fit to view to show all nodes
-    if (initialGraph.viewState && 
-        initialGraph.viewState.zoom === 1.0 && 
-        initialGraph.viewState.panX === 0 && 
-        initialGraph.viewState.panY === 0 &&
-        initialGraph.nodes.length > 0) {
-      // Use setTimeout to ensure canvas is ready and metrics are calculated
+    // When a project is loaded, always zoom out to fit all nodes in view
+    if (initialGraph.nodes.length > 0) {
       setTimeout(() => {
         this.nodeEditor.getCanvasComponent().fitToView();
       }, 0);
@@ -316,10 +314,8 @@ class App {
         this.nodeEditor.setGraph(presetGraph);
         await this.runtimeManager.setGraph(presetGraph);
         
-        // If viewState was not preserved from preset, fit to view to show all nodes
-        if (!presetGraph.viewState || 
-            (presetGraph.viewState.zoom === 1.0 && presetGraph.viewState.panX === 0 && presetGraph.viewState.panY === 0)) {
-          // Use setTimeout to ensure canvas is ready and metrics are calculated
+        // When a project is loaded, always zoom out to fit all nodes in view
+        if (presetGraph.nodes.length > 0) {
           setTimeout(() => {
             this.nodeEditor.getCanvasComponent().fitToView();
           }, 0);
@@ -343,6 +339,18 @@ class App {
         return this.nodeEditor.getCanvasComponent().getViewState().zoom;
       }
     });
+    
+    // Setup Help button (enabled when exactly one node is selected)
+    this.layout.setHelpCallbacks({
+      isHelpEnabled: () => {
+        const ids = this.nodeEditor.getCanvasComponent().getViewState().selectedNodeIds;
+        return ids.length === 1;
+      },
+      onHelpClick: () => {
+        this.nodeEditor.showHelpForSelection();
+      }
+    });
+    this.layout.updateHelpButtonState();
     
     // Load and populate preset list
     await this.loadPresetList();
@@ -434,6 +442,9 @@ class App {
       // Update time uniform (only if visible and dirty)
       const time = (currentTime / 1000.0) % 1000.0;
       this.runtimeManager.setTime(time);
+      
+      // Request node editor canvas redraw so audio-reactive UI (e.g. remap needles) animates every frame
+      this.nodeEditor.getCanvasComponent().requestRender();
       
       // Continue animation loop
       this.animationFrameId = requestAnimationFrame(animate);

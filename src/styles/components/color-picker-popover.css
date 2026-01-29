@@ -1,0 +1,128 @@
+/* Color Picker Popover Component */
+
+.color-picker-popover-overlay {
+  /* Layout */
+  position: fixed;
+  inset: 0;
+  display: none;
+  pointer-events: none;
+
+  /* Other */
+  z-index: 10000; /* One-off – above all overlays */
+
+  &.is-visible {
+    display: block;
+    pointer-events: auto;
+
+    /* Visual */
+    background: var(--search-dialog-overlay);
+  }
+
+  .popover {
+    /* Layout */
+    position: fixed;
+    pointer-events: auto;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: var(--pd-md);
+
+    /* Box model */
+    width: 240px; /* One-off dimension – popover panel */
+    padding: var(--pd-md);
+    border: 1px solid var(--color-gray-70);
+    border-radius: var(--color-picker-radius);
+
+    /* Visual */
+    background: var(--color-picker-bg);
+
+    /* Other */
+    z-index: 10001; /* One-off – above overlay */
+  }
+
+  .swatch {
+    /* Box model */
+    width: 100%;
+    height: 32px; /* One-off – swatch preview height */
+    border: 1px solid var(--color-gray-70);
+    border-radius: var(--radius-sm);
+  }
+
+  .sv-box {
+    /* Layout */
+    position: relative;
+    overflow: hidden;
+
+    /* Box model */
+    width: 100%; /* One-off – SV picker size */
+    height: 180px; /* One-off – SV picker size */
+    border-radius: var(--radius-sm);
+
+    /* Other */
+    cursor: crosshair;
+  }
+
+  .sv-canvas {
+    /* Layout */
+    display: block;
+
+    /* Box model */
+    width: 100%;
+    height: 100%;
+    border-radius: var(--radius-sm);
+  }
+
+  .sv-pointer {
+    /* Layout */
+    position: absolute;
+    margin: -6px 0 0 -6px; /* Center 12px on cursor */
+    pointer-events: none;
+
+    /* Box model */
+    width: 12px; /* One-off – pointer size */
+    height: 12px; /* One-off – pointer size */
+    border: 2px solid var(--color-gray-130);
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3); /* One-off – pointer outline */
+  }
+
+  .hue-strip {
+    /* Layout */
+    position: relative;
+    overflow: hidden;
+
+    /* Box model */
+    height: 12px; /* One-off – hue strip height */
+    border-radius: var(--radius-sm);
+
+    /* Other */
+    cursor: pointer;
+  }
+
+  .hue-canvas {
+    /* Layout */
+    display: block;
+
+    /* Box model */
+    width: 100%;
+    height: 100%;
+    border-radius: var(--radius-sm);
+  }
+
+  .hue-pointer {
+    /* Layout */
+    position: absolute;
+    top: 0;
+    margin-left: -2px; /* Center 4px on strip */
+    pointer-events: none;
+
+    /* Box model */
+    width: 4px; /* One-off – hue pointer width */
+    height: 100%;
+    border: 2px solid var(--color-gray-130);
+    border-radius: 2px; /* One-off – thin pointer */
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3); /* One-off – pointer outline */
+  }
+}

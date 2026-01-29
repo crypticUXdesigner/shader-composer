@@ -77,6 +77,11 @@ export class AudioParameterHandler {
           ) {
             try {
               await this.onAudioFileParameterChange(node.id, 'filePath', resolvedPath, graph);
+              // If load failed internally (handler doesn't throw), node won't have audio - clear filePath so user can select
+              const stateAfter = this.audioManager.getAudioNodeState(node.id);
+              if (!stateAfter || !stateAfter.audioBuffer) {
+                node.parameters.filePath = '';
+              }
             } catch (error: any) {
               const handler = this.errorHandler || globalErrorHandler;
               if (handler) {
@@ -93,7 +98,8 @@ export class AudioParameterHandler {
                   }
                 );
               }
-              // Continue loading other files even if one fails
+              // Clear filePath so node shows "Select File" and user can pick a file (e.g. from public)
+              node.parameters.filePath = '';
             }
           } else {
             const handler = this.errorHandler || globalErrorHandler;
@@ -247,6 +253,9 @@ export class AudioParameterHandler {
           return;
         }
 
+        // Remember if this node was playing so we can resume after loading the new file
+        const wasPlaying = existingState?.isPlaying ?? false;
+
         let filename = '';
 
         if (value instanceof File) {
@@ -293,18 +302,15 @@ export class AudioParameterHandler {
           this.initializeAudioAnalyzers(graph);
         }
 
-        // Auto-play if enabled (only after user interaction)
+        // Auto-play if enabled, or resume if this node was playing before the file change
         const node = graph?.nodes.find((n) => n.id === nodeId);
-        // Handle both integer and float values (0.42 should be treated as 0, 1.0 as 1)
         const autoPlayValue =
           typeof node?.parameters.autoPlay === 'number'
             ? Math.round(node.parameters.autoPlay)
             : 0;
-        if (node && autoPlayValue === 1) {
-          // Try to play, but don't fail if autoplay is blocked
-          // Note: Autoplay may be blocked by browser policy - user interaction required
+        const shouldPlay = (node && autoPlayValue === 1) || wasPlaying;
+        if (shouldPlay) {
           this.audioManager.playAudio(nodeId).catch((error) => {
-            // This is expected if autoplay is blocked - audio is still loaded and ready
             const errorMsg = error?.message || String(error);
             if (
               !errorMsg.includes('user gesture') &&
@@ -361,7 +367,7 @@ export class AudioParameterHandler {
   onAudioAnalyzerParameterChange(
     nodeId: string,
     paramName: string,
-    _value: any,
+    value: any,
     graph: NodeGraph
   ): void {
     const node = graph.nodes.find((n) => n.id === nodeId);
@@ -384,22 +390,34 @@ export class AudioParameterHandler {
       // Remove old analyzer
       this.audioManager.removeAnalyzerNode(nodeId);
 
-      // Get current parameter values
-      // Type guard for frequencyBands: must be array of number arrays
+      // Prefer the passed value for frequencyBands so we're not dependent on graph reference.
+      // Deep-clone so we're not affected by later mutation of the editor's array.
       let frequencyBands: number[][] | undefined;
-      const freqParam = node.parameters.frequencyBands;
-      if (
-        Array.isArray(freqParam) &&
-        freqParam.length > 0 &&
-        Array.isArray(freqParam[0])
-      ) {
-        const isValid = freqParam.every(
+      if (paramName === 'frequencyBands' && Array.isArray(value) && value.length > 0 && Array.isArray(value[0])) {
+        const isValid = value.every(
           (item: any) =>
             Array.isArray(item) &&
             item.every((el: any) => typeof el === 'number')
         );
         if (isValid) {
-          frequencyBands = freqParam as unknown as number[][];
+          frequencyBands = (value as number[][]).map((band) => [Number(band[0]), Number(band[1])]);
+        }
+      }
+      if (frequencyBands == null) {
+        const freqParam = node.parameters.frequencyBands;
+        if (
+          Array.isArray(freqParam) &&
+          freqParam.length > 0 &&
+          Array.isArray(freqParam[0])
+        ) {
+          const isValid = freqParam.every(
+            (item: any) =>
+              Array.isArray(item) &&
+              item.every((el: any) => typeof el === 'number')
+          );
+          if (isValid) {
+            frequencyBands = freqParam as unknown as number[][];
+          }
         }
       }
       const smoothing =

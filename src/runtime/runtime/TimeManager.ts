@@ -20,12 +20,14 @@ export class TimeManager {
 
   /**
    * Update time uniform if it changed meaningfully or if dirty.
-   * 
+   * Audio uniforms are always updated every frame when a shader exists, so
+   * audio-reactive parameters stay live regardless of time or dirty state.
+   *
    * @param time - Current time value
    * @param shaderInstance - Shader instance to update
    * @param renderer - Renderer to mark dirty and render
    * @param updateAudioUniforms - Callback to update audio uniforms
-   * @returns true if time was updated, false otherwise
+   * @returns true if time was updated and render ran, false otherwise
    */
   updateTime(
     time: number,
@@ -35,24 +37,26 @@ export class TimeManager {
   ): boolean {
     if (!shaderInstance) return false;
 
-    // Only update time if it changed meaningfully (0.01s threshold)
+    // Always update audio uniforms every frame when we have a shader, so
+    // parameter connections to audio (analyzer, remap, etc.) stay reactive
+    // even when time hasn't changed or nothing is dirty.
+    if (updateAudioUniforms) {
+      updateAudioUniforms(shaderInstance);
+    }
+
+    // Only update time uniform and render if time changed meaningfully or dirty
     const timeChanged = Math.abs(time - this.lastTime) > this.TIME_CHANGE_THRESHOLD;
     if (!timeChanged && !this.isDirty) {
-      return false; // Skip - time hasn't changed and nothing else is dirty
+      return false; // Skip time/render - time hasn't changed and nothing else is dirty
     }
 
     this.lastTime = time;
     shaderInstance.setTime(time);
 
-    // Update audio uniforms (they may have changed even if time didn't)
-    if (updateAudioUniforms) {
-      updateAudioUniforms(shaderInstance);
-    }
-
     // Mark as dirty and render
     renderer.markDirty('time');
     renderer.render();
-    
+
     return true;
   }
 

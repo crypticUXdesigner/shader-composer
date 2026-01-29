@@ -120,13 +120,15 @@ export class InputParameterRenderer extends ParameterRenderer {
       portScale: showPort ? portScale : undefined
     });
 
+    // Show animated/connected style when port is connected or when we have a live effective value
+    const isAnimated = state.isConnected || state.effectiveValue !== null;
     this.renderInputField(
       ctx,
       displayValue,
       paramSpec,
       metrics.knobX,
       metrics.knobY,
-      state.effectiveValue !== null
+      isAnimated
     );
   }
 

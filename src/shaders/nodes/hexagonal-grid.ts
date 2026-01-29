@@ -3,7 +3,7 @@ import type { NodeSpec } from '../../types';
 export const hexagonalGridNodeSpec: NodeSpec = {
   id: 'hexagonal-grid',
   category: 'Patterns',
-  displayName: 'Hexagonal Grid',
+  displayName: 'Hexagons',
   description: 'Creates hexagonal tiling patterns for structured, geometric backgrounds',
   icon: 'hexagon',
   inputs: [
@@ -31,7 +31,7 @@ export const hexagonalGridNodeSpec: NodeSpec = {
       type: 'float',
       default: 0.0,
       min: 0.0,
-      max: 0.45,
+      max: 2.0,
       step: 0.01,
       label: 'Gap'
     },
@@ -49,7 +49,7 @@ export const hexagonalGridNodeSpec: NodeSpec = {
       min: 0.0,
       max: 1.0,
       step: 0.01,
-      label: 'Variation'
+      label: 'Size Amount'
     },
     hexSizeVariationSteps: {
       type: 'int',
@@ -57,7 +57,15 @@ export const hexagonalGridNodeSpec: NodeSpec = {
       min: 0,
       max: 16,
       step: 1,
-      label: 'Steps'
+      label: 'Size Steps'
+    },
+    hexVariationAnimationSpeed: {
+      type: 'float',
+      default: 0.0,
+      min: 0.0,
+      max: 10.0,
+      step: 0.01,
+      label: 'Animation Rate'
     },
     hexRotation: {
       type: 'float',
@@ -81,7 +89,7 @@ export const hexagonalGridNodeSpec: NodeSpec = {
       min: 0.0,
       max: 2.0,
       step: 0.01,
-      label: 'Intensity Var'
+      label: 'Intensity Amount'
     },
     hexSoftness: {
       type: 'float',
@@ -147,6 +155,14 @@ export const hexagonalGridNodeSpec: NodeSpec = {
       step: 0.01,
       label: 'Depth'
     },
+    hexPulseVariationImpact: {
+      type: 'float',
+      default: 0.0,
+      min: 0.0,
+      max: 1.0,
+      step: 0.01,
+      label: 'Impact Variation'
+    },
     hexWaveDirection: {
       type: 'float',
       default: 0.0,
@@ -178,20 +194,35 @@ export const hexagonalGridNodeSpec: NodeSpec = {
       max: 2.0,
       step: 0.01,
       label: 'Depth'
+    },
+    hexWaveVariationImpact: {
+      type: 'float',
+      default: 0.0,
+      min: 0.0,
+      max: 1.0,
+      step: 0.01,
+      label: 'Impact Variation'
     }
   },
   parameterGroups: [
     {
       id: 'hex-cells',
       label: 'Cells',
-      parameters: ['hexSize', 'hexSizeVariation', 'hexSizeVariationSteps', 'hexGap', 'hexCellRotation'],
+      parameters: ['hexSize', 'hexGap', 'hexCellRotation'],
+      collapsible: true,
+      defaultCollapsed: false
+    },
+    {
+      id: 'hex-variation',
+      label: 'Variation',
+      parameters: ['hexSizeVariation', 'hexSizeVariationSteps', 'hexIntensityVariation', 'hexVariationAnimationSpeed'],
       collapsible: true,
       defaultCollapsed: false
     },
     {
       id: 'hex-grid',
       label: 'Grid',
-      parameters: ['hexRotation', 'hexIntensity', 'hexIntensityVariation', 'hexSeed'],
+      parameters: ['hexRotation', 'hexIntensity', 'hexSeed'],
       collapsible: true,
       defaultCollapsed: false
     },
@@ -205,14 +236,14 @@ export const hexagonalGridNodeSpec: NodeSpec = {
     {
       id: 'hex-pulse',
       label: 'Pulse',
-      parameters: ['hexPulseDepth', 'hexPulseSpeed'],
+      parameters: ['hexPulseDepth', 'hexPulseSpeed', 'hexPulseVariationImpact'],
       collapsible: true,
       defaultCollapsed: true
     },
     {
       id: 'hex-wave',
       label: 'Wave',
-      parameters: ['hexWaveDepth', 'hexWaveFrequency', 'hexWaveDirection', 'hexWaveSpeed'],
+      parameters: ['hexWaveDepth', 'hexWaveFrequency', 'hexWaveDirection', 'hexWaveSpeed', 'hexWaveVariationImpact'],
       collapsible: true,
       defaultCollapsed: true
     }
@@ -315,16 +346,38 @@ vec2 rotate(vec2 p, float angle) {
   float inradius = size * sqrt3 * 0.5;
 
   // Gap is a fraction of the cell size (0 = touching, higher = more margin)
-  float gap = clamp($param.hexGap, 0.0, 0.95);
+  float gap = clamp($param.hexGap, 0.0, 2.0);
   
-  // Per-cell size variation changes shape size inside a fixed grid cell (tiling stays stable).
   float seed = float($param.hexSeed);
-  float sizeRnd = hash12(cell + seed);
+  
+  // Compute pulse and wave early so they can impact variation
+  float phase = hash12(cell + seed + 91.7) * 6.2831853;
+  float pulse = 1.0 + $param.hexPulseDepth * sin($time * $param.hexPulseSpeed + phase);
+  pulse = max(pulse, 0.0);
+  
+  float waveMul = 1.0;
+  if ($param.hexWaveDepth > 0.0 && ($param.hexWaveFrequency > 0.0 || $param.hexWaveSpeed > 0.0)) {
+    float th = $param.hexWaveDirection * 3.14159 / 180.0;
+    vec2 wdir = vec2(cos(th), sin(th));
+    float wave = sin(dot(center, wdir) * $param.hexWaveFrequency + $time * $param.hexWaveSpeed);
+    waveMul = 1.0 + wave * $param.hexWaveDepth;
+    waveMul = max(waveMul, 0.0);
+  }
+  
+  // Pulse/wave can modulate how strong variation is (0 = no impact, 1 = full)
+  float variationMod = mix(1.0, pulse, $param.hexPulseVariationImpact) * mix(1.0, waveMul, $param.hexWaveVariationImpact);
+  
+  // Animated variation: time-based seed so distribution of impacted hexagons updates
+  float varTime = floor($time * max($param.hexVariationAnimationSpeed, 0.0));
+  
+  // Per-cell size variation (animated when Variation > Animation Rate > 0)
+  float sizeRnd = hash12(cell + seed + varTime);
   if ($param.hexSizeVariationSteps > 1) {
     float steps = float($param.hexSizeVariationSteps);
     sizeRnd = floor(sizeRnd * steps) / max(1.0, steps - 1.0);
   }
-  float sizeMul = 1.0 + (sizeRnd * 2.0 - 1.0) * $param.hexSizeVariation;
+  float sizeVarAmt = $param.hexSizeVariation * variationMod;
+  float sizeMul = 1.0 + (sizeRnd * 2.0 - 1.0) * sizeVarAmt;
   sizeMul = max(sizeMul, 0.0);
   
   float patternInradius = max(inradius * (1.0 - gap) * sizeMul, 0.0);
@@ -352,25 +405,11 @@ vec2 rotate(vec2 p, float angle) {
     rim = clamp(rim, 0.0, 1.0);
   }
   
-  // Per-cell intensity variation (stable by cell id)
-  float intRnd = hash12(cell + seed + 17.23);
-  float intMul = 1.0 + (intRnd * 2.0 - 1.0) * $param.hexIntensityVariation;
+  // Per-cell intensity variation (same animated distribution as size when Animation Rate > 0)
+  float intRnd = hash12(cell + seed + 17.23 + varTime);
+  float intVarAmt = $param.hexIntensityVariation * variationMod;
+  float intMul = 1.0 + (intRnd * 2.0 - 1.0) * intVarAmt;
   intMul = max(intMul, 0.0);
-  
-  // Random-phase pulse (great for audio driving via Pulse Depth)
-  float phase = hash12(cell + seed + 91.7) * 6.2831853;
-  float pulse = 1.0 + $param.hexPulseDepth * sin($time * $param.hexPulseSpeed + phase);
-  pulse = max(pulse, 0.0);
-  
-  // Traveling wave across the grid (uses cell centers for smooth spatial coherence)
-  float waveMul = 1.0;
-  if ($param.hexWaveDepth > 0.0 && ($param.hexWaveFrequency > 0.0 || $param.hexWaveSpeed > 0.0)) {
-    float th = $param.hexWaveDirection * 3.14159 / 180.0;
-    vec2 wdir = vec2(cos(th), sin(th));
-    float wave = sin(dot(center, wdir) * $param.hexWaveFrequency + $time * $param.hexWaveSpeed);
-    waveMul = 1.0 + wave * $param.hexWaveDepth;
-    waveMul = max(waveMul, 0.0);
-  }
   
   float value = fill * $param.hexIntensity * intMul * pulse * waveMul;
   float edgeValue = edge * $param.hexEdgeIntensity;

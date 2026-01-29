@@ -114,6 +114,7 @@ export class NodeShaderCompiler {
       let executionOrder: string[];
       try {
         executionOrder = this.graphAnalyzer.topologicalSort(graph);
+        executionOrder = this.audioNodesFirst(executionOrder, graph);
       } catch (error) {
         // Circular dependency or other error - fall back to full compilation
         return null;
@@ -272,7 +273,11 @@ export class NodeShaderCompiler {
 
     // Step 2: Graph traversal - topological sort
     try {
-      const sorted = this.graphAnalyzer.topologicalSort(graph);
+      let sorted = this.graphAnalyzer.topologicalSort(graph);
+      // Ensure audio nodes (audio-file-input, audio-analyzer) run first so band/output
+      // variables are assigned from uniforms before any node (e.g. audio-remap, one-minus,
+      // hexagon) reads them. Otherwise the chain analyzer->remap->one-minus->param shows 0.
+      sorted = this.audioNodesFirst(sorted, graph);
       executionOrder.push(...sorted);
     } catch (error) {
       errors.push(`[ERROR] Circular Dependency: ${error instanceof Error ? error.message : 'Graph contains cycles'}`);
@@ -401,6 +406,26 @@ export class NodeShaderCompiler {
   }
 
   // Helper methods used by components
+
+  /**
+   * Reorder execution order so audio-file-input and audio-analyzer nodes run first.
+   * Their blocks assign band/output variables from uniforms; any node that reads
+   * those (e.g. audio-remap, one-minus, hexagon with param connection) must run after.
+   */
+  private audioNodesFirst(sorted: string[], graph: NodeGraph): string[] {
+    const audioProviderTypes = new Set(['audio-file-input', 'audio-analyzer']);
+    const audioIds: string[] = [];
+    const rest: string[] = [];
+    for (const nodeId of sorted) {
+      const node = graph.nodes.find(n => n.id === nodeId);
+      if (node && audioProviderTypes.has(node.type)) {
+        audioIds.push(nodeId);
+      } else {
+        rest.push(nodeId);
+      }
+    }
+    return audioIds.length === 0 ? sorted : [...audioIds, ...rest];
+  }
 
   /**
    * Check if a node is an audio node

@@ -244,26 +244,27 @@ export class CompilationManager implements Disposable {
       // Get previous compilation result for incremental compilation
       const previousResult = this.compilationMetadata?.result || null;
       
-      // Try incremental compilation if we have a previous result and changes are limited
+      // When connections change, always do full compilation so parameter inputs
+      // (e.g. hexGap from one-minus/audio) are correctly wired in the shader.
+      // Incremental compilation can leave parameter connection wiring stale.
+      const tryIncremental =
+        !changes.changedConnections &&
+        previousResult &&
+        changes.affectedNodeIds.size < this.graph.nodes.length * 0.5;
+
       let result: CompilationResult;
-      const changeThreshold = this.graph.nodes.length * 0.5; // 50% threshold
-      if (previousResult && changes.affectedNodeIds.size < changeThreshold) {
-        // Try incremental compilation
-        // Pass affectedNodeIds (changed nodes + dependents) for incremental compilation
+      if (tryIncremental) {
         const incrementalResult = (this.compiler as any).compileIncremental?.(
           this.graph,
           previousResult,
           changes.affectedNodeIds
         );
-        
         if (incrementalResult) {
           result = incrementalResult;
         } else {
-          // Fall back to full compilation
           result = this.compiler.compile(this.graph);
         }
       } else {
-        // Too many changes or no previous result - full compilation
         result = this.compiler.compile(this.graph);
       }
       

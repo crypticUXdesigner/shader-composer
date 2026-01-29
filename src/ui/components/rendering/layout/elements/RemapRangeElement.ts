@@ -100,7 +100,9 @@ export class RemapRangeElementRenderer implements LayoutElementRenderer {
     spec: NodeSpec,
     elementMetrics: ElementMetrics,
     _nodeMetrics: NodeRenderMetrics,
-    _renderState: any
+    renderState: {
+      audioRemapLiveValues?: { incoming: number | null; outgoing: number | null };
+    }
   ): void {
     // Validate metrics - check for undefined/null, not falsy (0 is valid for x/y)
     if (elementMetrics.x === undefined || elementMetrics.x === null ||
@@ -157,7 +159,8 @@ export class RemapRangeElementRenderer implements LayoutElementRenderer {
     const sliderRadius = getCSSVariableAsNumber('remap-range-slider-radius', 2);
     const sliderTrackColor = getCSSColor('remap-range-slider-track-color', getCSSColor('range-editor-slider-track-color', getCSSColor('color-gray-60', '#5a5f66')));
     const sliderInputActiveColor = getCSSColor('remap-range-slider-input-color', getCSSColor('range-editor-slider-input-active-color', getCSSColor('color-green-90', '#6ee7b7')));
-    const sliderOutputActiveColor = getCSSColor('remap-range-slider-output-color', getCSSColor('range-editor-slider-output-active-color', getCSSColor('color-purple-90', '#8b5cf6')));
+    // Output (end) slider: green; skip range-editor fallback (purple) so we never show wrong color
+    const sliderOutputActiveColor = getCSSColor('remap-range-slider-output-color', getCSSColor('color-green-90', '#6ee7b7'));
     const sliderWidth = getCSSVariableAsNumber('remap-range-slider-width', 120);
     const connectionColor = getCSSColor('remap-range-connection-color', getCSSColor('range-editor-connection-color', getCSSColor('color-blue-90', '#6565dc')));
     const connectionWidth = getCSSVariableAsNumber('remap-range-connection-width', 2);
@@ -251,6 +254,45 @@ export class RemapRangeElementRenderer implements LayoutElementRenderer {
     
     this.ctx.setLineDash([]);
     this.ctx.globalAlpha = 1.0;
+    
+    // Needle markers for audio-remap: show live incoming (left) and remapped outgoing (right) on a common scale
+    // so the two needles are at different heights when the numeric values differ (remap is visible).
+    const live = node.type === 'audio-remap' ? renderState.audioRemapLiveValues : undefined;
+    if (live && (live.incoming != null || live.outgoing != null)) {
+      const needleColor = getCSSColor('remap-range-needle-color', '#ffffff');
+      const needleWidth = getCSSVariableAsNumber('remap-range-needle-width', 3);
+      const needleExtend = getCSSVariableAsNumber('remap-range-needle-extend', 4);
+      // Common vertical scale so same height = same numeric value; different values = different heights
+      const scaleMin = Math.min(inMin, outMin);
+      const scaleMax = Math.max(inMax, outMax);
+      const scaleRange = scaleMax - scaleMin || 1;
+      const valueToY = (v: number) => {
+        const t = (v - scaleMin) / scaleRange;
+        const tClamped = Math.max(0, Math.min(1, t));
+        return sliderY + (1 - tClamped) * sliderHeight;
+      };
+      this.ctx.save();
+      this.ctx.strokeStyle = needleColor;
+      this.ctx.lineWidth = needleWidth;
+      this.ctx.lineCap = 'round';
+      this.ctx.setLineDash([]);
+      this.ctx.globalAlpha = 1;
+      if (live.incoming != null) {
+        const needleY = valueToY(live.incoming);
+        this.ctx.beginPath();
+        this.ctx.moveTo(inputSliderLeftEdge - needleExtend, needleY);
+        this.ctx.lineTo(inputSliderRightEdge + needleExtend, needleY);
+        this.ctx.stroke();
+      }
+      if (live.outgoing != null) {
+        const needleY = valueToY(live.outgoing);
+        this.ctx.beginPath();
+        this.ctx.moveTo(outputSliderLeftEdge - needleExtend, needleY);
+        this.ctx.lineTo(outputSliderRightEdge + needleExtend, needleY);
+        this.ctx.stroke();
+      }
+      this.ctx.restore();
+    }
     
     // Row 2: "IN:" (inMin) "—" (inMax)  [GAP]  "OUT:" (outMin) "—" (outMax)
     // Use same horizontal inset as row 1 (editorPadding) so labels/inputs align with slider content

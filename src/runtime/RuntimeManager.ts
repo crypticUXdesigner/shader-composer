@@ -159,8 +159,13 @@ export class RuntimeManager implements Disposable {
   /**
    * Update a parameter value.
    * Determines if recompilation is needed or just uniform update.
+   * @param graph - When provided (from editor after immutable param update), sync currentGraph so runtime uses latest state (e.g. audio-analyzer frequencyBands → remap signal flow).
    */
-  updateParameter(nodeId: string, paramName: string, value: number | number[][]): void {
+  updateParameter(nodeId: string, paramName: string, value: number | number[][], graph?: NodeGraph): void {
+    // Sync runtime graph when editor passes updated graph (avoids stale graph and wrong band ranges)
+    if (graph) {
+      this.currentGraph = graph;
+    }
     // Handle runtime-only parameters for audio nodes
     if (this.currentGraph) {
       const node = this.currentGraph.nodes.find(n => n.id === nodeId);

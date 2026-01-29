@@ -38,6 +38,11 @@ export const oklchColorNodeSpec: NodeSpec = {
       step: 1.0
     }
   },
+  parameterLayout: {
+    elements: [
+      { type: 'color-picker', parameters: ['l', 'c', 'h'] }
+    ]
+  },
   mainCode: `
     $output.out = vec3($param.l, $param.c, $param.h);
   `
@@ -151,7 +156,7 @@ export const bayerDitherNodeSpec: NodeSpec = {
 export const oklchColorMapBezierNodeSpec: NodeSpec = {
   id: 'oklch-color-map-bezier',
   category: 'Blend',
-  displayName: 'OKLCH Color Map (Bezier Mode)',
+  displayName: 'Color Map Smooth',
   description: 'Converts float value to RGB color using OKLCH color space with cubic bezier curve interpolation',
   icon: 'ease-in-out-control-points',
   inputs: [
@@ -255,7 +260,7 @@ export const oklchColorMapBezierNodeSpec: NodeSpec = {
 export const oklchColorMapThresholdNodeSpec: NodeSpec = {
   id: 'oklch-color-map-threshold',
   category: 'Blend',
-  displayName: 'OKLCH Color Map (Threshold Mode)',
+  displayName: 'Color Map Stepped',
   description: 'Converts float value to RGB color using OKLCH color space with threshold-based color stops and optional dithering',
   icon: 'color-palette',
   inputs: [
