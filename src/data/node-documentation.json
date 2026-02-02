@@ -2047,6 +2047,35 @@
         "node:multiply"
       ]
     },
+    "node:domain-repetition": {
+      "title": "Domain Repetition",
+      "titleType": "node",
+      "category": "Distort",
+      "icon": "grid",
+      "tagline": "Tile UVs so any upstream pattern repeats; output is in 0–1 per tile plus optional offset",
+      "description": "Transforms 2D coordinates so that downstream patterns tile seamlessly. Uses fract(uv * scale) plus an optional offset, so the output stays in 0–1 per cell. Connect UV (or other vec2) into Domain Repetition, then feed its output into any pattern node (e.g. fBm Noise, Rings) to get a repeating tiled result. Scale X/Y control how many tiles; offset shifts the tile phase.",
+      "inputs": [
+        {
+          "name": "in",
+          "type": "vec2",
+          "description": "Input coordinates (e.g. UV) to tile",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:scale", "node:rotate"]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "vec2",
+          "description": "Tiled coordinates in 0–1 per cell plus offset",
+          "suggestedTargets": ["node:fbm-noise", "node:simplex-noise", "node:rings", "node:wave-patterns", "node:hexagonal-grid", "node:flow-field-pattern"]
+        }
+      ],
+      "relatedItems": [
+        "node:translate",
+        "node:scale",
+        "node:fract"
+      ]
+    },
     "node:polar-coordinates": {
       "title": "Polar Coords",
       "titleType": "node",
@@ -2231,6 +2260,37 @@
         "node:time"
       ]
     },
+    "node:cubic-curl-noise": {
+      "title": "Cubic / Curl Noise",
+      "titleType": "node",
+      "category": "Patterns",
+      "icon": "noise",
+      "tagline": "Cubic value noise (smooth) or curl noise magnitude for flow-like patterns; alternative to fBm/Simplex",
+      "description": "Provides two noise modes: (1) Cubic scalar — value noise with smooth quintic interpolation and optional FBM, giving a visibly smoother look than linear value or simplex. (2) Curl — the magnitude of the 2D curl of a 3D potential (with time as z), producing flow-like, divergence-free variation ideal for flow fields or organic motion. Type switches between cubic and curl; scale, octaves, lacunarity, and gain control the noise; time speed animates the third dimension. Output is a float in 0–1 range. Curl outputs magnitude only; use with color-map or flow-field-pattern for flow effects.",
+      "inputs": [
+        {
+          "name": "in",
+          "type": "vec2",
+          "description": "Input UV coordinates to sample the noise",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:scale", "node:polar-coordinates"]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "float",
+          "description": "Noise value 0–1: cubic scalar or curl magnitude",
+          "suggestedTargets": ["node:color-map", "node:mix", "node:flow-field-pattern", "node:smoothstep", "node:remap"]
+        }
+      ],
+      "relatedItems": [
+        "node:fbm-noise",
+        "node:simplex-noise",
+        "node:flow-field-pattern",
+        "type:vec2",
+        "node:time"
+      ]
+    },
     "node:rings": {
       "title": "Rings",
       "titleType": "node",
@@ -2261,6 +2321,96 @@
         "node:fract"
       ]
     },
+    "node:truchet": {
+      "title": "Truchet",
+      "titleType": "node",
+      "category": "Patterns",
+      "icon": "shapes",
+      "tagline": "Truchet tiling with quarter-circles or diagonal lines and optional random flip per cell",
+      "description": "Generates classic Truchet tiling: each cell contains either quarter-circle arcs or diagonal lines. You can choose tile type (quarter circles or lines), enable random flip per cell for varied patterns, and adjust arc width, line width, and intensity. Connect UV coordinates to create decorative tile patterns suitable for backgrounds, mazes, or procedural textures.",
+      "inputs": [
+        {
+          "name": "in",
+          "type": "vec2",
+          "description": "The input UV coordinates to tile",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:scale"]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "float",
+          "description": "The Truchet pattern value (0.0 to 1.0)",
+          "suggestedTargets": ["node:color-map", "node:mix", "node:smoothstep"]
+        }
+      ],
+      "relatedItems": [
+        "node:triangle-grid",
+        "node:hexagonal-grid",
+        "node:plane-grid",
+        "type:vec2"
+      ]
+    },
+    "node:triangle-grid": {
+      "title": "Triangle Grid",
+      "titleType": "node",
+      "category": "Patterns",
+      "icon": "grid",
+      "tagline": "Regular triangular tiling with configurable edges and optional fill",
+      "description": "Creates a regular triangular grid by placing three families of lines at 0°, 60°, and 120°. You can control scale (cell size), line width, and intensity. Optionally enable fill to output alternating filled triangles instead of edges only. Ideal for geometric backgrounds, low-poly style, or tessellation effects when connected to a color map.",
+      "inputs": [
+        {
+          "name": "in",
+          "type": "vec2",
+          "description": "The input UV coordinates for the grid",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:scale"]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "float",
+          "description": "The triangle grid pattern (0.0 to 1.0)",
+          "suggestedTargets": ["node:color-map", "node:mix", "node:smoothstep"]
+        }
+      ],
+      "relatedItems": [
+        "node:truchet",
+        "node:hexagonal-grid",
+        "node:plane-grid",
+        "type:vec2"
+      ]
+    },
+    "node:spiral": {
+      "title": "Spiral",
+      "titleType": "node",
+      "category": "Patterns",
+      "icon": "spiral",
+      "tagline": "Spiral pattern with configurable density, rotation, arms, and thickness",
+      "description": "Generates a spiral pattern from a center point. Uses polar coordinates: spiral phase is derived from angle plus density times radius, with optional time phase for animation. You can set the number of arms, band thickness, and intensity. Ideal for galaxies, whirlpools, or decorative spiral effects when fed into a color map or mix node.",
+      "inputs": [
+        {
+          "name": "in",
+          "type": "vec2",
+          "description": "The input UV coordinates to generate the spiral from",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:polar-coordinates", "node:translate"]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "float",
+          "description": "The spiral band pattern value (0.0 to 1.0 range)",
+          "suggestedTargets": ["node:color-map", "node:mix", "node:smoothstep", "node:gradient-mask"]
+        }
+      ],
+      "relatedItems": [
+        "node:rings",
+        "node:polar-coordinates",
+        "node:twist-distortion",
+        "type:vec2"
+      ]
+    },
     "node:sphere-raymarch": {
       "title": "Sphere Raymarch",
       "titleType": "node",
@@ -2287,6 +2437,156 @@
         "node:distance",
         "type:vec2",
         "node:normalize"
+      ]
+    },
+    "node:volume-rays": {
+      "title": "Volume Rays",
+      "titleType": "node",
+      "category": "Patterns",
+      "icon": "glow",
+      "tagline": "Accumulates glow and density along the view ray using raymarching and 3D noise",
+      "description": "Marches a ray from the camera through the UV and accumulates density (3D value noise) along the ray to produce a volumetric glow. Uses the same ray setup as Sphere Raymarch: origin at (0,0,3), direction from normalized screen space. Control raymarch steps and step size, density scale, and output intensity. Ideal for fog, light shafts, or abstract volumetric effects.",
+      "inputs": [
+        {
+          "name": "in",
+          "type": "vec2",
+          "description": "Input UV coordinates to raymarch from",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:scale"]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "float",
+          "description": "Accumulated density/glow (float)",
+          "suggestedTargets": ["node:color-map", "node:mix", "node:multiply", "node:smoothstep"]
+        }
+      ],
+      "relatedItems": [
+        "node:sphere-raymarch",
+        "node:fbm-noise",
+        "node:gradient",
+        "type:vec2"
+      ]
+    },
+    "node:streak": {
+      "title": "Streak",
+      "titleType": "node",
+      "category": "Patterns",
+      "icon": "brightness",
+      "tagline": "Directional streak or anamorphic overlay with angle, stretch, and intensity",
+      "description": "Produces a 2D directional streak (anamorphic-style) from the input coordinates. The streak direction is set by angle; width controls the gaussian falloff perpendicular to the streak; stretch controls how far along the streak the falloff extends. Use with mix or multiply to overlay on existing content.",
+      "inputs": [
+        {
+          "name": "in",
+          "type": "vec2",
+          "description": "Input 2D coordinates (e.g. UV)",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:scale"]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "float",
+          "description": "Streak intensity (float)",
+          "suggestedTargets": ["node:color-map", "node:mix", "node:multiply", "node:blend-mode"]
+        }
+      ],
+      "relatedItems": [
+        "node:gradient",
+        "node:rings",
+        "node:polar-coordinates",
+        "type:vec2"
+      ]
+    },
+    "node:circle-ellipse": {
+      "title": "Circle / Ellipse",
+      "titleType": "node",
+      "category": "Shapes",
+      "icon": "circle",
+      "tagline": "2D circle or ellipse mask with optional soft edge for vignettes and composite shapes",
+      "description": "Outputs a 2D circle or ellipse as a float mask (0.0 outside, 1.0 inside, with optional soft transition). Choose Circle (single radius) or Ellipse (radius X and Y). Use center and radius parameters to position and size the shape. Softness controls the edge blur and intensity scales the output. Ideal for vignettes, masks, and combining with mix or color-map nodes.",
+      "inputs": [
+        {
+          "name": "in",
+          "type": "vec2",
+          "description": "Input 2D coordinates (e.g. UV)",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:scale"]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "float",
+          "description": "Mask value: 1.0 inside shape, 0.0 outside, soft transition at edge",
+          "suggestedTargets": ["node:mix", "node:smoothstep", "node:color-map", "node:multiply"]
+        }
+      ],
+      "relatedItems": [
+        "node:rings",
+        "node:distance",
+        "node:box-torus-sdf",
+        "type:vec2"
+      ]
+    },
+    "node:star-2d": {
+      "title": "Star 2D",
+      "titleType": "node",
+      "category": "Shapes",
+      "icon": "star",
+      "tagline": "N-point star shape with inner/outer radius and optional rounded corners",
+      "description": "Outputs a 2D star as a float mask using an SDF. You control the number of points, inner and outer radius (for pointed or stubby stars), and optional roundness for softer corners. Softness and intensity adjust the edge and strength. Ideal for badges, decorative shapes, and masks when combined with color map or mix.",
+      "inputs": [
+        {
+          "name": "in",
+          "type": "vec2",
+          "description": "Input 2D coordinates (e.g. UV)",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:scale"]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "float",
+          "description": "Mask value: 1.0 inside star, 0.0 outside, soft transition at edge",
+          "suggestedTargets": ["node:mix", "node:smoothstep", "node:color-map", "node:multiply"]
+        }
+      ],
+      "relatedItems": [
+        "node:circle-ellipse",
+        "node:superellipse",
+        "node:box-2d",
+        "type:vec2"
+      ]
+    },
+    "node:superellipse": {
+      "title": "Superellipse",
+      "titleType": "node",
+      "category": "Shapes",
+      "icon": "square-rounded-corners",
+      "tagline": "Squircle to rectangle: power parameter controls shape from ellipse to rounded rect",
+      "description": "Outputs a superellipse as a float mask. The power parameter (n) controls the shape: 2 gives an ellipse, higher values approach a rectangle with rounded corners (squircle). Radius X and Y set the half-axes. Use softness and intensity for edge and strength. Ideal for modern UI-style shapes and masks.",
+      "inputs": [
+        {
+          "name": "in",
+          "type": "vec2",
+          "description": "Input 2D coordinates (e.g. UV)",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:scale"]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "float",
+          "description": "Mask value: 1.0 inside superellipse, 0.0 outside, soft transition at edge",
+          "suggestedTargets": ["node:mix", "node:smoothstep", "node:color-map", "node:multiply"]
+        }
+      ],
+      "relatedItems": [
+        "node:circle-ellipse",
+        "node:star-2d",
+        "node:box-2d",
+        "type:vec2"
       ]
     },
     "node:fractal": {
@@ -2323,7 +2623,7 @@
       "category": "Patterns",
       "icon": "noise",
       "tagline": "Ideal for creating cellular patterns and organic-looking textures with distinct regions",
-      "description": "Generates Voronoi (cellular) noise patterns by dividing space into regions based on proximity to seed points. Each region contains all points closest to a particular seed, creating distinct cellular structures. The node can output various Voronoi features including the distance to the nearest seed, distance to the second nearest (for edges), or the seed ID. Voronoi patterns are excellent for creating organic textures, cellular structures, cracked surfaces, or abstract geometric patterns. The pattern can be animated over time for dynamic effects.",
+      "description": "Generates Voronoi (cellular) noise patterns by dividing space into regions based on proximity to seed points. Each region contains all points closest to a particular seed, creating distinct cellular structures. Output mode: 0 = F1 (distance to nearest seed), 1 = F2−F1 (difference to second-nearest), 2 = edge (smooth edge between cells), 3 = cell ID (normalized hash per cell). Animation: choose Drift (direction and amount), Rotate (UV rotation), or Still. Use Drift Direction (degrees) and Drift Amount for directional flow; Rotation Speed when in Rotate mode.",
       "inputs": [
         {
           "name": "in",
@@ -2335,13 +2635,42 @@
         {
           "name": "out",
           "type": "float",
-          "description": "The Voronoi noise value (distance or feature value)"
+          "description": "Voronoi value: F1, F2−F1, edge, or cell ID depending on Output mode"
         }
       ],
       "relatedItems": [
+        "node:worley-noise",
         "node:fbm-noise",
         "node:simplex-noise",
         "node:distance",
+        "type:vec2",
+        "node:time"
+      ]
+    },
+    "node:worley-noise": {
+      "title": "Worley Noise",
+      "titleType": "node",
+      "category": "Patterns",
+      "icon": "noise",
+      "tagline": "Cellular noise with F1, F2−F1, or edge output for organic and crystal-like patterns",
+      "description": "Generates Worley (cellular) noise using the same grid-and-jitter structure as Voronoi. Output mode: F1 (distance to nearest point), F2−F1 (difference to second-nearest), or edge (smooth cell boundaries). Use for organic textures, scales, or abstract cellular patterns. Scale, jitter, and distance metric (Euclidean, Manhattan, Chebyshev) are in the Worley group; output mode and intensity in Output.",
+      "inputs": [
+        {
+          "name": "in",
+          "type": "vec2",
+          "description": "The input UV coordinates to sample the Worley pattern"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "float",
+          "description": "Worley value: F1, F2−F1, or edge depending on Output mode"
+        }
+      ],
+      "relatedItems": [
+        "node:voronoi-noise",
+        "node:simplex-noise",
         "type:vec2",
         "node:time"
       ]
@@ -2373,6 +2702,249 @@
         "node:sine",
         "node:cosine",
         "node:time",
+        "type:vec2"
+      ]
+    },
+    "node:flow-field-pattern": {
+      "title": "Flow Field",
+      "titleType": "node",
+      "category": "Patterns",
+      "icon": "noise",
+      "tagline": "Curl-noise-based flow pattern for organic streaks and flow lines",
+      "description": "Generates a flow-like pattern using 2D curl noise: the curl of a scalar noise field gives a divergence-free vector field, whose magnitude is mapped to a 0–1 float suitable for color mapping. Parameters control spatial scale, curl sampling scale, time speed, octaves, and output intensity. Ideal for organic, fluid-like backgrounds and streak effects.",
+      "inputs": [
+        {
+          "name": "in",
+          "type": "vec2",
+          "description": "Input UV coordinates to sample the flow field",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:scale", "node:domain-repetition"]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "float",
+          "description": "Flow pattern value (0–1 range) for color map or mixing",
+          "suggestedTargets": ["node:color-map", "node:mix", "node:smoothstep"]
+        }
+      ],
+      "relatedItems": [
+        "node:simplex-noise",
+        "node:fbm-noise",
+        "node:vector-field",
+        "type:float"
+      ]
+    },
+    "node:stripes": {
+      "title": "Stripes",
+      "titleType": "node",
+      "category": "Patterns",
+      "icon": "grid",
+      "tagline": "Directional alternating bands with configurable angle, frequency, and sharp or soft edges",
+      "description": "Generates directional stripe patterns by rotating the input coordinates and creating alternating bands along one axis. Control the stripe angle (direction), frequency (number of bands), and sharpness (0 for soft gradients, 1 for hard edges). Optional phase and time speed allow animation when time is wired from the graph. Output is a float suitable for color map or mix.",
+      "inputs": [
+        {
+          "name": "in",
+          "type": "vec2",
+          "description": "The input UV coordinates to generate stripes from",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:scale", "node:rotate"]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "float",
+          "description": "The stripe pattern value (0.0 to 1.0)",
+          "suggestedTargets": ["node:color-map", "node:mix", "node:smoothstep", "node:gradient-mask"]
+        }
+      ],
+      "relatedItems": [
+        "node:wave-patterns",
+        "node:dots",
+        "node:rings",
+        "type:vec2"
+      ]
+    },
+    "node:dots": {
+      "title": "Dots",
+      "titleType": "node",
+      "category": "Patterns",
+      "icon": "grain",
+      "tagline": "Polka-dot grid pattern with configurable spacing, dot size, and falloff",
+      "description": "Generates a seamless grid of dots (polka-dot pattern) by tiling the plane and drawing a circular dot in each cell. Control the spacing between dots, the dot size (radius), and the falloff (softness of the edge). The pattern tiles seamlessly and outputs a float suitable for color map or mix.",
+      "inputs": [
+        {
+          "name": "in",
+          "type": "vec2",
+          "description": "The input UV coordinates to generate the dot grid from",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:scale"]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "float",
+          "description": "The dot pattern value (0.0 to 1.0)",
+          "suggestedTargets": ["node:color-map", "node:mix", "node:smoothstep", "node:gradient-mask"]
+        }
+      ],
+      "relatedItems": [
+        "node:stripes",
+        "node:hexagonal-grid",
+        "node:plane-grid",
+        "type:vec2"
+      ]
+    },
+    "node:reaction-diffusion": {
+      "title": "Reaction-Diffusion",
+      "titleType": "node",
+      "category": "Patterns",
+      "icon": "grain",
+      "tagline": "Gray-Scott-style reaction-diffusion for organic blob and cell patterns",
+      "description": "Generates organic, cell-like patterns using a Gray-Scott reaction-diffusion model. The simulation runs 1–2 steps per pixel from a noise seed (single-pass; no multi-pass buffers). Adjust feed and kill rates to change the structure; diffusion A/B control spread. Scale maps UV into simulation space; time speed animates the seed for evolving patterns. Output is a float 0–1 (activator concentration) suitable for color map or mix.",
+      "inputs": [
+        {
+          "name": "in",
+          "type": "vec2",
+          "description": "The input UV coordinates to sample the pattern",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:scale"]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "float",
+          "description": "The pattern value (0.0 to 1.0)",
+          "suggestedTargets": ["node:color-map", "node:mix", "node:gradient-mask"]
+        }
+      ],
+      "relatedItems": [
+        "node:voronoi-noise",
+        "node:simplex-noise",
+        "node:gradient",
+        "type:vec2"
+      ]
+    },
+    "node:gradient": {
+      "title": "Gradient",
+      "titleType": "node",
+      "category": "Patterns",
+      "icon": "gradient",
+      "tagline": "Radial or linear gradient (float 0–1) for vignettes, orbs, and linear fades",
+      "description": "Outputs a single float gradient in 0–1 range. Radial mode: gradient from center with configurable radius and falloff (smoothstep). Linear mode: gradient along an angle with scale. Use with color map, mix, or smoothstep for vignettes, orbs, and directional fades.",
+      "inputs": [
+        {
+          "name": "in",
+          "type": "vec2",
+          "description": "The input UV coordinates to sample the gradient",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:scale", "node:rotate"]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "float",
+          "description": "The gradient value (0.0 to 1.0)",
+          "suggestedTargets": ["node:mix", "node:color-map", "node:final-output", "node:smoothstep"]
+        }
+      ],
+      "relatedItems": [
+        "node:rings",
+        "node:distance",
+        "node:smoothstep",
+        "type:vec2"
+      ]
+    },
+    "node:radial-rays": {
+      "title": "Radial Rays",
+      "titleType": "node",
+      "category": "Patterns",
+      "icon": "glow",
+      "tagline": "N rays from a center point with count, spread, width, and falloff",
+      "description": "Generates a radial ray pattern: N evenly spaced rays emanating from a center point. Control ray count, angular spread (full circle or arc), ray width, edge falloff, and rotation. Output is a float suitable for blending or mixing with color maps. Ideal for sunbursts, starbursts, and radial light effects.",
+      "inputs": [
+        {
+          "name": "in",
+          "type": "vec2",
+          "description": "Input 2D coordinates (e.g. UV)",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:scale", "node:rotate"]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "float",
+          "description": "Ray pattern value (0.0 to 1.0)",
+          "suggestedTargets": ["node:color-map", "node:mix", "node:multiply", "node:blend-mode"]
+        }
+      ],
+      "relatedItems": [
+        "node:sunbeams",
+        "node:crepuscular-rays",
+        "node:rings",
+        "node:polar-coordinates",
+        "type:vec2"
+      ]
+    },
+    "node:sunbeams": {
+      "title": "Sunbeams",
+      "titleType": "node",
+      "category": "Patterns",
+      "icon": "glow",
+      "tagline": "Directional beams at an angle for light streaks and god-ray style effects",
+      "description": "Produces directional parallel beams at a configurable angle. Control beam count, spread (frequency along the perpendicular axis), width, softness, and intensity. Output is a float for blending. Use with mix or multiply for sunbeam overlays and directional light streaks.",
+      "inputs": [
+        {
+          "name": "in",
+          "type": "vec2",
+          "description": "Input 2D coordinates (e.g. UV)",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:scale"]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "float",
+          "description": "Beam pattern value (0.0 to 1.0)",
+          "suggestedTargets": ["node:color-map", "node:mix", "node:multiply", "node:blend-mode"]
+        }
+      ],
+      "relatedItems": [
+        "node:radial-rays",
+        "node:crepuscular-rays",
+        "node:gradient",
+        "node:streak",
+        "type:vec2"
+      ]
+    },
+    "node:crepuscular-rays": {
+      "title": "Crepuscular Rays",
+      "titleType": "node",
+      "category": "Patterns",
+      "icon": "glow",
+      "tagline": "Atmospheric rays from a source point with distance falloff",
+      "description": "Generates crepuscular (atmospheric) rays from a source point. Rays radiate from the source with configurable count, spread, and width. Distance falloff attenuates the rays with distance from the source (1/(1 + dist*k)), giving a natural volumetric look. Ideal for sun-through-clouds and god-ray effects.",
+      "inputs": [
+        {
+          "name": "in",
+          "type": "vec2",
+          "description": "Input 2D coordinates (e.g. UV)",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:scale"]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "float",
+          "description": "Ray pattern value with distance falloff (0.0 to 1.0)",
+          "suggestedTargets": ["node:color-map", "node:mix", "node:multiply", "node:blend-mode"]
+        }
+      ],
+      "relatedItems": [
+        "node:radial-rays",
+        "node:sunbeams",
+        "node:gradient",
+        "node:rings",
         "type:vec2"
       ]
     },
@@ -2461,6 +3033,38 @@
       "relatedItems": [
         "node:fbm-noise",
         "node:voronoi-noise",
+        "node:simplex-3d",
+        "type:vec2",
+        "node:time"
+      ]
+    },
+    "node:simplex-3d": {
+      "title": "3D Simplex Volume",
+      "titleType": "node",
+      "category": "Patterns",
+      "icon": "noise",
+      "tagline": "3D volume noise (UV + time as Z) for clouds, marble, and animated volume effects",
+      "description": "Samples 3D Simplex noise using the input UV as X,Y and time as the third dimension (Z). Produces smooth, animated volume-style patterns ideal for clouds, marble, fog, or any effect that should vary in depth over time. Parameters control scale, octaves (fBm layers), lacunarity, gain, time speed, and output intensity. Use with color map, mix, or volume-style nodes for full effect.",
+      "inputs": [
+        {
+          "name": "in",
+          "type": "vec2",
+          "description": "Input UV coordinates (X,Y of the 3D sample position)",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:scale"]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "float",
+          "description": "3D Simplex noise value in 0–1 range",
+          "suggestedTargets": ["node:color-map", "node:mix", "node:smoothstep", "node:remap", "node:volume-rays"]
+        }
+      ],
+      "relatedItems": [
+        "node:simplex-noise",
+        "node:fbm-noise",
+        "node:voronoi-noise",
         "type:vec2",
         "node:time"
       ]
@@ -2524,8 +3128,8 @@
       "titleType": "node",
       "category": "Shapes",
       "icon": "box",
-      "tagline": "Perfect for rendering 3D box and torus shapes using signed distance fields (SDF) for raymarching",
-      "description": "Renders 3D box and torus shapes using signed distance fields (SDF) with raymarching. SDFs define shapes by their distance to the surface, allowing efficient rendering of complex 3D geometry. The node can render boxes (rectangular prisms) and toruses (donut shapes) with configurable size, position, and rotation. SDF raymarching provides smooth, accurate 3D shapes with proper lighting and shading. This is essential for creating 3D geometric primitives in a 2D shader environment.",
+      "tagline": "3D primitives (box, torus, capsule, cylinder, cone, round cone, octahedron) using signed distance fields and raymarching",
+      "description": "Renders 3D primitives using signed distance fields (SDF) with raymarching. Shape types: 0=Box, 1=Torus, 2=Capsule, 3=Cylinder (capped; radius X, half-height Y), 4=Cone (height Y, base radius X, top radius Z), 5=Round cone (base X, tip radius Z, height Y), 6=Octahedron (scale X). All share Position, Size, Rotation, and Appearance (glow, raymarch steps). SDF raymarching provides smooth, accurate 3D geometry. Essential for building 3D scenes in a 2D shader.",
       "inputs": [
         {
           "name": "in",
@@ -2545,6 +3149,126 @@
         "node:distance",
         "type:vec2",
         "node:normalize"
+      ]
+    },
+    "node:cylinder-cone": {
+      "title": "Cylinder & Cone",
+      "titleType": "node",
+      "category": "Shapes",
+      "icon": "cylinder",
+      "tagline": "3D cylinder and cone primitives using signed distance fields and raymarching",
+      "description": "Renders 3D cylinder and cone shapes using signed distance fields (SDF) with raymarching. Choose Cylinder (radius and height) or Cone (base radius and height). Position, size, and rotation groups match the SDF node pattern. Use UV as input; output is a float suitable for mix, color-map, or final output. Ideal for pillars, cones, and rounded 3D primitives in a 2D shader.",
+      "inputs": [
+        {
+          "name": "in",
+          "type": "vec2",
+          "description": "Input UV coordinates to raymarch from",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates"]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "float",
+          "description": "SDF raymarched result (distance-based value with glow)",
+          "suggestedTargets": ["node:mix", "node:color-map", "node:final-output"]
+        }
+      ],
+      "relatedItems": [
+        "node:box-torus-sdf",
+        "node:sphere-raymarch",
+        "type:vec2",
+        "node:normalize"
+      ]
+    },
+    "node:box-2d": {
+      "title": "Box 2D",
+      "titleType": "node",
+      "category": "Shapes",
+      "icon": "square",
+      "tagline": "Axis-aligned 2D rectangle or rounded rectangle as a mask for compositing and shapes",
+      "description": "Outputs a 2D axis-aligned rectangle or rounded rectangle as a float mask. Use UV (or any vec2) as input; the node centers the box at the given position with configurable width and height. Roundness 0 gives a sharp rectangle; values greater than 0 produce rounded corners. Softness controls the edge falloff and intensity scales the output. Ideal for panels, buttons, or building compound 2D shapes. For rotation, use a transform node upstream.",
+      "inputs": [
+        {
+          "name": "in",
+          "type": "vec2",
+          "description": "Input 2D coordinates (e.g. UV) to sample the box",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:scale"]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "float",
+          "description": "Box mask (0.0 outside, up to intensity inside; soft edges by softness)",
+          "suggestedTargets": ["node:color-map", "node:mix", "node:smoothstep", "node:multiply"]
+        }
+      ],
+      "relatedItems": [
+        "node:box-torus-sdf",
+        "node:plane-grid",
+        "type:vec2",
+        "node:uv-coordinates"
+      ]
+    },
+    "node:metaballs": {
+      "title": "Metaballs",
+      "titleType": "node",
+      "category": "Shapes",
+      "icon": "sphere",
+      "tagline": "3D raymarched metaballs: soft blobs that blend where their fields overlap",
+      "description": "Renders 3D metaballs using raymarching. Metaballs are soft blobs whose influence fields are summed; the visible surface is where the combined field exceeds a threshold. Blob count (2–6), radius, threshold, and orbit radius control the shape; blobs orbit around the scene center. Use Position to move the group, Animation for orbit speed, and Appearance for raymarch steps and glow. Connect UV to in and out to color-map or mix for shading.",
+      "inputs": [
+        {
+          "name": "in",
+          "type": "vec2",
+          "description": "UV coordinates to raymarch from (e.g. from UV Coords)",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:scale"]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "float",
+          "description": "Surface and glow value (float); use with color-map or mix",
+          "suggestedTargets": ["node:color-map", "node:mix", "node:smoothstep", "node:final-output"]
+        }
+      ],
+      "relatedItems": [
+        "node:sphere-raymarch",
+        "node:box-torus-sdf",
+        "type:vec2",
+        "node:color-map"
+      ]
+    },
+    "node:sky-dome": {
+      "title": "Sky / Dome",
+      "titleType": "node",
+      "category": "Shapes",
+      "icon": "glow",
+      "tagline": "Procedural sky dome with zenith/horizon gradient and optional sun disc for backgrounds",
+      "description": "Outputs a procedural sky as vec4 (RGBA) suitable for use behind raymarched 3D scenes. Sky color is blended from horizon to zenith; an optional sun disc is added when the view ray is close to the sun direction. Use Sky group to set zenith and horizon RGB and horizon sharpness; use Sun group to set direction (X,Y,Z), radius (radians), and intensity. Connect UV (e.g. from UV Coords) to in; connect out to mix, final output, or blend-mode nodes.",
+      "inputs": [
+        {
+          "name": "in",
+          "type": "vec2",
+          "description": "UV coordinates to compute sky ray direction (e.g. from UV Coords)",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:scale"]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "vec4",
+          "description": "Sky color (RGB) and alpha 1.0",
+          "suggestedTargets": ["node:mix", "node:final-output", "node:blending-modes"]
+        }
+      ],
+      "relatedItems": [
+        "node:sphere-raymarch",
+        "node:lighting-shading",
+        "node:box-torus-sdf",
+        "type:vec4"
       ]
     },
     "node:blending-modes": {

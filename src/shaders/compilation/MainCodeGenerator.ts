@@ -737,14 +737,10 @@ export class MainCodeGenerator {
     result = result.replace(/\$resolution/g, 'uResolution');
     result = result.replace(/\$p/g, 'p');
 
-    // Replace 'result' with appropriate output variable (fallback for legacy code)
-    // Try to find 'out' output first, otherwise use first output
-    const outVar = outputVars.get('out') || Array.from(outputVars.values())[0];
-    if (outVar) {
-      // Use word boundary to avoid replacing parts of other words
-      const resultRegex = new RegExp(`\\bresult\\b`, 'g');
-      result = result.replace(resultRegex, outVar);
-    }
+    // Do NOT replace the identifier 'result' with the output variable name. Many nodes
+    // (e.g. lighting-shading, blur, normal-mapping) use a local float named 'result'
+    // and then assign $output.out = vec4(result, ...). Replacing 'result' would turn
+    // that into a local float with the output var name, then assign vec4 to it → dimension mismatch.
 
     return result;
   }

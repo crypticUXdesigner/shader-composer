@@ -47,6 +47,7 @@ const iconNameMap: Record<IconName, string> = {
   'copy': 'copy',
   'photo': 'photo',
   'video': 'video',
+  'brand-youtube': 'brand-youtube',
   'help-circle': 'help-circle',
 };
 
@@ -83,6 +84,7 @@ export type IconName =
   | 'copy'
   | 'photo'
   | 'video'
+  | 'brand-youtube'
   | 'help-circle';
 
 // Helper to get icon path data from Tabler nodes

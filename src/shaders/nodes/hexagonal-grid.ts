@@ -49,7 +49,7 @@ export const hexagonalGridNodeSpec: NodeSpec = {
       min: 0.0,
       max: 1.0,
       step: 0.01,
-      label: 'Size Amount'
+      label: 'Size Var.'
     },
     hexSizeVariationSteps: {
       type: 'int',
@@ -57,7 +57,7 @@ export const hexagonalGridNodeSpec: NodeSpec = {
       min: 0,
       max: 16,
       step: 1,
-      label: 'Size Steps'
+      label: 'Steps'
     },
     hexVariationAnimationSpeed: {
       type: 'float',
@@ -65,7 +65,7 @@ export const hexagonalGridNodeSpec: NodeSpec = {
       min: 0.0,
       max: 10.0,
       step: 0.01,
-      label: 'Animation Rate'
+      label: 'Rate'
     },
     hexRotation: {
       type: 'float',
@@ -89,7 +89,7 @@ export const hexagonalGridNodeSpec: NodeSpec = {
       min: 0.0,
       max: 2.0,
       step: 0.01,
-      label: 'Intensity Amount'
+      label: 'Intensity Amt'
     },
     hexSoftness: {
       type: 'float',
@@ -161,7 +161,7 @@ export const hexagonalGridNodeSpec: NodeSpec = {
       min: 0.0,
       max: 1.0,
       step: 0.01,
-      label: 'Impact Variation'
+      label: 'Impact'
     },
     hexWaveDirection: {
       type: 'float',
@@ -201,7 +201,7 @@ export const hexagonalGridNodeSpec: NodeSpec = {
       min: 0.0,
       max: 1.0,
       step: 0.01,
-      label: 'Impact Variation'
+      label: 'Impact'
     }
   },
   parameterGroups: [

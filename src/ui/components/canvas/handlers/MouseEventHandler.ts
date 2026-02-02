@@ -62,7 +62,6 @@ export interface MouseEventHandlerDependencies {
   detachDocumentListeners: () => void;
   createInteractionEvent: (type: InteractionType, e: MouseEvent | WheelEvent, target?: any) => InteractionEvent;
   handleFileParameterClick: (nodeId: string, paramName: string, screenX: number, screenY: number) => void;
-  handleFrequencyBandsParameterClick: (nodeId: string, paramName: string, screenX: number, screenY: number) => void;
   handleEnumParameterClick: (nodeId: string, paramName: string, screenX: number, screenY: number) => void;
   handleColorPickerClick?: (nodeId: string, screenX: number, screenY: number) => void;
   calculateSmartGuides: (draggingNode: NodeInstance, proposedX: number, proposedY: number) => {
@@ -371,12 +370,6 @@ export class MouseEventHandler {
       // Let the dropdown handle clicks (it will close on outside click)
       return;
     }
-    
-    // Check if frequency bands editor is open - if so, don't handle other interactions
-    if (this.deps.uiElementManager.isFrequencyBandsEditorVisible()) {
-      // Let the editor handle clicks (it will close on outside click)
-      return;
-    }
 
     // Check if color picker popover is open - if so, let it handle clicks
     if (this.deps.uiElementManager.isColorPickerVisible()) {
@@ -401,12 +394,6 @@ export class MouseEventHandler {
         // Handle string parameters (file inputs) specially - not handled by handler
         if (paramHit.isString) {
           this.deps.handleFileParameterClick(paramHit.nodeId, paramHit.paramName, mouseX, mouseY);
-          return;
-        }
-        
-        // Handle array parameters (frequency bands) specially - not handled by handler
-        if (paramHit.isArray) {
-          this.deps.handleFrequencyBandsParameterClick(paramHit.nodeId, paramHit.paramName, mouseX, mouseY);
           return;
         }
 

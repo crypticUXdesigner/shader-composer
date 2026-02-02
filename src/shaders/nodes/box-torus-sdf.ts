@@ -5,7 +5,7 @@ export const boxTorusSdfNodeSpec: NodeSpec = {
   category: 'Shapes',
   displayName: 'SDF',
   icon: 'box',
-  description: 'Additional 3D geometric primitives (box, torus, capsule) using raymarching',
+  description: '3D geometric primitives (box, torus, capsule, cylinder, cone, round cone, octahedron) using raymarching',
   inputs: [
     {
       name: 'in',
@@ -23,7 +23,7 @@ export const boxTorusSdfNodeSpec: NodeSpec = {
       type: 'int',
       default: 0,
       min: 0,
-      max: 2,
+      max: 6,
       step: 1,
       label: 'Shape'
     },
@@ -57,7 +57,7 @@ export const boxTorusSdfNodeSpec: NodeSpec = {
       min: 0.1,
       max: 3.0,
       step: 0.1,
-      label: 'Size X / Radius'
+      label: 'Size X'
     },
     primitiveSizeY: {
       type: 'float',
@@ -65,15 +65,15 @@ export const boxTorusSdfNodeSpec: NodeSpec = {
       min: 0.1,
       max: 3.0,
       step: 0.1,
-      label: 'Size Y / Thickness'
+      label: 'Size Y'
     },
     primitiveSizeZ: {
       type: 'float',
       default: 1.0,
-      min: 0.1,
+      min: 0.0,
       max: 3.0,
       step: 0.1,
-      label: 'Size Z (Box only)'
+      label: 'Size Z'
     },
     primitiveRotationX: {
       type: 'float',
@@ -105,7 +105,7 @@ export const boxTorusSdfNodeSpec: NodeSpec = {
       min: 0.0,
       max: 2.0,
       step: 0.1,
-      label: 'Glow Intensity'
+      label: 'Glow'
     },
     primitiveRaymarchSteps: {
       type: 'int',
@@ -167,6 +167,47 @@ float sdCapsule(vec3 p, vec3 a, vec3 b, float r) {
   return length(pa - ba * h) - r;
 }
 
+// Capped cylinder (vertical): radius r, half-height h
+float sdCappedCylinder(vec3 p, float r, float h) {
+  vec2 d = abs(vec2(length(p.xz), p.y)) - vec2(r, h);
+  return min(max(d.x, d.y), 0.0) + length(max(d, 0.0));
+}
+
+// Capped cone: height h, base radius r1, top radius r2 (axis Y)
+float sdCappedCone(vec3 p, float h, float r1, float r2) {
+  vec2 q = vec2(length(p.xz), p.y);
+  vec2 k1 = vec2(r2, h);
+  vec2 k2 = vec2(r2 - r1, 2.0 * h);
+  vec2 ca = vec2(q.x - min(q.x, (q.y < 0.0) ? r1 : r2), abs(q.y) - h);
+  vec2 cb = q - k1 + k2 * clamp(dot(k1 - q, k2) / dot(k2, k2), 0.0, 1.0);
+  float s = (cb.x < 0.0 && ca.y < 0.0) ? -1.0 : 1.0;
+  return s * sqrt(min(dot(ca, ca), dot(cb, cb)));
+}
+
+// Round cone: base radius r1, tip radius r2, height h
+float sdRoundCone(vec3 p, float r1, float r2, float h) {
+  float b = (r1 - r2) / h;
+  float a = sqrt(1.0 - b * b);
+  vec2 q = vec2(length(p.xz), p.y);
+  float k = dot(q, vec2(-b, a));
+  if (k < 0.0) return length(q) - r1;
+  if (k > a * h) return length(q - vec2(0.0, h)) - r2;
+  return dot(q, vec2(a, b)) - r1;
+}
+
+// Octahedron: scale s (exact SDF)
+float sdOctahedron(vec3 p, float s) {
+  p = abs(p);
+  float m = p.x + p.y + p.z - s;
+  vec3 q;
+  if (3.0 * p.x < m) q = p.xyz;
+  else if (3.0 * p.y < m) q = p.yzx;
+  else if (3.0 * p.z < m) q = p.zxy;
+  else return m * 0.57735027;
+  float k = clamp(0.5 * (q.z - q.y + s), 0.0, s);
+  return length(vec3(q.x, q.y - s + k, q.z - k));
+}
+
 // Rotate point around X axis
 vec3 rotateX(vec3 p, float angle) {
   float c = cos(angle);
@@ -213,6 +254,22 @@ float sceneSDF(vec3 p) {
     vec3 a = vec3(0.0, -$param.primitiveSizeY, 0.0);
     vec3 b = vec3(0.0, $param.primitiveSizeY, 0.0);
     d = sdCapsule(transformedP, a, b, $param.primitiveSizeX);
+  }
+  // Cylinder (capped, vertical): radius X, half-height Y
+  else if ($param.primitiveType == 3) {
+    d = sdCappedCylinder(transformedP, $param.primitiveSizeX, $param.primitiveSizeY);
+  }
+  // Cone (capped): height Y, base radius X, top radius Z
+  else if ($param.primitiveType == 4) {
+    d = sdCappedCone(transformedP, $param.primitiveSizeY, $param.primitiveSizeX, $param.primitiveSizeZ);
+  }
+  // Round cone: base radius X, tip radius Z, height Y
+  else if ($param.primitiveType == 5) {
+    d = sdRoundCone(transformedP, $param.primitiveSizeX, $param.primitiveSizeZ, $param.primitiveSizeY);
+  }
+  // Octahedron: scale X
+  else if ($param.primitiveType == 6) {
+    d = sdOctahedron(transformedP, $param.primitiveSizeX);
   }
   
   return d;

@@ -231,7 +231,8 @@ export class ContextualHelpCallout {
     items.className = 'port-suggestions-items';
     for (const type of resolved.types) {
       const pill = document.createElement('span');
-      pill.className = 'port-suggestion-type';
+      pill.className = 'tag xs';
+      pill.setAttribute('data-type', type);
       pill.textContent = type;
       items.appendChild(pill);
     }
@@ -348,7 +349,8 @@ export class ContextualHelpCallout {
         nameEl.className = 'port-name';
         nameEl.textContent = port.name;
         const typeEl = document.createElement('span');
-        typeEl.className = 'port-type';
+        typeEl.className = 'tag xs';
+        typeEl.setAttribute('data-type', port.type);
         typeEl.textContent = getPortTypeDisplayLabel(port.type);
         nameRow.appendChild(nameEl);
         nameRow.appendChild(typeEl);
@@ -385,7 +387,8 @@ export class ContextualHelpCallout {
         nameEl.className = 'port-name';
         nameEl.textContent = port.name;
         const typeEl = document.createElement('span');
-        typeEl.className = 'port-type';
+        typeEl.className = 'tag xs';
+        typeEl.setAttribute('data-type', port.type);
         typeEl.textContent = getPortTypeDisplayLabel(port.type);
         nameRow.appendChild(nameEl);
         nameRow.appendChild(typeEl);

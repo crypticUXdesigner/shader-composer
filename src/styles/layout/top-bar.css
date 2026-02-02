@@ -60,7 +60,7 @@
   /* Layout */
   display: inline-flex;
   align-items: stretch;
-  gap: 0;
+  gap: var(--pd-xs);
 
   /* Box model */
   padding: 2px;
@@ -104,6 +104,11 @@
   display: flex;
   align-items: center;
   gap: var(--pd-md);
+
+  .layout-fps-display {
+    /* Box model */
+    width: var(--size-2xl);
+  }
 }
 
 /* ========================================

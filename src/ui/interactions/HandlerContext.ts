@@ -77,7 +77,6 @@ export interface HandlerContext {
     nodeId: string;
     paramName: string;
     isString?: boolean;
-    isArray?: boolean;
     isModeButton?: boolean;
     frequencyBand?: { bandIndex: number; field: 'start' | 'end' | 'sliderLow' | 'sliderHigh' };
     scale?: 'linear' | 'audio';

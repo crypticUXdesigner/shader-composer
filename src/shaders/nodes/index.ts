@@ -18,6 +18,7 @@ import {
   rotateNodeSpec,
   scaleNodeSpec
 } from './transform-nodes';
+import { domainRepetitionNodeSpec } from './domain-repetition';
 import { polarCoordinatesNodeSpec } from './polar-coordinates';
 import { vectorFieldNodeSpec } from './vector-field';
 import { turbulenceNodeSpec } from './turbulence';
@@ -25,15 +26,38 @@ import { twistDistortionNodeSpec } from './twist-distortion';
 import { kaleidoscopeNodeSpec } from './kaleidoscope';
 import { fbmNoiseNodeSpec } from './fbm-noise';
 import { simplexNoiseNodeSpec } from './simplex-noise';
+import { simplex3dNodeSpec } from './simplex-3d';
 import { voronoiNoiseNodeSpec } from './voronoi-noise';
+import { cubicCurlNoiseNodeSpec } from './cubic-curl-noise';
+import { worleyNoiseNodeSpec } from './worley-noise';
 import { ringsNodeSpec } from './rings';
+import { spiralNodeSpec } from './spiral';
+import { gradientNodeSpec } from './gradient';
+import { radialRaysNodeSpec } from './radial-rays';
+import { volumeRaysNodeSpec } from './volume-rays';
+import { streakNodeSpec } from './streak';
+import { sunbeamsNodeSpec } from './sunbeams';
+import { crepuscularRaysNodeSpec } from './crepuscular-rays';
 import { wavePatternsNodeSpec } from './wave-patterns';
 import { hexagonalGridNodeSpec } from './hexagonal-grid';
+import { stripesNodeSpec } from './stripes';
+import { dotsNodeSpec } from './dots';
+import { reactionDiffusionNodeSpec } from './reaction-diffusion';
+import { truchetNodeSpec } from './truchet';
+import { triangleGridNodeSpec } from './triangle-grid';
 import { particleSystemNodeSpec } from './particle-system';
 import { sphereRaymarchNodeSpec } from './sphere-raymarch';
 import { boxTorusSdfNodeSpec } from './box-torus-sdf';
+import { cylinderConeNodeSpec } from './cylinder-cone';
+import { box2dNodeSpec } from './box-2d';
+import { circleEllipseNodeSpec } from './circle-ellipse';
+import { metaballsNodeSpec } from './metaballs';
+import { star2dNodeSpec } from './star-2d';
+import { superellipseNodeSpec } from './superellipse';
+import { flowFieldPatternNodeSpec } from './flow-field-pattern';
 import { fractalNodeSpec } from './fractal';
 import { planeGridNodeSpec } from './plane-grid';
+import { skyDomeNodeSpec } from './sky-dome';
 import {
   addNodeSpec,
   subtractNodeSpec,
@@ -114,6 +138,7 @@ import {
   audioRemapNodeSpec
 } from './audio-nodes';
 
+const _metaballs = metaballsNodeSpec;
 export const nodeSystemSpecs: NodeSpec[] = [
   // Input nodes
   uvCoordinatesNodeSpec,
@@ -131,7 +156,8 @@ export const nodeSystemSpecs: NodeSpec[] = [
   translateNodeSpec,
   rotateNodeSpec,
   scaleNodeSpec,
-  
+  domainRepetitionNodeSpec,
+
   // Distort/Transform nodes
   polarCoordinatesNodeSpec,
   vectorFieldNodeSpec,
@@ -142,18 +168,41 @@ export const nodeSystemSpecs: NodeSpec[] = [
   // Pattern/Noise nodes
   fbmNoiseNodeSpec,
   simplexNoiseNodeSpec,
+  simplex3dNodeSpec,
   voronoiNoiseNodeSpec,
+  cubicCurlNoiseNodeSpec,
+  worleyNoiseNodeSpec,
   ringsNodeSpec,
+  spiralNodeSpec,
+  gradientNodeSpec,
+  radialRaysNodeSpec,
+  sunbeamsNodeSpec,
+  crepuscularRaysNodeSpec,
+  volumeRaysNodeSpec,
+  streakNodeSpec,
   wavePatternsNodeSpec,
+  flowFieldPatternNodeSpec,
   hexagonalGridNodeSpec,
+  stripesNodeSpec,
+  dotsNodeSpec,
+  reactionDiffusionNodeSpec,
+  truchetNodeSpec,
+  triangleGridNodeSpec,
   particleSystemNodeSpec,
-  
+
   // Shape/Geometry nodes
   sphereRaymarchNodeSpec,
   boxTorusSdfNodeSpec,
+  cylinderConeNodeSpec,
+  box2dNodeSpec,
+  circleEllipseNodeSpec,
+  _metaballs,
+  star2dNodeSpec,
+  superellipseNodeSpec,
   fractalNodeSpec,
   planeGridNodeSpec,
-  
+  skyDomeNodeSpec,
+
   // Math/Operation nodes
   addNodeSpec,
   subtractNodeSpec,

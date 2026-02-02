@@ -96,6 +96,7 @@ export class WebCodecsVideoExporter implements WebCodecsVideoExporterInterface {
     const videoConfig: VideoEncodingConfig = {
       codec: 'avc',
       bitrate: videoBitrate,
+      bitrateMode: 'constant',
       keyFrameInterval: 1,
       latencyMode: 'quality',
     };

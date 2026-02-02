@@ -33,7 +33,7 @@ export const blurNodeSpec: NodeSpec = {
       min: 0.0,
       max: 20.0,
       step: 0.1,
-      label: 'Radius (for future multi-pass)'
+      label: 'Radius'
     },
     blurType: {
       type: 'int',
@@ -41,7 +41,7 @@ export const blurNodeSpec: NodeSpec = {
       min: 0,
       max: 2,
       step: 1,
-      label: 'Type (0=Gaussian, 1=Directional, 2=Radial)'
+      label: 'Type'
     },
     blurDirection: {
       type: 'float',
@@ -49,7 +49,7 @@ export const blurNodeSpec: NodeSpec = {
       min: 0.0,
       max: 360.0,
       step: 1.0,
-      label: 'Direction (degrees, for directional)'
+      label: 'Direction'
     },
     blurCenterX: {
       type: 'float',
@@ -57,7 +57,7 @@ export const blurNodeSpec: NodeSpec = {
       min: -2.0,
       max: 2.0,
       step: 0.1,
-      label: 'Center X (for radial)'
+      label: 'Center X'
     },
     blurCenterY: {
       type: 'float',
@@ -65,7 +65,7 @@ export const blurNodeSpec: NodeSpec = {
       min: -2.0,
       max: 2.0,
       step: 0.1,
-      label: 'Center Y (for radial)'
+      label: 'Center Y'
     }
   },
   parameterGroups: [

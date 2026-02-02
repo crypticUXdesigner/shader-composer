@@ -1,11 +1,10 @@
 /**
  * UIElementManager
  * 
- * Manages UI elements overlaying the canvas (input fields, dropdowns, frequency bands editor, color picker).
+ * Manages UI elements overlaying the canvas (input fields, dropdowns, color picker).
  */
 import { getCSSVariableAsNumber } from '../../../utils/cssTokens';
 import { DropdownMenu, type DropdownMenuItem } from '../DropdownMenu';
-import { FrequencyBandsEditor } from '../FrequencyBandsEditor';
 import { ColorPickerPopover, type OKLCHTriple } from '../ColorPickerPopover';
 
 export interface UIElementContext {
@@ -21,7 +20,6 @@ export class UIElementManager {
   private labelInputElement: HTMLInputElement | null = null;
   private labelInputBackdropElement: HTMLElement | null = null;
   private enumDropdown: DropdownMenu | null = null;
-  private frequencyBandsEditor: FrequencyBandsEditor | null = null;
   private colorPickerPopover: ColorPickerPopover | null = null;
   private context?: UIElementContext;
 
@@ -71,12 +69,13 @@ export class UIElementManager {
 
     const handleCommit = () => {
       const numValue = parseFloat(input.value);
+      // Hide first so onCommit-triggered re-renders cannot remove/move the input before we do
+      this.hideParameterInput();
       if (!isNaN(numValue)) {
         onCommit(numValue);
       } else {
         onCancel();
       }
-      this.hideParameterInput();
     };
 
     const handleCancel = () => {
@@ -105,9 +104,15 @@ export class UIElementManager {
    * Hide parameter input field
    */
   hideParameterInput(): void {
-    if (this.parameterInputElement) {
-      this.parameterInputElement.remove();
-      this.parameterInputElement = null;
+    const el = this.parameterInputElement;
+    this.parameterInputElement = null;
+    if (!el) return;
+    try {
+      if (el.parentNode) {
+        el.remove();
+      }
+    } catch {
+      // Element may have been removed/moved by a re-render or another blur handler
     }
   }
 
@@ -187,11 +192,15 @@ export class UIElementManager {
    */
   hideLabelInput(): void {
     if (this.labelInputBackdropElement) {
-      this.labelInputBackdropElement.remove();
+      if (this.labelInputBackdropElement.parentNode) {
+        this.labelInputBackdropElement.remove();
+      }
       this.labelInputBackdropElement = null;
     }
     if (this.labelInputElement) {
-      this.labelInputElement.remove();
+      if (this.labelInputElement.parentNode) {
+        this.labelInputElement.remove();
+      }
       this.labelInputElement = null;
     }
   }
@@ -253,50 +262,6 @@ export class UIElementManager {
   }
 
   /**
-   * Show frequency bands editor
-   */
-  showFrequencyBandsEditor(
-    bandsArray: number[][],
-    onCommit: (bands: number[][]) => void,
-    onCancel: () => void
-  ): void {
-    if (!this.context) return;
-
-    if (!this.frequencyBandsEditor) {
-      this.frequencyBandsEditor = new FrequencyBandsEditor({
-        onApply: (bands) => {
-          // Convert FrequencyBand[] to number[][]
-          const bandsArray = bands.map(band => [band.minHz, band.maxHz]);
-          onCommit(bandsArray);
-          this.frequencyBandsEditor?.hide();
-        },
-        onCancel: () => {
-          onCancel();
-          this.frequencyBandsEditor?.hide();
-        }
-      });
-    }
-
-    this.frequencyBandsEditor.show(bandsArray);
-  }
-
-  /**
-   * Hide frequency bands editor
-   */
-  hideFrequencyBandsEditor(): void {
-    if (this.frequencyBandsEditor && this.frequencyBandsEditor.isVisible()) {
-      this.frequencyBandsEditor.hide();
-    }
-  }
-
-  /**
-   * Check if frequency bands editor is visible
-   */
-  isFrequencyBandsEditorVisible(): boolean {
-    return this.frequencyBandsEditor?.isVisible() ?? false;
-  }
-
-  /**
    * Show color picker popover (OKLCH, HSV-style UI)
    */
   showColorPicker(
@@ -336,7 +301,6 @@ export class UIElementManager {
       this.isParameterInputActive() ||
       this.isLabelInputActive() ||
       this.isEnumDropdownVisible() ||
-      this.isFrequencyBandsEditorVisible() ||
       this.isColorPickerVisible()
     );
   }
@@ -348,7 +312,6 @@ export class UIElementManager {
     this.hideParameterInput();
     this.hideLabelInput();
     this.hideEnumDropdown();
-    this.hideFrequencyBandsEditor();
     this.hideColorPicker();
   }
 

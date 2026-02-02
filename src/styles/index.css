@@ -12,7 +12,6 @@
 /* Import layout styles */
 @import './layout/top-bar.css';
 @import './layout/bottom-bar.css';
-@import './layout/frequency-bands-editor.css';
 @import './layout/node-panel.css';
 
 /* Import design component styles */
@@ -32,3 +31,4 @@
 @import './components/slider.css';
 @import './components/help-popover.css';
 @import './components/color-picker-popover.css';
+@import './components/video-export-dialog.css';

@@ -25,7 +25,7 @@ export const planeGridNodeSpec: NodeSpec = {
       min: 0,
       max: 2,
       step: 1,
-      label: 'Type (0=Raymarched, 1=Grid, 2=Checkerboard)'
+      label: 'Type'
     },
     planeScale: {
       type: 'float',
@@ -57,7 +57,7 @@ export const planeGridNodeSpec: NodeSpec = {
       min: 0.0,
       max: 360.0,
       step: 1.0,
-      label: 'Rotation (degrees)'
+      label: 'Rotation'
     },
     planeNormalX: {
       type: 'float',
@@ -65,7 +65,7 @@ export const planeGridNodeSpec: NodeSpec = {
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Normal X'
+      label: 'Norm X'
     },
     planeNormalY: {
       type: 'float',
@@ -73,7 +73,7 @@ export const planeGridNodeSpec: NodeSpec = {
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Normal Y'
+      label: 'Norm Y'
     },
     planeNormalZ: {
       type: 'float',
@@ -81,7 +81,7 @@ export const planeGridNodeSpec: NodeSpec = {
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Normal Z'
+      label: 'Norm Z'
     },
     planeHeight: {
       type: 'float',
@@ -102,7 +102,7 @@ export const planeGridNodeSpec: NodeSpec = {
     },
     {
       id: 'plane-raymarched',
-      label: 'Raymarched (Type 0)',
+      label: 'Raymarched',
       parameters: ['planeNormalX', 'planeNormalY', 'planeNormalZ', 'planeHeight'],
       collapsible: true,
       defaultCollapsed: true

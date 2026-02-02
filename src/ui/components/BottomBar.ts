@@ -91,9 +91,10 @@ export class BottomBar {
     const leftSection = document.createElement('div');
     leftSection.className = 'section';
     
-    // Primary play/pause button
+    // Primary play/pause button (component .button; layout overrides size to xl)
     this.playButton = document.createElement('button');
-    this.playButton.className = 'play-button';
+    (this.playButton as HTMLButtonElement).type = 'button';
+    this.playButton.className = 'button primary lg icon-only rounded bottom-bar-play-button';
     this.playButton.title = 'Play/Pause all audio (Space)';
     this.updatePlayButtonIcon(false);
     this.playButton.addEventListener('click', () => {
@@ -163,7 +164,8 @@ export class BottomBar {
     
     tools.forEach(tool => {
       const button = document.createElement('button');
-      button.className = 'tool-button';
+      (button as HTMLButtonElement).type = 'button';
+      button.className = 'button ghost sm both';
       button.setAttribute('data-tool', tool.id);
       button.title = `${tool.label} (${tool.shortcut})`;
       
@@ -174,7 +176,7 @@ export class BottomBar {
       
       // Icon - use currentColor so it inherits from CSS
       // Variant is auto-selected by createIconElement based on icon name
-      // Size is controlled via CSS (.tool-button > svg), not via JS parameter
+      // Size is controlled via CSS (.tool-selector .button > svg), not via JS parameter
       const icon = createIconElement(tool.icon, 0, 'currentColor', undefined);
       button.appendChild(icon);
       
@@ -203,7 +205,7 @@ export class BottomBar {
    * Update tool button visual states
    */
   private updateToolButtonStates(): void {
-    const buttons = this.toolSelector.querySelectorAll('.tool-button');
+    const buttons = this.toolSelector.querySelectorAll('.button[data-tool]');
     buttons.forEach(btn => {
       const toolId = (btn as HTMLElement).getAttribute('data-tool');
       const button = btn as HTMLElement;
@@ -327,8 +329,7 @@ export class BottomBar {
   private updatePlayButtonIcon(isPlaying: boolean): void {
     this.playButton.innerHTML = '';
     const iconName = isPlaying ? 'pause' : 'play';
-    // Use currentColor so it inherits from CSS
-    // Size is controlled via CSS (.play-button > svg), not via JS parameter
+    // Use currentColor so it inherits from CSS; size via .bottom-bar-play-button > svg
     const icon = createIconElement(iconName, 0, 'currentColor', undefined, 'filled');
     this.playButton.appendChild(icon);
   }

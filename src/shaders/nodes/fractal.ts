@@ -33,7 +33,7 @@ export const fractalNodeSpec: NodeSpec = {
       min: 1.0,
       max: 4.0,
       step: 0.01,
-      label: 'Scale (Higher = More Detail/Smaller Features)'
+      label: 'Detail Scale'
     },
     fractalIterations: {
       type: 'int',

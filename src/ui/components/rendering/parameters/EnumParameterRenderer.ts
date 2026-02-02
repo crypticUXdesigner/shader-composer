@@ -8,6 +8,7 @@ import { ParameterRenderer, type ParameterMetrics, type ParameterRenderState, ty
 import type { NodeInstance } from '../../../../types/nodeGraph';
 import type { NodeSpec, ParameterSpec } from '../../../../types/nodeSpec';
 import { getCSSColor, getCSSVariableAsNumber } from '../../../../utils/cssTokens';
+import { getParameterEnumMappings } from '../../../../utils/parameterEnumMappings';
 import { renderParameterCell, drawRoundedRect } from '../RenderingUtils';
 
 export class EnumParameterRenderer extends ParameterRenderer {
@@ -25,8 +26,8 @@ export class EnumParameterRenderer extends ParameterRenderer {
     const optionCount = param.max - param.min + 1;
     if (optionCount > 15) return false;
     
-    // Check if it's a known enum pattern
-    return this.isKnownEnumPattern(spec.id, paramName);
+    // Check if it's a known enum pattern (has mappings in shared registry)
+    return getParameterEnumMappings(spec.id, paramName) !== null;
   }
   
   getPriority(): number {
@@ -139,8 +140,8 @@ export class EnumParameterRenderer extends ParameterRenderer {
     drawRoundedRect(ctx, selectorX, selectorY, selectorWidth, selectorHeight, selectorRadius);
     ctx.stroke();
     
-    // Get current label
-    const enumMappings = this.getEnumMappings(spec.id, paramName);
+    // Get current label from shared enum mappings
+    const enumMappings = getParameterEnumMappings(spec.id, paramName);
     const currentLabel = enumMappings?.[paramValue] ?? paramValue.toString();
     
     // Draw label text
@@ -167,87 +168,4 @@ export class EnumParameterRenderer extends ParameterRenderer {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
   }
-  
-  private isKnownEnumPattern(nodeId: string, paramName: string): boolean {
-    const enumMappings = this.getEnumMappings(nodeId, paramName);
-    return enumMappings !== null;
-  }
-  
-  private getEnumMappings(nodeId: string, paramName: string): Record<number, string> | null {
-    // compare node - operation
-    if (nodeId === 'compare' && paramName === 'operation') {
-      return {
-        0: 'Equal (==)',
-        1: 'Not Equal (!=)',
-        2: 'Less Than (<)',
-        3: 'Less or Equal (<=)',
-        4: 'Greater Than (>)',
-        5: 'Greater or Equal (>=)'
-      };
-    }
-    
-    // blend-mode node - mode
-    if (nodeId === 'blend-mode' && paramName === 'mode') {
-      return {
-        0: 'Normal',
-        1: 'Multiply',
-        2: 'Screen',
-        3: 'Overlay',
-        4: 'Soft Light',
-        5: 'Hard Light',
-        6: 'Color Dodge',
-        7: 'Color Burn',
-        8: 'Linear Dodge',
-        9: 'Linear Burn',
-        10: 'Difference',
-        11: 'Exclusion'
-      };
-    }
-    
-    // gradient-mask node - maskType
-    if (nodeId === 'gradient-mask' && paramName === 'maskType') {
-      return {
-        0: 'Radial',
-        1: 'Linear',
-        2: 'Elliptical'
-      };
-    }
-    
-    // block-edge-brightness node - direction
-    if (nodeId === 'block-edge-brightness' && paramName === 'direction') {
-      return {
-        0: 'Horizontal',
-        1: 'Vertical'
-      };
-    }
-    
-    // block-color-glitch node - direction
-    if (nodeId === 'block-color-glitch' && paramName === 'direction') {
-      return {
-        0: 'Horizontal',
-        1: 'Vertical'
-      };
-    }
-    
-    // plane-grid node - planeType
-    if (nodeId === 'plane-grid' && paramName === 'planeType') {
-      return {
-        0: 'Raymarched',
-        1: 'Grid',
-        2: 'Checkerboard'
-      };
-    }
-    
-    // box-torus-sdf node - primitiveType
-    if (nodeId === 'box-torus-sdf' && paramName === 'primitiveType') {
-      return {
-        0: 'Box',
-        1: 'Torus',
-        2: 'Capsule'
-      };
-    }
-    
-    return null;
-  }
-  
 }

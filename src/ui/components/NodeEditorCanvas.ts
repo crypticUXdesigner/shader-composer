@@ -928,7 +928,6 @@ export class NodeEditorCanvas {
       detachDocumentListeners: () => this.detachDocumentListeners(),
       createInteractionEvent: (type, e, target) => this.createInteractionEvent(type, e, target),
       handleFileParameterClick: (nodeId, paramName, screenX, screenY) => this.overlayManager.handleFileParameterClick(nodeId, paramName, screenX, screenY),
-      handleFrequencyBandsParameterClick: (nodeId, paramName, screenX, screenY) => this.overlayManager.handleFrequencyBandsParameterClick(nodeId, paramName, screenX, screenY),
       handleEnumParameterClick: (nodeId, paramName, screenX, screenY) => this.overlayManager.handleEnumParameterClick(nodeId, paramName, screenX, screenY),
       handleColorPickerClick: (nodeId, screenX, screenY) => this.overlayManager.handleColorPickerClick(nodeId, screenX, screenY),
       calculateSmartGuides: (draggingNode, proposedX, proposedY) => this.calculateSmartGuides(draggingNode, proposedX, proposedY),

@@ -81,7 +81,7 @@ export const vectorFieldNodeSpec: NodeSpec = {
       min: 0.0,
       max: 0.2,
       step: 0.01,
-      label: 'Distance Contr.'
+      label: 'Distance'
     },
     vectorFieldSpeed: {
       type: 'float',

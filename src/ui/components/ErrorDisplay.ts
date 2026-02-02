@@ -167,32 +167,17 @@ export class ErrorDisplay {
     
     notification.appendChild(content);
     
-    // Dismiss button
+    // Dismiss button (component .button.ghost.sm.icon-only)
     const dismissButton = document.createElement('button');
-    dismissButton.style.cssText = `
-      flex-shrink: 0;
-      background: none;
-      border: none;
-      color: ${textColor};
-      cursor: pointer;
-      padding: 4px;
-      opacity: 0.7;
-      transition: opacity 0.2s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    `;
-    dismissButton.addEventListener('mouseenter', () => {
-      dismissButton.style.opacity = '1';
-    });
-    dismissButton.addEventListener('mouseleave', () => {
-      dismissButton.style.opacity = '0.7';
-    });
+    dismissButton.type = 'button';
+    dismissButton.className = 'button ghost sm icon-only';
+    dismissButton.setAttribute('aria-label', 'Dismiss');
     dismissButton.addEventListener('click', () => {
       this.dismiss(id);
     });
-    
-    const closeIcon = createIconElement('x', 16, textColor, 'icon', 'line');
+    dismissButton.style.color = 'inherit'; /* match notification text color (severity) */
+    // Icon uses currentColor so it matches the button
+    const closeIcon = createIconElement('x', 16, 'currentColor', 'icon', 'line');
     dismissButton.appendChild(closeIcon as unknown as HTMLElement);
     notification.appendChild(dismissButton);
     

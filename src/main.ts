@@ -118,8 +118,8 @@ class App {
     try {
       const presets = await listPresets();
       if (presets.length > 0) {
-        // Prefer "glue" preset, otherwise load the first preset alphabetically
-        let selectedPreset = presets.find(p => p.name === 'glue');
+        // Prefer "testing" preset, otherwise load the first preset alphabetically
+        let selectedPreset = presets.find(p => p.name === 'testing');
         if (!selectedPreset) {
           selectedPreset = presets[0];
         }
@@ -458,50 +458,42 @@ class App {
       return;
     }
     
-    // Cancel existing animation if running
     if (this.animationFrameId !== null) {
       return;
     }
-    
+
+    const ZOOM_UPDATE_INTERVAL = 100;
     let lastFrameTime = performance.now();
-    let lastZoomUpdate = performance.now();
-    const ZOOM_UPDATE_INTERVAL = 100; // Update zoom display every 100ms
-    
-    const animate = (currentTime: number) => {
-      // Check visibility before continuing
+    let lastZoomUpdate = lastFrameTime;
+
+    const animate = () => {
       if (!this.isVisible) {
         this.animationFrameId = null;
         return;
       }
-      
-      // Calculate frame time for FPS tracking
-      const frameTime = currentTime - lastFrameTime;
-      lastFrameTime = currentTime;
-      
-      // Update FPS counter
+
+      const now = performance.now();
+      const frameTime = now - lastFrameTime;
+      lastFrameTime = now;
+
       this.layout.updateFPS(frameTime);
-      
-      // Update zoom display periodically
-      if (currentTime - lastZoomUpdate >= ZOOM_UPDATE_INTERVAL) {
-        lastZoomUpdate = currentTime;
+
+      if (now - lastZoomUpdate >= ZOOM_UPDATE_INTERVAL) {
+        lastZoomUpdate = now;
         const zoom = this.nodeEditor.getCanvasComponent().getViewState().zoom;
         this.layout.updateZoomDisplay(zoom);
       }
-      
-      // Update time uniform (only if visible and dirty)
-      const time = (currentTime / 1000.0) % 1000.0;
+
+      const time = (now / 1000.0) % 1000.0;
       this.runtimeManager.setTime(time);
-      
-      // Request node editor canvas redraw so audio-reactive UI (e.g. remap needles) animates every frame
       this.nodeEditor.getCanvasComponent().requestRender();
-      
-      // Continue animation loop
+
       this.animationFrameId = requestAnimationFrame(animate);
     };
-    
+
     this.animationFrameId = requestAnimationFrame(animate);
   }
-  
+
   private stopAnimation(): void {
     if (this.animationFrameId !== null) {
       cancelAnimationFrame(this.animationFrameId);

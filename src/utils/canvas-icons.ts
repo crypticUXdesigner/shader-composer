@@ -36,10 +36,13 @@ export const iconRegistry: Record<string, IconDefinition> = {
   // Basic shapes
   'circle': { tablerIconName: 'circle', variant: 'filled' },
   'square': { tablerIconName: 'square', variant: 'line' },
+  'star': { tablerIconName: 'star', variant: 'line' },
+  'square-rounded-corners': { tablerIconName: 'square-rounded-corners', variant: 'line' },
   'hexagon': { tablerIconName: 'hexagon', variant: 'line' },
   'sphere': { tablerIconName: 'sphere', variant: 'line' },
   'cube': { tablerIconName: 'cube', variant: 'filled' },
   'box': { tablerIconName: 'box', variant: 'line' },
+  'cylinder': { tablerIconName: 'cylinder', variant: 'line' },
   'ring': { tablerIconName: 'ripple', variant: 'line' },
   'infinity': { tablerIconName: 'infinity', variant: 'line' },
   'sparkles-2': { tablerIconName: 'sparkles', variant: 'line' },

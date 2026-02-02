@@ -221,13 +221,16 @@ export class NodeEditorLayout {
         await callback();
         this.showToast('Video exported successfully!', 'success');
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to export video';
-        this.showToast(errorMessage, 'error');
+        const message = error instanceof Error ? error.message : 'Failed to export video';
+        if (message === 'Cancelled') {
+          return;
+        }
+        this.showToast(message, 'error');
         globalErrorHandler.report(
           'runtime',
           'error',
-          errorMessage,
-          { originalError: error instanceof Error ? error : new Error(errorMessage) }
+          message,
+          { originalError: error instanceof Error ? error : new Error(message) }
         );
       }
     };
@@ -390,7 +393,7 @@ export class NodeEditorLayout {
   }
   
   /**
-   * Show a toast notification
+   * Show a toast notification. Success toasts auto-dismiss; error toasts stay until closed.
    */
   private showToast(message: string, type: 'success' | 'error'): void {
     // Remove existing toast if any
@@ -398,30 +401,47 @@ export class NodeEditorLayout {
     if (existingToast) {
       existingToast.remove();
     }
-    
-    // Create toast element
+
     const toast = document.createElement('div');
     toast.className = `message is-${type}`;
-    toast.textContent = message;
-    
+    // Position below the top bar (gap 12px)
+    toast.style.top = `${this.getTopBarHeight() + 12}px`;
+
+    const textSpan = document.createElement('span');
+    textSpan.textContent = message;
+    toast.appendChild(textSpan);
+
+    if (type === 'error') {
+      toast.style.pointerEvents = 'auto';
+      const closeBtn = document.createElement('button');
+      closeBtn.type = 'button';
+      closeBtn.className = 'close';
+      closeBtn.setAttribute('aria-label', 'Close');
+      closeBtn.textContent = '×';
+      closeBtn.addEventListener('click', () => this.dismissToast(toast));
+      toast.appendChild(closeBtn);
+    }
+
     document.body.appendChild(toast);
-    
-    // Animate in
+
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         toast.classList.add('is-visible');
       });
     });
-    
-    // Auto-dismiss after 3 seconds
+
+    if (type === 'success') {
+      setTimeout(() => this.dismissToast(toast), 3000);
+    }
+  }
+
+  private dismissToast(toast: HTMLElement): void {
+    toast.classList.remove('is-visible');
     setTimeout(() => {
-      toast.classList.remove('is-visible');
-      setTimeout(() => {
-        if (toast.parentNode) {
-          toast.remove();
-        }
-      }, 300);
-    }, 3000);
+      if (toast.parentNode) {
+        toast.remove();
+      }
+    }, 300);
   }
   
   private createLayout(): void {
@@ -455,7 +475,7 @@ export class NodeEditorLayout {
     // Panel toggle button (left side - first)
     this.panelToggleButton = document.createElement('button');
     (this.panelToggleButton as HTMLButtonElement).type = 'button';
-    this.panelToggleButton.className = 'button secondary md icon-only';
+    this.panelToggleButton.className = 'button secondary sm icon-only';
     this.panelToggleButton.title = 'Toggle node panel';
     // Initialize icon based on default panel state (visible by default)
     this.updatePanelToggleIcon();
@@ -540,13 +560,10 @@ export class NodeEditorLayout {
     // Copy button (left side - third)
     this.copyButton = document.createElement('button');
     (this.copyButton as HTMLButtonElement).type = 'button';
-    this.copyButton.className = 'button secondary sm both';
+    this.copyButton.className = 'button secondary sm icon-only';
     this.copyButton.title = 'Copy Preset';
     const copyIcon = createIconElement('copy', 16, 'currentColor', undefined, 'line');
     this.copyButton.appendChild(copyIcon);
-    const copyLabel = document.createElement('span');
-    copyLabel.textContent = 'Copy';
-    this.copyButton.appendChild(copyLabel);
     this.copyButton.addEventListener('click', async (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -562,13 +579,10 @@ export class NodeEditorLayout {
     // Export button (left side - fourth)
     this.exportButton = document.createElement('button');
     (this.exportButton as HTMLButtonElement).type = 'button';
-    this.exportButton.className = 'button secondary sm both';
+    this.exportButton.className = 'button secondary sm icon-only';
     this.exportButton.title = 'Save Image';
     const exportIcon = createIconElement('photo', 16, 'currentColor', undefined, 'line');
     this.exportButton.appendChild(exportIcon);
-    const exportLabel = document.createElement('span');
-    exportLabel.textContent = 'Save';
-    this.exportButton.appendChild(exportLabel);
     this.exportButton.addEventListener('click', async (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -584,13 +598,10 @@ export class NodeEditorLayout {
     // Export Video button (left side - fifth)
     const videoExportButton = document.createElement('button');
     (videoExportButton as HTMLButtonElement).type = 'button';
-    videoExportButton.className = 'button secondary sm both';
+    videoExportButton.className = 'button secondary sm icon-only';
     videoExportButton.title = 'Save Video';
-    const videoExportIcon = createIconElement('video', 16, 'currentColor', undefined, 'line');
+    const videoExportIcon = createIconElement('brand-youtube', 16, 'currentColor', undefined, 'line');
     videoExportButton.appendChild(videoExportIcon);
-    const videoExportLabel = document.createElement('span');
-    videoExportLabel.textContent = 'Save';
-    videoExportButton.appendChild(videoExportLabel);
     videoExportButton.addEventListener('click', async (e) => {
       e.preventDefault();
       e.stopPropagation();

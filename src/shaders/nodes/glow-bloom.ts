@@ -41,7 +41,7 @@ export const glowBloomNodeSpec: NodeSpec = {
       min: 0.0,
       max: 20.0,
       step: 0.1,
-      label: 'Radius (for future multi-pass)'
+      label: 'Radius'
     },
     glowStrength: {
       type: 'float',

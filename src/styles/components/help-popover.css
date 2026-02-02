@@ -238,17 +238,9 @@
         color: var(--print-highlight);
       }
 
-      .port-type {
-        /* Box model */
-        padding: var(--pd-2xs) var(--pd-xs);
-        border-radius: var(--radius-sm);
-
-        /* Visual */
-        background: var(--ghost-bg);
-        color: var(--ghost-print);
-
-        /* Typography */
-        font-size: var(--text-xs);
+      /* Port type and suggestion pills use component .tag.xs (data-type for colors) */
+      .port-name-row .tag,
+      .port-suggestions-items .tag {
         font-family: var(--font-mono);
       }
 
@@ -277,20 +269,6 @@
           display: flex;
           flex-wrap: wrap;
           gap: var(--pd-xs);
-
-          .port-suggestion-type {
-            /* Box model */
-            padding: var(--pd-2xs) var(--pd-xs);
-            border-radius: var(--radius-sm);
-
-            /* Visual */
-            background: var(--ghost-bg);
-            color: var(--ghost-print);
-
-            /* Typography */
-            font-size: var(--text-xs);
-            font-family: var(--font-mono);
-          }
 
           .related-item {
             /* Layout */

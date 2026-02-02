@@ -49,7 +49,7 @@ export const wavePatternsNodeSpec: NodeSpec = {
       min: 0,
       max: 3,
       step: 1,
-      label: 'Wave Type (0=Sine, 1=Cosine, 2=Square, 3=Triangle)'
+      label: 'Wave Type'
     },
     waveDirection: {
       type: 'float',
@@ -57,7 +57,7 @@ export const wavePatternsNodeSpec: NodeSpec = {
       min: 0.0,
       max: 360.0,
       step: 1.0,
-      label: 'Direction (degrees)'
+      label: 'Direction'
     },
     wavePhaseSpeed: {
       type: 'float',

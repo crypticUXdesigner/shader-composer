@@ -228,46 +228,6 @@ export class OverlayManager {
   }
 
   /**
-   * Handle frequency bands parameter click - show frequency bands editor modal
-   * @param nodeId Node ID containing the parameter
-   * @param paramName Parameter name
-   * @param _screenX Screen X coordinate (unused)
-   * @param _screenY Screen Y coordinate (unused)
-   */
-  handleFrequencyBandsParameterClick(nodeId: string, paramName: string, _screenX: number, _screenY: number): void {
-    const node = this.graph.nodes.find(n => n.id === nodeId);
-    const spec = this.nodeSpecs.get(node?.type || '');
-    if (!node || !spec) return;
-
-    const paramSpec = spec.parameters[paramName];
-    if (!paramSpec || paramSpec.type !== 'array') return;
-
-    // Get current value or default
-    const currentValue = node.parameters[paramName] ?? paramSpec.default;
-    const bandsArray = Array.isArray(currentValue) ? currentValue : paramSpec.default as number[][];
-    
-    // Ensure it's an array of arrays
-    if (!Array.isArray(bandsArray) || (bandsArray.length > 0 && !Array.isArray(bandsArray[0]))) {
-      console.warn('Invalid frequency bands format');
-      return;
-    }
-
-    // Show the editor with current bands
-    this.uiElementManager.showFrequencyBandsEditor(
-      bandsArray as number[][],
-      (bands: number[][]) => {
-        // bands is already number[][], no conversion needed
-        // Type cast needed because callback signature expects number, but frequencyBands is an array
-        this.onParameterChanged?.(nodeId, paramName, bands as any);
-        this.render();
-      },
-      () => {
-        // Nothing to do on cancel
-      }
-    );
-  }
-
-  /**
    * Handle enum parameter click - show dropdown menu
    * @param nodeId Node ID containing the parameter
    * @param paramName Parameter name

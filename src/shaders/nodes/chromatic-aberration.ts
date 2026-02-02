@@ -33,7 +33,7 @@ export const chromaticAberrationNodeSpec: NodeSpec = {
       min: 0.0,
       max: 360.0,
       step: 1.0,
-      label: 'Direction (degrees)'
+      label: 'Direction'
     },
     chromaticCenterX: {
       type: 'float',
@@ -63,7 +63,7 @@ export const chromaticAberrationNodeSpec: NodeSpec = {
   parameterGroups: [
     {
       id: 'chromatic-main',
-      label: 'Chromatic Aberration',
+      label: 'Chromatic',
       parameters: ['chromaticStrength', 'chromaticDirection'],
       collapsible: true,
       defaultCollapsed: false
@@ -77,49 +77,25 @@ export const chromaticAberrationNodeSpec: NodeSpec = {
     }
   ],
   functions: `
-// Chromatic aberration effect (simplified - approximates RGB separation)
-float applyChromaticAberration(float value, vec2 p, float strength) {
-  vec2 center = vec2($param.chromaticCenterX, $param.chromaticCenterY);
-  vec2 dir = normalize(p - center);
-  float dist = length(p - center);
-  
-  // Shift channels based on distance and direction
-  // This is an approximation - full implementation needs texture sampling
-  float rOffset = strength * dist * dir.x * 0.1;
-  float bOffset = -strength * dist * dir.x * 0.1;
-  
-  // Approximate channel separation by modifying value
-  float r = value + rOffset;
-  float g = value;
-  float b = value + bOffset;
-  
-  // Combine channels (weighted average)
-  return (r * 0.3 + g * 0.4 + b * 0.3);
+// Chromatic aberration: modulate R/G/B by screen position (radial from center).
+// Full lens-style fringing would need texture sampling at offset UVs.
+vec3 applyChromaticAberration(vec3 color, vec2 p, vec2 center, float strength, float falloff) {
+  vec2 offset = p - center;
+  float dist = length(offset);
+  vec2 dir = dist > 0.001 ? normalize(offset) : vec2(1.0, 0.0);
+  float f = 1.0 / max(1.0 + dist * falloff, 0.001);
+  float k = strength * dist * 0.55 * f;
+  float rMod = 1.0 + dir.x * k;
+  float gMod = 1.0;
+  float bMod = 1.0 - dir.x * k;
+  return clamp(vec3(color.r * rMod, color.g * gMod, color.b * bMod), 0.0, 1.0);
 }
 `,
   mainCode: `
-  // Extract float value from vec4 input
-  float value = $input.in.r;
-  
-  // Calculate screen space coordinates
+  vec3 color = $input.in.rgb;
   vec2 p = ((gl_FragCoord.xy / $resolution.xy * 2.0 - 1.0) * vec2($resolution.x / $resolution.y, 1.0));
-  
-  // Apply chromatic aberration before color mapping
-  // Note: Full chromatic aberration requires texture sampling of RGB channels
-  // This is a simplified approximation
-  vec2 chromaticCenter = vec2($param.chromaticCenterX, $param.chromaticCenterY);
-  vec2 offset = p - chromaticCenter;
-  float dist = length(offset);
-  vec2 dir = dist > 0.001 ? normalize(offset) : vec2(1.0, 0.0);
-  float falloff = 1.0 / max(1.0 + dist * $param.chromaticFalloff, 0.001);
-  
-  float rOffset = $param.chromaticStrength * dist * dir.x * 0.1 * falloff;
-  float bOffset = -$param.chromaticStrength * dist * dir.x * 0.1 * falloff;
-  
-  // Approximate RGB separation
-  float result = value + (rOffset + bOffset) * 0.1;
-  
-  // Output as vec4
-  $output.out = vec4(result, result, result, 1.0);
+  vec2 center = vec2($param.chromaticCenterX, $param.chromaticCenterY);
+  vec3 result = applyChromaticAberration(color, p, center, $param.chromaticStrength, $param.chromaticFalloff);
+  $output.out = vec4(result, 1.0);
 `
 };

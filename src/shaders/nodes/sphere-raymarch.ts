@@ -34,7 +34,7 @@ export const sphereRaymarchNodeSpec: NodeSpec = {
       min: 0.0,
       max: 2.0,
       step: 0.01,
-      label: 'Glow Intensity',
+      label: 'Glow',
       inputMode: 'override'
     },
     sphereBrightness: {
@@ -115,7 +115,7 @@ export const sphereRaymarchNodeSpec: NodeSpec = {
       min: 0.0,
       max: 0.2,
       step: 0.01,
-      label: 'Distance Contr.'
+      label: 'Distance'
     },
     vectorFieldSpeed: {
       type: 'float',

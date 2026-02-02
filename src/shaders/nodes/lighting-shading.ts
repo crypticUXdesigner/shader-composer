@@ -25,7 +25,7 @@ export const lightingShadingNodeSpec: NodeSpec = {
       min: 0,
       max: 1,
       step: 1,
-      label: 'Type (0=Directional, 1=Point)'
+      label: 'Type'
     },
     lightDirX: {
       type: 'float',
@@ -73,7 +73,7 @@ export const lightingShadingNodeSpec: NodeSpec = {
       min: -5.0,
       max: 5.0,
       step: 0.1,
-      label: 'Position Z (Point)'
+      label: 'Pos. Z'
     },
     lightIntensity: {
       type: 'float',

@@ -478,7 +478,6 @@ export class HitTestManager {
     nodeId: string;
     paramName: string;
     isString?: boolean;
-    isArray?: boolean;
     isModeButton?: boolean;
     frequencyBand?: { bandIndex: number; field: 'start' | 'end' | 'sliderLow' | 'sliderHigh' };
     scale?: 'linear' | 'audio';
@@ -551,7 +550,7 @@ export class HitTestManager {
           return { nodeId: node.id, paramName, isString: false };
         }
 
-        // String and array params use full cell hit (no control regions from registry)
+        // String params use full cell hit (no control regions from registry)
         if (paramSpec.type === 'string') {
           if (
             canvasPos.x >= gridPos.cellX &&
@@ -560,15 +559,6 @@ export class HitTestManager {
             canvasPos.y <= gridPos.cellY + gridPos.cellHeight
           ) {
             return { nodeId: node.id, paramName, isString: true };
-          }
-        } else if (paramSpec.type === 'array') {
-          if (
-            canvasPos.x >= gridPos.cellX &&
-            canvasPos.x <= gridPos.cellX + gridPos.cellWidth &&
-            canvasPos.y >= gridPos.cellY &&
-            canvasPos.y <= gridPos.cellY + gridPos.cellHeight
-          ) {
-            return { nodeId: node.id, paramName, isArray: true };
           }
         }
       }

@@ -111,9 +111,9 @@
   }
 
   &.icon-only {
-    width: var(--size-sm);
+    width: var(--size-md);
     height: var(--size-sm);
-    min-width: var(--size-sm);
+    min-width: var(--size-md);
     padding: 0;
   }
 }
@@ -143,7 +143,7 @@
 /* Large Size */
 .button.lg {
   /* Box model */
-  min-height: var(--size-lg);
+  min-width: var(--size-lg);
   padding: var(--pd-md) var(--pd-xl);
   gap: var(--pd-sm);
 
@@ -155,7 +155,6 @@
   }
 
   &.icon-only {
-    width: var(--size-lg);
     height: var(--size-lg);
     min-width: var(--size-lg);
     padding: 0;

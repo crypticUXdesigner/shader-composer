@@ -25,7 +25,7 @@ export const blendingModesNodeSpec: NodeSpec = {
       min: 0,
       max: 10,
       step: 1,
-      label: 'Mode (0=Multiply, 1=Screen, 2=Overlay, 3=Soft Light, 4=Hard Light, 5=Color Dodge, 6=Color Burn, 7=Linear Dodge, 8=Linear Burn, 9=Difference, 10=Exclusion)'
+      label: 'Mode'
     },
     blendOpacity: {
       type: 'float',
@@ -41,7 +41,7 @@ export const blendingModesNodeSpec: NodeSpec = {
       min: 0,
       max: 2,
       step: 1,
-      label: 'Source (0=Parameter, 1=Noise, 2=Wave)'
+      label: 'Source'
     },
     blendValue: {
       type: 'float',
@@ -49,7 +49,7 @@ export const blendingModesNodeSpec: NodeSpec = {
       min: 0.0,
       max: 1.0,
       step: 0.01,
-      label: 'Blend Value (Parameter)'
+      label: 'Blend Value'
     },
     blendScale: {
       type: 'float',
@@ -57,7 +57,7 @@ export const blendingModesNodeSpec: NodeSpec = {
       min: 0.1,
       max: 20.0,
       step: 0.1,
-      label: 'Scale (Noise)'
+      label: 'Noise Scale'
     },
     blendFrequency: {
       type: 'float',
@@ -65,7 +65,7 @@ export const blendingModesNodeSpec: NodeSpec = {
       min: 0.1,
       max: 50.0,
       step: 0.1,
-      label: 'Frequency (Wave)'
+      label: 'Wave Freq'
     },
     blendTimeSpeed: {
       type: 'float',

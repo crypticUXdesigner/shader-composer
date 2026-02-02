@@ -71,7 +71,7 @@ export const polarCoordinatesNodeSpec: NodeSpec = {
   parameterGroups: [
     {
       id: 'polar-main',
-      label: 'Polar Coords',
+      label: 'Polar',
       parameters: ['polarCenterX', 'polarCenterY', 'polarScale', 'polarRadiusScale', 'polarRotation', 'polarEnabled'],
       collapsible: true,
       defaultCollapsed: false

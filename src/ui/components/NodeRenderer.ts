@@ -3,6 +3,7 @@
 import type { NodeInstance } from '../../types/nodeGraph';
 import type { NodeSpec } from '../../types/nodeSpec';
 import { getNodeColorByCategory, getNodeIcon } from '../../utils/nodeSpecUtils';
+import { getParameterEnumMappings } from '../../utils/parameterEnumMappings';
 import { getCSSColor, getCSSColorRGBA, getCSSVariableAsNumber } from '../../utils/cssTokens';
 import { renderIconOnCanvas } from '../../utils/icons';
 import { NodeMetricsCalculator } from './rendering/NodeMetricsCalculator';
@@ -335,86 +336,12 @@ export class NodeRenderer {
 
   // Check if parameter matches a known enum pattern
   private isKnownEnumPattern(nodeId: string, paramName: string): boolean {
-    const enumMappings = this.getEnumMappings(nodeId, paramName);
-    return enumMappings !== null;
+    return getParameterEnumMappings(nodeId, paramName) !== null;
   }
 
-  // Get enum label mappings for a parameter
+  // Get enum label mappings for a parameter (used by OverlayManager for dropdown)
   getEnumMappings(nodeId: string, paramName: string): Record<number, string> | null {
-    // compare node - operation
-    if (nodeId === 'compare' && paramName === 'operation') {
-      return {
-        0: 'Equal (==)',
-        1: 'Not Equal (!=)',
-        2: 'Less Than (<)',
-        3: 'Less or Equal (<=)',
-        4: 'Greater Than (>)',
-        5: 'Greater or Equal (>=)'
-      };
-    }
-    
-    // blend-mode node - mode
-    if (nodeId === 'blend-mode' && paramName === 'mode') {
-      return {
-        0: 'Normal',
-        1: 'Multiply',
-        2: 'Screen',
-        3: 'Overlay',
-        4: 'Soft Light',
-        5: 'Hard Light',
-        6: 'Color Dodge',
-        7: 'Color Burn',
-        8: 'Linear Dodge',
-        9: 'Linear Burn',
-        10: 'Difference',
-        11: 'Exclusion'
-      };
-    }
-    
-    // gradient-mask node - maskType
-    if (nodeId === 'gradient-mask' && paramName === 'maskType') {
-      return {
-        0: 'Radial',
-        1: 'Linear',
-        2: 'Elliptical'
-      };
-    }
-    
-    // block-edge-brightness node - direction
-    if (nodeId === 'block-edge-brightness' && paramName === 'direction') {
-      return {
-        0: 'Horizontal',
-        1: 'Vertical'
-      };
-    }
-    
-    // block-color-glitch node - direction
-    if (nodeId === 'block-color-glitch' && paramName === 'direction') {
-      return {
-        0: 'Horizontal',
-        1: 'Vertical'
-      };
-    }
-    
-    // plane-grid node - planeType
-    if (nodeId === 'plane-grid' && paramName === 'planeType') {
-      return {
-        0: 'Raymarched',
-        1: 'Grid',
-        2: 'Checkerboard'
-      };
-    }
-    
-    // box-torus-sdf node - primitiveType
-    if (nodeId === 'box-torus-sdf' && paramName === 'primitiveType') {
-      return {
-        0: 'Box',
-        1: 'Torus',
-        2: 'Capsule'
-      };
-    }
-    
-    return null;
+    return getParameterEnumMappings(nodeId, paramName);
   }
 
   private organizeParametersByGroups(spec: NodeSpec): {
