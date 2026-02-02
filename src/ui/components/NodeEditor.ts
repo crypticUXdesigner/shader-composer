@@ -6,6 +6,7 @@ import { NodePanel } from './NodePanel';
 import { UndoRedoManager } from './UndoRedoManager';
 import { CopyPasteManager } from './CopyPasteManager';
 import { ContextualHelpCallout } from './ContextualHelpCallout';
+import { NodeRightClickMenu } from './NodeRightClickMenu';
 import type { NodeGraph, NodeInstance, Connection } from '../../types/nodeGraph';
 import type { NodeSpec } from '../../types/nodeSpec';
 import {
@@ -44,6 +45,7 @@ export class NodeEditor {
   private undoRedoManager: UndoRedoManager;
   private copyPasteManager: CopyPasteManager;
   private helpCallout: ContextualHelpCallout;
+  private nodeRightClickMenu: NodeRightClickMenu;
   private helpOpenFromToolbar: boolean = false;
   private onOpenPanelAndFocusSearch?: () => void;
   
@@ -96,7 +98,30 @@ export class NodeEditor {
     this.helpCallout.setOnClose(() => {
       this.helpOpenFromToolbar = false;
     });
-    
+
+    // Create node right-click context menu (Read Guide, Copy node name, Remove)
+    this.nodeRightClickMenu = new NodeRightClickMenu({
+      onReadGuide: (nodeId, nodeType) => {
+        const center = this.getCanvasCenterInScreen();
+        this.helpCallout.show({
+          helpId: `node:${nodeType}`,
+          screenX: center.x,
+          screenY: center.y,
+          positionMode: 'center',
+          nodeSpecs: this.nodeSpecs
+        });
+      },
+      onCopyNodeName: (nodeType) => {
+        navigator.clipboard.writeText(nodeType).catch(() => {});
+      },
+      onRemove: (nodeId) => {
+        this.updateViewState();
+        this.graph = removeNodeImmutable(this.graph as any, nodeId) as any;
+        this.canvasComponent.setGraph(this.graph);
+        this.notifyGraphChanged();
+      }
+    });
+
     // Setup drag and drop from panel to canvas
     this.setupPanelDragAndDrop();
     
@@ -298,6 +323,9 @@ export class NodeEditor {
           typeLabelBounds,
           nodeSpecs: this.nodeSpecs
         });
+      },
+      onNodeContextMenu: (screenX, screenY, nodeId, nodeType) => {
+        this.nodeRightClickMenu.show(screenX, screenY, nodeId, nodeType);
       }
     });
   }

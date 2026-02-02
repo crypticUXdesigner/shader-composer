@@ -2230,6 +2230,144 @@
         "node:sine"
       ]
     },
+    "node:bulge-pinch": {
+      "title": "Bulge / Pinch",
+      "titleType": "node",
+      "category": "Distort",
+      "icon": "circle-dotted",
+      "tagline": "Radial displacement from a center; positive strength bulges, negative pinches",
+      "description": "Applies radial displacement from a center point. Positive strength bulges coordinates outward (lens/magnify effect); negative strength pinches them inward. Radius and falloff control the extent and smoothness of the effect.",
+      "inputs": [{"name": "in", "type": "vec2", "description": "Input coordinates", "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate"]}],
+      "outputs": [{"name": "out", "type": "vec2", "description": "Distorted coordinates", "suggestedTargets": ["node:fbm-noise", "node:color-map", "node:scale"]}],
+      "relatedItems": ["node:twist-distortion", "node:fisheye", "node:polar-coordinates"]
+    },
+    "node:ripple": {
+      "title": "Ripple",
+      "titleType": "node",
+      "category": "Distort",
+      "icon": "wave-sine",
+      "tagline": "Sine-wave displacement; concentric or directional for water/glass effects",
+      "description": "Displaces coordinates with sine waves. Concentric mode creates circular ripples from a center; Directional mode creates a grid of waves. Frequency, amplitude, phase and optional time speed control the effect.",
+      "inputs": [{"name": "in", "type": "vec2", "description": "Input coordinates", "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:polar-coordinates"]}],
+      "outputs": [{"name": "out", "type": "vec2", "description": "Rippled coordinates", "suggestedTargets": ["node:fbm-noise", "node:color-map", "node:twist-distortion"]}],
+      "relatedItems": ["node:wave-patterns", "node:twist-distortion", "node:vector-field"]
+    },
+    "node:fisheye": {
+      "title": "Fisheye",
+      "titleType": "node",
+      "category": "Distort",
+      "icon": "circle",
+      "tagline": "Lens-style radial distortion; barrel or pincushion",
+      "description": "Applies lens-style radial distortion. Negative strength gives barrel (fisheye) distortion; positive gives pincushion. Center and aspect ratio are configurable.",
+      "inputs": [{"name": "in", "type": "vec2", "description": "Input coordinates", "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate"]}],
+      "outputs": [{"name": "out", "type": "vec2", "description": "Distorted coordinates", "suggestedTargets": ["node:chromatic-aberration", "node:color-map", "node:blur"]}],
+      "relatedItems": ["node:bulge-pinch", "node:polar-coordinates"]
+    },
+    "node:mirror-flip": {
+      "title": "Mirror / Flip",
+      "titleType": "node",
+      "category": "Distort",
+      "icon": "flip-horizontal",
+      "tagline": "Flip coordinates horizontally and/or vertically",
+      "description": "Flips input coordinates around an optional center. Enable Flip X and/or Flip Y for mirroring. Useful for symmetry and avoiding duplicate artwork.",
+      "inputs": [{"name": "in", "type": "vec2", "description": "Input coordinates", "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:scale"]}],
+      "outputs": [{"name": "out", "type": "vec2", "description": "Flipped coordinates", "suggestedTargets": ["node:kaleidoscope", "node:fbm-noise", "node:color-map"]}],
+      "relatedItems": ["node:kaleidoscope", "node:scale"]
+    },
+    "node:displace": {
+      "title": "Displace",
+      "titleType": "node",
+      "category": "Distort",
+      "icon": "arrow-big-right",
+      "tagline": "Offset coordinates by a vector from noise or gradient",
+      "description": "Adds an offset vector to the input coordinates. Connect a vec2 from noise, gradient, or flow to drive the distortion. Scale multiplies the offset.",
+      "inputs": [
+        {"name": "in", "type": "vec2", "description": "Input coordinates", "suggestedSources": ["type:vec2", "node:uv-coordinates"]},
+        {"name": "offset", "type": "vec2", "description": "Displacement vector", "suggestedSources": ["node:fbm-noise", "node:simplex-noise", "node:cubic-curl-noise", "node:combine-vector"]}
+      ],
+      "outputs": [{"name": "out", "type": "vec2", "description": "Displaced coordinates", "suggestedTargets": ["node:fbm-noise", "node:color-map"]}],
+      "relatedItems": ["node:vector-field", "node:turbulence", "node:combine-vector"]
+    },
+    "node:vortex": {
+      "title": "Vortex",
+      "titleType": "node",
+      "category": "Distort",
+      "icon": "spiral",
+      "tagline": "Spiral pull toward center for drain/portal effects",
+      "description": "Pulls and rotates coordinates toward a center point, creating a spiral vortex. Strength, radius and falloff control the effect; optional time speed animates the spin.",
+      "inputs": [{"name": "in", "type": "vec2", "description": "Input coordinates", "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:polar-coordinates"]}],
+      "outputs": [{"name": "out", "type": "vec2", "description": "Vortex-distorted coordinates", "suggestedTargets": ["node:fbm-noise", "node:color-map", "node:twist-distortion"]}],
+      "relatedItems": ["node:twist-distortion", "node:polar-coordinates"]
+    },
+    "node:spherize": {
+      "title": "Spherize",
+      "titleType": "node",
+      "category": "Distort",
+      "icon": "circle",
+      "tagline": "Map rectangle to hemisphere for 3D ball/planet effect",
+      "description": "Maps 2D coordinates onto a hemisphere so patterns wrap like a sphere. Center, radius and strength control the spherize amount.",
+      "inputs": [{"name": "in", "type": "vec2", "description": "Input coordinates", "suggestedSources": ["type:vec2", "node:uv-coordinates"]}],
+      "outputs": [{"name": "out", "type": "vec2", "description": "Spherized coordinates", "suggestedTargets": ["node:sphere-raymarch", "node:color-map", "node:lighting-shading"]}],
+      "relatedItems": ["node:sphere-raymarch", "node:polar-coordinates"]
+    },
+    "node:quad-warp": {
+      "title": "Quad Warp",
+      "titleType": "node",
+      "category": "Distort",
+      "icon": "box",
+      "tagline": "Map unit square to a quadrilateral for perspective/screen effects",
+      "description": "Maps input (u,v) from the unit square to a quadrilateral defined by four corners (BL, BR, TL, TR). Use for perspective distortion, screens, and poster effects.",
+      "inputs": [{"name": "in", "type": "vec2", "description": "Input coordinates (e.g. 0–1)", "suggestedSources": ["type:vec2", "node:uv-coordinates"]}],
+      "outputs": [{"name": "out", "type": "vec2", "description": "Warped coordinates", "suggestedTargets": ["node:fbm-noise", "node:color-map"]}],
+      "relatedItems": ["node:scale", "node:rotate"]
+    },
+    "node:directional-displace": {
+      "title": "Directional Displace",
+      "titleType": "node",
+      "category": "Distort",
+      "icon": "arrow-right",
+      "tagline": "Displace along a fixed direction by a scalar amount",
+      "description": "Offsets coordinates along a single direction (angle). Connect a float for the amount (e.g. from noise or gradient) and set the angle. Scale multiplies the displacement.",
+      "inputs": [
+        {"name": "in", "type": "vec2", "description": "Input coordinates", "suggestedSources": ["type:vec2", "node:uv-coordinates"]},
+        {"name": "amount", "type": "float", "description": "Displacement amount", "suggestedSources": ["node:fbm-noise", "node:simplex-noise", "node:time"]}
+      ],
+      "outputs": [{"name": "out", "type": "vec2", "description": "Displaced coordinates", "suggestedTargets": ["node:displace", "node:color-map"]}],
+      "relatedItems": ["node:displace", "node:vector-field"]
+    },
+    "node:brick-tiling": {
+      "title": "Brick Tiling",
+      "titleType": "node",
+      "category": "Distort",
+      "icon": "grid",
+      "tagline": "Tiled coords with row offset for brick and staggered patterns",
+      "description": "Tiles coordinates with an optional horizontal offset on alternating rows (brick/staggered layout). Scale X/Y and row offset X control the tiling.",
+      "inputs": [{"name": "in", "type": "vec2", "description": "Input coordinates", "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:domain-repetition"]}],
+      "outputs": [{"name": "out", "type": "vec2", "description": "Brick-tiled coordinates", "suggestedTargets": ["node:fbm-noise", "node:dots", "node:color-map"]}],
+      "relatedItems": ["node:domain-repetition", "node:hexagonal-grid"]
+    },
+    "node:infinite-zoom": {
+      "title": "Infinite Zoom",
+      "titleType": "node",
+      "category": "Distort",
+      "icon": "zoom-in",
+      "tagline": "Scale and wrap for recursive zoom/tunnel effect",
+      "description": "Scales coordinates by a time-dependent factor and wraps them to create a repeating zoom/tunnel effect. Center, scale and time speed are configurable.",
+      "inputs": [{"name": "in", "type": "vec2", "description": "Input coordinates", "suggestedSources": ["type:vec2", "node:uv-coordinates"]}],
+      "outputs": [{"name": "out", "type": "vec2", "description": "Zoomed/wrapped coordinates", "suggestedTargets": ["node:fbm-noise", "node:voronoi-noise", "node:color-map"]}],
+      "relatedItems": ["node:domain-repetition", "node:scale"]
+    },
+    "node:kaleidoscope-smooth": {
+      "title": "Kaleidoscope Smooth",
+      "titleType": "node",
+      "category": "Distort",
+      "icon": "ikosaedr",
+      "tagline": "Kaleidoscope with smooth folding at segment edges",
+      "description": "Like Kaleidoscope but uses smooth folding at segment boundaries for softer, more continuous symmetry. Segments, rotation and smooth edge width are configurable.",
+      "inputs": [{"name": "in", "type": "vec2", "description": "Input coordinates", "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:polar-coordinates"]}],
+      "outputs": [{"name": "out", "type": "vec2", "description": "Smooth kaleidoscope coordinates", "suggestedTargets": ["node:fbm-noise", "node:color-map", "node:kaleidoscope"]}],
+      "relatedItems": ["node:kaleidoscope", "node:polar-coordinates"]
+    },
     "node:fbm-noise": {
       "title": "fBm Noise",
       "titleType": "node",

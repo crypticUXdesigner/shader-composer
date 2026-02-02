@@ -35,6 +35,7 @@ export interface IconDefinition {
 export const iconRegistry: Record<string, IconDefinition> = {
   // Basic shapes
   'circle': { tablerIconName: 'circle', variant: 'filled' },
+  'circle-dotted': { tablerIconName: 'circle-dotted', variant: 'line' },
   'square': { tablerIconName: 'square', variant: 'line' },
   'star': { tablerIconName: 'star', variant: 'line' },
   'square-rounded-corners': { tablerIconName: 'square-rounded-corners', variant: 'line' },
@@ -105,6 +106,9 @@ export const iconRegistry: Record<string, IconDefinition> = {
   'arrow-move-right': { tablerIconName: 'arrow-move-right', variant: 'line' },
   'arrow-autofit-height': { tablerIconName: 'arrow-autofit-height', variant: 'line' },
   'arrow-up-right': { tablerIconName: 'arrow-up-right', variant: 'line' },
+  'arrow-big-right': { tablerIconName: 'arrow-big-right', variant: 'line' },
+  'flip-horizontal': { tablerIconName: 'flip-horizontal', variant: 'line' },
+  'zoom-in': { tablerIconName: 'zoom-in', variant: 'line' },
   'spiral': { tablerIconName: 'spiral', variant: 'line' },
   'ikosaedr': { tablerIconName: 'ikosaedr', variant: 'line' },
   

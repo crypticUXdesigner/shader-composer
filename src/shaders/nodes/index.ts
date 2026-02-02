@@ -24,6 +24,18 @@ import { vectorFieldNodeSpec } from './vector-field';
 import { turbulenceNodeSpec } from './turbulence';
 import { twistDistortionNodeSpec } from './twist-distortion';
 import { kaleidoscopeNodeSpec } from './kaleidoscope';
+import { bulgePinchNodeSpec } from './bulge-pinch';
+import { rippleNodeSpec } from './ripple';
+import { fisheyeNodeSpec } from './fisheye';
+import { mirrorFlipNodeSpec } from './mirror-flip';
+import { displaceNodeSpec } from './displace';
+import { vortexNodeSpec } from './vortex';
+import { spherizeNodeSpec } from './spherize';
+import { quadWarpNodeSpec } from './quad-warp';
+import { directionalDisplaceNodeSpec } from './directional-displace';
+import { brickTilingNodeSpec } from './brick-tiling';
+import { infiniteZoomNodeSpec } from './infinite-zoom';
+import { kaleidoscopeSmoothNodeSpec } from './kaleidoscope-smooth';
 import { fbmNoiseNodeSpec } from './fbm-noise';
 import { simplexNoiseNodeSpec } from './simplex-noise';
 import { simplex3dNodeSpec } from './simplex-3d';
@@ -164,7 +176,19 @@ export const nodeSystemSpecs: NodeSpec[] = [
   turbulenceNodeSpec,
   twistDistortionNodeSpec,
   kaleidoscopeNodeSpec,
-  
+  bulgePinchNodeSpec,
+  rippleNodeSpec,
+  fisheyeNodeSpec,
+  mirrorFlipNodeSpec,
+  displaceNodeSpec,
+  vortexNodeSpec,
+  spherizeNodeSpec,
+  quadWarpNodeSpec,
+  directionalDisplaceNodeSpec,
+  brickTilingNodeSpec,
+  infiniteZoomNodeSpec,
+  kaleidoscopeSmoothNodeSpec,
+
   // Pattern/Noise nodes
   fbmNoiseNodeSpec,
   simplexNoiseNodeSpec,

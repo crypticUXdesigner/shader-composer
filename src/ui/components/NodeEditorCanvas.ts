@@ -153,6 +153,7 @@ export class NodeEditorCanvas {
   private onSpacebarStateChange?: (isPressed: boolean) => void;
   private isDialogVisible?: () => boolean;
   private onTypeLabelClick?: (portType: string, screenX: number, screenY: number, typeLabelBounds?: { left: number; top: number; right: number; bottom: number; width: number; height: number }) => void;
+  private onNodeContextMenu?: (screenX: number, screenY: number, nodeId: string, nodeType: string) => void;
   private audioManager?: IAudioManager;
   private effectiveValueUpdateInterval: number | null = null;
   
@@ -964,7 +965,7 @@ export class NodeEditorCanvas {
     this.canvas.addEventListener('mouseleave', () => this.mouseEventHandler.handleMouseLeave());
     this.canvas.addEventListener('dblclick', (e) => this.handleCanvasDoubleClick(e));
     this.canvas.addEventListener('wheel', (e) => this.wheelEventHandler.handleWheel(e));
-    this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    this.canvas.addEventListener('contextmenu', (e) => this.handleContextMenu(e));
     
     // Keyboard shortcuts are now handled by KeyboardShortcutHandler (initialized in setupManagerContexts)
     
@@ -975,7 +976,7 @@ export class NodeEditorCanvas {
       this.handleResize();
     });
     this.resizeObserver.observe(this.canvas);
-    
+
     // Initialize cached viewport dimensions
     const initialRect = this.canvas.getBoundingClientRect();
     this.cachedViewportWidth = initialRect.width;
@@ -1179,6 +1180,19 @@ export class NodeEditorCanvas {
     this.overlayManager.hideParameterInput();
   }
   
+  /**
+   * Handle right-click on canvas: if over a node, show node context menu (Read Guide, Copy node name, Remove).
+   */
+  private handleContextMenu(e: MouseEvent): void {
+    e.preventDefault();
+    const nodeId = this.hitTestManager.hitTestNode(e.clientX, e.clientY);
+    if (!nodeId || !this.onNodeContextMenu) return;
+    const node = this.graph.nodes.find((n) => n.id === nodeId);
+    if (node) {
+      this.onNodeContextMenu(e.clientX, e.clientY, node.id, node.type);
+    }
+  }
+
   /**
    * Handle double-click on canvas: if over a parameter value box, show parameter input overlay;
    * otherwise if over node header label, show label edit overlay.
@@ -1670,6 +1684,7 @@ export class NodeEditorCanvas {
     onSpacebarStateChange?: (isPressed: boolean) => void;
     isDialogVisible?: () => boolean;
     onTypeLabelClick?: (portType: string, screenX: number, screenY: number, typeLabelBounds?: { left: number; top: number; right: number; bottom: number; width: number; height: number }) => void;
+    onNodeContextMenu?: (screenX: number, screenY: number, nodeId: string, nodeType: string) => void;
   }): void {
     this.onNodeMoved = callbacks.onNodeMoved;
     this.onNodeSelected = callbacks.onNodeSelected;
@@ -1684,7 +1699,8 @@ export class NodeEditorCanvas {
     this.onSpacebarStateChange = callbacks.onSpacebarStateChange;
     this.isDialogVisible = callbacks.isDialogVisible;
     this.onTypeLabelClick = callbacks.onTypeLabelClick;
-    
+    this.onNodeContextMenu = callbacks.onNodeContextMenu;
+
     // Update mouse handler's callback references since it was created before callbacks were set
     // The mouse handler stores callbacks in its deps property
     if (this.mouseEventHandler && (this.mouseEventHandler as any).deps) {

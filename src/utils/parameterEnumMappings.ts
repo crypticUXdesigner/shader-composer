@@ -186,5 +186,10 @@ export function getParameterEnumMappings(
     return { 0: 'Off', 1: 'On' };
   }
 
+  // ripple
+  if (nodeId === 'ripple' && paramName === 'rippleMode') {
+    return { 0: 'Concentric', 1: 'Directional' };
+  }
+
   return null;
 }
