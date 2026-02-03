@@ -14,7 +14,8 @@ export const displaceNodeSpec: NodeSpec = {
     {
       name: 'offset',
       type: 'vec2',
-      label: 'Offset'
+      label: 'Offset',
+      fallbackParameter: 'offsetX,offsetY'
     }
   ],
   outputs: [
@@ -31,17 +32,10 @@ export const displaceNodeSpec: NodeSpec = {
       max: 2.0,
       step: 0.01,
       label: 'Scale'
-    }
+    },
+    offsetX: { type: 'float', default: 0.0, min: -10.0, max: 10.0, step: 0.01, label: 'Offset X' },
+    offsetY: { type: 'float', default: 0.0, min: -10.0, max: 10.0, step: 0.01, label: 'Offset Y' }
   },
-  parameterGroups: [
-    {
-      id: 'displace-main',
-      label: 'Displace',
-      parameters: ['displaceScale'],
-      collapsible: true,
-      defaultCollapsed: false
-    }
-  ],
   mainCode: `
   $output.out = $input.in + $input.offset * $param.displaceScale;
 `

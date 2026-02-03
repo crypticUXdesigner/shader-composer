@@ -14,12 +14,14 @@ export const addNodeSpec: NodeSpec = {
   icon: 'plus',
   inputs: [
     { name: 'a', type: 'float' },
-    { name: 'b', type: 'float' }
+    { name: 'b', type: 'float', fallbackParameter: 'b' }
   ],
   outputs: [
     { name: 'out', type: 'float' }
   ],
-  parameters: {},
+  parameters: {
+    b: { type: 'float', default: 0.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'B' }
+  },
   mainCode: `
     $output.out = $input.a + $input.b;
   `
@@ -33,12 +35,14 @@ export const subtractNodeSpec: NodeSpec = {
   icon: 'minus',
   inputs: [
     { name: 'a', type: 'float' },
-    { name: 'b', type: 'float' }
+    { name: 'b', type: 'float', fallbackParameter: 'b' }
   ],
   outputs: [
     { name: 'out', type: 'float' }
   ],
-  parameters: {},
+  parameters: {
+    b: { type: 'float', default: 0.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'B' }
+  },
   mainCode: `
     $output.out = $input.a - $input.b;
   `
@@ -52,12 +56,14 @@ export const multiplyNodeSpec: NodeSpec = {
   icon: 'multiply-x',
   inputs: [
     { name: 'a', type: 'float' },
-    { name: 'b', type: 'float' }
+    { name: 'b', type: 'float', fallbackParameter: 'b' }
   ],
   outputs: [
     { name: 'out', type: 'float' }
   ],
-  parameters: {},
+  parameters: {
+    b: { type: 'float', default: 1.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'B' }
+  },
   mainCode: `
     $output.out = $input.a * $input.b;
   `
@@ -71,12 +77,14 @@ export const divideNodeSpec: NodeSpec = {
   icon: 'divide',
   inputs: [
     { name: 'a', type: 'float' },
-    { name: 'b', type: 'float' }
+    { name: 'b', type: 'float', fallbackParameter: 'b' }
   ],
   outputs: [
     { name: 'out', type: 'float' }
   ],
-  parameters: {},
+  parameters: {
+    b: { type: 'float', default: 1.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'B' }
+  },
   mainCode: `
     $output.out = $input.a / $input.b;
   `
@@ -90,12 +98,14 @@ export const powerNodeSpec: NodeSpec = {
   icon: 'power',
   inputs: [
     { name: 'base', type: 'float' },
-    { name: 'exponent', type: 'float' }
+    { name: 'exponent', type: 'float', fallbackParameter: 'exponent' }
   ],
   outputs: [
     { name: 'out', type: 'float' }
   ],
-  parameters: {},
+  parameters: {
+    exponent: { type: 'float', default: 2.0, min: -100.0, max: 100.0, step: 0.01, label: 'Exponent' }
+  },
   mainCode: `
     $output.out = pow($input.base, $input.exponent);
   `
@@ -199,12 +209,14 @@ export const moduloNodeSpec: NodeSpec = {
   icon: 'percentage',
   inputs: [
     { name: 'a', type: 'float' },
-    { name: 'b', type: 'float' }
+    { name: 'b', type: 'float', fallbackParameter: 'b' }
   ],
   outputs: [
     { name: 'out', type: 'float' }
   ],
-  parameters: {},
+  parameters: {
+    b: { type: 'float', default: 1.0, min: 0.001, max: 1000.0, step: 0.01, label: 'B' }
+  },
   mainCode: `
     $output.out = mod($input.a, $input.b);
   `
@@ -218,12 +230,14 @@ export const minNodeSpec: NodeSpec = {
   icon: 'math-min',
   inputs: [
     { name: 'a', type: 'float' },
-    { name: 'b', type: 'float' }
+    { name: 'b', type: 'float', fallbackParameter: 'b' }
   ],
   outputs: [
     { name: 'out', type: 'float' }
   ],
-  parameters: {},
+  parameters: {
+    b: { type: 'float', default: 0.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'B' }
+  },
   mainCode: `
     $output.out = min($input.a, $input.b);
   `
@@ -237,12 +251,14 @@ export const maxNodeSpec: NodeSpec = {
   icon: 'math-max',
   inputs: [
     { name: 'a', type: 'float' },
-    { name: 'b', type: 'float' }
+    { name: 'b', type: 'float', fallbackParameter: 'b' }
   ],
   outputs: [
     { name: 'out', type: 'float' }
   ],
-  parameters: {},
+  parameters: {
+    b: { type: 'float', default: 1.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'B' }
+  },
   mainCode: `
     $output.out = max($input.a, $input.b);
   `
@@ -256,13 +272,16 @@ export const clampNodeSpec: NodeSpec = {
   icon: 'math-max-min',
   inputs: [
     { name: 'in', type: 'float' },
-    { name: 'min', type: 'float' },
-    { name: 'max', type: 'float' }
+    { name: 'min', type: 'float', fallbackParameter: 'min' },
+    { name: 'max', type: 'float', fallbackParameter: 'max' }
   ],
   outputs: [
     { name: 'out', type: 'float' }
   ],
-  parameters: {},
+  parameters: {
+    min: { type: 'float', default: 0.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'Min' },
+    max: { type: 'float', default: 1.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'Max' }
+  },
   mainCode: `
     $output.out = clamp($input.in, $input.min, $input.max);
   `
@@ -275,14 +294,18 @@ export const mixNodeSpec: NodeSpec = {
   description: 'Linear interpolation between two values',
   icon: 'arrows-left-right',
   inputs: [
-    { name: 'a', type: 'float' },
-    { name: 'b', type: 'float' },
-    { name: 't', type: 'float' }
+    { name: 'a', type: 'float', fallbackParameter: 'a' },
+    { name: 'b', type: 'float', fallbackParameter: 'b' },
+    { name: 't', type: 'float', fallbackParameter: 't' }
   ],
   outputs: [
     { name: 'out', type: 'float' }
   ],
-  parameters: {},
+  parameters: {
+    a: { type: 'float', default: 0.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'A' },
+    b: { type: 'float', default: 1.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'B' },
+    t: { type: 'float', default: 0.5, min: 0.0, max: 1.0, step: 0.01, label: 'T' }
+  },
   mainCode: `
     $output.out = mix($input.a, $input.b, $input.t);
   `
@@ -295,13 +318,15 @@ export const stepNodeSpec: NodeSpec = {
   description: 'Step function (0.0 if x < edge, 1.0 otherwise)',
   icon: 'arrow-right',
   inputs: [
-    { name: 'edge', type: 'float' },
+    { name: 'edge', type: 'float', fallbackParameter: 'edge' },
     { name: 'x', type: 'float' }
   ],
   outputs: [
     { name: 'out', type: 'float' }
   ],
-  parameters: {},
+  parameters: {
+    edge: { type: 'float', default: 0.5, min: -1000.0, max: 1000.0, step: 0.01, label: 'Edge' }
+  },
   mainCode: `
     $output.out = step($input.edge, $input.x);
   `
@@ -314,14 +339,17 @@ export const smoothstepNodeSpec: NodeSpec = {
   description: 'Smooth Hermite interpolation between edge0 and edge1',
   icon: 'wave-sine',
   inputs: [
-    { name: 'edge0', type: 'float' },
-    { name: 'edge1', type: 'float' },
+    { name: 'edge0', type: 'float', fallbackParameter: 'edge0' },
+    { name: 'edge1', type: 'float', fallbackParameter: 'edge1' },
     { name: 'x', type: 'float' }
   ],
   outputs: [
     { name: 'out', type: 'float' }
   ],
-  parameters: {},
+  parameters: {
+    edge0: { type: 'float', default: 0.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'Edge0' },
+    edge1: { type: 'float', default: 1.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'Edge1' }
+  },
   mainCode: `
     $output.out = smoothstep($input.edge0, $input.edge1, $input.x);
   `
@@ -444,12 +472,14 @@ export const arcTangent2NodeSpec: NodeSpec = {
   icon: 'math-symbols',
   inputs: [
     { name: 'y', type: 'float' },
-    { name: 'x', type: 'float' }
+    { name: 'x', type: 'float', fallbackParameter: 'x' }
   ],
   outputs: [
     { name: 'out', type: 'float' }
   ],
-  parameters: {},
+  parameters: {
+    x: { type: 'float', default: 1.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'X' }
+  },
   mainCode: `
     $output.out = atan($input.y, $input.x);
   `
@@ -519,12 +549,15 @@ export const distanceNodeSpec: NodeSpec = {
   icon: 'ruler',
   inputs: [
     { name: 'a', type: 'vec2' },
-    { name: 'b', type: 'vec2' }
+    { name: 'b', type: 'vec2', fallbackParameter: 'bX,bY' }
   ],
   outputs: [
     { name: 'out', type: 'float' }
   ],
-  parameters: {},
+  parameters: {
+    bX: { type: 'float', default: 0.5, min: -1000.0, max: 1000.0, step: 0.01, label: 'B X' },
+    bY: { type: 'float', default: 0.5, min: -1000.0, max: 1000.0, step: 0.01, label: 'B Y' }
+  },
   mainCode: `
     $output.out = distance($input.a, $input.b);
   `
@@ -614,12 +647,14 @@ export const refractNodeSpec: NodeSpec = {
   inputs: [
     { name: 'I', type: 'vec2' },
     { name: 'N', type: 'vec2' },
-    { name: 'eta', type: 'float' }
+    { name: 'eta', type: 'float', fallbackParameter: 'eta' }
   ],
   outputs: [
     { name: 'out', type: 'vec2' }
   ],
-  parameters: {},
+  parameters: {
+    eta: { type: 'float', default: 0.92, min: 0.01, max: 2.0, step: 0.01, label: 'Eta (IOR)' }
+  },
   mainCode: `
     $output.out = refract($input.I, $input.N, $input.eta);
   `

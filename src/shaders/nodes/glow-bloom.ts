@@ -52,15 +52,6 @@ export const glowBloomNodeSpec: NodeSpec = {
       label: 'Strength'
     }
   },
-  parameterGroups: [
-    {
-      id: 'glow-main',
-      label: 'Glow/Bloom',
-      parameters: ['glowThreshold', 'glowIntensity', 'glowRadius', 'glowStrength'],
-      collapsible: true,
-      defaultCollapsed: false
-    }
-  ],
   functions: `
 // Simplified glow effect (distance-based approximation)
 float glowEffect(float value, float threshold, float intensity) {

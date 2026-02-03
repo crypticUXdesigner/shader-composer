@@ -14,7 +14,7 @@ export class EdgeScrollManager {
   private velocityX: number = 0;
   private velocityY: number = 0;
   private readonly EDGE_SCROLL_ZONE = 0.1; // 10% of width/height
-  private readonly MAX_EDGE_SCROLL_SPEED = 800; // pixels per second
+  private readonly MAX_EDGE_SCROLL_SPEED = 360; // pixels per second (kept moderate so edge panning stays controllable)
   private context?: EdgeScrollContext;
 
   /**
@@ -42,24 +42,27 @@ export class EdgeScrollManager {
     const distFromTop = mouseY - rect.top;
     const distFromBottom = rect.bottom - mouseY;
 
+    // Ease curve: use sqrt so speed ramps more gently near the edge (avoids feeling "explosive" at the border)
+    const ease = (t: number) => Math.sqrt(t);
+
     // Calculate velocity for X axis
     let velocityX = 0;
     if (distFromLeft < scrollZoneWidth) {
       const proximity = 1 - (distFromLeft / scrollZoneWidth);
-      velocityX = this.MAX_EDGE_SCROLL_SPEED * proximity * proximity; // Quadratic for smoother acceleration
+      velocityX = this.MAX_EDGE_SCROLL_SPEED * ease(proximity);
     } else if (distFromRight < scrollZoneWidth) {
       const proximity = 1 - (distFromRight / scrollZoneWidth);
-      velocityX = -this.MAX_EDGE_SCROLL_SPEED * proximity * proximity;
+      velocityX = -this.MAX_EDGE_SCROLL_SPEED * ease(proximity);
     }
 
     // Calculate velocity for Y axis
     let velocityY = 0;
     if (distFromTop < scrollZoneHeight) {
       const proximity = 1 - (distFromTop / scrollZoneHeight);
-      velocityY = this.MAX_EDGE_SCROLL_SPEED * proximity * proximity;
+      velocityY = this.MAX_EDGE_SCROLL_SPEED * ease(proximity);
     } else if (distFromBottom < scrollZoneHeight) {
       const proximity = 1 - (distFromBottom / scrollZoneHeight);
-      velocityY = -this.MAX_EDGE_SCROLL_SPEED * proximity * proximity;
+      velocityY = -this.MAX_EDGE_SCROLL_SPEED * ease(proximity);
     }
 
     this.velocityX = velocityX;

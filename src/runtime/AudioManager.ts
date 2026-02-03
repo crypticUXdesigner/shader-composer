@@ -114,7 +114,7 @@ export class AudioManager implements Disposable {
     nodeId: string,
     audioFileNodeId: string,
     frequencyBands: FrequencyBand[],
-    smoothing: number = 0.8,
+    smoothing: number[],
     fftSize: number = 4096
   ): void {
     const audioState = this.playbackController.getAudioNodeState(audioFileNodeId);
@@ -191,29 +191,26 @@ export class AudioManager implements Disposable {
     );
     updates.push(...frequencyUpdates);
 
-    // Third pass: Compute and push per-band remapped values for audio-analyzer nodes
+    // Third pass: Compute and push remapped value for audio-analyzer nodes (single band: inMin/outMin etc.)
     if (graph) {
       for (const node of graph.nodes) {
         if (node.type !== 'audio-analyzer') continue;
         const analyzerState = this.frequencyAnalyzer.getAnalyzerNodeState(node.id);
         if (!analyzerState?.smoothedBandValues?.length) continue;
-        const bandCount = analyzerState.smoothedBandValues.length;
-        for (let i = 0; i < bandCount; i++) {
-          const bandValue = analyzerState.smoothedBandValues[i];
-          const inMin = (typeof node.parameters[`band${i}RemapInMin`] === 'number' ? node.parameters[`band${i}RemapInMin`] : 0) as number;
-          const inMax = (typeof node.parameters[`band${i}RemapInMax`] === 'number' ? node.parameters[`band${i}RemapInMax`] : 1) as number;
-          const outMin = (typeof node.parameters[`band${i}RemapOutMin`] === 'number' ? node.parameters[`band${i}RemapOutMin`] : 0) as number;
-          const outMax = (typeof node.parameters[`band${i}RemapOutMax`] === 'number' ? node.parameters[`band${i}RemapOutMax`] : 1) as number;
-          const range = inMax - inMin;
-          const normalized = range !== 0 ? (bandValue - inMin) / range : 0;
-          const clamped = Math.max(0, Math.min(1, normalized));
-          const remapped = outMin + clamped * (outMax - outMin);
-          const key = `${node.id}.remap${i}`;
-          const prev = this.previousUniformValues.get(key);
-          if (prev === undefined || Math.abs(remapped - prev) > this.VALUE_CHANGE_THRESHOLD) {
-            updates.push({ nodeId: node.id, paramName: `remap${i}`, value: remapped });
-            this.previousUniformValues.set(key, remapped);
-          }
+        const bandValue = analyzerState.smoothedBandValues[0];
+        const inMin = (typeof node.parameters.inMin === 'number' ? node.parameters.inMin : 0) as number;
+        const inMax = (typeof node.parameters.inMax === 'number' ? node.parameters.inMax : 1) as number;
+        const outMin = (typeof node.parameters.outMin === 'number' ? node.parameters.outMin : 0) as number;
+        const outMax = (typeof node.parameters.outMax === 'number' ? node.parameters.outMax : 1) as number;
+        const range = inMax - inMin;
+        const normalized = range !== 0 ? (bandValue - inMin) / range : 0;
+        const clamped = Math.max(0, Math.min(1, normalized));
+        const remapped = outMin + clamped * (outMax - outMin);
+        const key = `${node.id}.remap`;
+        const prev = this.previousUniformValues.get(key);
+        if (prev === undefined || Math.abs(remapped - prev) > this.VALUE_CHANGE_THRESHOLD) {
+          updates.push({ nodeId: node.id, paramName: 'remap', value: remapped });
+          this.previousUniformValues.set(key, remapped);
         }
       }
     }
@@ -243,6 +240,13 @@ export class AudioManager implements Disposable {
    */
   getAnalyzerNodeState(nodeId: string): AnalyzerNodeState | undefined {
     return this.frequencyAnalyzer.getAnalyzerNodeState(nodeId);
+  }
+
+  /**
+   * Get audio context sample rate (for spectrum bin mapping).
+   */
+  getSampleRate(): number {
+    return this.contextManager.getSampleRate();
   }
   
   /**

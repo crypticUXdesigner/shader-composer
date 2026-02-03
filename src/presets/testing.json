@@ -2,95 +2,95 @@
   "format": "shader-composer-node-graph",
   "formatVersion": "2.0",
   "graph": {
-    "id": "graph-1770074261856-2x3c7t90m",
+    "id": "graph-1770155122096-yx2zfm12p",
     "name": "Sphere Shader",
     "version": "2.0",
     "nodes": [
       {
-        "id": "node-1770074261856-55u9dlv19",
+        "id": "node-1770155122096-6pmkte54c",
         "type": "final-output",
         "position": {
-          "x": 8672,
-          "y": 1248
+          "x": 9755,
+          "y": 1429
         },
         "parameters": {}
       },
       {
-        "id": "node-1770074261856-4rhbng23t",
+        "id": "node-1770155122096-hqrn90fre",
         "type": "uv-coordinates",
         "position": {
-          "x": 1640,
-          "y": 1172
+          "x": 1610,
+          "y": 1051
         },
         "parameters": {}
       },
       {
-        "id": "node-1770074261856-wbwdh0r4h",
+        "id": "node-1770155122096-0jtxn5rul",
         "type": "metaballs",
         "position": {
-          "x": 4184,
-          "y": 2117
+          "x": 3170,
+          "y": 785
         },
         "parameters": {
           "blobCount": 6,
           "blobRadius": 1,
           "threshold": 10.4,
-          "orbitRadius": 0.63,
+          "orbitRadius": 0.7000000000000001,
           "centerX": 0,
           "centerY": 0,
           "centerZ": 0,
           "timeSpeed": 0.4,
-          "raymarchSteps": 47,
-          "glowIntensity": 1
+          "raymarchSteps": 56,
+          "glowIntensity": 0
         },
         "parameterInputModes": {
           "orbitRadius": "multiply"
         }
       },
       {
-        "id": "node-1770074261856-8csmrwl3c",
+        "id": "node-1770155122096-sugrhh7re",
         "type": "time",
         "position": {
-          "x": 754,
-          "y": 2364
+          "x": -473,
+          "y": 2419
         },
         "parameters": {}
       },
       {
-        "id": "node-1770074261856-ax84lgfpj",
+        "id": "node-1770155122096-izqe6okrz",
         "type": "sine",
         "position": {
-          "x": 1668,
-          "y": 2364
+          "x": 441,
+          "y": 2419
         },
         "parameters": {}
       },
       {
-        "id": "node-1770074261856-2wo2lzkgt",
+        "id": "node-1770155122096-tlwc9sz45",
         "type": "multiply",
         "position": {
-          "x": 1211,
-          "y": 2364
+          "x": -16,
+          "y": 2419
         },
         "parameters": {}
       },
       {
-        "id": "node-1770074261856-bnw53q4wy",
+        "id": "node-1770155122096-8o0gplggw",
         "type": "constant-float",
         "position": {
-          "x": 754,
-          "y": 2645
+          "x": -473,
+          "y": 2700
         },
         "parameters": {
-          "value": 1
+          "value": 1.3000000000000682
         }
       },
       {
-        "id": "node-1770074261856-e8jmnnxak",
+        "id": "node-1770155122096-wv81g2w0g",
         "type": "rgb-separation",
         "position": {
-          "x": 7145,
-          "y": 1552
+          "x": 8086,
+          "y": 1429
         },
         "parameters": {
           "rgbSeparationRX": 0.3600000000000001,
@@ -100,25 +100,28 @@
           "rgbSeparationBX": 1,
           "rgbSeparationBY": 0.5800000000000001,
           "rgbSeparationStrength": 2
+        },
+        "parameterInputModes": {
+          "rgbSeparationStrength": "multiply"
         }
       },
       {
-        "id": "node-1770074261856-y29e32o1r",
+        "id": "node-1770155122096-gju7t95p8",
         "type": "oklch-color-map-bezier",
         "position": {
-          "x": 6453,
-          "y": 1258
+          "x": 5684,
+          "y": 719
         },
         "parameters": {
           "stops": 10
         }
       },
       {
-        "id": "node-1770074261856-wv8fp0wyi",
+        "id": "node-1770155122096-6i9m44l45",
         "type": "oklch-color",
         "position": {
-          "x": 5670,
-          "y": 630
+          "x": 4666,
+          "y": -167
         },
         "parameters": {
           "l": 0.35808209370748745,
@@ -127,11 +130,11 @@
         }
       },
       {
-        "id": "node-1770074261856-8meb78ebb",
+        "id": "node-1770155122096-dl00r6i88",
         "type": "oklch-color",
         "position": {
-          "x": 6118.620893598029,
-          "y": 758.4366200632062
+          "x": 5179,
+          "y": -167
         },
         "parameters": {
           "l": 0.6746128171004141,
@@ -140,11 +143,11 @@
         }
       },
       {
-        "id": "node-1770074261856-oh64v5zr9",
+        "id": "node-1770155122096-xv4fobw7y",
         "type": "chromatic-aberration",
         "position": {
-          "x": 7817,
-          "y": 1615
+          "x": 8793,
+          "y": 1429
         },
         "parameters": {
           "chromaticStrength": 1,
@@ -152,35 +155,43 @@
           "chromaticCenterX": -0.5999999999999999,
           "chromaticCenterY": 0.20000000000000018,
           "chromaticFalloff": 0.9
+        },
+        "parameterInputModes": {
+          "chromaticStrength": "multiply"
         }
       },
       {
-        "id": "node-1770074261856-62o3x1t7i",
+        "id": "node-1770155122096-nlbzfbpnr",
         "type": "crepuscular-rays",
         "position": {
-          "x": 4184,
-          "y": 838
+          "x": 3606,
+          "y": -1495
         },
         "parameters": {
-          "sourceX": -0.19999999999999996,
+          "sourceX": -0.09999999999999987,
           "sourceY": 0.08000000000000007,
           "rayCount": 22,
           "spread": 360,
           "width": 0.39,
           "distanceFalloff": 5,
-          "intensity": 1.68
+          "intensity": 1.68,
+          "rotationSpeed": 0.1200000000000001,
+          "rotationOffset": 1
         },
         "parameterInputModes": {
           "width": "multiply",
-          "intensity": "multiply"
+          "intensity": "multiply",
+          "rotationOffset": "multiply",
+          "sourceY": "multiply",
+          "sourceX": "multiply"
         }
       },
       {
-        "id": "node-1770074261856-ynei222ms",
+        "id": "node-1770155122096-azpi4yu3m",
         "type": "blend-mode",
         "position": {
-          "x": 5483.895536870042,
-          "y": 1744.663277888928
+          "x": 4998,
+          "y": 719
         },
         "parameters": {
           "mode": 8,
@@ -188,216 +199,765 @@
         }
       },
       {
-        "id": "node-1770074261856-3iq9i6ozn",
+        "id": "node-1770155122096-dzz685ip1",
         "type": "constant-float",
         "position": {
-          "x": 1668,
-          "y": 2645
+          "x": 441,
+          "y": 2700
         },
         "parameters": {
           "value": 1
         }
       },
       {
-        "id": "node-1770074261856-87n5xzxtf",
+        "id": "node-1770155122096-31ofir7ix",
         "type": "constant-float",
         "position": {
-          "x": 2132,
-          "y": 2645
+          "x": 905,
+          "y": 2700
+        },
+        "parameters": {
+          "value": 0.20000000000004547
+        }
+      },
+      {
+        "id": "node-1770155122096-h62ob9ntc",
+        "type": "add",
+        "position": {
+          "x": 905,
+          "y": 2419
+        },
+        "parameters": {}
+      },
+      {
+        "id": "node-1770155122096-5z524qpv9",
+        "type": "multiply",
+        "position": {
+          "x": 1364,
+          "y": 2419
+        },
+        "parameters": {}
+      },
+      {
+        "id": "node-1770155122096-ueq5tokdh",
+        "type": "spherize",
+        "position": {
+          "x": 2581,
+          "y": -1743
+        },
+        "parameters": {
+          "spherizeCenterX": 0,
+          "spherizeCenterY": 0,
+          "spherizeRadius": 0.97,
+          "spherizeStrength": 1
+        },
+        "parameterInputModes": {
+          "spherizeRadius": "multiply",
+          "spherizeStrength": "multiply",
+          "spherizeCenterX": "override",
+          "spherizeCenterY": "override"
+        }
+      },
+      {
+        "id": "node-1770155122096-wpamq6wzx",
+        "type": "audio-file-input",
+        "position": {
+          "x": -1537,
+          "y": -297
+        },
+        "parameters": {
+          "filePath": "seb - music xcx.mp3",
+          "autoPlay": 0
+        }
+      },
+      {
+        "id": "node-1770155122096-fed7z2skk",
+        "type": "multiply",
+        "position": {
+          "x": 2278,
+          "y": 2419
+        },
+        "parameters": {}
+      },
+      {
+        "id": "node-1770155122096-c5zmcuuzl",
+        "type": "add",
+        "position": {
+          "x": 2278,
+          "y": 2691
+        },
+        "parameters": {}
+      },
+      {
+        "id": "node-1770155122096-up1p2clvl",
+        "type": "scale",
+        "position": {
+          "x": 2507,
+          "y": 22
+        },
+        "parameters": {
+          "scaleX": 1,
+          "scaleY": 1,
+          "centerX": 0,
+          "centerY": 0
+        },
+        "parameterInputModes": {
+          "scaleX": "multiply",
+          "scaleY": "multiply"
+        }
+      },
+      {
+        "id": "node-1770155122096-d7qfn0tgt",
+        "type": "multiply",
+        "position": {
+          "x": 7376,
+          "y": 2010
+        },
+        "parameters": {}
+      },
+      {
+        "id": "node-1770155122096-vrn0z5qpq",
+        "type": "constant-float",
+        "position": {
+          "x": 6802,
+          "y": 2250
+        },
+        "parameters": {
+          "value": 3
+        }
+      },
+      {
+        "id": "node-1770155122096-7i33nkf5m",
+        "type": "constant-float",
+        "position": {
+          "x": 1361,
+          "y": -1212
+        },
+        "parameters": {
+          "value": 0.20000000000004547
+        }
+      },
+      {
+        "id": "node-1770155122096-pw3h6owsg",
+        "type": "multiply",
+        "position": {
+          "x": 1868,
+          "y": -996
+        },
+        "parameters": {}
+      },
+      {
+        "id": "node-1770155122096-pym0dpzho",
+        "type": "multiply",
+        "position": {
+          "x": 2595,
+          "y": -670
+        },
+        "parameters": {}
+      },
+      {
+        "id": "node-1770155122096-jploy5yhl",
+        "type": "smoothstep",
+        "position": {
+          "x": 4690,
+          "y": 1485
+        },
+        "parameters": {}
+      },
+      {
+        "id": "node-1770155122096-5ic2uqisp",
+        "type": "constant-float",
+        "position": {
+          "x": 4158.459305246868,
+          "y": 1342.0203725357803
         },
         "parameters": {
           "value": 0.5
         }
       },
       {
-        "id": "node-1770074261856-oqrgr13bq",
-        "type": "add",
+        "id": "node-1770155122096-kvhfvxi9u",
+        "type": "constant-float",
         "position": {
-          "x": 2132,
-          "y": 2364
-        },
-        "parameters": {}
-      },
-      {
-        "id": "node-1770074261856-dfp5ttzmw",
-        "type": "multiply",
-        "position": {
-          "x": 2591,
-          "y": 2364
-        },
-        "parameters": {}
-      },
-      {
-        "id": "node-1770074409997-bgp30bzht",
-        "type": "spherize",
-        "position": {
-          "x": 2858,
-          "y": 838
+          "x": 4150.06093031164,
+          "y": 1836.797219518095
         },
         "parameters": {
-          "spherizeCenterX": 0,
-          "spherizeCenterY": 0,
-          "spherizeRadius": 1,
-          "spherizeStrength": 1
+          "value": 0.5
+        }
+      },
+      {
+        "id": "node-1770155122096-pdbvaqslp",
+        "type": "fbm-noise",
+        "position": {
+          "x": 4441,
+          "y": 2741
+        },
+        "parameters": {
+          "fbmScale": 2,
+          "fbmOctaves": 4,
+          "fbmLacunarity": 1.2,
+          "fbmGain": 0.93,
+          "fbmTimeSpeed": 0.6,
+          "fbmIntensity": 1,
+          "fbmTimeOffset": 0
         },
         "parameterInputModes": {
-          "spherizeRadius": "multiply"
+          "fbmGain": "multiply"
         }
+      },
+      {
+        "id": "node-1770155122096-f9lxhlprs",
+        "type": "multiply",
+        "position": {
+          "x": 5111,
+          "y": 2053
+        },
+        "parameters": {}
+      },
+      {
+        "id": "node-1770155122096-h0wgy394i",
+        "type": "turbulence",
+        "position": {
+          "x": 3608,
+          "y": 2741
+        },
+        "parameters": {
+          "turbulenceScale": 1,
+          "turbulenceStrength": 0.06,
+          "turbulenceIterations": 1,
+          "turbulenceTimeSpeed": 1,
+          "turbulenceTimeOffset": 0
+        }
+      },
+      {
+        "id": "node-1770155122096-n1tcgi62q",
+        "type": "mask-composite-vec3",
+        "position": {
+          "x": 5898,
+          "y": 2587
+        },
+        "parameters": {}
+      },
+      {
+        "id": "node-1770155122096-2rt5wvp08",
+        "type": "oklch-color-map-bezier",
+        "position": {
+          "x": 5308,
+          "y": 2871
+        },
+        "parameters": {
+          "stops": 10
+        }
+      },
+      {
+        "id": "node-1770155122096-yzy4f3ot9",
+        "type": "oklch-color",
+        "position": {
+          "x": 5308,
+          "y": 3884
+        },
+        "parameters": {
+          "l": 0.740191373497048,
+          "c": 0.2008147687852414,
+          "h": 347.4922446921463
+        }
+      },
+      {
+        "id": "node-1770155122096-zeki2ezj5",
+        "type": "oklch-color",
+        "position": {
+          "x": 5821,
+          "y": 3884
+        },
+        "parameters": {
+          "l": 0.5938094022297358,
+          "c": 0.22612163600350985,
+          "h": 323.0758378415288
+        }
+      },
+      {
+        "id": "node-1770155122096-x0myvu3vr",
+        "type": "audio-analyzer",
+        "position": {
+          "x": -447,
+          "y": -1104
+        },
+        "parameters": {
+          "frequencyBands": [
+            [
+              20,
+              60
+            ]
+          ],
+          "smoothing": 0.4,
+          "fftSize": 4096,
+          "inMin": 0,
+          "inMax": 1,
+          "outMin": 0.31,
+          "outMax": 1
+        },
+        "label": "Deep Bass"
+      },
+      {
+        "id": "node-1770155122096-76yjhs69z",
+        "type": "audio-analyzer",
+        "position": {
+          "x": -447,
+          "y": -71
+        },
+        "parameters": {
+          "frequencyBands": [
+            [
+              120,
+              166
+            ]
+          ],
+          "smoothing": 0.4,
+          "fftSize": 4096,
+          "inMin": 0,
+          "inMax": 1,
+          "outMin": 0.22000000000000003,
+          "outMax": 1
+        },
+        "label": "Whoop Bass"
+      },
+      {
+        "id": "node-1770155122096-jm7xcr0kr",
+        "type": "audio-analyzer",
+        "position": {
+          "x": -447,
+          "y": 966
+        },
+        "parameters": {
+          "frequencyBands": [
+            [
+              566,
+              815
+            ]
+          ],
+          "smoothing": 0.4,
+          "fftSize": 4096,
+          "inMin": 0,
+          "inMax": 1,
+          "outMin": 0.71,
+          "outMax": 1
+        },
+        "label": "I am alive!"
       }
     ],
     "connections": [
       {
-        "id": "conn-1770074261856-x32use5q0",
-        "sourceNodeId": "node-1770074261856-4rhbng23t",
+        "id": "conn-1770155122096-92l2km5tv",
+        "sourceNodeId": "node-1770155122096-sugrhh7re",
         "sourcePort": "out",
-        "targetNodeId": "node-1770074261856-wbwdh0r4h",
-        "targetPort": "in"
-      },
-      {
-        "id": "conn-1770074261856-kyxh4b57b",
-        "sourceNodeId": "node-1770074261856-8csmrwl3c",
-        "sourcePort": "out",
-        "targetNodeId": "node-1770074261856-2wo2lzkgt",
+        "targetNodeId": "node-1770155122096-tlwc9sz45",
         "targetPort": "a"
       },
       {
-        "id": "conn-1770074261856-fmch1utdx",
-        "sourceNodeId": "node-1770074261856-2wo2lzkgt",
+        "id": "conn-1770155122096-gkk4k2hbe",
+        "sourceNodeId": "node-1770155122096-tlwc9sz45",
         "sourcePort": "out",
-        "targetNodeId": "node-1770074261856-ax84lgfpj",
+        "targetNodeId": "node-1770155122096-izqe6okrz",
         "targetPort": "in"
       },
       {
-        "id": "conn-1770074261856-vxou5fo9x",
-        "sourceNodeId": "node-1770074261856-bnw53q4wy",
+        "id": "conn-1770155122096-ukq0tnixp",
+        "sourceNodeId": "node-1770155122096-8o0gplggw",
         "sourcePort": "out",
-        "targetNodeId": "node-1770074261856-2wo2lzkgt",
+        "targetNodeId": "node-1770155122096-tlwc9sz45",
         "targetPort": "b"
       },
       {
-        "id": "conn-1770074261856-02lhvmw43",
-        "sourceNodeId": "node-1770074261856-y29e32o1r",
+        "id": "conn-1770155122096-xtxyt19lh",
+        "sourceNodeId": "node-1770155122096-6i9m44l45",
         "sourcePort": "out",
-        "targetNodeId": "node-1770074261856-e8jmnnxak",
-        "targetPort": "in"
-      },
-      {
-        "id": "conn-1770074261856-tnwv93xi6",
-        "sourceNodeId": "node-1770074261856-wv8fp0wyi",
-        "sourcePort": "out",
-        "targetNodeId": "node-1770074261856-y29e32o1r",
+        "targetNodeId": "node-1770155122096-gju7t95p8",
         "targetPort": "startColor"
       },
       {
-        "id": "conn-1770074261856-x9613mwws",
-        "sourceNodeId": "node-1770074261856-8meb78ebb",
+        "id": "conn-1770155122096-gu3zw73rc",
+        "sourceNodeId": "node-1770155122096-dl00r6i88",
         "sourcePort": "out",
-        "targetNodeId": "node-1770074261856-y29e32o1r",
+        "targetNodeId": "node-1770155122096-gju7t95p8",
         "targetPort": "endColor"
       },
       {
-        "id": "conn-1770074261856-uoq35md38",
-        "sourceNodeId": "node-1770074261856-e8jmnnxak",
+        "id": "conn-1770155122096-stlqgauzq",
+        "sourceNodeId": "node-1770155122096-wv81g2w0g",
         "sourcePort": "out",
-        "targetNodeId": "node-1770074261856-oh64v5zr9",
+        "targetNodeId": "node-1770155122096-xv4fobw7y",
         "targetPort": "in"
       },
       {
-        "id": "conn-1770074261856-z4an1pcue",
-        "sourceNodeId": "node-1770074261856-oh64v5zr9",
+        "id": "conn-1770155122096-r6jmnqrfb",
+        "sourceNodeId": "node-1770155122096-xv4fobw7y",
         "sourcePort": "out",
-        "targetNodeId": "node-1770074261856-55u9dlv19",
+        "targetNodeId": "node-1770155122096-6pmkte54c",
         "targetPort": "in"
       },
       {
-        "id": "conn-1770074261856-na9plwvg5",
-        "sourceNodeId": "node-1770074261856-62o3x1t7i",
+        "id": "conn-1770155122096-lsgyunt3n",
+        "sourceNodeId": "node-1770155122096-nlbzfbpnr",
         "sourcePort": "out",
-        "targetNodeId": "node-1770074261856-ynei222ms",
+        "targetNodeId": "node-1770155122096-azpi4yu3m",
         "targetPort": "base"
       },
       {
-        "id": "conn-1770074261856-2mcbzg6ft",
-        "sourceNodeId": "node-1770074261856-wbwdh0r4h",
+        "id": "conn-1770155122096-487ncicpd",
+        "sourceNodeId": "node-1770155122096-izqe6okrz",
         "sourcePort": "out",
-        "targetNodeId": "node-1770074261856-ynei222ms",
-        "targetPort": "blend"
-      },
-      {
-        "id": "conn-1770074261856-ywxvl46uj",
-        "sourceNodeId": "node-1770074261856-ynei222ms",
-        "sourcePort": "out",
-        "targetNodeId": "node-1770074261856-y29e32o1r",
-        "targetPort": "in"
-      },
-      {
-        "id": "conn-1770074261856-41b7r0m4v",
-        "sourceNodeId": "node-1770074261856-ax84lgfpj",
-        "sourcePort": "out",
-        "targetNodeId": "node-1770074261856-oqrgr13bq",
+        "targetNodeId": "node-1770155122096-h62ob9ntc",
         "targetPort": "a"
       },
       {
-        "id": "conn-1770074261856-swuahm5ip",
-        "sourceNodeId": "node-1770074261856-3iq9i6ozn",
+        "id": "conn-1770155122096-13sguy241",
+        "sourceNodeId": "node-1770155122096-dzz685ip1",
         "sourcePort": "out",
-        "targetNodeId": "node-1770074261856-oqrgr13bq",
+        "targetNodeId": "node-1770155122096-h62ob9ntc",
         "targetPort": "b"
       },
       {
-        "id": "conn-1770074261856-z0ok1kn99",
-        "sourceNodeId": "node-1770074261856-oqrgr13bq",
+        "id": "conn-1770155122096-xdenxfdut",
+        "sourceNodeId": "node-1770155122096-h62ob9ntc",
         "sourcePort": "out",
-        "targetNodeId": "node-1770074261856-dfp5ttzmw",
+        "targetNodeId": "node-1770155122096-5z524qpv9",
         "targetPort": "a"
       },
       {
-        "id": "conn-1770074261856-avxyw3jps",
-        "sourceNodeId": "node-1770074261856-87n5xzxtf",
+        "id": "conn-1770155122096-o2w0ppv94",
+        "sourceNodeId": "node-1770155122096-31ofir7ix",
         "sourcePort": "out",
-        "targetNodeId": "node-1770074261856-dfp5ttzmw",
+        "targetNodeId": "node-1770155122096-5z524qpv9",
         "targetPort": "b"
       },
       {
-        "id": "conn-1770074261856-b3ltpu2kt",
-        "sourceNodeId": "node-1770074261856-dfp5ttzmw",
+        "id": "conn-1770155122096-pbcilygbu",
+        "sourceNodeId": "node-1770155122096-5z524qpv9",
         "sourcePort": "out",
-        "targetNodeId": "node-1770074261856-wbwdh0r4h",
-        "targetParameter": "orbitRadius"
-      },
-      {
-        "id": "conn-1770074261856-6r2slmcfd",
-        "sourceNodeId": "node-1770074261856-dfp5ttzmw",
-        "sourcePort": "out",
-        "targetNodeId": "node-1770074261856-62o3x1t7i",
+        "targetNodeId": "node-1770155122096-nlbzfbpnr",
         "targetParameter": "width"
       },
       {
-        "id": "conn-1770074261856-e4do0dejo",
-        "sourceNodeId": "node-1770074261856-dfp5ttzmw",
+        "id": "conn-1770155122096-l3dtb3zka",
+        "sourceNodeId": "node-1770155122096-5z524qpv9",
         "sourcePort": "out",
-        "targetNodeId": "node-1770074261856-62o3x1t7i",
+        "targetNodeId": "node-1770155122096-nlbzfbpnr",
         "targetParameter": "intensity"
       },
       {
-        "id": "conn-1770074414264-pueeub617",
-        "sourceNodeId": "node-1770074261856-4rhbng23t",
+        "id": "conn-1770155122096-exsl7ah3q",
+        "sourceNodeId": "node-1770155122096-hqrn90fre",
         "sourcePort": "out",
-        "targetNodeId": "node-1770074409997-bgp30bzht",
+        "targetNodeId": "node-1770155122096-ueq5tokdh",
         "targetPort": "in"
       },
       {
-        "id": "conn-1770074416439-rm5bumoqp",
-        "sourceNodeId": "node-1770074409997-bgp30bzht",
+        "id": "conn-1770155122096-mhfizvlxp",
+        "sourceNodeId": "node-1770155122096-ueq5tokdh",
         "sourcePort": "out",
-        "targetNodeId": "node-1770074261856-62o3x1t7i",
+        "targetNodeId": "node-1770155122096-nlbzfbpnr",
         "targetPort": "in"
+      },
+      {
+        "id": "conn-1770155122096-yfw2a80t6",
+        "sourceNodeId": "node-1770155122096-wpamq6wzx",
+        "sourcePort": "currentTime",
+        "targetNodeId": "node-1770155122096-x0myvu3vr",
+        "targetPort": "audioFile"
+      },
+      {
+        "id": "conn-1770155122096-n5583cv6z",
+        "sourceNodeId": "node-1770155122096-wpamq6wzx",
+        "sourcePort": "currentTime",
+        "targetNodeId": "node-1770155122096-76yjhs69z",
+        "targetPort": "audioFile"
+      },
+      {
+        "id": "conn-1770155122096-hx4ebw2k2",
+        "sourceNodeId": "node-1770155122096-wpamq6wzx",
+        "sourcePort": "currentTime",
+        "targetNodeId": "node-1770155122096-jm7xcr0kr",
+        "targetPort": "audioFile"
+      },
+      {
+        "id": "conn-1770155122096-0adzk0b1t",
+        "sourceNodeId": "node-1770155122096-x0myvu3vr",
+        "sourcePort": "remap",
+        "targetNodeId": "node-1770155122096-ueq5tokdh",
+        "targetParameter": "spherizeRadius"
+      },
+      {
+        "id": "conn-1770155122096-u1h15l158",
+        "sourceNodeId": "node-1770155122096-5z524qpv9",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-fed7z2skk",
+        "targetPort": "b"
+      },
+      {
+        "id": "conn-1770155122096-cajydveet",
+        "sourceNodeId": "node-1770155122096-76yjhs69z",
+        "sourcePort": "remap",
+        "targetNodeId": "node-1770155122096-fed7z2skk",
+        "targetPort": "a"
+      },
+      {
+        "id": "conn-1770155122096-oih20p0yj",
+        "sourceNodeId": "node-1770155122096-5z524qpv9",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-c5zmcuuzl",
+        "targetPort": "b"
+      },
+      {
+        "id": "conn-1770155122096-ottrh1eg9",
+        "sourceNodeId": "node-1770155122096-76yjhs69z",
+        "sourcePort": "remap",
+        "targetNodeId": "node-1770155122096-c5zmcuuzl",
+        "targetPort": "a"
+      },
+      {
+        "id": "conn-1770155122096-3szf29rw8",
+        "sourceNodeId": "node-1770155122096-c5zmcuuzl",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-0jtxn5rul",
+        "targetParameter": "orbitRadius"
+      },
+      {
+        "id": "conn-1770155122096-u792mzxqk",
+        "sourceNodeId": "node-1770155122096-jm7xcr0kr",
+        "sourcePort": "remap",
+        "targetNodeId": "node-1770155122096-ueq5tokdh",
+        "targetParameter": "spherizeStrength"
+      },
+      {
+        "id": "conn-1770155122096-bd9bipn9k",
+        "sourceNodeId": "node-1770155122096-hqrn90fre",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-up1p2clvl",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1770155122096-7ih23sp2t",
+        "sourceNodeId": "node-1770155122096-up1p2clvl",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-0jtxn5rul",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1770155122096-h0nz9nggi",
+        "sourceNodeId": "node-1770155122096-x0myvu3vr",
+        "sourcePort": "remap",
+        "targetNodeId": "node-1770155122096-up1p2clvl",
+        "targetParameter": "scaleX"
+      },
+      {
+        "id": "conn-1770155122096-rwa8ak08o",
+        "sourceNodeId": "node-1770155122096-x0myvu3vr",
+        "sourcePort": "remap",
+        "targetNodeId": "node-1770155122096-up1p2clvl",
+        "targetParameter": "scaleY"
+      },
+      {
+        "id": "conn-1770155122096-b1vled3h6",
+        "sourceNodeId": "node-1770155122096-fed7z2skk",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-d7qfn0tgt",
+        "targetPort": "a"
+      },
+      {
+        "id": "conn-1770155122096-f49frcnlh",
+        "sourceNodeId": "node-1770155122096-vrn0z5qpq",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-d7qfn0tgt",
+        "targetPort": "b"
+      },
+      {
+        "id": "conn-1770155122096-w62s7ojos",
+        "sourceNodeId": "node-1770155122096-d7qfn0tgt",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-wv81g2w0g",
+        "targetParameter": "rgbSeparationStrength"
+      },
+      {
+        "id": "conn-1770155122096-b2xd567ti",
+        "sourceNodeId": "node-1770155122096-d7qfn0tgt",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-xv4fobw7y",
+        "targetParameter": "chromaticStrength"
+      },
+      {
+        "id": "conn-1770155122096-cjq3aigu9",
+        "sourceNodeId": "node-1770155122096-7i33nkf5m",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-pw3h6owsg",
+        "targetPort": "a"
+      },
+      {
+        "id": "conn-1770155122096-qfu2vfxyd",
+        "sourceNodeId": "node-1770155122096-izqe6okrz",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-pw3h6owsg",
+        "targetPort": "b"
+      },
+      {
+        "id": "conn-1770155122096-4ntp9klwx",
+        "sourceNodeId": "node-1770155122096-pw3h6owsg",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-pym0dpzho",
+        "targetPort": "a"
+      },
+      {
+        "id": "conn-1770155122096-5jbmb2j6w",
+        "sourceNodeId": "node-1770155122096-x0myvu3vr",
+        "sourcePort": "remap",
+        "targetNodeId": "node-1770155122096-pym0dpzho",
+        "targetPort": "b"
+      },
+      {
+        "id": "conn-1770155122096-19l31laet",
+        "sourceNodeId": "node-1770155122096-pym0dpzho",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-nlbzfbpnr",
+        "targetParameter": "rotationOffset"
+      },
+      {
+        "id": "conn-1770155122096-ohquqmto8",
+        "sourceNodeId": "node-1770155122096-0jtxn5rul",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-jploy5yhl",
+        "targetPort": "x"
+      },
+      {
+        "id": "conn-1770155122096-6aupbdu91",
+        "sourceNodeId": "node-1770155122096-5ic2uqisp",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-jploy5yhl",
+        "targetPort": "edge0"
+      },
+      {
+        "id": "conn-1770155122096-82ibw39ha",
+        "sourceNodeId": "node-1770155122096-kvhfvxi9u",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-jploy5yhl",
+        "targetPort": "edge1"
+      },
+      {
+        "id": "conn-1770155122096-xlkx7e75i",
+        "sourceNodeId": "node-1770155122096-jploy5yhl",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-f9lxhlprs",
+        "targetPort": "a"
+      },
+      {
+        "id": "conn-1770155122096-50mpddx6s",
+        "sourceNodeId": "node-1770155122096-pdbvaqslp",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-f9lxhlprs",
+        "targetPort": "b"
+      },
+      {
+        "id": "conn-1770155122096-d32jxr3qr",
+        "sourceNodeId": "node-1770155122096-f9lxhlprs",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-azpi4yu3m",
+        "targetPort": "blend"
+      },
+      {
+        "id": "conn-1770155122096-0qh4w1xbb",
+        "sourceNodeId": "node-1770155122096-azpi4yu3m",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-gju7t95p8",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1770155122096-6ok1j7ro9",
+        "sourceNodeId": "node-1770155122096-hqrn90fre",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-h0wgy394i",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1770155122096-o5zdcn3jp",
+        "sourceNodeId": "node-1770155122096-h0wgy394i",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-pdbvaqslp",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1770155122096-m5wfalizx",
+        "sourceNodeId": "node-1770155122096-76yjhs69z",
+        "sourcePort": "remap",
+        "targetNodeId": "node-1770155122096-pdbvaqslp",
+        "targetParameter": "fbmGain"
+      },
+      {
+        "id": "conn-1770155122096-y5d4sshw3",
+        "sourceNodeId": "node-1770155122096-zeki2ezj5",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-2rt5wvp08",
+        "targetPort": "endColor"
+      },
+      {
+        "id": "conn-1770155122096-whe3gn76d",
+        "sourceNodeId": "node-1770155122096-yzy4f3ot9",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-2rt5wvp08",
+        "targetPort": "startColor"
+      },
+      {
+        "id": "conn-1770155122096-pkljev4i5",
+        "sourceNodeId": "node-1770155122096-f9lxhlprs",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-2rt5wvp08",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1770155122096-ato2ok087",
+        "sourceNodeId": "node-1770155122096-jploy5yhl",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-n1tcgi62q",
+        "targetPort": "mask"
+      },
+      {
+        "id": "conn-1770155122096-j3myxjw3d",
+        "sourceNodeId": "node-1770155122096-2rt5wvp08",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-n1tcgi62q",
+        "targetPort": "fg"
+      },
+      {
+        "id": "conn-1770155122096-bsaqfd2v4",
+        "sourceNodeId": "node-1770155122096-gju7t95p8",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-n1tcgi62q",
+        "targetPort": "bg"
+      },
+      {
+        "id": "conn-1770155122096-fyf42md73",
+        "sourceNodeId": "node-1770155122096-n1tcgi62q",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-wv81g2w0g",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1770155122096-fcx9oqggu",
+        "sourceNodeId": "node-1770155122096-pw3h6owsg",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-ueq5tokdh",
+        "targetParameter": "spherizeCenterX"
+      },
+      {
+        "id": "conn-1770155122096-x9ob8lz4n",
+        "sourceNodeId": "node-1770155122096-pw3h6owsg",
+        "sourcePort": "out",
+        "targetNodeId": "node-1770155122096-ueq5tokdh",
+        "targetParameter": "spherizeCenterY"
       }
     ],
     "viewState": {
-      "zoom": 0.17800037998605261,
-      "panX": -169.90361291278327,
-      "panY": 317.43739209627404,
+      "zoom": 0.18797805271008983,
+      "panX": -541.1660481533384,
+      "panY": 469.2834828790939,
       "selectedNodeIds": []
     }
   }

@@ -88,20 +88,6 @@ export const quadWarpNodeSpec: NodeSpec = {
       label: 'TR Y'
     }
   },
-  parameterGroups: [
-    {
-      id: 'quad-corners',
-      label: 'Corners (BL, BR, TL, TR)',
-      parameters: [
-        'quadCorner0X', 'quadCorner0Y',
-        'quadCorner1X', 'quadCorner1Y',
-        'quadCorner2X', 'quadCorner2Y',
-        'quadCorner3X', 'quadCorner3Y'
-      ],
-      collapsible: true,
-      defaultCollapsed: false
-    }
-  ],
   functions: `
 vec2 quadWarpBilinear(vec2 uv, vec2 c00, vec2 c10, vec2 c01, vec2 c11) {
   float u = uv.x, v = uv.y;

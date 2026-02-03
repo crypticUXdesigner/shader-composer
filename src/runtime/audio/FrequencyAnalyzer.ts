@@ -19,7 +19,8 @@ export interface AnalyzerNodeState {
   nodeId: string;
   analyserNode: AnalyserNode | null;
   frequencyBands: FrequencyBand[];
-  smoothing: number;
+  /** Per-band smoothing (0–1). Length matches band count. */
+  smoothing: number[];
   fftSize: number;
   bandValues: number[];
   smoothedBandValues: number[];
@@ -45,7 +46,7 @@ export class FrequencyAnalyzer extends BaseDisposable {
     nodeId: string,
     audioFileNodeId: string,
     frequencyBands: FrequencyBand[],
-    smoothing: number = 0.8,
+    smoothing: number[],
     fftSize: number = 4096,
     audioNodeState: AudioNodeState
   ): AnalyzerNodeState {
@@ -55,12 +56,17 @@ export class FrequencyAnalyzer extends BaseDisposable {
       throw new Error(`Audio file node ${audioFileNodeId} does not have an analyser node`);
     }
     
+    // Ensure per-band smoothing array length matches band count
+    const smoothingArray = smoothing.length >= frequencyBands.length
+      ? smoothing.slice(0, frequencyBands.length)
+      : [...smoothing, ...new Array(frequencyBands.length - smoothing.length).fill(0.8)];
+    
     // Use the same analyser node from the audio file (shared FFT)
     const analyserState: AnalyzerNodeState = {
       nodeId,
       analyserNode: audioNodeState.analyserNode,
       frequencyBands,
-      smoothing,
+      smoothing: smoothingArray,
       fftSize,
       bandValues: new Array(frequencyBands.length).fill(0),
       smoothedBandValues: new Array(frequencyBands.length).fill(0)
@@ -203,33 +209,26 @@ export class FrequencyAnalyzer extends BaseDisposable {
         analyzerState.fftSize
       );
       
-      // Apply smoothing and check for changes
+      // Apply per-band smoothing and check for changes
       for (let i = 0; i < analyzerState.bandValues.length; i++) {
         const newValue = analyzerState.bandValues[i];
         const oldValue = analyzerState.smoothedBandValues[i] || 0;
-        const smoothed = analyzerState.smoothing * newValue + (1 - analyzerState.smoothing) * oldValue;
+        const s = analyzerState.smoothing[i] ?? 0.8;
+        const smoothed = s * newValue + (1 - s) * oldValue;
         analyzerState.smoothedBandValues[i] = smoothed;
         
-        // Push when first time (no previous) or when value changed beyond threshold
+        // Single-band analyzer: output name is 'band'
+        const bandParamName = analyzerState.bandValues.length === 1 ? 'band' : `band${i}`;
+        const bandKey = `${nodeId}.${bandParamName}`;
         if (previousUniformValues) {
-          const bandKey = `${nodeId}.band${i}`;
           const prev = previousUniformValues.get(bandKey);
           const isFirst = prev === undefined;
           if (isFirst || Math.abs(smoothed - prev!) > valueChangeThreshold) {
-            updates.push({
-              nodeId,
-              paramName: `band${i}`,
-              value: smoothed
-            });
+            updates.push({ nodeId, paramName: bandParamName, value: smoothed });
             previousUniformValues.set(bandKey, smoothed);
           }
         } else {
-          // No previous values tracking - always update
-          updates.push({
-            nodeId,
-            paramName: `band${i}`,
-            value: smoothed
-          });
+          updates.push({ nodeId, paramName: bandParamName, value: smoothed });
         }
       }
     }

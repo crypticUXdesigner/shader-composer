@@ -60,15 +60,6 @@ export const bulgePinchNodeSpec: NodeSpec = {
       label: 'Falloff'
     }
   },
-  parameterGroups: [
-    {
-      id: 'bulge-main',
-      label: 'Bulge / Pinch',
-      parameters: ['bulgeCenterX', 'bulgeCenterY', 'bulgeStrength', 'bulgeRadius', 'bulgeFalloff'],
-      collapsible: true,
-      defaultCollapsed: false
-    }
-  ],
   functions: `
 vec2 bulgePinch(vec2 p, vec2 center, float strength, float radius, float falloff) {
   vec2 offset = p - center;

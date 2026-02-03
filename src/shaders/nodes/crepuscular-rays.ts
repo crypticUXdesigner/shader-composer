@@ -74,13 +74,29 @@ export const crepuscularRaysNodeSpec: NodeSpec = {
       max: 2.0,
       step: 0.01,
       label: 'Intensity'
+    },
+    rotationSpeed: {
+      type: 'float',
+      default: 0.0,
+      min: -2.0,
+      max: 2.0,
+      step: 0.01,
+      label: 'Rotation Speed'
+    },
+    rotationOffset: {
+      type: 'float',
+      default: 0.0,
+      min: 0.0,
+      max: 1.0,
+      step: 0.01,
+      label: 'Rotation Offset'
     }
   },
   parameterGroups: [
     {
       id: 'crepuscular-source',
       label: 'Source',
-      parameters: ['sourceX', 'sourceY'],
+      parameters: ['sourceX', 'sourceY', 'distanceFalloff'],
       collapsible: true,
       defaultCollapsed: false
     },
@@ -92,25 +108,18 @@ export const crepuscularRaysNodeSpec: NodeSpec = {
       defaultCollapsed: false
     },
     {
-      id: 'crepuscular-falloff',
-      label: 'Falloff',
-      parameters: ['distanceFalloff'],
-      collapsible: true,
-      defaultCollapsed: false
-    },
-    {
-      id: 'crepuscular-output',
-      label: 'Output',
-      parameters: ['intensity'],
+      id: 'crepuscular-animation',
+      label: 'Motion & Intensity',
+      parameters: ['intensity', 'rotationSpeed', 'rotationOffset'],
       collapsible: true,
       defaultCollapsed: false
     }
   ],
   functions: `
-float crepuscularRays(vec2 p, vec2 source, int rayCount, float spreadDeg, float width, float distanceFalloff) {
+float crepuscularRays(vec2 p, vec2 source, int rayCount, float spreadDeg, float width, float distanceFalloff, float angleOffset) {
   vec2 d = p - source;
   float dist = length(d);
-  float angle = atan(d.y, d.x);
+  float angle = atan(d.y, d.x) + angleOffset;
   float angleNorm = mod(angle + 3.141592653589793, 6.283185307179586) / 6.283185307179586;
   float spreadNorm = spreadDeg / 360.0;
   if (angleNorm > spreadNorm) return 0.0;
@@ -123,7 +132,8 @@ float crepuscularRays(vec2 p, vec2 source, int rayCount, float spreadDeg, float 
 `,
   mainCode: `
   vec2 source = vec2($param.sourceX, $param.sourceY);
-  float ray = crepuscularRays($input.in, source, $param.rayCount, $param.spread, $param.width, $param.distanceFalloff);
+  float angleOffset = ($param.rotationOffset + $time * $param.rotationSpeed) * 6.283185307179586;
+  float ray = crepuscularRays($input.in, source, $param.rayCount, $param.spread, $param.width, $param.distanceFalloff, angleOffset);
   $output.out += ray * $param.intensity;
 `
 };

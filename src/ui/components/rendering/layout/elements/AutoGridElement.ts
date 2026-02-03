@@ -104,7 +104,7 @@ export class AutoGridElementRenderer implements LayoutElementRenderer {
         currentY += groupHeaderMarginBottom;
       }
       
-      // Create flex items for each parameter cell
+      // Cells in each row fill the row: 1 cell fills width, 2 share equally, etc.
       const cellItems: FlexItem[] = group.parameters.map((_paramName, index) => {
         return {
           id: `cell-${index}`,
@@ -113,7 +113,7 @@ export class AutoGridElementRenderer implements LayoutElementRenderer {
             height: cellHeight,
             minWidth: cellMinWidth,
             flexShrink: 1,
-            flexGrow: 0
+            flexGrow: 1
           }
         };
       });
@@ -206,7 +206,7 @@ export class AutoGridElementRenderer implements LayoutElementRenderer {
     
     // Process ungrouped parameters
     if (ungroupedParams.length > 0) {
-      // Create flex items for each parameter cell
+      // Cells in each row fill the row: 1 cell fills width, 2 share equally, etc.
       const cellItems: FlexItem[] = ungroupedParams.map((_paramName, index) => {
         return {
           id: `cell-${index}`,
@@ -215,7 +215,7 @@ export class AutoGridElementRenderer implements LayoutElementRenderer {
             height: cellHeight,
             minWidth: cellMinWidth,
             flexShrink: 1,
-            flexGrow: 0
+            flexGrow: 1
           }
         };
       });

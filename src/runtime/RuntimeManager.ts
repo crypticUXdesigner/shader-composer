@@ -31,13 +31,13 @@ export class RuntimeManager implements Disposable {
   private renderer: IRenderer;
   private audioManager: IAudioManager;
   private currentGraph: NodeGraph | null = null;
-  
+
   // Extracted components
   private timeManager: TimeManager;
   private audioParameterHandler: AudioParameterHandler;
-  
+
   private errorHandler?: ErrorHandler;
-  
+
   /**
    * Create a RuntimeManager with injected dependencies.
    * @param renderer - Renderer instance
@@ -57,7 +57,7 @@ export class RuntimeManager implements Disposable {
     this.renderer = renderer;
     this.audioManager = audioManager;
     this.compilationManager = compilationManager;
-    
+
     // Create extracted components
     this.timeManager = new TimeManager();
     this.audioParameterHandler = new AudioParameterHandler(audioManager, errorHandler);
@@ -165,6 +165,8 @@ export class RuntimeManager implements Disposable {
     // Sync runtime graph when editor passes updated graph (avoids stale graph and wrong band ranges)
     if (graph) {
       this.currentGraph = graph;
+      // Keep compilation manager in sync so parameter-only updates use latest graph and uniforms update correctly
+      this.compilationManager.setGraph(graph);
     }
     // Handle runtime-only parameters for audio nodes
     if (this.currentGraph) {
@@ -284,12 +286,11 @@ export class RuntimeManager implements Disposable {
       shaderInstance,
       this.renderer,
       (instance) => {
-        // Update audio uniforms (they may have changed even if time didn't)
         this.audioParameterHandler.updateAudioUniforms(instance, this.currentGraph);
       }
     );
   }
-  
+
   /**
    * Mark runtime as dirty (something changed that requires render).
    */

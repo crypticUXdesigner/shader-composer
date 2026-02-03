@@ -37,6 +37,21 @@ export class AudioParameterHandler {
   }
 
   /**
+   * Get per-band smoothing array from node parameters.
+   * Uses band0Smoothing..band3Smoothing when present, otherwise fills from legacy smoothing.
+   */
+  private getPerBandSmoothing(node: { parameters: Record<string, unknown> }, bandCount: number): number[] {
+    const fallback = typeof node.parameters.smoothing === 'number' ? node.parameters.smoothing : 0.8;
+    const arr: number[] = [];
+    for (let i = 0; i < bandCount; i++) {
+      const key = `band${i}Smoothing`;
+      const v = node.parameters[key];
+      arr.push(typeof v === 'number' ? v : fallback);
+    }
+    return arr;
+  }
+
+  /**
    * Load default audio files for audio-file-input nodes that have filePath set.
    *
    * @param graph - Current node graph
@@ -156,10 +171,6 @@ export class AudioParameterHandler {
               frequencyBands = freqParam as unknown as number[][];
             }
           }
-          const smoothing =
-            typeof node.parameters.smoothing === 'number'
-              ? node.parameters.smoothing
-              : 0.8;
           const fftSize =
             typeof node.parameters.fftSize === 'number'
               ? node.parameters.fftSize
@@ -172,6 +183,7 @@ export class AudioParameterHandler {
               }
               return { minHz: 20, maxHz: 20000 };
             });
+            const smoothing = this.getPerBandSmoothing(node, bands.length);
 
             try {
               this.audioManager.createAnalyzer(
@@ -420,10 +432,6 @@ export class AudioParameterHandler {
           }
         }
       }
-      const smoothing =
-        typeof node.parameters.smoothing === 'number'
-          ? node.parameters.smoothing
-          : 0.8;
       const fftSize =
         typeof node.parameters.fftSize === 'number'
           ? node.parameters.fftSize
@@ -437,6 +445,7 @@ export class AudioParameterHandler {
           }
           return { minHz: 20, maxHz: 20000 };
         });
+        const smoothing = this.getPerBandSmoothing(node, bands.length);
 
         try {
           this.audioManager.createAnalyzer(

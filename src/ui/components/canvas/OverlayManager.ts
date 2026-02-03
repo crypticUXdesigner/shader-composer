@@ -117,7 +117,8 @@ export class OverlayManager {
         const snapped = snapParameterValue(newValue, paramSpec);
         this.onParameterChanged?.(paramHit.nodeId, paramHit.paramName, snapped);
       },
-      () => {}
+      () => {},
+      paramSpec.type === 'int' || paramSpec.type === 'float' ? paramSpec.type : undefined
     );
     
     return true;

@@ -148,7 +148,7 @@ export interface IAudioManager {
     nodeId: string,
     audioFileNodeId: string,
     frequencyBands: import('./AudioManager').FrequencyBand[],
-    smoothing?: number,
+    smoothing: number[],
     fftSize?: number
   ): void;
   
@@ -203,6 +203,11 @@ export interface IAudioManager {
    * Seek all audio to a specific time.
    */
   seekAllAudio(time: number): Promise<void>;
+
+  /**
+   * Get audio context sample rate (for spectrum bin mapping).
+   */
+  getSampleRate(): number;
 }
 
 /**

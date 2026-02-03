@@ -35,7 +35,6 @@ export class MainCodeGenerator {
   constructor(
     private nodeSpecs: Map<string, NodeSpec>,
     private isAudioNode: (nodeSpec: NodeSpec) => boolean,
-    private getFrequencyBands: (node: NodeInstance, nodeSpec: NodeSpec) => number[][],
     private generateArrayVariableName: (nodeId: string, paramName: string) => string,
     private escapeRegex: (str: string) => string,
     private generateParameterCombination: (
@@ -94,28 +93,8 @@ export class MainCodeGenerator {
         continue;
       }
       
-      // Handle audio-analyzer dynamic outputs (bands + per-band remapped)
-      if (nodeSpec.id === 'audio-analyzer') {
-        const frequencyBands = this.getFrequencyBands(node, nodeSpec);
-        for (let i = 0; i < frequencyBands.length; i++) {
-          const varName = outputVars.get(`band${i}`);
-          if (varName) {
-            const initValue = this.getOutputInitialValue('float', nodeSpec.id);
-            variableDeclarations.push(`float ${varName} = ${initValue};`);
-            declaredVars.add(varName);
-          }
-        }
-        for (let i = 0; i < frequencyBands.length; i++) {
-          const varName = outputVars.get(`remap${i}`);
-          if (varName) {
-            const initValue = this.getOutputInitialValue('float', nodeSpec.id);
-            variableDeclarations.push(`float ${varName} = ${initValue};`);
-            declaredVars.add(varName);
-          }
-        }
-      } else {
-        // Standard outputs (including audio-file-input and audio-remap)
-        for (const output of nodeSpec.outputs) {
+      // Standard outputs (including audio-file-input, audio-analyzer band/remap, audio-remap)
+      for (const output of nodeSpec.outputs) {
           const varName = outputVars.get(output.name);
           if (varName) {
             const initValue = this.getOutputInitialValue(output.type, nodeSpec.id);
@@ -123,64 +102,47 @@ export class MainCodeGenerator {
             variableDeclarations.push(`${output.type} ${varName} = ${initValue};`);
             declaredVars.add(varName);
           } else {
-            // Variable name not found in outputVars - this shouldn't happen if generateVariableNames worked correctly
+            // Variable name not found in outputVars
             console.warn(
               `[NodeShaderCompiler] Variable name not found for ${node.type} (${node.id}).${output.name}`
             );
           }
         }
-      }
     }
 
-    // Validate that all variables referenced in connections are declared
+    // Validate that all variables referenced in connections are declared (port and parameter connections)
     for (const conn of graph.connections) {
-      const sourceVarName = variableNames.get(conn.sourceNodeId)?.get(conn.sourcePort);
+      const sourceNode = graph.nodes.find(n => n.id === conn.sourceNodeId);
+      const sourceSpec = sourceNode ? this.nodeSpecs.get(sourceNode.type) : null;
+      // Resolve source port: param connections may omit sourcePort; use spec's first output as fallback
+      const sourcePortName = conn.sourcePort ?? sourceSpec?.outputs?.[0]?.name;
+      const sourceVarName = sourcePortName
+        ? variableNames.get(conn.sourceNodeId)?.get(sourcePortName)
+        : undefined;
       if (sourceVarName && !declaredVars.has(sourceVarName)) {
-        const sourceNode = graph.nodes.find(n => n.id === conn.sourceNodeId);
         console.error(
           `[NodeShaderCompiler] Variable ${sourceVarName} is referenced but not declared. ` +
-          `Source node: ${sourceNode?.type || 'unknown'} (${conn.sourceNodeId}).${conn.sourcePort}`
+          `Source node: ${sourceNode?.type || 'unknown'} (${conn.sourceNodeId}).${sourcePortName}`
         );
-        // This is a critical error - the shader will fail to compile
-        // We should ensure the variable is declared
-        if (sourceNode) {
-          const sourceSpec = this.nodeSpecs.get(sourceNode.type);
-          if (sourceSpec && sourceSpec.outputs) {
-            const output = sourceSpec.outputs.find(o => o.name === conn.sourcePort);
-            if (output) {
-              // Force declare the variable - add it to the global declarations
-              const initValue = this.getOutputInitialValue(output.type, sourceSpec.id);
-              variableDeclarations.push(`${output.type} ${sourceVarName} = ${initValue};`);
-              declaredVars.add(sourceVarName);
-              console.warn(
-                `[NodeShaderCompiler] Force-declared missing variable ${sourceVarName} for ${sourceNode.type} (${conn.sourceNodeId})`
-              );
-            }
-          }
+        if (sourceNode && sourceSpec?.outputs?.length) {
+          const output = sourceSpec.outputs.find(o => o.name === sourcePortName) ?? sourceSpec.outputs[0];
+          const initValue = this.getOutputInitialValue(output.type, sourceSpec.id);
+          variableDeclarations.push(`${output.type} ${sourceVarName} = ${initValue};`);
+          declaredVars.add(sourceVarName);
+          console.warn(
+            `[NodeShaderCompiler] Force-declared missing variable ${sourceVarName} for ${sourceNode.type} (${conn.sourceNodeId})`
+          );
         }
       }
     }
 
     // Then generate node code in execution order (inside blocks for scoping)
-    // Debug: Log execution order for turbulence debugging
-    const hasTurbulence = graph.nodes.some(n => n.type === 'turbulence');
-    if (hasTurbulence) {
-      console.log(`[Execution Order] Total nodes: ${executionOrder.length}`, executionOrder);
-    }
-    
     for (const nodeId of executionOrder) {
       const node = graph.nodes.find(n => n.id === nodeId);
       if (!node) continue;
 
       const nodeSpec = this.nodeSpecs.get(node.type);
       if (!nodeSpec) continue;
-      
-      // Debug: Log when processing nodes that might be connected to turbulence
-      if (hasTurbulence && (node.type === 'audio-remap' || node.type === 'turbulence')) {
-        const outputVars = variableNames.get(node.id);
-        const outVar = outputVars?.get('out');
-        console.log(`[Execution Order] Processing ${node.type} (${nodeId}), output var: ${outVar}`);
-      }
 
       // Skip audio nodes that provide uniforms (audio-file-input, audio-analyzer)
       // They don't generate GLSL code, their outputs are uniforms
@@ -245,17 +207,9 @@ export class MainCodeGenerator {
         }
       }
     } else if (nodeSpec.id === 'audio-analyzer') {
-      const frequencyBands = this.getFrequencyBands(node, nodeSpec);
-      for (let i = 0; i < frequencyBands.length; i++) {
-        const varName = outputVars.get(`band${i}`);
-        const uniformName = uniformNames.get(`${node.id}.band${i}`);
-        if (varName && uniformName) {
-          code.push(`${varName} = ${uniformName};`);
-        }
-      }
-      for (let i = 0; i < frequencyBands.length; i++) {
-        const varName = outputVars.get(`remap${i}`);
-        const uniformName = uniformNames.get(`${node.id}.remap${i}`);
+      for (const output of nodeSpec.outputs) {
+        const varName = outputVars.get(output.name);
+        const uniformName = uniformNames.get(`${node.id}.${output.name}`);
         if (varName && uniformName) {
           code.push(`${varName} = ${uniformName};`);
         }
@@ -329,7 +283,9 @@ export class MainCodeGenerator {
       const sourceSpec = this.nodeSpecs.get(sourceNode.type);
       if (!sourceSpec) continue;
 
-      const sourceOutput = sourceSpec.outputs.find(o => o.name === conn.sourcePort);
+      // Resolve source output: prefer connection's sourcePort, then first output (e.g. one-minus "out")
+      const sourceOutput = sourceSpec.outputs.find(o => o.name === conn.sourcePort)
+        ?? sourceSpec.outputs[0];
       const paramSpec = nodeSpec.parameters[conn.targetParameter];
       if (!sourceOutput || !paramSpec || paramSpec.type !== 'float') continue;
 
@@ -338,29 +294,22 @@ export class MainCodeGenerator {
       const existingIndex = paramSourceIndex.get(conn.targetParameter) ?? -1;
       if (sourceIndex <= existingIndex) continue; // keep connection whose source is later (closer to target)
 
-      let sourceVarName = variableNames.get(conn.sourceNodeId)?.get(conn.sourcePort);
+      // Use spec's output port name so utility nodes (one-minus, negate, etc.) always resolve
+      const sourcePortName = sourceOutput.name;
+      let sourceVarName = variableNames.get(conn.sourceNodeId)?.get(sourcePortName);
       if (!sourceVarName) {
-        sourceVarName = this.generateOutputVariableName(conn.sourceNodeId, conn.sourcePort);
+        sourceVarName = this.generateOutputVariableName(conn.sourceNodeId, sourcePortName);
         console.warn(
-          `[NodeShaderCompiler] Variable name not in map for connection, using fallback: ` +
-          `${conn.sourceNodeId}.${conn.sourcePort} -> ${node.id}.${conn.targetParameter} => ${sourceVarName}`
+          `[NodeShaderCompiler] Variable name not in map for param connection, using fallback: ` +
+          `${conn.sourceNodeId}.${sourcePortName} -> ${node.id}.${conn.targetParameter} => ${sourceVarName}`
         );
       }
 
       let promotedVar = sourceVarName;
       if (sourceOutput.type === 'int') {
         promotedVar = `float(${sourceVarName})`;
-      } else if (sourceOutput.type !== 'float') {
+      } else       if (sourceOutput.type !== 'float') {
         promotedVar = `${sourceVarName}.x`;
-      }
-      if (nodeSpec.id === 'turbulence' && conn.targetParameter === 'turbulenceTimeOffset') {
-        console.log(`[Turbulence TimeOffset Connection] Found connection for ${node.id}:`, {
-          sourceNodeId: conn.sourceNodeId,
-          sourcePort: conn.sourcePort,
-          sourceVarName,
-          promotedVar,
-          targetParameter: conn.targetParameter
-        });
       }
       parameterInputVars.set(conn.targetParameter, promotedVar);
       paramSourceIndex.set(conn.targetParameter, sourceIndex);
@@ -380,7 +329,30 @@ export class MainCodeGenerator {
     if (!isInputNode) {
       for (const input of nodeSpec.inputs) {
         if (!inputVars.has(input.name)) {
-          const defaultValue = this.getInputDefaultValue(input.type);
+          let defaultValue: string;
+          if (input.fallbackParameter) {
+            const paramNames = input.fallbackParameter.split(',').map(s => s.trim()).filter(Boolean);
+            if (paramNames.length === 1) {
+              const uniformName = uniformNames.get(`${node.id}.${paramNames[0]}`);
+              if (uniformName) {
+                defaultValue = uniformName;
+              } else {
+                defaultValue = this.getInputFallbackValue(node, nodeSpec, input) ?? this.getInputDefaultValue(input.type);
+              }
+            } else if (paramNames.length === 2 && input.type === 'vec2') {
+              const u0 = uniformNames.get(`${node.id}.${paramNames[0]}`);
+              const u1 = uniformNames.get(`${node.id}.${paramNames[1]}`);
+              if (u0 && u1) {
+                defaultValue = `vec2(${u0}, ${u1})`;
+              } else {
+                defaultValue = this.getInputFallbackValue(node, nodeSpec, input) ?? this.getInputDefaultValue(input.type);
+              }
+            } else {
+              defaultValue = this.getInputFallbackValue(node, nodeSpec, input) ?? this.getInputDefaultValue(input.type);
+            }
+          } else {
+            defaultValue = this.getInputDefaultValue(input.type);
+          }
           inputVars.set(input.name, defaultValue);
         }
       }
@@ -420,24 +392,12 @@ export class MainCodeGenerator {
     // This ensures that when a function has parameter connections, it uses the correct node-specific version
     const nodeFunctionNameMap = functionNameMap.get(node.id);
     if (nodeFunctionNameMap) {
-      if (nodeSpec.id === 'turbulence') {
-        console.log(`[Function Call Replace] Node ${node.id} has function name map:`, Array.from(nodeFunctionNameMap.entries()));
-        console.log(`[Function Call Replace] Before replacement, nodeCode contains:`, nodeCode.includes('turbulence('));
-      }
       for (const [originalName, nodeSpecificName] of nodeFunctionNameMap.entries()) {
-        // Replace function calls: match "functionName(" but not "functionName_" (to avoid replacing the renamed function definition)
         const functionCallRegex = new RegExp(`\\b${this.escapeRegex(originalName)}\\s*\\(`, 'g');
-        const beforeReplace = nodeCode;
         nodeCode = nodeCode.replace(functionCallRegex, `${nodeSpecificName}(`);
-        if (nodeSpec.id === 'turbulence' && originalName === 'turbulence' && beforeReplace !== nodeCode) {
-          console.log(`[Function Call Replace] Replaced ${originalName}( with ${nodeSpecificName}( in mainCode`);
-        }
-      }
-      if (nodeSpec.id === 'turbulence') {
-        console.log(`[Function Call Replace] After replacement, nodeCode contains:`, nodeCode.includes('turbulence_node'));
       }
     }
-    
+
     code.push(nodeCode);
 
     return code.join('\n');
@@ -481,6 +441,48 @@ export class MainCodeGenerator {
       case 'bool': return 'false';
       default: return '0.0';
     }
+  }
+
+  /**
+   * When an input is unconnected, use its fallback parameter value(s) if defined.
+   * fallbackParameter can be "paramName" (single float/int) or "paramX,paramY" (vec2 from two floats).
+   */
+  private getInputFallbackValue(
+    node: NodeInstance,
+    nodeSpec: NodeSpec,
+    input: { name: string; type: string; fallbackParameter?: string }
+  ): string | null {
+    const fp = input.fallbackParameter;
+    if (!fp || !nodeSpec.parameters) return null;
+
+    const paramNames = fp.split(',').map(s => s.trim()).filter(Boolean);
+    if (paramNames.length === 0) return null;
+
+    const getParamValue = (name: string): number => {
+      const raw = node.parameters[name];
+      if (typeof raw === 'number' && isFinite(raw)) return raw;
+      const spec = nodeSpec.parameters[name];
+      if (spec && typeof spec.default === 'number') return spec.default;
+      return spec?.type === 'int' ? 0 : 0.0;
+    };
+
+    if (paramNames.length === 1) {
+      const name = paramNames[0];
+      if (!nodeSpec.parameters[name]) return null;
+      const value = getParamValue(name);
+      const spec = nodeSpec.parameters[name];
+      return this.formatParamLiteralForGlsl(value, spec);
+    }
+
+    if (paramNames.length === 2 && input.type === 'vec2') {
+      const a = getParamValue(paramNames[0]);
+      const b = getParamValue(paramNames[1]);
+      const fa = this.formatParamLiteralForGlsl(a, undefined);
+      const fb = this.formatParamLiteralForGlsl(b, undefined);
+      return `vec2(${fa}, ${fb})`;
+    }
+
+    return null;
   }
 
   /**
@@ -633,60 +635,21 @@ export class MainCodeGenerator {
         // so we only need to check if paramInputVar exists
         const paramInputVar = parameterInputVars.get(paramName);
         if (paramInputVar) {
-          // Get input mode (from node override, spec default, or 'override')
-          const inputMode = node.parameterInputModes?.[paramName] || 
-                           paramSpec?.inputMode || 
-                           'override';
-          
+          const inputMode = node.parameterInputModes?.[paramName] || paramSpec?.inputMode || 'override';
           if (inputMode === 'override') {
-            // Override mode: use input value directly (consistent with function code handling)
-            // \b ensures we only replace the full param name (e.g. hexSize not hexSizeVariationSteps)
             const regex = new RegExp(`\\$param\\.${this.escapeRegex(paramName)}\\b`, 'g');
             result = result.replace(regex, paramInputVar);
           } else {
-            // Add/subtract/multiply mode: need to combine with config value
             const uniformName = uniformNames.get(`${node.id}.${paramName}`) || '';
             let configValue: string;
             if (uniformName) {
-              // Use uniform name as config value
               configValue = uniformName;
             } else {
-              // No uniform found - use parameter default value from spec
-              // This can happen if uniform generation was skipped for some reason
-              // Mode is add/subtract/multiply - we need config value but uniform doesn't exist
-              // This shouldn't happen if uniform generation is correct, but handle it gracefully
-              console.warn(
-                `[NodeShaderCompiler] Uniform not found for ${node.id}.${paramName} with mode '${inputMode}'. ` +
-                `Using node parameter value as fallback. This may indicate a uniform generation issue.`
-              );
               const paramValue = node.parameters[paramName];
-              if (paramValue !== undefined) {
-                configValue = String(paramValue);
-              } else if (paramSpec?.default !== undefined) {
-                configValue = String(paramSpec.default);
-              } else {
-                // Fallback to 0.0 if no default available
-                configValue = paramSpec?.type === 'int' ? '0' : '0.0';
-              }
+              configValue = paramValue !== undefined ? String(paramValue) : (paramSpec?.default !== undefined ? String(paramSpec.default) : (paramSpec?.type === 'int' ? '0' : '0.0'));
             }
-            // Generate combined expression
             const paramType = (paramSpec?.type === 'float' || paramSpec?.type === 'int') ? paramSpec.type : 'float';
-            const combinedExpr = this.generateParameterCombination(
-              configValue,
-              paramInputVar,
-              inputMode,
-              paramType
-            );
-            // Debug logging for turbulence parameters
-            if (nodeSpec.id === 'turbulence' && (paramName === 'turbulenceTimeOffset' || paramName === 'turbulenceStrength')) {
-              console.log(`[Turbulence ${paramName} Debug] Node ${node.id}, param ${paramName}:`, {
-                configValue,
-                paramInputVar,
-                inputMode,
-                combinedExpr,
-                nodeParamValue: node.parameters[paramName]
-              });
-            }
+            const combinedExpr = this.generateParameterCombination(configValue, paramInputVar, inputMode, paramType);
             const regex = new RegExp(`\\$param\\.${this.escapeRegex(paramName)}\\b`, 'g');
             result = result.replace(regex, combinedExpr);
           }

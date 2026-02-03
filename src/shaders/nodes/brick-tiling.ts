@@ -52,15 +52,6 @@ export const brickTilingNodeSpec: NodeSpec = {
       label: 'Offset Y'
     }
   },
-  parameterGroups: [
-    {
-      id: 'brick-main',
-      label: 'Brick Tiling',
-      parameters: ['brickScaleX', 'brickScaleY', 'brickOffsetX', 'brickOffsetY'],
-      collapsible: true,
-      defaultCollapsed: false
-    }
-  ],
   functions: `
 vec2 brickTiling(vec2 p, vec2 scale, float rowOffsetX, float offsetY) {
   vec2 scaled = p * scale;

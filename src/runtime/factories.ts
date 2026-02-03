@@ -69,7 +69,7 @@ export function createRuntimeManager(
   const renderer = createRenderer(canvas);
   const audioManager = createAudioManager(errorHandler);
   const compilationManager = createCompilationManager(compiler, renderer, errorCallback, errorHandler);
-  
+
   // Create RuntimeManager with injected dependencies
   return new RuntimeManager(renderer, audioManager, compilationManager, errorCallback, errorHandler);
 }

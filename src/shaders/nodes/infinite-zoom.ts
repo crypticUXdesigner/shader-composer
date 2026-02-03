@@ -52,15 +52,6 @@ export const infiniteZoomNodeSpec: NodeSpec = {
       label: 'Time Speed'
     }
   },
-  parameterGroups: [
-    {
-      id: 'infinite-zoom-main',
-      label: 'Infinite Zoom',
-      parameters: ['infiniteZoomCenterX', 'infiniteZoomCenterY', 'infiniteZoomScale', 'infiniteZoomTimeSpeed'],
-      collapsible: true,
-      defaultCollapsed: false
-    }
-  ],
   mainCode: `
   vec2 center = vec2($param.infiniteZoomCenterX, $param.infiniteZoomCenterY);
   vec2 p = $input.in - center;

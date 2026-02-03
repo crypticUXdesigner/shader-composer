@@ -331,6 +331,7 @@ export class HitTestManager {
     const labelFontSize = getCSSVariableAsNumber('frequency-range-label-font-size', 18);
     const labelHeight = labelFontSize + 2;
     const scaleHeightToken = getCSSVariableAsNumber('frequency-range-scale-height', 22);
+    const spectrumHeightToken = getCSSVariableAsNumber('frequency-range-spectrum-height', 28);
     const sliderHeight = getCSSVariableAsNumber('frequency-range-slider-height', 16);
     const inputRowHeight = getCSSVariableAsNumber('frequency-range-input-row-height', 28);
     const valueFontSize = getCSSVariableAsNumber('knob-value-font-size', 18);
@@ -363,7 +364,7 @@ export class HitTestManager {
         const scale = el.scale ?? 'linear';
         const minNorm = Math.max(0, Math.min(1, hzToNorm(minHz, scale)));
         const maxNorm = Math.max(0, Math.min(1, hzToNorm(maxHz, scale)));
-        const scaleBlockHeight = scale === 'audio' ? scaleHeightToken + gap : 0;
+        const scaleBlockHeight = scale === 'audio' ? (spectrumHeightToken + gap + scaleHeightToken + gap) : 0;
 
         const x = em.x;
         const y = em.y;

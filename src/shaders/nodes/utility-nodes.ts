@@ -66,15 +66,20 @@ export const remapNodeSpec: NodeSpec = {
   icon: 'settings-2',
   inputs: [
     { name: 'in', type: 'float' },
-    { name: 'inMin', type: 'float' },
-    { name: 'inMax', type: 'float' },
-    { name: 'outMin', type: 'float' },
-    { name: 'outMax', type: 'float' }
+    { name: 'inMin', type: 'float', fallbackParameter: 'inMin' },
+    { name: 'inMax', type: 'float', fallbackParameter: 'inMax' },
+    { name: 'outMin', type: 'float', fallbackParameter: 'outMin' },
+    { name: 'outMax', type: 'float', fallbackParameter: 'outMax' }
   ],
   outputs: [
     { name: 'out', type: 'float' }
   ],
-  parameters: {},
+  parameters: {
+    inMin: { type: 'float', default: 0.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'In Min' },
+    inMax: { type: 'float', default: 1.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'In Max' },
+    outMin: { type: 'float', default: 0.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'Out Min' },
+    outMax: { type: 'float', default: 1.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'Out Max' }
+  },
   mainCode: `
     float t = ($input.in - $input.inMin) / ($input.inMax - $input.inMin);
     $output.out = mix($input.outMin, $input.outMax, t);
@@ -178,14 +183,18 @@ export const lerpNodeSpec: NodeSpec = {
   description: 'Linear interpolation (alias for Mix)',
   icon: 'settings-2',
   inputs: [
-    { name: 'a', type: 'float' },
-    { name: 'b', type: 'float' },
-    { name: 't', type: 'float' }
+    { name: 'a', type: 'float', fallbackParameter: 'a' },
+    { name: 'b', type: 'float', fallbackParameter: 'b' },
+    { name: 't', type: 'float', fallbackParameter: 't' }
   ],
   outputs: [
     { name: 'out', type: 'float' }
   ],
-  parameters: {},
+  parameters: {
+    a: { type: 'float', default: 0.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'A' },
+    b: { type: 'float', default: 1.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'B' },
+    t: { type: 'float', default: 0.5, min: 0.0, max: 1.0, step: 0.01, label: 'T' }
+  },
   mainCode: `
     $output.out = mix($input.a, $input.b, $input.t);
   `
@@ -268,8 +277,8 @@ export const combineVectorNodeSpec: NodeSpec = {
   inputs: [
     { name: 'x', type: 'float' },
     { name: 'y', type: 'float' },
-    { name: 'z', type: 'float' },
-    { name: 'w', type: 'float' }
+    { name: 'z', type: 'float', fallbackParameter: 'z' },
+    { name: 'w', type: 'float', fallbackParameter: 'w' }
   ],
   outputs: [
     { name: 'out', type: 'vec4' }
@@ -280,7 +289,9 @@ export const combineVectorNodeSpec: NodeSpec = {
       default: 2,
       min: 2,
       max: 4
-    }
+    },
+    z: { type: 'float', default: 0.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'Z' },
+    w: { type: 'float', default: 1.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'W' }
   },
   mainCode: `
     // Output type is vec4, compiler will handle promotion/demotion based on connections

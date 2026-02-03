@@ -294,6 +294,7 @@ export class ParameterLayoutManager {
       skipPorts?: boolean;
       audioRemapLiveValues?: { incoming: number | null; outgoing: number | null };
       audioAnalyzerBandLiveValues?: Map<number, { incoming: number | null; outgoing: number | null }>;
+      analyzerSpectrumData?: { frequencyData: Uint8Array; fftSize: number; sampleRate: number } | null;
       hoveredAudioFileInputControl?: 'upload' | 'toggle' | null;
     }
   ): void {

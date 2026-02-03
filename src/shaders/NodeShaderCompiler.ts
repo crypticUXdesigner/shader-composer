@@ -1,9 +1,4 @@
-import type { 
-  NodeGraph, 
-  NodeInstance, 
-  NodeSpec, 
-  CompilationResult
-} from '../types';
+import type { NodeGraph, NodeSpec, CompilationResult } from '../types';
 import { GraphValidator } from './compilation/GraphValidator';
 import { TypeValidator } from './compilation/TypeValidator';
 import { GraphAnalyzer } from './compilation/GraphAnalyzer';
@@ -40,14 +35,10 @@ export class NodeShaderCompiler {
     this.graphValidator = new GraphValidator(nodeSpecs);
     this.typeValidator = new TypeValidator(nodeSpecs);
     this.graphAnalyzer = new GraphAnalyzer();
-    this.variableNameGenerator = new VariableNameGenerator(
-      nodeSpecs,
-      (node, spec) => this.getFrequencyBands(node, spec)
-    );
+    this.variableNameGenerator = new VariableNameGenerator(nodeSpecs);
     this.uniformGenerator = new UniformGenerator(
       nodeSpecs,
       (spec) => this.isAudioNode(spec),
-      (node, spec) => this.getFrequencyBands(node, spec),
       (paramSpec, paramName) => this.getParameterDefaultValue(paramSpec, paramName)
     );
     this.functionGenerator = new FunctionGenerator(
@@ -58,7 +49,6 @@ export class NodeShaderCompiler {
     this.mainCodeGenerator = new MainCodeGenerator(
       nodeSpecs,
       (spec) => this.isAudioNode(spec),
-      (node, spec) => this.getFrequencyBands(node, spec),
       (nodeId, paramName) => this.variableNameGenerator.generateArrayVariableName(nodeId, paramName),
       (str) => this.escapeRegex(str),
       (configValue, inputValue, mode, paramType) => this.generateParameterCombination(configValue, inputValue, mode, paramType),
@@ -348,51 +338,6 @@ export class NodeShaderCompiler {
     // Step 13: Assemble shader
     const shaderCode = this.mainCodeGenerator.assembleShader(functions, uniforms, variableDeclarations, mainCode, finalColorVar);
 
-    // Debug: Log shader code for turbulence debugging when multiple parameter connections exist
-    const hasMultipleParamConnections = graph.connections.filter(c => c.targetParameter).length > 1;
-    const hasTurbulence = graph.nodes.some(n => n.type === 'turbulence');
-    if (hasMultipleParamConnections && hasTurbulence && shaderCode.includes('turbulence_node_')) {
-      // Extract the turbulence function
-      const turbulenceMatch = shaderCode.match(/vec2\s+turbulence_node_[^\s]+\s*\([^)]*\)\s*\{[\s\S]*?\n\s*return\s+[^;]+;/);
-      if (turbulenceMatch) {
-        console.log('[Generated Shader] Turbulence function (first 500 chars):', turbulenceMatch[0].substring(0, 500));
-      }
-      
-      // Check if the variable is declared and assigned
-      const turbulenceConn = graph.connections.find(c => 
-        c.targetNodeId && graph.nodes.find(n => n.id === c.targetNodeId && n.type === 'turbulence') &&
-        c.targetParameter === 'turbulenceStrength'
-      );
-      
-      if (turbulenceConn) {
-        // Get the actual variable name from variableNames map (correct way)
-        const sourceVarName = variableNames.get(turbulenceConn.sourceNodeId)?.get(turbulenceConn.sourcePort);
-        
-        if (sourceVarName) {
-          // Check variable declaration
-          const varDeclPattern = new RegExp(`float\\s+${sourceVarName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*=\\s*[^;]+;`);
-          const varDecl = variableDeclarations.match(varDeclPattern);
-          console.log('[Generated Shader] Variable declaration for', sourceVarName, ':', varDecl ? varDecl[0] : 'NOT FOUND');
-          
-          // Check variable assignment in main code
-          const varAssignPattern = new RegExp(`${sourceVarName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*=\\s*[^;]+;`);
-          const varAssign = mainCode.match(varAssignPattern);
-          console.log('[Generated Shader] Variable assignment for', sourceVarName, ':', varAssign ? varAssign[0] : 'NOT FOUND');
-          
-          // Also search for any line containing this variable
-          const mainCodeLines = mainCode.split('\n');
-          const relevantLines = mainCodeLines.filter(l => l.includes(sourceVarName));
-          if (relevantLines.length > 0) {
-            console.log('[Generated Shader] Lines containing', sourceVarName, ':', relevantLines.slice(0, 5).map(l => l.trim()));
-          } else {
-            console.log('[Generated Shader] No lines found containing', sourceVarName);
-          }
-        } else {
-          console.log('[Generated Shader] Could not find variable name for source node', turbulenceConn.sourceNodeId, 'port', turbulenceConn.sourcePort);
-        }
-      }
-    }
-
     return {
       shaderCode,
       uniforms,
@@ -433,38 +378,6 @@ export class NodeShaderCompiler {
   private isAudioNode(nodeSpec: NodeSpec): boolean {
     return nodeSpec.category === 'Audio';
   }
-
-  /**
-   * Get frequency bands from node (for audio-analyzer)
-   */
-  private getFrequencyBands(node: NodeInstance, nodeSpec: NodeSpec): number[][] {
-    const frequencyBandsParam = node.parameters.frequencyBands;
-    if (Array.isArray(frequencyBandsParam) && frequencyBandsParam.length > 0) {
-      // Validate it's an array of arrays
-      if (Array.isArray(frequencyBandsParam[0])) {
-        // Type guard: ensure all elements are number arrays
-        const isValid = frequencyBandsParam.every(item => Array.isArray(item) && item.every(el => typeof el === 'number'));
-        if (isValid) {
-          return frequencyBandsParam as unknown as number[][];
-        }
-      }
-    }
-    // Fall back to default from spec
-    const defaultParam = nodeSpec.parameters.frequencyBands;
-    if (defaultParam && Array.isArray(defaultParam.default)) {
-      const defaultValue = defaultParam.default;
-      if (Array.isArray(defaultValue[0])) {
-        // Type guard: ensure all elements are number arrays
-        const isValid = defaultValue.every((item: any) => Array.isArray(item) && item.every((el: any) => typeof el === 'number'));
-        if (isValid) {
-          return defaultValue as unknown as number[][];
-        }
-      }
-    }
-    // Ultimate fallback
-    return [[20, 120], [120, 300], [300, 4000], [4000, 20000]];
-  }
-
 
   /**
    * Get default value for a parameter

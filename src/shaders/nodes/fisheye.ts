@@ -52,15 +52,6 @@ export const fisheyeNodeSpec: NodeSpec = {
       label: 'Aspect'
     }
   },
-  parameterGroups: [
-    {
-      id: 'fisheye-main',
-      label: 'Fisheye',
-      parameters: ['fisheyeCenterX', 'fisheyeCenterY', 'fisheyeStrength', 'fisheyeAspect'],
-      collapsible: true,
-      defaultCollapsed: false
-    }
-  ],
   functions: `
 vec2 fisheye(vec2 p, vec2 center, float strength, float aspect) {
   vec2 d = (p - center) * vec2(aspect, 1.0);

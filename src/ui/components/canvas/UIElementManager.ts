@@ -31,7 +31,8 @@ export class UIElementManager {
   }
 
   /**
-   * Create and show parameter input field
+   * Create and show parameter input field.
+   * @param paramType - When provided, formats the initial value to match node UI: 'int' = whole number, 'float' = max 3 decimals.
    */
   showParameterInput(
     _nodeId: string,
@@ -40,7 +41,8 @@ export class UIElementManager {
     position: { x: number; y: number },
     size: { width: number; height: number },
     onCommit: (value: number) => void,
-    onCancel: () => void
+    onCancel: () => void,
+    paramType?: 'int' | 'float'
   ): void {
     if (!this.context) return;
 
@@ -51,9 +53,12 @@ export class UIElementManager {
     const zoom = this.context.getZoom();
     const screenPos = this.context.canvasToScreen(position.x, position.y);
 
+    const displayValue =
+      paramType === 'int' ? Math.round(value).toString() : Number(value).toFixed(3);
+
     const input = document.createElement('input');
     input.type = 'number';
-    input.value = value.toString();
+    input.value = displayValue;
     input.className = 'input primary parameter-value-overlay';
     input.style.position = 'absolute';
     input.style.left = `${screenPos.x}px`;

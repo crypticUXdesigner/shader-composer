@@ -282,8 +282,9 @@ export class RenderingOrchestrator {
       );
     }
 
-    // Compute per-band live values for audio-analyzer band remap UI (needle markers)
+    // Compute per-band live values for audio-analyzer (single-band uses remap-range; pass band 0 as audioRemapLiveValues for needles)
     let audioAnalyzerBandLiveValues: Map<number, { incoming: number | null; outgoing: number | null }> | undefined;
+    let analyzerSpectrumData: { frequencyData: Uint8Array; fftSize: number; sampleRate: number } | null = null;
     if (node.type === 'audio-analyzer') {
       audioAnalyzerBandLiveValues = getAudioAnalyzerBandLiveValues(
         node,
@@ -291,6 +292,25 @@ export class RenderingOrchestrator {
         this.dependencies.nodeSpecs,
         this.dependencies.audioManager
       );
+      const band0 = audioAnalyzerBandLiveValues.get(0);
+      if (band0) audioRemapLiveValues = band0;
+      // Spectrum strip: resolve connected audio source and pass FFT data for frequency-range visualizer
+      if (this.dependencies.audioManager) {
+        const conn = this.dependencies.graph.connections.find(
+          c => c.targetNodeId === node.id && c.targetPort === 'audioFile'
+        );
+        if (conn) {
+          const audioState = this.dependencies.audioManager.getAudioNodeState(conn.sourceNodeId);
+          const analyzerState = this.dependencies.audioManager.getAnalyzerNodeState(node.id);
+          if (audioState?.frequencyData && analyzerState) {
+            analyzerSpectrumData = {
+              frequencyData: audioState.frequencyData,
+              fftSize: analyzerState.fftSize,
+              sampleRate: this.dependencies.audioManager.getSampleRate()
+            };
+          }
+        }
+      }
     }
 
     // Update component state
@@ -304,7 +324,8 @@ export class RenderingOrchestrator {
       connectedParameters,
       skipPorts,
       audioRemapLiveValues,
-      audioAnalyzerBandLiveValues
+      audioAnalyzerBandLiveValues,
+      analyzerSpectrumData
     });
     
     // Always invalidate and recalculate metrics - they depend on node.position which changes when dragging

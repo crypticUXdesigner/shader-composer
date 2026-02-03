@@ -253,9 +253,8 @@ export class RemapRangeElementRenderer implements LayoutElementRenderer {
     this.ctx.setLineDash([]);
     this.ctx.globalAlpha = 1.0;
     
-    // Needle markers for audio-remap: show live incoming (left) and remapped outgoing (right) on a common scale
-    // so the two needles are at different heights when the numeric values differ (remap is visible).
-    const live = node.type === 'audio-remap' ? renderState.audioRemapLiveValues : undefined;
+    // Needle markers: show live incoming (left) and remapped outgoing (right) for audio-remap and audio-analyzer (remap-range)
+    const live = (node.type === 'audio-remap' || node.type === 'audio-analyzer') ? renderState.audioRemapLiveValues : undefined;
     if (live && (live.incoming != null || live.outgoing != null)) {
       const needleColor = getCSSColor('remap-range-needle-color', '#ffffff');
       const needleWidth = getCSSVariableAsNumber('remap-range-needle-width', 3);

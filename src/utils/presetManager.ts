@@ -67,16 +67,16 @@ export async function loadPreset(presetName: string): Promise<NodeGraph | null> 
     const data = (module as { default: any }).default;
     
     // Check if it's already a NodeGraph or a SerializedGraphFile
+    let graph: NodeGraph;
     if (data.format === 'shader-composer-node-graph') {
-      // It's a serialized graph file, extract the graph
-      return data.graph as NodeGraph;
+      graph = data.graph as NodeGraph;
     } else if (data.id && data.nodes && data.connections) {
-      // It's already a NodeGraph
-      return data as NodeGraph;
+      graph = data as NodeGraph;
     } else {
       console.error(`Invalid preset format: ${presetName}`);
       return null;
     }
+    return graph;
   } catch (error) {
     console.error(`Failed to load preset ${presetName}:`, error);
     return null;

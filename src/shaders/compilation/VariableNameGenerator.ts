@@ -1,13 +1,10 @@
-import type { NodeGraph, NodeInstance, NodeSpec } from '../../types';
+import type { NodeGraph, NodeSpec } from '../../types';
 
 /**
  * Generates variable names for node outputs
  */
 export class VariableNameGenerator {
-  constructor(
-    private nodeSpecs: Map<string, NodeSpec>,
-    private getFrequencyBands: (node: NodeInstance, nodeSpec: NodeSpec) => number[][]
-  ) {}
+  constructor(private nodeSpecs: Map<string, NodeSpec>) {}
 
   /**
    * Generate variable names for all node outputs
@@ -21,23 +18,10 @@ export class VariableNameGenerator {
 
       const nodeVars = new Map<string, string>();
       
-      // Handle audio-analyzer dynamic outputs (bands + per-band remapped)
-      if (nodeSpec.id === 'audio-analyzer') {
-        const frequencyBands = this.getFrequencyBands(node, nodeSpec);
-        for (let i = 0; i < frequencyBands.length; i++) {
-          const varName = this.generateVariableName(node.id, `band${i}`);
-          nodeVars.set(`band${i}`, varName);
-        }
-        for (let i = 0; i < frequencyBands.length; i++) {
-          const varName = this.generateVariableName(node.id, `remap${i}`);
-          nodeVars.set(`remap${i}`, varName);
-        }
-      } else {
-        // Standard outputs
-        for (const output of nodeSpec.outputs) {
-          const varName = this.generateVariableName(node.id, output.name);
-          nodeVars.set(output.name, varName);
-        }
+      // Standard outputs (including audio-analyzer: band, remap)
+      for (const output of nodeSpec.outputs) {
+        const varName = this.generateVariableName(node.id, output.name);
+        nodeVars.set(output.name, varName);
       }
       
       variableNames.set(node.id, nodeVars);

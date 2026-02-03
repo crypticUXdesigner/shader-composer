@@ -1762,7 +1762,8 @@ export class NodeRenderer {
     connectedParameters?: Set<string>,
     skipPorts: boolean = false,
     audioRemapLiveValues?: { incoming: number | null; outgoing: number | null },
-    audioAnalyzerBandLiveValues?: Map<number, { incoming: number | null; outgoing: number | null }>
+    audioAnalyzerBandLiveValues?: Map<number, { incoming: number | null; outgoing: number | null }>,
+    analyzerSpectrumData?: { frequencyData: Uint8Array; fftSize: number; sampleRate: number } | null
   ): void {
     const { width, height, headerHeight } = metrics;
     const x = node.position.x;
@@ -2009,6 +2010,7 @@ export class NodeRenderer {
               skipPorts,
               audioRemapLiveValues,
               audioAnalyzerBandLiveValues,
+              analyzerSpectrumData: analyzerSpectrumData ?? null,
               hoveredAudioFileInputControl
             }
           );

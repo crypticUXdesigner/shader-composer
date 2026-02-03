@@ -1,4 +1,4 @@
-import type { NodeGraph, NodeInstance, NodeSpec, UniformMetadata } from '../../types';
+import type { NodeGraph, NodeSpec, UniformMetadata } from '../../types';
 
 /**
  * Generates uniform names and metadata
@@ -7,7 +7,6 @@ export class UniformGenerator {
   constructor(
     private nodeSpecs: Map<string, NodeSpec>,
     private isAudioNode: (nodeSpec: NodeSpec) => boolean,
-    private getFrequencyBands: (node: NodeInstance, nodeSpec: NodeSpec) => number[][],
     private getParameterDefaultValue: (paramSpec: { type: string; default?: any }, paramName: string) => number | [number, number] | [number, number, number] | [number, number, number, number]
   ) {}
 
@@ -47,16 +46,11 @@ export class UniformGenerator {
             uniformNames.set(`${node.id}.${output.name}`, uniformName);
           }
         }
-        // Audio-analyzer: outputs are uniforms (bands + per-band remapped)
+        // Audio-analyzer: outputs are uniforms (band, remap)
         else if (nodeSpec.id === 'audio-analyzer') {
-          const frequencyBands = this.getFrequencyBands(node, nodeSpec);
-          for (let i = 0; i < frequencyBands.length; i++) {
-            const uniformName = this.sanitizeUniformName(node.id, `band${i}`);
-            uniformNames.set(`${node.id}.band${i}`, uniformName);
-          }
-          for (let i = 0; i < frequencyBands.length; i++) {
-            const uniformName = this.sanitizeUniformName(node.id, `remap${i}`);
-            uniformNames.set(`${node.id}.remap${i}`, uniformName);
+          for (const output of nodeSpec.outputs) {
+            const uniformName = this.sanitizeUniformName(node.id, output.name);
+            uniformNames.set(`${node.id}.${output.name}`, uniformName);
           }
         }
       }
@@ -80,30 +74,15 @@ export class UniformGenerator {
           continue;
         }
         // Skip runtime-only parameters for audio-analyzer nodes
-        if (nodeSpec.id === 'audio-analyzer' && (paramName === 'frequencyBands' || paramName === 'smoothing' || paramName === 'fftSize')) {
+        if (nodeSpec.id === 'audio-analyzer' && (paramName === 'frequencyBands' || paramName === 'smoothing' || paramName === 'fftSize' || paramName === 'inMin' || paramName === 'inMax' || paramName === 'outMin' || paramName === 'outMax')) {
           continue;
         }
-        // Skip per-band remap params (used in JS to compute remap uniforms, not shader uniforms)
-        if (nodeSpec.id === 'audio-analyzer' && /^band\d+Remap(InMin|InMax|OutMin|OutMax)$/.test(paramName)) {
-          continue;
-        }
-        // Check if parameter is connected to an output
         const isConnected = graph.connections.some(
           conn => conn.targetNodeId === node.id && conn.targetParameter === paramName
         );
         if (isConnected) {
-          // Parameter has input connection - check the input mode
-          // If mode is 'override', the input completely replaces the config value, so no uniform needed
-          // But if mode is 'add', 'subtract', or 'multiply', the uniform IS needed for the combination expression
-          const inputMode = node.parameterInputModes?.[paramName] || 
-                           paramSpec.inputMode || 
-                           'override';
-          
-          // Only skip uniform generation if mode is explicitly 'override'
-          if (inputMode === 'override') {
-            continue;
-          }
-          // For add/subtract/multiply modes, we still need the uniform for the combination expression
+          const inputMode = node.parameterInputModes?.[paramName] ?? paramSpec.inputMode ?? 'override';
+          if (inputMode === 'override') continue;
         }
         const uniformName = this.sanitizeUniformName(node.id, paramName);
         uniformNames.set(`${node.id}.${paramName}`, uniformName);
@@ -176,26 +155,13 @@ export class UniformGenerator {
             });
           }
         } else if (nodeSpec.id === 'audio-analyzer') {
-          // Dynamic outputs (bands + per-band remapped) - always include them
-          const frequencyBands = this.getFrequencyBands(node, nodeSpec);
-          for (let i = 0; i < frequencyBands.length; i++) {
-            const uniformName = uniformNames.get(`${node.id}.band${i}`);
+          for (const output of nodeSpec.outputs) {
+            const uniformName = uniformNames.get(`${node.id}.${output.name}`);
             if (!uniformName) continue;
             uniforms.push({
               name: uniformName,
               nodeId: node.id,
-              paramName: `band${i}`,
-              type: 'float',
-              defaultValue: 0.0
-            });
-          }
-          for (let i = 0; i < frequencyBands.length; i++) {
-            const uniformName = uniformNames.get(`${node.id}.remap${i}`);
-            if (!uniformName) continue;
-            uniforms.push({
-              name: uniformName,
-              nodeId: node.id,
-              paramName: `remap${i}`,
+              paramName: output.name,
               type: 'float',
               defaultValue: 0.0
             });

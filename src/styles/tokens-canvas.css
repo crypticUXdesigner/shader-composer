@@ -755,4 +755,11 @@
 --frequency-range-slider-active-color: var(--color-violet-90);
 --frequency-range-slider-active-edge-thickness: 4px; /* left/right edge of active range; 0 = none */
 --frequency-range-slider-active-edge-color: var(--color-violet-120);
+
+/* Frequency range spectrum strip (above scale, real-time FFT visualization) */
+--frequency-range-spectrum-height: 160px;
+--frequency-range-spectrum-bg: transparent;
+--frequency-range-spectrum-bar-color: var(--color-violet-100);        /* bars inside selected range */
+--frequency-range-spectrum-bar-color-unselected: var(--color-gray-60); /* bars outside selected range */
+--frequency-range-spectrum-bar-min-opacity: 0.12;
 }

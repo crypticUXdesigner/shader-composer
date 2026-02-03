@@ -76,15 +76,6 @@ export const fbmNoiseNodeSpec: NodeSpec = {
       label: 'Time Offset'
     }
   },
-  parameterGroups: [
-    {
-      id: 'fbm-noise-main',
-      label: 'fBm Noise',
-      parameters: ['fbmScale', 'fbmOctaves', 'fbmLacunarity', 'fbmGain', 'fbmTimeSpeed', 'fbmIntensity', 'fbmTimeOffset'],
-      collapsible: true,
-      defaultCollapsed: false
-    }
-  ],
   functions: `
 // 1-D hash function (reference)
 float hash11(float n) {

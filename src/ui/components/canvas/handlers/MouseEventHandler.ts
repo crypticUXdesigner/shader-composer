@@ -515,19 +515,8 @@ export class MouseEventHandler {
       }
     }
     
-    // Use interaction handler system for connection selection (only for cursor tool)
-    // Check connection before node so clicking on a cable selects it even when the cable overlaps a node's bounds
-    if (this.deps.interactionManager && this.getActiveTool() === 'cursor') {
-      const connHit = this.deps.hitTestManager.hitTestConnection(mouseX, mouseY);
-      if (connHit) {
-        const event = this.deps.createInteractionEvent(InteractionType.NodeSelect, e, connHit);
-        if (this.deps.interactionManager.start(event)) {
-          return; // Event handled by handler
-        }
-      }
-    }
-    
     // Use interaction handler system for node dragging (only for cursor tool)
+    // Check node before connection so nodes and their elements are always prioritized over connections that render underneath
     if (this.deps.interactionManager && this.getActiveTool() === 'cursor') {
       const nodeHit = this.deps.hitTestManager.hitTestNode(mouseX, mouseY);
       if (nodeHit && !this.deps.isSpacePressed) {
@@ -535,6 +524,18 @@ export class MouseEventHandler {
         if (this.deps.interactionManager.start(event)) {
           // Attach document-level listeners for dragging outside canvas
           this.deps.attachDocumentListeners();
+          return; // Event handled by handler
+        }
+      }
+    }
+    
+    // Use interaction handler system for connection selection (only for cursor tool)
+    // Only when not over a node so node hitboxes always take priority over connection hitboxes
+    if (this.deps.interactionManager && this.getActiveTool() === 'cursor') {
+      const connHit = this.deps.hitTestManager.hitTestConnection(mouseX, mouseY);
+      if (connHit) {
+        const event = this.deps.createInteractionEvent(InteractionType.NodeSelect, e, connHit);
+        if (this.deps.interactionManager.start(event)) {
           return; // Event handled by handler
         }
       }
@@ -910,9 +911,11 @@ export class MouseEventHandler {
         this.deps.renderState.markConnectionsDirty(connectionsToUpdate);
       }
       
-      // Clear connection path caches when nodes move (port positions change)
-      this.deps.connectionLayerRenderer?.clearCache();
-      this.deps.parameterConnectionLayerRenderer?.clearCache();
+      // Invalidate connection path caches when nodes move (port positions change)
+      for (const nodeId of movedNodeIds) {
+        this.deps.connectionLayerRenderer?.invalidateNodeConnections(nodeId);
+        this.deps.parameterConnectionLayerRenderer?.invalidateNodeConnections(nodeId);
+      }
       
       // Mark ports layer as dirty (ports are rendered separately and need to move with nodes)
       this.deps.renderState.markLayerDirty(RenderLayer.Ports);

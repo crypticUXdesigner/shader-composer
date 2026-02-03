@@ -60,15 +60,6 @@ export const kaleidoscopeSmoothNodeSpec: NodeSpec = {
       label: 'Smooth Edge'
     }
   },
-  parameterGroups: [
-    {
-      id: 'kaleid-smooth-main',
-      label: 'Kaleidoscope Smooth',
-      parameters: ['kaleidSmoothCenterX', 'kaleidSmoothCenterY', 'kaleidSmoothSegments', 'kaleidSmoothRotation', 'kaleidSmoothEdge'],
-      collapsible: true,
-      defaultCollapsed: false
-    }
-  ],
   functions: `
 vec2 kaleidoscopeSmooth(vec2 p, int segments, float rotation, float smoothEdge) {
   float angle = atan(p.y, p.x);

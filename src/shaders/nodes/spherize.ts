@@ -52,15 +52,6 @@ export const spherizeNodeSpec: NodeSpec = {
       label: 'Strength'
     }
   },
-  parameterGroups: [
-    {
-      id: 'spherize-main',
-      label: 'Spherize',
-      parameters: ['spherizeCenterX', 'spherizeCenterY', 'spherizeRadius', 'spherizeStrength'],
-      collapsible: true,
-      defaultCollapsed: false
-    }
-  ],
   functions: `
 vec2 spherize(vec2 p, vec2 center, float radius, float strength) {
   vec2 d = (p - center) / max(radius, 0.001);

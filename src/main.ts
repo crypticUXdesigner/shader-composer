@@ -118,8 +118,8 @@ class App {
     try {
       const presets = await listPresets();
       if (presets.length > 0) {
-        // Prefer "testing" preset, otherwise load the first preset alphabetically
-        let selectedPreset = presets.find(p => p.name === 'testing');
+        // Prefer "sphere" preset, otherwise load the first preset alphabetically
+        let selectedPreset = presets.find(p => p.name === 'sphere');
         if (!selectedPreset) {
           selectedPreset = presets[0];
         }
@@ -205,7 +205,7 @@ class App {
               (paramName === 'frequencyBands' ||
                 paramName === 'smoothing' ||
                 paramName === 'fftSize' ||
-                /^band\d+Remap(InMin|InMax|OutMin|OutMax)$/.test(paramName));
+                paramName === 'inMin' || paramName === 'inMax' || paramName === 'outMin' || paramName === 'outMax');
             if (isAudioAnalyzerRuntimeParam) {
               await this.runtimeManager.setGraph(graph);
               this.runtimeManager.syncAudioAnalyzers();

@@ -132,17 +132,16 @@ export class ParameterConnectionLayerRenderer implements LayerRenderer {
     let path = this.pathCache.getPath(conn.id, sourcePos, targetPos);
     
     if (!path) {
-      // Calculate new path - positions changed or cache miss
-      const cp1X = sourcePos.x + 100;
-      const cp1Y = sourcePos.y;
-      const cp2X = targetPos.x - 100;
-      const cp2Y = targetPos.y;
-      
       path = new Path2D();
       path.moveTo(sourcePos.x, sourcePos.y);
-      path.bezierCurveTo(cp1X, cp1Y, cp2X, cp2Y, targetPos.x, targetPos.y);
-      
-      // Cache the new path
+      path.bezierCurveTo(
+        sourcePos.x + 100,
+        sourcePos.y,
+        targetPos.x - 100,
+        targetPos.y,
+        targetPos.x,
+        targetPos.y
+      );
       this.pathCache.setPath(conn.id, path, sourcePos, targetPos);
     }
     
@@ -196,7 +195,7 @@ export class ParameterConnectionLayerRenderer implements LayerRenderer {
     const graph = this.context.getGraph ? this.context.getGraph() : this.context.graph;
     this.pathCache.invalidateNodeConnections(nodeId, graph.connections);
   }
-  
+
   /**
    * Clear all cached paths (e.g., when graph structure changes significantly)
    */

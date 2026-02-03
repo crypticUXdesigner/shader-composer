@@ -1377,8 +1377,8 @@
       "titleType": "node",
       "category": "Audio",
       "icon": "audio-waveform",
-      "tagline": "Ideal for extracting frequency bands from audio using FFT analysis for reactive visual effects",
-      "description": "Analyzes audio frequencies using Fast Fourier Transform (FFT) and extracts user-defined frequency bands. This node connects to an Audio File Input node and provides real-time frequency data that can be used to drive visual effects. You can configure custom frequency bands (like bass, mid, treble) and adjust smoothing to control how quickly the values respond to audio changes. The node outputs individual band values that represent the amplitude of each frequency range.",
+      "tagline": "Extracts one frequency band from audio using FFT for reactive visual effects",
+      "description": "Analyzes audio from a connected Audio File Input and outputs one configurable frequency band. Set the frequency range (e.g. bass or treble), optional remap range, and smoothing. Use multiple Audio Analyzer nodes for multiple bands. Outputs: Band (raw amplitude 0–1) and Remap (remapped by the in/out range).",
       "inputs": [
         {
           "name": "audioFile",
@@ -1389,28 +1389,16 @@
       ],
       "outputs": [
         {
-          "name": "band0",
+          "name": "band",
           "type": "float",
-          "description": "The amplitude value for the first frequency band (typically bass frequencies)",
+          "description": "Raw amplitude of the configured frequency band (0–1)",
           "suggestedTargets": ["node:audio-remap", "node:multiply", "node:mix", "node:translate", "node:scale"]
         },
         {
-          "name": "band1",
+          "name": "remap",
           "type": "float",
-          "description": "The amplitude value for the second frequency band (typically low-mid frequencies)",
-          "suggestedTargets": ["node:audio-remap", "node:multiply", "node:mix", "node:color-map"]
-        },
-        {
-          "name": "band2",
-          "type": "float",
-          "description": "The amplitude value for the third frequency band (typically mid frequencies)",
-          "suggestedTargets": ["node:audio-remap", "node:multiply", "node:mix"]
-        },
-        {
-          "name": "band3",
-          "type": "float",
-          "description": "The amplitude value for the fourth frequency band (typically treble frequencies)",
-          "suggestedTargets": ["node:audio-remap", "node:multiply", "node:mix", "node:glow-bloom"]
+          "description": "Band value remapped by the node's in/out range",
+          "suggestedTargets": ["node:multiply", "node:mix", "node:translate", "node:scale", "node:color-map"]
         }
       ],
       "relatedItems": [
@@ -3061,7 +3049,7 @@
       "category": "Patterns",
       "icon": "glow",
       "tagline": "Atmospheric rays from a source point with distance falloff",
-      "description": "Generates crepuscular (atmospheric) rays from a source point. Rays radiate from the source with configurable count, spread, and width. Distance falloff attenuates the rays with distance from the source (1/(1 + dist*k)), giving a natural volumetric look. Ideal for sun-through-clouds and god-ray effects.",
+      "description": "Generates crepuscular (atmospheric) rays from a source point. Rays radiate from the source with configurable count, spread, and width. Distance falloff attenuates the rays with distance from the source (1/(1 + dist*k)), giving a natural volumetric look. Animation: rotation speed (turns per second) and rotation offset (phase in turns) for continuous rotating rays. Ideal for sun-through-clouds and god-ray effects.",
       "inputs": [
         {
           "name": "in",

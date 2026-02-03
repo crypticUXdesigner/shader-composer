@@ -32,7 +32,7 @@ export const turbulenceNodeSpec: NodeSpec = {
       default: 0.5,
       min: 0.0,
       max: 2.0,
-      step: 0.01,
+      step: 0.001,
       label: 'Strength'
     },
     turbulenceIterations: {
@@ -85,10 +85,12 @@ vec2 noise2D(vec2 p) {
   );
 }
 
-// Domain warping
-vec2 turbulence(vec2 p, float time, int iterations) {
+// Domain warping (strength passed from main so param connections are evaluated in correct execution order)
+vec2 turbulence(vec2 p, float time, int iterations, float strength) {
   vec2 q = p;
   int iterCount = max(iterations, 1);
+  float s = clamp(strength, 0.0, 2.0);
+  if (isnan(s) || isinf(s)) s = 0.0; // guard: avoid NaN/Inf propagating to single-color output
   
   for (int i = 0; i < 8; i++) {
     if (i >= iterCount) break;
@@ -96,7 +98,7 @@ vec2 turbulence(vec2 p, float time, int iterations) {
     float scale = pow(2.0, float(i));
     float safeScale = max(scale, 0.001);
     vec2 offset = noise2D(q * safeScale + time * 0.1) * 2.0 - 1.0;
-    q += offset * $param.turbulenceStrength / safeScale;
+    q += offset * s / safeScale;
   }
   
   return q;
@@ -104,6 +106,7 @@ vec2 turbulence(vec2 p, float time, int iterations) {
 `,
   mainCode: `
   float turbulenceTime = ($time + $param.turbulenceTimeOffset) * $param.turbulenceTimeSpeed;
-  $output.out = turbulence($input.in * $param.turbulenceScale, turbulenceTime, $param.turbulenceIterations);
+  float turbulenceStrength = clamp($param.turbulenceStrength, 0.0, 2.0);
+  $output.out = turbulence($input.in * $param.turbulenceScale, turbulenceTime, $param.turbulenceIterations, turbulenceStrength);
 `
 };

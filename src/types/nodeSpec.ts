@@ -7,6 +7,12 @@ export interface PortSpec {
   name: string;
   type: PortType;
   label?: string;
+  /**
+   * When this input is unconnected, use the value of this parameter (or parameters) instead of type default.
+   * - Single param: "paramName" → use that parameter's value (float/int formatted as GLSL literal).
+   * - Vec2 from two floats: "paramX,paramY" → use vec2(paramX, paramY).
+   */
+  fallbackParameter?: string;
 }
 
 export interface NodeSpec {

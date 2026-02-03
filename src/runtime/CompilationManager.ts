@@ -90,11 +90,11 @@ export class CompilationManager implements Disposable {
         return;
       }
 
-      // Skip runtime-only parameters for audio-analyzer nodes (band remap params are used in JS only)
+      // Skip runtime-only parameters for audio-analyzer nodes (remap params used in JS only)
       const isAnalyzerRuntimeParam =
         node.type === 'audio-analyzer' &&
         (paramName === 'smoothing' || paramName === 'fftSize' || paramName === 'frequencyBands' ||
-          /^band\d+Remap(InMin|InMax|OutMin|OutMax)$/.test(paramName));
+          paramName === 'inMin' || paramName === 'inMax' || paramName === 'outMin' || paramName === 'outMax');
       if (isAnalyzerRuntimeParam) {
         // Just update the graph parameter, don't try to set as uniform
         node.parameters[paramName] = value;
@@ -456,32 +456,19 @@ export class CompilationManager implements Disposable {
           continue;
         }
         
-        // For audio-analyzer: frequencyBands, smoothing, fftSize, and band remap params are runtime-only
+        // For audio-analyzer: frequencyBands, smoothing, fftSize, and remap params are runtime-only
         if (node.type === 'audio-analyzer' &&
             (paramName === 'frequencyBands' || paramName === 'smoothing' || paramName === 'fftSize' ||
-             /^band\d+Remap(InMin|InMax|OutMin|OutMax)$/.test(paramName))) {
+             paramName === 'inMin' || paramName === 'inMax' || paramName === 'outMin' || paramName === 'outMax')) {
           continue;
         }
         
-        // Check if parameter is connected to an output
         const isConnected = this.graph.connections.some(
           conn => conn.targetNodeId === node.id && conn.targetParameter === paramName
         );
         if (isConnected) {
-          // Parameter has input connection - check the input mode
-          // If mode is 'override', the input completely replaces the config value,
-          // so the uniform is not used and we can skip setting it.
-          // But if mode is 'add', 'subtract', 'multiply', or undefined (might default to something other than override),
-          // the uniform IS used in the combination expression, so we MUST set it.
-          // To be safe and ensure correctness, we'll set the uniform unless mode is explicitly 'override'.
           const inputMode = node.parameterInputModes?.[paramName];
-          
-          if (inputMode === 'override') {
-            // Mode is explicitly 'override' - input completely replaces config, so skip uniform
-            continue;
-          }
-          // For add/subtract/multiply modes or undefined, the uniform is needed for combination
-          // Continue to set the uniform below
+          if (inputMode === 'override') continue;
         }
         
         // Skip if already exists and skipIfExists is true
@@ -494,19 +481,6 @@ export class CompilationManager implements Disposable {
         
         // Handle different parameter value types
         if (typeof value === 'number') {
-          // Debug logging for turbulence strength
-          if (node.type === 'turbulence' && paramName === 'turbulenceStrength') {
-            const isConnected = this.graph.connections.some(
-              conn => conn.targetNodeId === node.id && conn.targetParameter === paramName
-            );
-            const inputMode = node.parameterInputModes?.[paramName];
-            console.log(`[Turbulence Uniform] Setting uniform for ${node.id}.${paramName}:`, {
-              value,
-              isConnected,
-              inputMode,
-              nodeId: node.id
-            });
-          }
           shaderInstance.setParameter(node.id, paramName, value);
         }
         // Note: Other types (string, arrays, etc.) are not handled here as they're not uniforms

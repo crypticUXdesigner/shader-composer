@@ -29,7 +29,8 @@ export interface UniformUpdate {
 export interface AnalyzerConfig {
   nodeId: string;
   frequencyBands: Array<{ minHz: number; maxHz: number }>;
-  smoothing: number;
+  /** Per-band smoothing (0–1). Length matches band count. */
+  smoothing: number[];
   fftSize: number;
   bandRemap: Array<{ inMin: number; inMax: number; outMin: number; outMax: number }>;
 }
@@ -285,7 +286,8 @@ export class OfflineAudioProvider {
         this.smoothedBandValues.set(analyzer.nodeId, smoothed);
       }
       for (let i = 0; i < bandValues.length; i++) {
-        smoothed[i] = smoothing * bandValues[i] + (1 - smoothing) * smoothed[i];
+        const s = smoothing[i] ?? 0.8;
+        smoothed[i] = s * bandValues[i] + (1 - s) * smoothed[i];
       }
 
       // Second smoothing stage to match live (AnalyserNode has internal smoothing + app smoothing)
@@ -295,7 +297,8 @@ export class OfflineAudioProvider {
         this.doubleSmoothedBandValues.set(analyzer.nodeId, doubleSmoothed);
       }
       for (let i = 0; i < smoothed.length; i++) {
-        doubleSmoothed[i] = smoothing * smoothed[i] + (1 - smoothing) * (doubleSmoothed[i] ?? 0);
+        const s = smoothing[i] ?? 0.8;
+        doubleSmoothed[i] = s * smoothed[i] + (1 - s) * (doubleSmoothed[i] ?? 0);
       }
 
       // Push band0, band1, ... (double-smoothed) so reactivity matches live
@@ -364,34 +367,38 @@ export function createOfflineAudioProvider(
       }
     }
     if (frequencyBands.length === 0) {
-      frequencyBands = [
-        { minHz: 20, maxHz: 120 },
-        { minHz: 120, maxHz: 300 },
-        { minHz: 300, maxHz: 4000 },
-        { minHz: 4000, maxHz: 20000 },
-      ];
+      frequencyBands = [{ minHz: 20, maxHz: 20000 }];
     }
 
-    const smoothing =
+    const smoothingValue =
       typeof analyzerNode.parameters.smoothing === 'number' ? analyzerNode.parameters.smoothing : 0.8;
+    const smoothing: number[] = frequencyBands.map(() => smoothingValue);
     const fftSize =
       typeof analyzerNode.parameters.fftSize === 'number' ? analyzerNode.parameters.fftSize : 4096;
 
     const bandRemap: Array<{ inMin: number; inMax: number; outMin: number; outMax: number }> = [];
     for (let i = 0; i < frequencyBands.length; i++) {
       bandRemap.push({
-        inMin: (typeof analyzerNode.parameters[`band${i}RemapInMin`] === 'number'
-          ? analyzerNode.parameters[`band${i}RemapInMin`]
-          : 0) as number,
-        inMax: (typeof analyzerNode.parameters[`band${i}RemapInMax`] === 'number'
-          ? analyzerNode.parameters[`band${i}RemapInMax`]
-          : 1) as number,
-        outMin: (typeof analyzerNode.parameters[`band${i}RemapOutMin`] === 'number'
-          ? analyzerNode.parameters[`band${i}RemapOutMin`]
-          : 0) as number,
-        outMax: (typeof analyzerNode.parameters[`band${i}RemapOutMax`] === 'number'
-          ? analyzerNode.parameters[`band${i}RemapOutMax`]
-          : 1) as number,
+        inMin: (typeof (analyzerNode.parameters as Record<string, unknown>).inMin === 'number'
+          ? (analyzerNode.parameters as Record<string, unknown>).inMin
+          : typeof (analyzerNode.parameters as Record<string, unknown>)[`band${i}RemapInMin`] === 'number'
+            ? (analyzerNode.parameters as Record<string, unknown>)[`band${i}RemapInMin`]
+            : 0) as number,
+        inMax: (typeof (analyzerNode.parameters as Record<string, unknown>).inMax === 'number'
+          ? (analyzerNode.parameters as Record<string, unknown>).inMax
+          : typeof (analyzerNode.parameters as Record<string, unknown>)[`band${i}RemapInMax`] === 'number'
+            ? (analyzerNode.parameters as Record<string, unknown>)[`band${i}RemapInMax`]
+            : 1) as number,
+        outMin: (typeof (analyzerNode.parameters as Record<string, unknown>).outMin === 'number'
+          ? (analyzerNode.parameters as Record<string, unknown>).outMin
+          : typeof (analyzerNode.parameters as Record<string, unknown>)[`band${i}RemapOutMin`] === 'number'
+            ? (analyzerNode.parameters as Record<string, unknown>)[`band${i}RemapOutMin`]
+            : 0) as number,
+        outMax: (typeof (analyzerNode.parameters as Record<string, unknown>).outMax === 'number'
+          ? (analyzerNode.parameters as Record<string, unknown>).outMax
+          : typeof (analyzerNode.parameters as Record<string, unknown>)[`band${i}RemapOutMax`] === 'number'
+            ? (analyzerNode.parameters as Record<string, unknown>)[`band${i}RemapOutMax`]
+            : 1) as number,
       });
     }
 

@@ -146,6 +146,7 @@ function transferParametersFromGraph(graph: NodeGraph, shaderInstance: ShaderIns
         (paramName === 'frequencyBands' ||
           paramName === 'smoothing' ||
           paramName === 'fftSize' ||
+          /^band\d+Smoothing$/.test(paramName) ||
           /^band\d+Remap(InMin|InMax|OutMin|OutMax)$/.test(paramName))
       ) {
         continue;

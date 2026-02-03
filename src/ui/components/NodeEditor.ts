@@ -101,7 +101,7 @@ export class NodeEditor {
 
     // Create node right-click context menu (Read Guide, Copy node name, Remove)
     this.nodeRightClickMenu = new NodeRightClickMenu({
-      onReadGuide: (nodeId, nodeType) => {
+      onReadGuide: (_nodeId, nodeType) => {
         const center = this.getCanvasCenterInScreen();
         this.helpCallout.show({
           helpId: `node:${nodeType}`,
@@ -278,8 +278,9 @@ export class NodeEditor {
           const node = this.graph.nodes.find(n => n.id === nodeId);
           console.log(`[NodeEditor] Node found:`, !!node, `filePath value:`, node?.parameters.filePath);
           
+          // Bake current viewport into graph before setGraph so the canvas does not pan/zoom
+          this.updateViewState();
           // Force canvas refresh - mark the node as dirty and trigger render
-          // Even though setGraph should handle this, we'll explicitly mark the node dirty
           this.canvasComponent.setGraph(this.graph);
           // Also explicitly request a render to ensure it happens
           this.canvasComponent.render();

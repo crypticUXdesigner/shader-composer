@@ -80,7 +80,7 @@ export class GridElementRenderer implements LayoutElementRenderer {
     const valueHeight = labelFontSize; // Approximate value height
     const cellHeight = labelHeight + extraSpacing + knobHeight + valueSpacing + valueHeight + cellPadding * 2;
     
-    // Create flex items for each parameter cell
+    // Cells in each row fill the row: 1 cell fills width, 2 share equally, etc.
     const cellItems: FlexItem[] = validParams.map((_paramName, index) => {
       return {
         id: `cell-${index}`,
@@ -89,7 +89,7 @@ export class GridElementRenderer implements LayoutElementRenderer {
           height: cellHeight,
           minWidth: respectMinWidth ? cellMinWidth : undefined,
           flexShrink: 1,
-          flexGrow: 0
+          flexGrow: 1
         }
       };
     });

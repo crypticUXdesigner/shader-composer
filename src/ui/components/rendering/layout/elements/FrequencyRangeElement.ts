@@ -88,11 +88,13 @@ export class FrequencyRangeElementRenderer implements LayoutElementRenderer {
     const sliderHeight = getCSSVariableAsNumber('frequency-range-slider-height', 16);
     const inputRowHeight = getCSSVariableAsNumber('frequency-range-input-row-height', 28);
     const scale = element.scale ?? 'linear';
+    const spectrumHeight =
+      scale === 'audio' ? getCSSVariableAsNumber('frequency-range-spectrum-height', 28) + gap : 0;
     const scaleHeight =
       scale === 'audio' ? getCSSVariableAsNumber('frequency-range-scale-height', 22) + gap : 0;
 
     const height =
-      pd + labelHeight + gap + scaleHeight + sliderHeight + gap + inputRowHeight + pd;
+      pd + labelHeight + gap + spectrumHeight + scaleHeight + sliderHeight + gap + inputRowHeight + pd;
     const gridPadding = getCSSVariableAsNumber('node-body-padding', 18);
     const containerX = node.position.x + gridPadding;
     const containerY = node.position.y + metrics.headerHeight + startY;
@@ -112,7 +114,9 @@ export class FrequencyRangeElementRenderer implements LayoutElementRenderer {
     spec: NodeSpec,
     elementMetrics: ElementMetrics,
     _nodeMetrics: NodeRenderMetrics,
-    _renderState: unknown
+    renderState: {
+      analyzerSpectrumData?: { frequencyData: Uint8Array; fftSize: number; sampleRate: number } | null;
+    }
   ): void {
     if (
       elementMetrics.x === undefined ||
@@ -205,7 +209,55 @@ export class FrequencyRangeElementRenderer implements LayoutElementRenderer {
     this.ctx.fillText(label, x + pd, currY + labelHeight / 2);
     currY += labelHeight + gap;
 
-    // 2) Frequency scale (audio/log mode only): line + ticks + labels
+    // 2) Spectrum strip (audio scale only, when FFT data available): x maps to frequency like the slider
+    const spectrumHeightToken = getCSSVariableAsNumber('frequency-range-spectrum-height', 28);
+    if (scale === 'audio') {
+      const spectrumData = renderState.analyzerSpectrumData;
+      const sliderX = x + pd;
+      this.ctx.fillStyle = getCSSColor(
+        'frequency-range-spectrum-bg',
+        getCSSColor('color-teal-gray-30', '#2a2e33')
+      );
+      this.ctx.fillRect(sliderX, currY, contentWidth, spectrumHeightToken);
+      if (spectrumData && spectrumData.frequencyData.length > 0 && contentWidth > 0) {
+        const barColorSelected = getCSSColor(
+          'frequency-range-spectrum-bar-color',
+          getCSSColor('color-violet-90', '#8b7dd6')
+        );
+        const barColorUnselected = getCSSColor(
+          'frequency-range-spectrum-bar-color-unselected',
+          getCSSColor('color-teal-gray-70', '#4a5058')
+        );
+        const minOpacity = getCSSVariableAsNumber('frequency-range-spectrum-bar-min-opacity', 0.12);
+        const numCols = Math.min(Math.floor(contentWidth), 512);
+        const binCount = spectrumData.frequencyData.length;
+        const { fftSize, sampleRate } = spectrumData;
+        for (let col = 0; col < numCols; col++) {
+          const norm = (col + 0.5) / numCols;
+          const inSelection = norm >= minNorm && norm <= maxNorm;
+          const hz = normToHz(norm, scale);
+          const bin = Math.floor((hz / sampleRate) * fftSize);
+          const binClamped = Math.max(0, Math.min(binCount - 1, bin));
+          const raw = spectrumData.frequencyData[binClamped] / 255;
+          const t = Math.max(0, Math.min(1, raw));
+          const alpha = minOpacity + (1 - minOpacity) * t;
+          this.ctx.fillStyle = inSelection ? barColorSelected : barColorUnselected;
+          this.ctx.globalAlpha = alpha;
+          const colW = contentWidth / numCols;
+          const barH = Math.max(1, t * spectrumHeightToken);
+          this.ctx.fillRect(
+            sliderX + col * colW,
+            currY + spectrumHeightToken - barH,
+            Math.ceil(colW) + 0.5,
+            barH
+          );
+        }
+        this.ctx.globalAlpha = 1;
+      }
+      currY += spectrumHeightToken + gap;
+    }
+
+    // 3) Frequency scale (audio/log mode only): line + ticks + labels
     if (scale === 'audio') {
       const scaleLineY = currY + 4;
       const scaleLineH = 1;
@@ -232,7 +284,7 @@ export class FrequencyRangeElementRenderer implements LayoutElementRenderer {
       currY += scaleHeightToken + gap;
     }
 
-    // 3) Horizontal range slider
+    // 4) Horizontal range slider
     const sliderX = x + pd;
     const sliderW = contentWidth;
     drawHorizontalRangeSlider(
@@ -256,7 +308,7 @@ export class FrequencyRangeElementRenderer implements LayoutElementRenderer {
     );
     currY += sliderHeight + gap;
 
-    // 4) Row: (start) GAP (end) — start left-aligned, end right-aligned
+    // 5) Row: (start) GAP (end) — start left-aligned, end right-aligned
     const rowY = currY;
     const rowCenterY = rowY + inputRowHeight / 2;
     const rowLeft = x + pd;

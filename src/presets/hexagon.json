@@ -114,36 +114,6 @@
         }
       },
       {
-        "id": "node-1769725353864-lk8x86uum",
-        "type": "audio-analyzer",
-        "position": {
-          "x": 1856,
-          "y": 2022
-        },
-        "parameters": {
-          "frequencyBands": [
-            [
-              20,
-              120
-            ],
-            [
-              120,
-              300
-            ],
-            [
-              300,
-              4000
-            ],
-            [
-              4000,
-              20000
-            ]
-          ],
-          "smoothing": 0.66,
-          "fftSize": 4096
-        }
-      },
-      {
         "id": "node-1769725353864-ood1i76m9",
         "type": "audio-remap",
         "position": {
@@ -300,6 +270,72 @@
           "scaleY": "subtract",
           "centerY": "multiply"
         }
+      },
+      {
+        "id": "node-1770154325743-zihmz8k",
+        "type": "audio-analyzer",
+        "position": {
+          "x": 1856,
+          "y": 2022
+        },
+        "parameters": {
+          "frequencyBands": [
+            [
+              20,
+              120
+            ]
+          ],
+          "smoothing": 0.66,
+          "fftSize": 4096,
+          "inMin": 0,
+          "inMax": 1,
+          "outMin": 0,
+          "outMax": 1
+        }
+      },
+      {
+        "id": "node-1770154325743-vb3xs8x",
+        "type": "audio-analyzer",
+        "position": {
+          "x": 2176,
+          "y": 2022
+        },
+        "parameters": {
+          "frequencyBands": [
+            [
+              300,
+              4000
+            ]
+          ],
+          "smoothing": 0.66,
+          "fftSize": 4096,
+          "inMin": 0,
+          "inMax": 1,
+          "outMin": 0,
+          "outMax": 1
+        }
+      },
+      {
+        "id": "node-1770154325743-5g5d4bq",
+        "type": "audio-analyzer",
+        "position": {
+          "x": 2496,
+          "y": 2022
+        },
+        "parameters": {
+          "frequencyBands": [
+            [
+              4000,
+              20000
+            ]
+          ],
+          "smoothing": 0.66,
+          "fftSize": 4096,
+          "inMin": 0,
+          "inMax": 1,
+          "outMin": 0,
+          "outMax": 1
+        }
       }
     ],
     "connections": [
@@ -318,37 +354,51 @@
         "targetPort": "endColor"
       },
       {
-        "id": "conn-1769725353864-hapygbhbm",
+        "id": "conn-1770154325743-nywbzja",
         "sourceNodeId": "node-1769725353864-3chsuu6p2",
         "sourcePort": "currentTime",
-        "targetNodeId": "node-1769725353864-lk8x86uum",
+        "targetNodeId": "node-1770154325743-zihmz8k",
+        "targetPort": "audioFile"
+      },
+      {
+        "id": "conn-1770154325743-vzk8yin",
+        "sourceNodeId": "node-1769725353864-3chsuu6p2",
+        "sourcePort": "currentTime",
+        "targetNodeId": "node-1770154325743-vb3xs8x",
+        "targetPort": "audioFile"
+      },
+      {
+        "id": "conn-1770154325743-e4x5jfj",
+        "sourceNodeId": "node-1769725353864-3chsuu6p2",
+        "sourcePort": "currentTime",
+        "targetNodeId": "node-1770154325743-5g5d4bq",
         "targetPort": "audioFile"
       },
       {
         "id": "conn-1769725353864-jlvg0t5w0",
-        "sourceNodeId": "node-1769725353864-lk8x86uum",
-        "sourcePort": "band2",
+        "sourceNodeId": "node-1770154325743-vb3xs8x",
+        "sourcePort": "band",
         "targetNodeId": "node-1769725353864-ood1i76m9",
         "targetPort": "audioValue"
       },
       {
         "id": "conn-1769725353864-he6w7oqyk",
-        "sourceNodeId": "node-1769725353864-lk8x86uum",
-        "sourcePort": "band0",
+        "sourceNodeId": "node-1770154325743-zihmz8k",
+        "sourcePort": "band",
         "targetNodeId": "node-1769725353864-3jxu28fmv",
         "targetParameter": "hexPulseDepth"
       },
       {
         "id": "conn-1769725353864-5jc6xh53b",
-        "sourceNodeId": "node-1769725353864-lk8x86uum",
-        "sourcePort": "band0",
+        "sourceNodeId": "node-1770154325743-zihmz8k",
+        "sourcePort": "band",
         "targetNodeId": "node-1769725353864-3jxu28fmv",
         "targetParameter": "hexWaveDepth"
       },
       {
         "id": "conn-1769725353864-y79n70zxz",
-        "sourceNodeId": "node-1769725353864-lk8x86uum",
-        "sourcePort": "band2",
+        "sourceNodeId": "node-1770154325743-vb3xs8x",
+        "sourcePort": "band",
         "targetNodeId": "node-1769725353864-3jxu28fmv",
         "targetParameter": "hexGap"
       },
@@ -361,15 +411,15 @@
       },
       {
         "id": "conn-1769725353864-xoaw5txh6",
-        "sourceNodeId": "node-1769725353864-lk8x86uum",
-        "sourcePort": "band3",
+        "sourceNodeId": "node-1770154325743-5g5d4bq",
+        "sourcePort": "band",
         "targetNodeId": "node-1769725353864-3jxu28fmv",
         "targetParameter": "hexEdgeThickness"
       },
       {
         "id": "conn-1769725353864-yb534u9av",
-        "sourceNodeId": "node-1769725353864-lk8x86uum",
-        "sourcePort": "band0",
+        "sourceNodeId": "node-1770154325743-zihmz8k",
+        "sourcePort": "band",
         "targetNodeId": "node-1769725353864-3jxu28fmv",
         "targetParameter": "hexEdgeIntensity"
       },
@@ -410,8 +460,8 @@
       },
       {
         "id": "conn-1769725547759-pc32384pw",
-        "sourceNodeId": "node-1769725353864-lk8x86uum",
-        "sourcePort": "band0",
+        "sourceNodeId": "node-1770154325743-zihmz8k",
+        "sourcePort": "band",
         "targetNodeId": "node-1769725542977-yv7wpa86s",
         "targetPort": "audioValue"
       },

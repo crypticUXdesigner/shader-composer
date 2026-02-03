@@ -12,7 +12,7 @@ export const blendModeNodeSpec: NodeSpec = {
   icon: 'blend-mode',
   inputs: [
     { name: 'base', type: 'float' },
-    { name: 'blend', type: 'float' }
+    { name: 'blend', type: 'float', fallbackParameter: 'blend' }
   ],
   outputs: [
     { name: 'out', type: 'float' }
@@ -32,6 +32,14 @@ export const blendModeNodeSpec: NodeSpec = {
       max: 1.0,
       step: 0.01,
       label: 'Opacity'
+    },
+    blend: {
+      type: 'float',
+      default: 0.5,
+      min: 0.0,
+      max: 1.0,
+      step: 0.01,
+      label: 'Blend'
     }
   },
   functions: `

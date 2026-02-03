@@ -68,15 +68,6 @@ export const polarCoordinatesNodeSpec: NodeSpec = {
       label: 'Enabled'
     }
   },
-  parameterGroups: [
-    {
-      id: 'polar-main',
-      label: 'Polar',
-      parameters: ['polarCenterX', 'polarCenterY', 'polarScale', 'polarRadiusScale', 'polarRotation', 'polarEnabled'],
-      collapsible: true,
-      defaultCollapsed: false
-    }
-  ],
   functions: `
 vec2 toPolar(vec2 p, vec2 center) {
   vec2 offset = p - center;

@@ -27,6 +27,8 @@ export interface NodeComponentState extends ComponentState {
   audioRemapLiveValues?: { incoming: number | null; outgoing: number | null };
   /** Per-band live values for audio-analyzer band remap UI (bandIndex -> { incoming, outgoing }) */
   audioAnalyzerBandLiveValues?: Map<number, { incoming: number | null; outgoing: number | null }>;
+  /** FFT data for audio-analyzer frequency-range spectrum strip (frequencyData, fftSize, sampleRate) */
+  analyzerSpectrumData?: { frequencyData: Uint8Array; fftSize: number; sampleRate: number } | null;
 }
 
 /**
@@ -89,7 +91,8 @@ export class NodeComponent extends CanvasComponent {
       this.getState().connectedParameters,
       this.getState().skipPorts,
       this.getState().audioRemapLiveValues,
-      this.getState().audioAnalyzerBandLiveValues
+      this.getState().audioAnalyzerBandLiveValues,
+      this.getState().analyzerSpectrumData ?? null
     );
   }
   

@@ -108,7 +108,9 @@ import {
 import { blendModeNodeSpec } from './blending-nodes';
 import {
   compareNodeSpec,
-  selectNodeSpec
+  selectNodeSpec,
+  maskCompositeFloatNodeSpec,
+  maskCompositeVec3NodeSpec
 } from './masking-nodes';
 import { blurNodeSpec } from './blur';
 import { glowBloomNodeSpec } from './glow-bloom';
@@ -268,6 +270,8 @@ export const nodeSystemSpecs: NodeSpec[] = [
   // Masking/Control nodes
   compareNodeSpec,
   selectNodeSpec,
+  maskCompositeFloatNodeSpec,
+  maskCompositeVec3NodeSpec,
   
   // Post-Processing nodes
   blurNodeSpec,

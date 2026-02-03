@@ -14,7 +14,8 @@ export const directionalDisplaceNodeSpec: NodeSpec = {
     {
       name: 'amount',
       type: 'float',
-      label: 'Amount'
+      label: 'Amount',
+      fallbackParameter: 'amount'
     }
   ],
   outputs: [
@@ -39,17 +40,9 @@ export const directionalDisplaceNodeSpec: NodeSpec = {
       max: 5.0,
       step: 0.01,
       label: 'Scale'
-    }
+    },
+    amount: { type: 'float', default: 1.0, min: -10.0, max: 10.0, step: 0.01, label: 'Amount' }
   },
-  parameterGroups: [
-    {
-      id: 'directional-main',
-      label: 'Direction',
-      parameters: ['directionalDisplaceAngle', 'directionalDisplaceScale'],
-      collapsible: true,
-      defaultCollapsed: false
-    }
-  ],
   mainCode: `
   vec2 dir = vec2(cos($param.directionalDisplaceAngle), sin($param.directionalDisplaceAngle));
   $output.out = $input.in + dir * ($input.amount * $param.directionalDisplaceScale);
