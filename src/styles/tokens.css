@@ -39,8 +39,8 @@
 --ghost-bg: transparent;
 --ghost-bg-hover: var(--color-gray-60);
 --ghost-bg-active: var(--color-gray-70);
---ghost-print: var(--color-gray-90);
---ghost-print-hover: var(--color-gray-110);
+--ghost-print: var(--color-gray-110);
+--ghost-print-hover: var(--color-gray-120);
 --ghost-print-active: var(--color-teal-light-130);
 --ghost-print-active-g1: transparent;
 --ghost-print-active-g2: transparent;

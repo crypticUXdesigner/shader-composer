@@ -399,6 +399,7 @@
         class="strip-wrapper"
         class:is-loading={waveformLoading}
         role="button"
+        aria-label="Scrub timeline"
         tabindex="0"
         onmousedown={handleStripMousedown}
         onclick={handleStripClick}
