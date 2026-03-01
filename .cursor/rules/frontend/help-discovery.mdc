@@ -1,0 +1,25 @@
+---
+description: Keep node docs and help in sync; context menu (Read Guide, Copy name, Remove); help when one selected.
+globs: "src/data/node-documentation.json,src/ui/**/*.ts"
+alwaysApply: false
+---
+
+# Help and Discovery
+
+When adding/changing nodes or help/context menu: update node docs; help when exactly one selected; context menu = Read Guide, Copy node name, Remove.
+
+## Node documentation
+
+- **Add or change node**: Update `src/data/node-documentation.json`; key by `"node:<node-id>"` (e.g. `node:hexagonal-grid`). Include title, category, icon, tagline, description, inputs, outputs. Full checklist: `.cursor/rules/shaders/node-standards.mdc`.
+- **Change node behavior**: Update the help entry to match current spec.
+
+## Help and context menu
+
+- **Help**: Enabled only when exactly one node selected; opens callout for that node type. Zero or multiple → disabled or different message.
+- **Context menu** (right-click): "Read Guide" (same as Help), "Copy node name" (node type id to clipboard), "Remove" (node + connections). Dropdown; does not block canvas after close.
+- Example: new node `my-node` → add `"node:my-node"` in `node-documentation.json` with description and ports.
+
+## Reference
+
+- **Content guide** (tone, parameters, examples, advanced, clarity): `docs/node-documentation-content-guide.md`
+- `.cursor/rules/shaders/node-standards.mdc`, `src/data/node-documentation.json`, `docs/user-goals/10-help-and-discovery.md`

@@ -1,27 +1,29 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const radialRaysNodeSpec: NodeSpec = {
   id: 'radial-rays',
   category: 'Patterns',
   displayName: 'Radial Rays',
   description: 'N rays emanating from a center point; count, spread, width, and falloff',
-  icon: 'glow',
+  icon: 'topology-star-ring',
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'Position'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'float'
+      type: 'float',
+      label: 'Rays'
     }
   ],
   parameters: {
     centerX: {
       type: 'float',
-      default: 0.5,
+      default: 0.0,
       min: -2.0,
       max: 2.0,
       step: 0.01,
@@ -29,7 +31,7 @@ export const radialRaysNodeSpec: NodeSpec = {
     },
     centerY: {
       type: 'float',
-      default: 0.5,
+      default: 0.0,
       min: -2.0,
       max: 2.0,
       step: 0.01,
@@ -107,6 +109,16 @@ export const radialRaysNodeSpec: NodeSpec = {
       defaultCollapsed: false
     }
   ],
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['centerX', 'centerY', 'rayCount', 'spreadAngle', 'width', 'falloff', 'rotation', 'intensity'],
+        parameterUI: { centerX: 'coords', centerY: 'coords' },
+        layout: { columns: 2, coordsSpan: 2 }
+      }
+    ]
+  },
   functions: `
 float radialRays(vec2 p, vec2 center, int rayCount, float spreadDeg, float width, float falloff, float rotationDeg) {
   vec2 d = p - center;

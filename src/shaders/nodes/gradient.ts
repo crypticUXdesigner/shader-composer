@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const gradientNodeSpec: NodeSpec = {
   id: 'gradient',
@@ -9,13 +9,15 @@ export const gradientNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'Position'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'float'
+      type: 'float',
+      label: 'Value'
     }
   ],
   parameters: {
@@ -29,7 +31,7 @@ export const gradientNodeSpec: NodeSpec = {
     },
     centerX: {
       type: 'float',
-      default: 0.5,
+      default: 0.0,
       min: -2.0,
       max: 2.0,
       step: 0.01,
@@ -37,7 +39,7 @@ export const gradientNodeSpec: NodeSpec = {
     },
     centerY: {
       type: 'float',
-      default: 0.5,
+      default: 0.0,
       min: -2.0,
       max: 2.0,
       step: 0.01,
@@ -55,9 +57,17 @@ export const gradientNodeSpec: NodeSpec = {
       type: 'float',
       default: 0.2,
       min: 0.0,
-      max: 1.0,
+      max: 5.0,
       step: 0.01,
       label: 'Falloff'
+    },
+    invert: {
+      type: 'int',
+      default: 0,
+      min: 0,
+      max: 1,
+      step: 1,
+      label: 'Invert'
     },
     angle: {
       type: 'float',
@@ -95,7 +105,7 @@ export const gradientNodeSpec: NodeSpec = {
     {
       id: 'gradient-radial',
       label: 'Radial',
-      parameters: ['centerX', 'centerY', 'radius', 'falloff'],
+      parameters: ['centerX', 'centerY', 'radius', 'falloff', 'invert'],
       collapsible: true,
       defaultCollapsed: false
     },
@@ -114,6 +124,16 @@ export const gradientNodeSpec: NodeSpec = {
       defaultCollapsed: false
     }
   ],
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['gradientType', 'centerX', 'centerY', 'radius', 'falloff', 'invert', 'angle', 'linearScale', 'intensity'],
+        parameterUI: { centerX: 'coords', centerY: 'coords' },
+        layout: { columns: 3, coordsSpan: 2 }
+      }
+    ]
+  },
   functions: `
 float gradientRadial(vec2 p, vec2 center, float radius, float falloff) {
   float d = length(p - center);
@@ -137,6 +157,9 @@ float gradientLinear(vec2 p, float angleDeg, float scale) {
     g = gradientRadial(p, center, $param.radius, $param.falloff);
   } else {
     g = gradientLinear(p, $param.angle, $param.linearScale);
+  }
+  if ($param.invert != 0) {
+    g = 1.0 - g;
   }
   $output.out += g * $param.intensity;
 `

@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const infiniteZoomNodeSpec: NodeSpec = {
   id: 'infinite-zoom',
@@ -9,13 +9,15 @@ export const infiniteZoomNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'Position'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   parameters: {
@@ -51,6 +53,16 @@ export const infiniteZoomNodeSpec: NodeSpec = {
       step: 0.01,
       label: 'Time Speed'
     }
+  },
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['infiniteZoomCenterX', 'infiniteZoomCenterY', 'infiniteZoomScale', 'infiniteZoomTimeSpeed'],
+        parameterUI: { infiniteZoomCenterX: 'coords', infiniteZoomCenterY: 'coords' },
+        layout: { columns: 2, coordsSpan: 2 }
+      }
+    ]
   },
   mainCode: `
   vec2 center = vec2($param.infiniteZoomCenterX, $param.infiniteZoomCenterY);

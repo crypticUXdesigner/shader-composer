@@ -1,0 +1,101 @@
+/* Layer Classes */
+
+/* Hierarchy (outer to inner): .control-strip, .frame, .frame-elevated,
+   .panel-card > .card-display > .display-graph
+   Elements use these classes for visual styling (bg, border, radius, pd, gap). */
+
+.control-strip {
+  /* Layout */
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+
+  /* Box model */
+  padding: var(--control-strip-pd);
+  border: var(--control-strip-border);
+  border-radius: var(--control-strip-radius);
+  background: var(--control-strip-bg);
+  gap: var(--control-strip-gap);
+  box-sizing: border-box;
+}
+
+.frame {
+  /* Layout */
+  display: flex;
+  flex-direction: column;
+
+  /* Box model */
+  padding: var(--pd-md);
+  border: var(--frame-border);
+  border-radius: var(--frame-border-radius);
+  background: var(--frame-bg);
+  box-shadow: var(--frame-shadow);
+  box-sizing: border-box;
+}
+
+.frame-elevated {
+  /* Layout */
+  display: flex;
+  flex-direction: column;
+
+  /* Box model */
+  border: var(--frame-elevated-border);
+  border-radius: var(--frame-elevated-radius);
+  background: var(--frame-elevated-bg);
+  box-shadow: var(--frame-elevated-shadow);
+  gap: var(--frame-elevated-gap);
+  box-sizing: border-box;
+}
+
+.panel-card {
+  /* Layout */
+  display: flex;
+  flex-direction: column;
+
+  /* Box model */
+  padding: 0;
+  border: 1px solid var(--panel-card-border);
+  border-radius: var(--radius-md);
+  background: var(--panel-card-bg);
+  gap: 0;
+  box-sizing: border-box;
+
+  &:hover {
+    border-color: var(--panel-card-border-hover);
+  }
+
+  &:active,
+  &.selected {
+    border-color: var(--panel-card-border-active);
+  }
+}
+
+.card-display {
+  /* Layout */
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+
+  /* Box model */
+  padding: var(--pd-sm) var(--pd-sm);
+  border: 1px solid var(--card-display-border);
+  border-radius: var(--radius-md);
+  background: var(--card-display-bg);
+  gap: var(--pd-sm);
+  box-sizing: border-box;
+}
+
+.display-graph {
+  /* Layout */
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+
+  /* Box model */
+  padding: var(--display-graph-pd);
+  border: 1px solid var(--display-graph-border);
+  border-radius: var(--display-graph-radius);
+  background: var(--display-graph-bg);
+  gap: var(--display-graph-gap);
+  box-sizing: border-box;
+}

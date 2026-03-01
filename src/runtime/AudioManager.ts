@@ -4,6 +4,8 @@
  * Orchestrates audio file loading, playback, and frequency analysis.
  * Provides real-time audio data to shader uniforms.
  * 
+ * Audio is driven by audioSetup only (files, bands, remappers).
+ * 
  * This class uses composition with specialized components:
  * - AudioContextManager: Context lifecycle management
  * - AudioLoader: File/URL loading and decoding
@@ -12,12 +14,17 @@
  */
 
 import type { NodeGraph } from '../data-model/types';
+import type { AudioSetup } from '../data-model/audioSetupTypes';
+import { getVirtualNodeLiveValue as getVirtualNodeLiveValueImpl, getPanelBandLiveValues as getPanelBandLiveValuesImpl } from './audio/audioLiveValues';
+import { findOrphanedNodes } from './audio/orphanCleanup';
+import { syncPanelAnalyzers } from './audio/panelAnalyzerSync';
 import type { ErrorHandler } from '../utils/errorHandling';
 import type { Disposable } from '../utils/Disposable';
 import { AudioContextManager } from './audio/AudioContextManager';
 import { AudioLoader } from './audio/AudioLoader';
 import { AudioPlaybackController, type AudioNodeState } from './audio/AudioPlaybackController';
 import { FrequencyAnalyzer, type FrequencyBand, type AnalyzerNodeState } from './audio/FrequencyAnalyzer';
+import { collectAudioUniformUpdates } from './audio/audioUniformUpdates';
 
 // Re-export types for backward compatibility
 export type { FrequencyBand, AudioNodeState, AnalyzerNodeState };
@@ -29,6 +36,9 @@ export class AudioManager implements Disposable {
   private frequencyAnalyzer: FrequencyAnalyzer;
   
   private cleanupInterval: number | null = null; // Periodic cleanup interval ID
+  
+  /** Current audio setup from panel (for analyzer sync and uniform updates) */
+  private audioSetup: AudioSetup | null = null;
   
   // Track previous uniform values to detect changes
   private previousUniformValues: Map<string, number> = new Map();
@@ -59,14 +69,23 @@ export class AudioManager implements Disposable {
   }
   
   /**
+   * Set audio setup from panel. Syncs analyzers: creates one per band when source file is loaded,
+   * removes analyzers for bands no longer in setup.
+   */
+  setAudioSetup(audioSetup: AudioSetup | null): void {
+    this.audioSetup = audioSetup ?? null;
+    syncPanelAnalyzers(audioSetup, this.frequencyAnalyzer, this.playbackController);
+  }
+
+  /**
    * Load audio file for a node (from File object or URL string)
    */
-  async loadAudioFile(nodeId: string, file: File | string): Promise<void> {
+  async loadAudioFile(nodeId: string, file: File | string, options?: { reportLoadFailure?: boolean }): Promise<void> {
     // Stop existing playback before loading new file
     this.stopAudio(nodeId);
     
     // Load and decode audio file
-    const audioBuffer = await this.loader.loadAudioFile(nodeId, file);
+    const audioBuffer = await this.loader.loadAudioFile(nodeId, file, options);
     
     // Get audio context and create nodes
     const audioContext = this.contextManager.getContext();
@@ -82,11 +101,16 @@ export class AudioManager implements Disposable {
   }
   
   /**
-   * Play audio for a node
-   * Automatically resumes AudioContext if suspended (requires user interaction)
+   * Play audio for a node.
+   * Automatically resumes AudioContext if suspended (requires user interaction).
+   * @param options - loop (default true); onEnded when loop is false (e.g. playlist advance)
    */
-  async playAudio(nodeId: string, offset: number = 0): Promise<void> {
-    await this.playbackController.playAudio(nodeId, offset);
+  async playAudio(
+    nodeId: string,
+    offset: number = 0,
+    options?: { loop?: boolean; onEnded?: () => void }
+  ): Promise<void> {
+    await this.playbackController.playAudio(nodeId, offset, options);
   }
   
   /**
@@ -105,6 +129,16 @@ export class AudioManager implements Disposable {
     this.playbackController.pauseAudio(nodeId);
     // Clear previous values when audio pauses
     this.clearPreviousValues(nodeId);
+  }
+
+  /**
+   * Pause all audio nodes (preserves currentTime for resume).
+   */
+  pauseAllAudio(): void {
+    const audioNodeStates = this.playbackController.getAllAudioNodeStates();
+    for (const nodeId of audioNodeStates.keys()) {
+      this.pauseAudio(nodeId);
+    }
   }
   
   /**
@@ -135,6 +169,7 @@ export class AudioManager implements Disposable {
   /**
    * Update all audio uniforms (called each frame)
    * Only updates uniforms when values actually change (optimized)
+   * @param forcePushAll - When true, push every uniform (e.g. for a new shader instance); ignores change threshold.
    */
   updateUniforms(
     setUniform: (nodeId: string, paramName: string, value: number) => void,
@@ -142,87 +177,22 @@ export class AudioManager implements Disposable {
     graph?: {
       nodes: Array<{ id: string; type: string; parameters: Record<string, unknown> }>;
       connections: Array<{ sourceNodeId: string; targetNodeId: string; targetPort?: string }>;
-    } | null
+    } | null,
+    forcePushAll?: boolean
   ): void {
-    const updates: Array<{ nodeId: string, paramName: string, value: number }> = [];
-    const audioNodeStates = this.playbackController.getAllAudioNodeStates();
-    
-    // First pass: Update audio file input uniforms (only if changed)
-    for (const [nodeId, state] of audioNodeStates.entries()) {
-      if (!state.audioBuffer) {
-        continue;
-      }
-      
-      // Update playback time
-      this.playbackController.updatePlaybackTime(nodeId);
-      
-      // Update currentTime uniform (only if changed)
-      const currentTimeKey = `${nodeId}.currentTime`;
-      const previousCurrentTime = this.previousUniformValues.get(currentTimeKey) ?? state.currentTime;
-      if (Math.abs(state.currentTime - previousCurrentTime) > this.VALUE_CHANGE_THRESHOLD) {
-        updates.push({ nodeId, paramName: 'currentTime', value: state.currentTime });
-        this.previousUniformValues.set(currentTimeKey, state.currentTime);
-      }
-      
-      // Update duration uniform (only if changed - duration rarely changes)
-      const durationKey = `${nodeId}.duration`;
-      const previousDuration = this.previousUniformValues.get(durationKey) ?? state.duration;
-      if (Math.abs(state.duration - previousDuration) > this.VALUE_CHANGE_THRESHOLD) {
-        updates.push({ nodeId, paramName: 'duration', value: state.duration });
-        this.previousUniformValues.set(durationKey, state.duration);
-      }
-      
-      // Update isPlaying uniform (only if changed)
-      const isPlayingValue = state.isPlaying ? 1.0 : 0.0;
-      const isPlayingKey = `${nodeId}.isPlaying`;
-      const previousIsPlaying = this.previousUniformValues.get(isPlayingKey) ?? isPlayingValue;
-      if (Math.abs(isPlayingValue - previousIsPlaying) > this.VALUE_CHANGE_THRESHOLD) {
-        updates.push({ nodeId, paramName: 'isPlaying', value: isPlayingValue });
-        this.previousUniformValues.set(isPlayingKey, isPlayingValue);
-      }
-    }
-    
-    // Second pass: Update analyzer node uniforms using FrequencyAnalyzer
-    const frequencyUpdates = this.frequencyAnalyzer.updateFrequencyAnalysis(
-      audioNodeStates,
-      graph,
+    const updates = collectAudioUniformUpdates(
+      this.playbackController,
+      this.frequencyAnalyzer,
+      this.audioSetup,
       this.previousUniformValues,
-      this.VALUE_CHANGE_THRESHOLD
+      this.VALUE_CHANGE_THRESHOLD,
+      graph ?? null,
+      forcePushAll ?? false
     );
-    updates.push(...frequencyUpdates);
-
-    // Third pass: Compute and push remapped value for audio-analyzer nodes (single band: inMin/outMin etc.)
-    if (graph) {
-      for (const node of graph.nodes) {
-        if (node.type !== 'audio-analyzer') continue;
-        const analyzerState = this.frequencyAnalyzer.getAnalyzerNodeState(node.id);
-        if (!analyzerState?.smoothedBandValues?.length) continue;
-        const bandValue = analyzerState.smoothedBandValues[0];
-        const inMin = (typeof node.parameters.inMin === 'number' ? node.parameters.inMin : 0) as number;
-        const inMax = (typeof node.parameters.inMax === 'number' ? node.parameters.inMax : 1) as number;
-        const outMin = (typeof node.parameters.outMin === 'number' ? node.parameters.outMin : 0) as number;
-        const outMax = (typeof node.parameters.outMax === 'number' ? node.parameters.outMax : 1) as number;
-        const range = inMax - inMin;
-        const normalized = range !== 0 ? (bandValue - inMin) / range : 0;
-        const clamped = Math.max(0, Math.min(1, normalized));
-        const remapped = outMin + clamped * (outMax - outMin);
-        const key = `${node.id}.remap`;
-        const prev = this.previousUniformValues.get(key);
-        if (prev === undefined || Math.abs(remapped - prev) > this.VALUE_CHANGE_THRESHOLD) {
-          updates.push({ nodeId: node.id, paramName: 'remap', value: remapped });
-          this.previousUniformValues.set(key, remapped);
-        }
-      }
-    }
-
-    // Batch update all changed uniforms
     if (updates.length > 0) {
       if (updates.length === 1) {
-        // Single update - use single update callback
-        const update = updates[0];
-        setUniform(update.nodeId, update.paramName, update.value);
+        setUniform(updates[0].nodeId, updates[0].paramName, updates[0].value);
       } else {
-        // Multiple updates - use batch update
         setUniforms(updates);
       }
     }
@@ -240,6 +210,53 @@ export class AudioManager implements Disposable {
    */
   getAnalyzerNodeState(nodeId: string): AnalyzerNodeState | undefined {
     return this.frequencyAnalyzer.getAnalyzerNodeState(nodeId);
+  }
+
+  /**
+   * Get spectrum data for a panel band (for FrequencyRangeEditor).
+   * Refreshes frequency data from the analyser and returns it.
+   */
+  getAnalyzerSpectrumData(bandId: string): { frequencyData: Uint8Array; fftSize: number; sampleRate: number } | null {
+    const band = this.audioSetup?.bands.find((b) => b.id === bandId);
+    if (!band) return null;
+    const audioState = this.playbackController.getAudioNodeState(band.sourceFileId);
+    if (!audioState?.analyserNode || !audioState.frequencyData) return null;
+    const freqData = audioState.frequencyData as Uint8Array<ArrayBuffer>;
+    audioState.analyserNode.getByteFrequencyData(freqData);
+    const analyzerState = this.frequencyAnalyzer.getAnalyzerNodeState(bandId);
+    // Return a copy so Svelte reactivity detects updates (in-place mutation doesn't trigger re-renders)
+    return {
+      frequencyData: new Uint8Array(freqData),
+      fftSize: analyzerState?.fftSize ?? band.fftSize ?? 2048,
+      sampleRate: this.contextManager.getSampleRate()
+    };
+  }
+
+  /**
+   * Get live incoming (raw band) and outgoing (remapped) values for a panel band or remapper.
+   * Used for RemapRangeEditor needles.
+   */
+  getPanelBandLiveValues(
+    bandId: string,
+    remap: { inMin: number; inMax: number; outMin: number; outMax: number }
+  ): { incoming: number | null; outgoing: number | null } {
+    return getPanelBandLiveValuesImpl(
+      bandId,
+      remap,
+      (id) => this.frequencyAnalyzer.getAnalyzerNodeState(id)
+    );
+  }
+
+  /**
+   * Get live value for a virtual node (audio signal).
+   * WP 11: Used by parameterValueCalculator when param is connected to virtual node.
+   */
+  getVirtualNodeLiveValue(virtualNodeId: string): number | null {
+    return getVirtualNodeLiveValueImpl(
+      virtualNodeId,
+      this.audioSetup,
+      (id) => this.frequencyAnalyzer.getAnalyzerNodeState(id)
+    );
   }
 
   /**
@@ -269,8 +286,8 @@ export class AudioManager implements Disposable {
   /**
    * Get global audio state (from first loaded audio file)
    */
-  getGlobalAudioState(): { isPlaying: boolean; currentTime: number; duration: number } | null {
-    return this.playbackController.getGlobalAudioState();
+  getGlobalAudioState(primaryNodeId?: string): { isPlaying: boolean; currentTime: number; duration: number } | null {
+    return this.playbackController.getGlobalAudioState(primaryNodeId);
   }
   
   /**
@@ -368,40 +385,34 @@ export class AudioManager implements Disposable {
   
   /**
    * Clean up orphaned resources (nodes that no longer exist in graph)
+   * @param graph - Node graph (valid IDs from graph.nodes)
+   * @param extraValidIds - Additional valid IDs (e.g. panel file IDs from audioSetup.files)
    */
-  cleanupOrphanedResources(graph?: NodeGraph | null): void {
-    if (!graph) return;
-    
-    const validNodeIds = new Set(graph.nodes.map(n => n.id));
-    const audioNodeStates = this.playbackController.getAllAudioNodeStates();
-    
-    // Find orphaned audio nodes
-    const orphanedAudioNodes: string[] = [];
-    for (const nodeId of audioNodeStates.keys()) {
-      if (!validNodeIds.has(nodeId)) {
-        orphanedAudioNodes.push(nodeId);
-      }
+  cleanupOrphanedResources(
+    graph?: NodeGraph | null,
+    extraValidIds?: Iterable<string>
+  ): void {
+    const validNodeIds = new Set<string>();
+    if (graph) {
+      for (const n of graph.nodes) validNodeIds.add(n.id);
     }
-    
-    // Find orphaned analyzer nodes
-    const orphanedAnalyzerNodes: string[] = [];
-    for (const nodeId of this.frequencyAnalyzer.getAllAnalyzerNodeIds()) {
-      if (!validNodeIds.has(nodeId)) {
-        orphanedAnalyzerNodes.push(nodeId);
-      }
+    if (extraValidIds) {
+      for (const id of extraValidIds) validNodeIds.add(id);
     }
-    
-    // Clean up orphaned nodes
+    if (validNodeIds.size === 0) return;
+    const { orphanedAudioNodes, orphanedAnalyzerNodes } = findOrphanedNodes(
+      validNodeIds,
+      () => this.playbackController.getAllAudioNodeStates().keys(),
+      () => this.frequencyAnalyzer.getAllAnalyzerNodeIds()
+    );
     for (const nodeId of orphanedAudioNodes) {
       console.warn(`[AudioManager] Cleaning up orphaned audio node: ${nodeId}`);
       this.removeAudioNode(nodeId);
     }
-    
     for (const nodeId of orphanedAnalyzerNodes) {
       console.warn(`[AudioManager] Cleaning up orphaned analyzer node: ${nodeId}`);
       this.removeAnalyzerNode(nodeId);
     }
-    
     if (orphanedAudioNodes.length > 0 || orphanedAnalyzerNodes.length > 0) {
       console.warn(`[AudioManager] Cleaned up ${orphanedAudioNodes.length} audio nodes and ${orphanedAnalyzerNodes.length} analyzer nodes`);
     }

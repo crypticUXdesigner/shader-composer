@@ -8,9 +8,11 @@
  */
 
 import type { NodeGraph } from '../data-model/types';
+import type { AudioSetup } from '../data-model/audioSetupTypes';
 import type { ShaderCompiler, CompilationResult } from '../runtime/types';
 import { ShaderInstance } from '../runtime/ShaderInstance';
 import type { FrameAudioState } from './OfflineAudioProvider';
+import { isRuntimeOnlyParameter } from '../utils/runtimeOnlyParams';
 
 export interface ExportRenderPathConfig {
   /** Export width in pixels */
@@ -24,7 +26,7 @@ export interface ExportRenderPathConfig {
 export interface ExportRenderPathResult {
   /**
    * Render one frame at frameIndex with precomputed audio state.
-   * Sets uTime = frameIndex / frameRate, applies frameState.uniformUpdates, draws, returns canvas.
+   * Sets uTime, uTimelineTime (from frameState.timelineTime), applies frameState.uniformUpdates, draws, returns canvas.
    */
   renderFrame(frameIndex: number, frameState: FrameAudioState): HTMLCanvasElement | OffscreenCanvas;
   /** Canvas at export resolution (width x height). Same reference every frame. */
@@ -38,34 +40,38 @@ export interface ExportRenderPathResult {
  *
  * @param graph - Current node graph (same as live preview)
  * @param compiler - NodeShaderCompiler or any ShaderCompiler
+ * @param audioSetup - Panel audio setup for band/remap uniforms (WP 15B)
  * @param config - width, height, frameRate
  * @returns Object with renderFrame(frameIndex, frameState), getCanvas(), dispose()
  */
 export function createExportRenderPath(
   graph: NodeGraph,
   compiler: ShaderCompiler,
+  audioSetup: AudioSetup,
   config: ExportRenderPathConfig
 ): ExportRenderPathResult {
-  return createExportRenderPathImpl(graph, compiler, config);
+  return createExportRenderPathImpl(graph, compiler, audioSetup, config);
 }
 
 /**
  * Alias for createExportRenderPath with positional args for orchestrator (03).
- * createExportRenderer(graph, compiler, width, height, frameRate) → { renderFrame, getCanvas, dispose }.
+ * createExportRenderer(graph, compiler, audioSetup, width, height, frameRate) → { renderFrame, getCanvas, dispose }.
  */
 export function createExportRenderer(
   graph: NodeGraph,
   compiler: ShaderCompiler,
+  audioSetup: AudioSetup,
   width: number,
   height: number,
   frameRate: number
 ): ExportRenderPathResult {
-  return createExportRenderPath(graph, compiler, { width, height, frameRate });
+  return createExportRenderPath(graph, compiler, audioSetup, { width, height, frameRate });
 }
 
 function createExportRenderPathImpl(
   graph: NodeGraph,
   compiler: ShaderCompiler,
+  audioSetup: AudioSetup,
   config: ExportRenderPathConfig
 ): ExportRenderPathResult {
   const { width, height, frameRate } = config;
@@ -90,7 +96,7 @@ function createExportRenderPathImpl(
   }
   const glContext: WebGL2RenderingContext = gl;
 
-  const compilationResult: CompilationResult = compiler.compile(graph);
+  const compilationResult: CompilationResult = compiler.compile(graph, audioSetup);
   if (compilationResult.metadata.errors.length > 0) {
     throw new Error(`Shader compilation failed: ${compilationResult.metadata.errors.join('; ')}`);
   }
@@ -109,6 +115,7 @@ function createExportRenderPathImpl(
 
     const time = frameIndex / frameRate;
     shaderInstance.setTime(time);
+    shaderInstance.setTimelineTime(frameState.timelineTime);
     shaderInstance.setParameters(frameState.uniformUpdates);
 
     glContext.viewport(0, 0, width, height);
@@ -138,17 +145,7 @@ function createExportRenderPathImpl(
 function transferParametersFromGraph(graph: NodeGraph, shaderInstance: ShaderInstance): void {
   for (const node of graph.nodes) {
     for (const [paramName, value] of Object.entries(node.parameters)) {
-      if (node.type === 'audio-file-input' && (paramName === 'filePath' || paramName === 'autoPlay')) {
-        continue;
-      }
-      if (
-        node.type === 'audio-analyzer' &&
-        (paramName === 'frequencyBands' ||
-          paramName === 'smoothing' ||
-          paramName === 'fftSize' ||
-          /^band\d+Smoothing$/.test(paramName) ||
-          /^band\d+Remap(InMin|InMax|OutMin|OutMax)$/.test(paramName))
-      ) {
+      if (isRuntimeOnlyParameter(node.type, paramName)) {
         continue;
       }
 

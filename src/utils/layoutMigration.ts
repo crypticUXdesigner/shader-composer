@@ -42,16 +42,6 @@ function isBezierNode(spec: NodeSpec): boolean {
   );
 }
 
-// calculateOptimalColumns not needed - grid elements use 'auto' columns
-// function calculateOptimalColumns(paramCount: number): number {
-//   if (paramCount <= 1) return 1;
-//   if (paramCount <= 2) return 2;
-//   if (paramCount <= 4) return 2;
-//   if (paramCount <= 6) return 3;
-//   if (paramCount <= 9) return 3;
-//   return 4;
-// }
-
 /**
  * Auto-generate parameterLayout from existing node spec
  */

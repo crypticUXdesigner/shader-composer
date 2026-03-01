@@ -1,0 +1,22 @@
+---
+description: Colocated tests, Vitest; when to add tests for data-model, compilation, automation.
+globs: "**/*.test.ts,**/*.spec.ts,src/data-model/**/*.ts,src/shaders/NodeShaderCompiler.ts,src/utils/automationEvaluator.ts"
+alwaysApply: false
+---
+
+# Testing
+
+Use **Vitest**; prefer colocated `Foo.test.ts`. When changing data-model, compilation, or automation, add or update the corresponding test file.
+
+## Placement and when to add tests
+
+- **Colocated**: `Foo.test.ts` next to `Foo.ts` (e.g. `data-model.test.ts`, `NodeShaderCompiler.test.ts`, `automationEvaluator.test.ts`). Run: `npm test` or `npx vitest run path/to/file.test.ts`.
+- **Data model** (`src/data-model/`) → `data-model.test.ts` or module test.
+- **Compilation** (`NodeShaderCompiler`, compilation pipeline) → `NodeShaderCompiler.test.ts`.
+- **Automation** (`automationEvaluator.ts`) → `automationEvaluator.test.ts`.
+
+Example: after changing `validation.ts`, add or update tests in `data-model.test.ts`.
+
+## Reference
+
+- `src/data-model/data-model.test.ts`, `src/shaders/NodeShaderCompiler.test.ts`, `src/utils/automationEvaluator.test.ts`

@@ -26,8 +26,9 @@ export class AudioLoader extends BaseDisposable {
   
   /**
    * Load audio file for a node (from File object or URL string)
+   * @param options.reportLoadFailure - If false, do not report load failures to the user (e.g. preset filePath missing).
    */
-  async loadAudioFile(nodeId: string, file: File | string): Promise<AudioBuffer> {
+  async loadAudioFile(nodeId: string, file: File | string, options?: { reportLoadFailure?: boolean }): Promise<AudioBuffer> {
     this.ensureNotDestroyed();
     
     // Prevent concurrent loads of the same node
@@ -43,6 +44,7 @@ export class AudioLoader extends BaseDisposable {
     }
     
     this.loadingNodes.add(nodeId);
+    const reportFailure = options?.reportLoadFailure !== false;
     
     try {
       await this.contextManager.initialize();
@@ -73,19 +75,21 @@ export class AudioLoader extends BaseDisposable {
       this.validateArrayBuffer(arrayBuffer, file instanceof File ? file.name : file);
       
       // Decode audio data
-      const audioBuffer = await this.decodeAudioData(audioContext, arrayBuffer, nodeId, file instanceof File ? file.name : file);
+      const audioBuffer = await this.decodeAudioData(audioContext, arrayBuffer, nodeId, file instanceof File ? file.name : file, reportFailure);
       
       return audioBuffer;
-    } catch (error: any) {
-      // Report error via error handler (if not already reported)
-      const handler = this.errorHandler || globalErrorHandler;
-      const errorObj = error instanceof Error ? error : new Error(String(error));
-      handler.reportError(
-        ErrorUtils.audioError(
-          `Error loading audio file for node ${nodeId}`,
-          { originalError: errorObj, nodeId, fileName: file instanceof File ? file.name : file }
-        )
-      );
+    } catch (error: unknown) {
+      // Report error via error handler unless suppressed (e.g. preset filePath load)
+      if (reportFailure) {
+        const handler = this.errorHandler || globalErrorHandler;
+        const errorObj = error instanceof Error ? error : new Error(String(error));
+        handler.reportError(
+          ErrorUtils.audioError(
+            `Error loading audio file for node ${nodeId}`,
+            { originalError: errorObj, nodeId, fileName: file instanceof File ? file.name : file }
+          )
+        );
+      }
       // Re-throw so caller can handle it
       throw error;
     } finally {
@@ -111,7 +115,6 @@ export class AudioLoader extends BaseDisposable {
       // Get base path from import.meta.env.BASE_URL (Vite provides this)
       let baseUrl: string | undefined;
       try {
-        // @ts-ignore - import.meta.env is provided by Vite
         baseUrl = import.meta.env?.BASE_URL;
       } catch (e) {
         // Ignore - will use fallback
@@ -135,17 +138,20 @@ export class AudioLoader extends BaseDisposable {
       }
     }
     
-    // Encode the URL properly - encode each path segment separately to handle spaces correctly
-    const urlParts = urlToFetch.split('/');
-    const encodedParts = urlParts.map((part, index) => {
-      // Don't encode the first empty part (for absolute paths starting with /)
-      if (index === 0 && part === '') return '';
-      // Don't encode protocol parts (http://, https://)
-      if (part.includes('://')) return part;
-      // Encode each path segment (handles spaces, special chars)
-      return encodeURIComponent(part);
-    });
-    urlToFetch = encodedParts.join('/');
+    // Encode URL safely.
+    // - For absolute http(s) URLs: use encodeURI so we don't break the scheme/host (":" and "/").
+    // - For same-origin paths: encode each path segment so spaces/special chars are handled correctly.
+    if (urlToFetch.startsWith('http://') || urlToFetch.startsWith('https://') || urlToFetch.startsWith('//')) {
+      urlToFetch = encodeURI(urlToFetch);
+    } else {
+      const urlParts = urlToFetch.split('/');
+      const encodedParts = urlParts.map((part, index) => {
+        // Don't encode the first empty part (for absolute paths starting with /)
+        if (index === 0 && part === '') return '';
+        return encodeURIComponent(part);
+      });
+      urlToFetch = encodedParts.join('/');
+    }
     
     // Use absolute URL for same-origin paths so we always hit the right origin (fixes empty response when base path or relative resolution is wrong)
     const fetchUrl = urlToFetch.startsWith('/') && !urlToFetch.startsWith('//')
@@ -162,12 +168,13 @@ export class AudioLoader extends BaseDisposable {
         signal: controller.signal,
         cache: 'no-cache' // Prevent stale cache issues
       });
-    } catch (fetchError: any) {
+    } catch (fetchError: unknown) {
       clearTimeout(timeoutId);
-      if (fetchError.name === 'AbortError') {
-        throw new Error(`Timeout loading audio file: ${url} (took longer than 30 seconds)`);
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        throw new Error(`Timeout loading audio file: ${url} (took longer than 30 seconds)`, { cause: fetchError });
       }
-      throw new Error(`Network error loading audio file: ${url} - ${fetchError.message}`);
+      const msg = fetchError instanceof Error ? fetchError.message : String(fetchError);
+      throw new Error(`Network error loading audio file: ${url} - ${msg}`, { cause: fetchError });
     }
     clearTimeout(timeoutId);
     
@@ -256,10 +263,11 @@ export class AudioLoader extends BaseDisposable {
       }
       
       return buffer;
-    } catch (arrayBufferError: any) {
+    } catch (arrayBufferError: unknown) {
+      const err = arrayBufferError instanceof Error ? arrayBufferError : new Error(String(arrayBufferError));
       console.error(`[AudioLoader] Failed to read response.arrayBuffer():`, {
-        error: arrayBufferError?.message || String(arrayBufferError),
-        errorStack: arrayBufferError?.stack,
+        error: err.message,
+        errorStack: err.stack,
         responseStatus: response.status,
         responseOk: response.ok,
         bodyUsed: response.bodyUsed,
@@ -269,9 +277,10 @@ export class AudioLoader extends BaseDisposable {
       });
       
       throw new Error(
-        `Failed to read audio file response body: ${arrayBufferError?.message || String(arrayBufferError)}. ` +
+        `Failed to read audio file response body: ${err.message}. ` +
         `File: ${url}, URL: ${urlToFetch}, Status: ${response.status}. ` +
-        `This might be a CORS issue, network error, or the response body was already consumed.`
+        `This might be a CORS issue, network error, or the response body was already consumed.`,
+        { cause: arrayBufferError }
       );
     }
   }
@@ -316,7 +325,8 @@ export class AudioLoader extends BaseDisposable {
     audioContext: AudioContext,
     arrayBuffer: ArrayBuffer,
     nodeId: string,
-    fileName: string
+    fileName: string,
+    reportFailure: boolean = true
   ): Promise<AudioBuffer> {
     // Ensure context is in a valid state (not closed)
     if (audioContext.state === 'closed') {
@@ -335,12 +345,12 @@ export class AudioLoader extends BaseDisposable {
     let audioBuffer: AudioBuffer;
     try {
       audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    } catch (decodeError: any) {
-      const errorMessage = decodeError?.message || String(decodeError);
+    } catch (decodeError: unknown) {
+      const errorMessage = decodeError instanceof Error ? decodeError.message : String(decodeError);
       const contextState = audioContext.state;
       const bufferSize = arrayBuffer.byteLength;
       
-      // Report error via error handler
+      // Report error via error handler unless suppressed (e.g. preset filePath load)
       const handler = this.errorHandler || globalErrorHandler;
       
       // If buffer is empty, the fetch returned no data (wrong path, 404 as 200, or server issue)
@@ -348,14 +358,17 @@ export class AudioLoader extends BaseDisposable {
         const error = new Error(
           `Audio file empty or not found (0 bytes). ` +
           `File: ${fileName}. ` +
-          `Check that the file exists in public/ and the path is correct.`
+          `Check that the file exists in public/ and the path is correct.`,
+          { cause: decodeError }
         );
-        handler.report(
-          'audio',
-          'warning',
-          `Failed to load audio: file empty or not found`,
-          { originalError: error, nodeId, fileName, contextState, bufferSize }
-        );
+        if (reportFailure) {
+          handler.report(
+            'audio',
+            'warning',
+            `Failed to load audio: file empty or not found`,
+            { originalError: error, nodeId, fileName, contextState, bufferSize }
+          );
+        }
         throw error;
       }
       
@@ -365,27 +378,32 @@ export class AudioLoader extends BaseDisposable {
         `AudioContext state: ${contextState}, ` +
         `ArrayBuffer size: ${bufferSize} bytes, ` +
         `File: ${fileName}. ` +
-        `The file may be corrupted, in an unsupported format, or the AudioContext may be in an invalid state.`
+        `The file may be corrupted, in an unsupported format, or the AudioContext may be in an invalid state.`,
+        { cause: decodeError }
       );
-      handler.reportError(
-        ErrorUtils.audioError(
-          `Failed to decode audio data: ${errorMessage}`,
-          { originalError: error, nodeId, fileName, contextState, bufferSize }
-        )
-      );
+      if (reportFailure) {
+        handler.reportError(
+          ErrorUtils.audioError(
+            `Failed to decode audio data: ${errorMessage}`,
+            { originalError: error, nodeId, fileName, contextState, bufferSize }
+          )
+        );
+      }
       throw error;
     }
     
     // Validate decoded audio buffer
     if (!audioBuffer || audioBuffer.length === 0) {
-      const handler = this.errorHandler || globalErrorHandler;
       const error = new Error(`Decoded audio buffer is empty for file: ${fileName}`);
-      handler.reportError(
-        ErrorUtils.audioError(
-          `Decoded audio buffer is empty`,
-          { originalError: error, nodeId, fileName }
-        )
-      );
+      if (reportFailure) {
+        const handler = this.errorHandler || globalErrorHandler;
+        handler.reportError(
+          ErrorUtils.audioError(
+            `Decoded audio buffer is empty`,
+            { originalError: error, nodeId, fileName }
+          )
+        );
+      }
       throw error;
     }
     

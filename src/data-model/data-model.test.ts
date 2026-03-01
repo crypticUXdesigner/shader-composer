@@ -1,23 +1,22 @@
 /**
  * Unit Tests for Data Model Module
- * 
- * This file contains comprehensive tests for the data model implementation.
- * These tests can be run with any test framework (Jest, Vitest, etc.) or
- * adapted to work standalone.
- * 
- * To run with Vitest (recommended):
- *   1. Install: npm install -D vitest
- *   2. Add to package.json scripts: "test": "vitest"
- *   3. Run: npm test
+ *
+ * Run: npm test (or npx vitest run src/data-model/data-model.test.ts)
  */
 
+import { readFileSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+import { describe, it } from 'vitest';
 import {
   type NodeGraph,
   type NodeInstance,
   validateGraph,
   validateNoDuplicateConnections,
+  addConnectionWithValidation,
   serializeGraph,
   deserializeGraph,
+  deserializeGraphUnvalidated,
   generateNodeId,
   generateConnectionId,
   generateGraphId,
@@ -28,6 +27,7 @@ import {
   findConnection,
   getConnectionsFromNode,
   getConnectionsToNode,
+  setAutomationDuration,
   type NodeSpecification,
 } from './index';
 
@@ -46,6 +46,8 @@ function assertEqual<T>(actual: T, expected: T, message?: string): void {
   }
 }
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 // Test data: Sample node specifications
 const mockNodeSpecs: NodeSpecification[] = [
   {
@@ -54,13 +56,13 @@ const mockNodeSpecs: NodeSpecification[] = [
     parameters: {},
   },
   {
-    id: 'fbm-noise',
+    id: 'noise',
     inputs: [{ name: 'in', type: 'vec2' }],
     outputs: [{ name: 'out', type: 'float' }],
     parameters: {
-      scale: { type: 'float', default: 2.0, min: 0.1, max: 10.0 },
-      octaves: { type: 'int', default: 4, min: 1, max: 8 },
-      intensity: { type: 'float', default: 0.5, min: 0.0, max: 1.0 },
+      noiseScale: { type: 'float', default: 2.0, min: 0.1, max: 10.0 },
+      noiseOctaves: { type: 'int', default: 4, min: 1, max: 8 },
+      noiseIntensity: { type: 'float', default: 0.5, min: 0.0, max: 1.0 },
     },
   },
   {
@@ -69,6 +71,15 @@ const mockNodeSpecs: NodeSpecification[] = [
     parameters: {
       alpha: { type: 'float', default: 1.0, min: 0.0, max: 1.0 },
     },
+  },
+  {
+    id: 'multiply',
+    inputs: [
+      { name: 'a', type: 'float' },
+      { name: 'b', type: 'float' },
+    ],
+    outputs: [{ name: 'out', type: 'float' }],
+    parameters: {},
   },
 ];
 
@@ -104,26 +115,26 @@ export function testIdGeneration(): void {
 
 // Test: Parameter value retrieval
 export function testGetParameterValue(): void {
-  const nodeSpec = mockNodeSpecs.find(s => s.id === 'fbm-noise')!;
+  const nodeSpec = mockNodeSpecs.find(s => s.id === 'noise')!;
   const node: NodeInstance = {
     id: 'n1',
-    type: 'fbm-noise',
+    type: 'noise',
     position: { x: 0, y: 0 },
     parameters: {
-      scale: 3.0,
+      noiseScale: 3.0,
     },
   };
 
   // Parameter exists in node
-  const scale = getParameterValue(node, 'scale', nodeSpec);
+  const scale = getParameterValue(node, 'noiseScale', nodeSpec);
   assertEqual(scale, 3.0, 'Should return parameter value from node');
 
   // Parameter missing, use default
-  const octaves = getParameterValue(node, 'octaves', nodeSpec);
+  const octaves = getParameterValue(node, 'noiseOctaves', nodeSpec);
   assertEqual(octaves, 4, 'Should return default value from spec');
 
   // Parameter missing, no spec, use type default
-  const intensity = getParameterValue(node, 'intensity', nodeSpec);
+  const intensity = getParameterValue(node, 'noiseIntensity', nodeSpec);
   assertEqual(intensity, 0.5, 'Should return default value from spec');
 }
 
@@ -156,11 +167,11 @@ export function testValidateValidGraph(): void {
       },
       {
         id: 'n2',
-        type: 'fbm-noise',
+        type: 'noise',
         position: { x: 100, y: 0 },
         parameters: {
-          scale: 2.0,
-          octaves: 4,
+          noiseScale: 2.0,
+          noiseOctaves: 4,
         },
       },
     ],
@@ -267,10 +278,10 @@ export function testValidateInvalidParameter(): void {
     nodes: [
       {
         id: 'n1',
-        type: 'fbm-noise',
+        type: 'noise',
         position: { x: 0, y: 0 },
         parameters: {
-          scale: 'invalid', // Should be number!
+          noiseScale: 'invalid', // Should be number!
         },
       },
     ],
@@ -294,10 +305,10 @@ export function testValidateParameterOutOfRange(): void {
     nodes: [
       {
         id: 'n1',
-        type: 'fbm-noise',
+        type: 'noise',
         position: { x: 0, y: 0 },
         parameters: {
-          scale: 20.0, // Out of range (max is 10.0)!
+          noiseScale: 20.0, // Out of range (max is 10.0)!
         },
       },
     ],
@@ -365,6 +376,79 @@ export function testDeserializeValidGraph(): void {
   }
 }
 
+// Test: Serialization/deserialization with automation
+export function testSerializeDeserializeGraphWithAutomation(): void {
+  const graphWithAutomation: NodeGraph = {
+    id: 'g1',
+    name: 'Test Graph',
+    version: '2.0',
+    nodes: [
+      {
+        id: 'n1',
+        type: 'noise',
+        position: { x: 0, y: 0 },
+        parameters: { noiseScale: 2 },
+      },
+    ],
+    connections: [],
+    automation: {
+      bpm: 120,
+      durationSeconds: 30,
+      lanes: [
+        {
+          id: 'lane1',
+          nodeId: 'n1',
+          paramName: 'noiseScale',
+          regions: [
+            {
+              id: 'r1',
+              startTime: 0,
+              duration: 10,
+              loop: true,
+              curve: {
+                keyframes: [{ time: 0, value: 0 }, { time: 1, value: 1 }],
+                interpolation: 'linear',
+              },
+            },
+          ],
+        },
+      ],
+    },
+  };
+
+  const json = serializeGraph(graphWithAutomation);
+  assert(json.includes('"automation"'), 'Serialized JSON should include automation');
+  assert(json.includes('"lanes"'), 'Serialized JSON should include lanes');
+
+  const result = deserializeGraph(json, mockNodeSpecs);
+  assert(result.graph !== null, 'Should deserialize graph with automation');
+  if (result.graph) {
+    assert(result.graph.automation != null, 'Automation should be preserved');
+    assertEqual(result.graph.automation!.bpm, 120, 'BPM should match');
+    assertEqual(result.graph.automation!.durationSeconds, 30, 'Duration should match');
+    assertEqual(result.graph.automation!.lanes.length, 1, 'Should have one lane');
+    assertEqual(result.graph.automation!.lanes[0].regions[0].curve.keyframes.length, 2, 'Curve keyframes should match');
+  }
+}
+
+// Test: Deserialization - graph without automation (backward compat)
+export function testDeserializeGraphWithoutAutomation(): void {
+  const json = `{
+    "format": "shader-composer-node-graph",
+    "formatVersion": "2.0",
+    "graph": {
+      "id": "g1",
+      "name": "Test Graph",
+      "version": "2.0",
+      "nodes": [],
+      "connections": []
+    }
+  }`;
+  const result = deserializeGraph(json, mockNodeSpecs);
+  assert(result.graph !== null, 'Should deserialize graph without automation');
+  assert(result.graph?.automation === undefined, 'automation should be undefined when missing');
+}
+
 // Test: Deserialization - invalid format
 export function testDeserializeInvalidFormat(): void {
   const json = `{
@@ -376,6 +460,312 @@ export function testDeserializeInvalidFormat(): void {
   const result = deserializeGraph(json, mockNodeSpecs);
   assert(result.graph === null, 'Should reject invalid format');
   assert(result.errors.length > 0, 'Should have errors');
+}
+
+// Test: Deserialization - unsupported formatVersion
+export function testDeserializeUnsupportedFormatVersion(): void {
+  const json = `{
+    "format": "shader-composer-node-graph",
+    "formatVersion": "999.0",
+    "graph": {
+      "id": "g1",
+      "name": "Test Graph",
+      "version": "2.0",
+      "nodes": [],
+      "connections": []
+    }
+  }`;
+
+  const result = deserializeGraph(json, mockNodeSpecs);
+  assert(result.graph === null, 'Should reject unsupported format version');
+  assert(
+    result.errors.some(e => e.includes('Unsupported format version')),
+    'Should report unsupported format version error'
+  );
+}
+
+// Test: Deserialization - missing formatVersion (negative path for migration registry)
+export function testDeserializeMissingFormatVersion(): void {
+  const json = `{
+    "format": "shader-composer-node-graph",
+    "graph": {
+      "id": "g1",
+      "name": "Test Graph",
+      "version": "2.0",
+      "nodes": [],
+      "connections": []
+    }
+  }`;
+
+  const result = deserializeGraph(json, mockNodeSpecs);
+  assert(result.graph === null, 'Should reject payload with missing formatVersion');
+  assert(
+    result.errors.some(e => e.includes('format version') || e.includes('formatVersion')),
+    'Should report format version error'
+  );
+}
+
+// Test: Deserialization applies audio band-remap → remappers migration via registry (inline JSON)
+export function testDeserializeAppliesBandRemapMigration(): void {
+  const bandId = 'node-1770318840638-0u4geobd0';
+  const json = `{
+    "format": "shader-composer-node-graph",
+    "formatVersion": "2.0",
+    "graph": {
+      "id": "g1",
+      "name": "Test",
+      "version": "2.0",
+      "nodes": [
+        { "id": "n1", "type": "multiply", "position": { "x": 0, "y": 0 }, "parameters": {} }
+      ],
+      "connections": [
+        {
+          "id": "c1",
+          "sourceNodeId": "audio-signal:band-${bandId}-remap",
+          "sourcePort": "out",
+          "targetNodeId": "n1",
+          "targetPort": "a"
+        }
+      ]
+    },
+    "audioSetup": {
+      "files": [{ "id": "f1", "name": "File", "autoPlay": false }],
+      "bands": [
+        {
+          "id": "${bandId}",
+          "name": "Highs",
+          "sourceFileId": "f1",
+          "frequencyBands": [[2568, 20000]],
+          "smoothing": 0.03,
+          "fftSize": 4096,
+          "remapInMin": 0,
+          "remapInMax": 0.52,
+          "remapOutMin": 0.51,
+          "remapOutMax": 1
+        }
+      ],
+      "remappers": []
+    }
+  }`;
+
+  const result = deserializeGraph(json, mockNodeSpecs);
+  assert(result.graph !== null, 'Graph should deserialize successfully');
+  assert(result.audioSetup != null, 'audioSetup should be present after deserialize');
+
+  const audioSetup = result.audioSetup!;
+  assertEqual(audioSetup.remappers.length, 1, 'One remapper should be created for the band');
+  const remapper = audioSetup.remappers[0] as { id: string; bandId: string };
+  assertEqual(remapper.id, `band-${bandId}`, 'Remapper id should follow band-{bandId} convention');
+  assertEqual(remapper.bandId, bandId, 'Remapper bandId should match band id');
+
+  const graph = result.graph!;
+  assertEqual(graph.connections.length, 1, 'Graph should have one connection after migration');
+  const conn = graph.connections[0];
+  assertEqual(
+    conn.sourceNodeId,
+    `audio-signal:remap-band-${bandId}`,
+    'Connection source should point to remap virtual node after migration'
+  );
+}
+
+// Test: Deserialization applies audio band-remap → remappers migration via registry (fixture file)
+export function testDeserializeAppliesBandRemapMigrationFromFixture(): void {
+  const fixturePath = join(__dirname, '__fixtures__', 'audio-band-remap-migration.json');
+  const json = readFileSync(fixturePath, 'utf-8');
+
+  const result = deserializeGraph(json, mockNodeSpecs);
+  assert(result.graph !== null, 'Graph should deserialize successfully from fixture');
+  assert(result.audioSetup != null, 'audioSetup should be present after deserialize (fixture)');
+
+  const audioSetup = result.audioSetup!;
+  assertEqual(audioSetup.remappers.length, 1, 'One remapper should be created for the band (fixture)');
+  const remapper = audioSetup.remappers[0] as { id: string; bandId: string };
+  assertEqual(remapper.id, 'band-node-1770318840638-0u4geobd0', 'Remapper id should follow band-{bandId} convention (fixture)');
+  assertEqual(remapper.bandId, 'node-1770318840638-0u4geobd0', 'Remapper bandId should match band id (fixture)');
+
+  const graph = result.graph!;
+  assertEqual(graph.connections.length, 1, 'Graph should have one connection after migration (fixture)');
+  const conn = graph.connections[0];
+  assertEqual(
+    conn.sourceNodeId,
+    'audio-signal:remap-band-node-1770318840638-0u4geobd0',
+    'Connection source should point to remap virtual node after migration (fixture)'
+  );
+}
+
+// Test: Deserialization of an already-migrated file (no band-remap usage) is idempotent via registry (fixture file)
+export function testDeserializeBandRemapMigrationIdempotentFromFixture(): void {
+  const fixturePath = join(
+    __dirname,
+    '__fixtures__',
+    'audio-band-remap-migration-idempotent.json'
+  );
+  const json = readFileSync(fixturePath, 'utf-8');
+
+  const first = deserializeGraph(json, mockNodeSpecs);
+  assert(first.graph !== null, 'Graph should deserialize successfully from idempotent fixture');
+  assert(first.audioSetup != null, 'audioSetup should be present after deserialize (idempotent fixture)');
+
+  const audioSetup1 = first.audioSetup!;
+  assertEqual(
+    audioSetup1.remappers.length,
+    1,
+    'Idempotent fixture should have exactly one remapper'
+  );
+  const remapper1 = audioSetup1.remappers[0] as { id: string; bandId: string };
+  assertEqual(
+    remapper1.id,
+    'band-node-1770318840638-0u4geobd0',
+    'Remapper id should use band-{bandId} convention (idempotent fixture)'
+  );
+  assertEqual(
+    remapper1.bandId,
+    'node-1770318840638-0u4geobd0',
+    'Remapper bandId should match band id (idempotent fixture)'
+  );
+
+  const graph1 = first.graph!;
+  assertEqual(
+    graph1.connections.length,
+    1,
+    'Graph should have one connection after deserialize (idempotent fixture)'
+  );
+  const conn1 = graph1.connections[0];
+  assertEqual(
+    conn1.sourceNodeId,
+    'audio-signal:remap-band-node-1770318840638-0u4geobd0',
+    'Connection source should already point to remap virtual node before migration (idempotent fixture)'
+  );
+
+  // Round-trip through serialize/deserialize should not introduce additional changes.
+  const reserialized = serializeGraph(graph1, false, audioSetup1);
+  const second = deserializeGraph(reserialized, mockNodeSpecs);
+  assert(second.graph !== null, 'Graph should deserialize successfully on second pass');
+  assert(second.audioSetup != null, 'audioSetup should remain present on second pass');
+
+  const graph2 = second.graph!;
+  const audioSetup2 = second.audioSetup!;
+  assertEqual(
+    JSON.stringify(graph2),
+    JSON.stringify(graph1),
+    'Graph should be unchanged by re-deserializing an already-migrated file'
+  );
+  assertEqual(
+    JSON.stringify(audioSetup2),
+    JSON.stringify(audioSetup1),
+    'audioSetup should be unchanged by re-deserializing an already-migrated file'
+  );
+}
+
+// Test: Deserialization skips band-remap migration safely when audioSetup is missing
+export function testDeserializeBandRemapMigrationSkipsWhenAudioSetupMissing(): void {
+  const bandId = 'node-missing-audio-band';
+  const json = `{
+    "format": "shader-composer-node-graph",
+    "formatVersion": "2.0",
+    "graph": {
+      "id": "g1",
+      "name": "Test (no audioSetup)",
+      "version": "2.0",
+      "nodes": [
+        { "id": "n1", "type": "multiply", "position": { "x": 0, "y": 0 }, "parameters": {} }
+      ],
+      "connections": [
+        {
+          "id": "c1",
+          "sourceNodeId": "audio-signal:band-${bandId}-remap",
+          "sourcePort": "out",
+          "targetNodeId": "n1",
+          "targetPort": "a"
+        }
+      ]
+    }
+  }`;
+
+  const result = deserializeGraph(json, mockNodeSpecs);
+  assert(result.graph !== null, 'Graph should deserialize successfully when audioSetup is missing');
+  assertEqual(result.errors.length, 0, 'Deserializing graph without audioSetup should not add errors');
+  assert(result.audioSetup === undefined, 'audioSetup should be undefined when missing from file');
+
+  const graph = result.graph!;
+  assertEqual(graph.connections.length, 1, 'Graph should still have one connection');
+  const conn = graph.connections[0];
+  assertEqual(
+    conn.sourceNodeId,
+    `audio-signal:band-${bandId}-remap`,
+    'Connection source should remain legacy band-remap virtual node when audioSetup is missing'
+  );
+}
+
+// Test: deserializeGraphUnvalidated also applies the band-remap → remappers migration via registry
+export function testDeserializeUnvalidatedAppliesBandRemapMigration(): void {
+  const bandId = 'node-1770318840638-0u4geobd0';
+  const json = `{
+    "format": "shader-composer-node-graph",
+    "formatVersion": "2.0",
+    "graph": {
+      "id": "g1",
+      "name": "Test (unvalidated)",
+      "version": "2.0",
+      "nodes": [
+        { "id": "n1", "type": "multiply", "position": { "x": 0, "y": 0 }, "parameters": {} }
+      ],
+      "connections": [
+        {
+          "id": "c1",
+          "sourceNodeId": "audio-signal:band-${bandId}-remap",
+          "sourcePort": "out",
+          "targetNodeId": "n1",
+          "targetPort": "a"
+        }
+      ]
+    },
+    "audioSetup": {
+      "files": [{ "id": "f1", "name": "File", "autoPlay": false }],
+      "bands": [
+        {
+          "id": "${bandId}",
+          "name": "Highs",
+          "sourceFileId": "f1",
+          "frequencyBands": [[2568, 20000]],
+          "smoothing": 0.03,
+          "fftSize": 4096,
+          "remapInMin": 0,
+          "remapInMax": 0.52,
+          "remapOutMin": 0.51,
+          "remapOutMax": 1
+        }
+      ],
+      "remappers": []
+    }
+  }`;
+
+  const result = deserializeGraphUnvalidated(json);
+  assert(result.graph !== null, 'Graph should deserialize successfully via unvalidated path');
+  assert(result.audioSetup != null, 'audioSetup should be present after unvalidated deserialize');
+
+  const audioSetup = result.audioSetup!;
+  assertEqual(
+    audioSetup.remappers.length,
+    1,
+    'One remapper should be created for the band via unvalidated path'
+  );
+  const remapper = audioSetup.remappers[0] as { id: string; bandId: string };
+  assertEqual(
+    remapper.id,
+    `band-${bandId}`,
+    'Remapper id should follow band-{bandId} convention via unvalidated path'
+  );
+  assertEqual(remapper.bandId, bandId, 'Remapper bandId should match band id via unvalidated path');
+
+  const graph = result.graph!;
+  assertEqual(graph.connections.length, 1, 'Graph should have one connection after migration');
+  const conn = graph.connections[0];
+  assertEqual(
+    conn.sourceNodeId,
+    `audio-signal:remap-band-${bandId}`,
+    'Connection source should point to remap virtual node after migration via unvalidated path'
+  );
 }
 
 // Test: Deserialization - invalid JSON
@@ -420,7 +810,7 @@ export function testFindConnection(): void {
     version: '2.0',
     nodes: [
       { id: 'n1', type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
-      { id: 'n2', type: 'fbm-noise', position: { x: 100, y: 0 }, parameters: {} },
+      { id: 'n2', type: 'noise', position: { x: 100, y: 0 }, parameters: {} },
     ],
     connections: [
       {
@@ -449,7 +839,7 @@ export function testGetConnections(): void {
     version: '2.0',
     nodes: [
       { id: 'n1', type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
-      { id: 'n2', type: 'fbm-noise', position: { x: 100, y: 0 }, parameters: {} },
+      { id: 'n2', type: 'noise', position: { x: 100, y: 0 }, parameters: {} },
       { id: 'n3', type: 'final-output', position: { x: 200, y: 0 }, parameters: {} },
     ],
     connections: [
@@ -514,7 +904,7 @@ export function testValidateSingleNodeGraph(): void {
   assert(result.valid === true, 'Single node graph should be valid');
 }
 
-// Test: Duplicate connection validation
+// Test: Duplicate connection validation (port and parameter)
 export function testValidateNoDuplicateConnections(): void {
   const existingConnections = [
     {
@@ -523,6 +913,13 @@ export function testValidateNoDuplicateConnections(): void {
       sourcePort: 'out',
       targetNodeId: 'n2',
       targetPort: 'in',
+    },
+    {
+      id: 'c1b',
+      sourceNodeId: 'n1',
+      sourcePort: 'out',
+      targetNodeId: 'n2',
+      targetParameter: 'noiseScale',
     },
   ];
 
@@ -548,51 +945,236 @@ export function testValidateNoDuplicateConnections(): void {
   const result2 = validateNoDuplicateConnections(invalidConn, existingConnections);
   assert(result2.valid === false, 'Connection to same port should be invalid');
   assert(result2.error !== undefined, 'Should have error message');
+
+  // Invalid: same target parameter
+  const paramConn = {
+    id: 'c4',
+    sourceNodeId: 'n3',
+    sourcePort: 'out',
+    targetNodeId: 'n2',
+    targetParameter: 'noiseScale',
+  };
+  const result3 = validateNoDuplicateConnections(paramConn, existingConnections);
+  assert(result3.valid === false, 'Connection to same parameter should be invalid');
+  assert(result3.error !== undefined, 'Should have error message for parameter duplicate');
 }
 
-// Run all tests (if executed directly)
-if (import.meta.url === `file://${process.argv[1]}`) {
-  const tests = [
-    testCreateEmptyGraph,
-    testIdGeneration,
-    testGetParameterValue,
-    testCoerceParameterValue,
-    testValidateValidGraph,
-    testValidateMissingFields,
-    testValidateDuplicateNodeIds,
-    testValidateOrphanedConnection,
-    testValidateInvalidParameter,
-    testValidateParameterOutOfRange,
-    testSerializeGraph,
-    testDeserializeValidGraph,
-    testDeserializeInvalidFormat,
-    testDeserializeInvalidJSON,
-    testFindNode,
-    testFindConnection,
-    testGetConnections,
-    testValidateEmptyGraph,
-    testValidateSingleNodeGraph,
-    testValidateNoDuplicateConnections,
-  ];
+// Test: addConnectionWithValidation enforces invariants and replaces existing connections for same target
+export function testAddConnectionWithValidation(): void {
+  const graph: NodeGraph = {
+    id: 'g1',
+    name: 'Test',
+    version: '2.0',
+    nodes: [
+      { id: 'n1', type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+      {
+        id: 'n2',
+        type: 'noise',
+        position: { x: 100, y: 0 },
+        parameters: { noiseScale: 2.0, noiseOctaves: 4 },
+      },
+    ],
+    connections: [
+      {
+        id: 'c-existing',
+        sourceNodeId: 'n1',
+        sourcePort: 'out',
+        targetNodeId: 'n2',
+        targetPort: 'in',
+      },
+    ],
+  };
 
-  console.log('Running data model tests...\n');
-  let passed = 0;
-  let failed = 0;
+  const specs = mockNodeSpecs;
 
-  for (const test of tests) {
-    try {
-      test();
-      passed++;
-      console.log(`✓ ${test.name}`);
-    } catch (error) {
-      failed++;
-      console.error(`✗ ${test.name}`);
-      console.error(`  ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
+  // Happy path: new connection to same targetPort should replace existing and keep graph valid.
+  const newConn = {
+    id: 'c-new',
+    sourceNodeId: 'n1',
+    sourcePort: 'out',
+    targetNodeId: 'n2',
+    targetPort: 'in',
+  };
+  const result1 = addConnectionWithValidation(graph, newConn, specs);
+  assert(result1.errors.length === 0, 'Valid connection should have no errors');
+  assertEqual(result1.graph.connections.length, 1, 'Should still have exactly one connection');
+  const onlyConn = result1.graph.connections[0];
+  assertEqual(onlyConn.id, 'c-new', 'Existing connection should be replaced by new one');
+  assertEqual(
+    result1.replacedConnectionId,
+    'c-existing',
+    'Result should report the replaced connection id'
+  );
 
-  console.log(`\nTests: ${passed} passed, ${failed} failed`);
-  if (failed > 0) {
-    process.exit(1);
-  }
+  // Invalid: connection with both targetPort and targetParameter set.
+  const invalidConn = {
+    id: 'c-invalid',
+    sourceNodeId: 'n1',
+    sourcePort: 'out',
+    targetNodeId: 'n2',
+    targetPort: 'in',
+    targetParameter: 'noiseScale',
+  } as unknown as NodeInstance; // will be treated as Connection shape at call site
+  const result2 = addConnectionWithValidation(
+    graph,
+    invalidConn as unknown as import('./types').Connection,
+    specs
+  );
+  assert(
+    result2.errors.some((e) => e.includes('exactly one of targetPort or targetParameter')),
+    'Connection with both targetPort and targetParameter should be rejected'
+  );
+  assertEqual(
+    result2.graph.connections.length,
+    graph.connections.length,
+    'Graph should be unchanged for invalid connection'
+  );
 }
+
+// Test: setAutomationDuration returns new graph with clamped duration
+export function testSetAutomationDuration(): void {
+  const graphWithoutAutomation: NodeGraph = {
+    id: 'g1',
+    name: 'Test',
+    version: '2.0',
+    nodes: [{ id: 'n1', type: 'noise', position: { x: 0, y: 0 }, parameters: {} }],
+    connections: [],
+  };
+  const updated = setAutomationDuration(graphWithoutAutomation, 60);
+  assert(updated.automation != null, 'Should create automation when missing');
+  assertEqual(updated.automation!.durationSeconds, 60, 'Duration should be set');
+  const clampedZero = setAutomationDuration(graphWithoutAutomation, 0);
+  assert(clampedZero.automation != null && clampedZero.automation!.durationSeconds > 0, 'Duration should be clamped to positive');
+  const withAutomation: NodeGraph = {
+    ...graphWithoutAutomation,
+    automation: { bpm: 120, durationSeconds: 30, lanes: [] },
+  };
+  const updated2 = setAutomationDuration(withAutomation, 45);
+  assertEqual(updated2.automation!.durationSeconds, 45, 'Existing automation duration should update');
+  assert(updated2.automation!.bpm === 120, 'BPM should be unchanged');
+}
+
+// Test: Validation warns for int parameter in automation lane (float-only)
+export function testValidateAutomationIntLaneWarning(): void {
+  const graph: NodeGraph = {
+    id: 'g1',
+    name: 'Test',
+    version: '2.0',
+    nodes: [
+      {
+        id: 'n1',
+        type: 'noise',
+        position: { x: 0, y: 0 },
+        parameters: { noiseScale: 2, noiseOctaves: 4 },
+      },
+    ],
+    connections: [],
+    automation: {
+      bpm: 120,
+      durationSeconds: 30,
+      lanes: [
+        {
+          id: 'lane1',
+          nodeId: 'n1',
+          paramName: 'noiseOctaves',
+          regions: [],
+        },
+      ],
+    },
+  };
+  const result = validateGraph(graph, mockNodeSpecs);
+  assert(result.warnings.some((w) => w.includes('noiseOctaves') && w.includes('int') && w.includes('float')), 'Should warn that int param is not supported for automation');
+}
+
+// Test: Connection invariant - exactly one of targetPort or targetParameter (03B)
+export function testValidateConnectionInvariant(): void {
+  const graphWithBoth: NodeGraph = {
+    id: 'g1',
+    name: 'Test',
+    version: '2.0',
+    nodes: [
+      { id: 'n1', type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+      { id: 'n2', type: 'noise', position: { x: 100, y: 0 }, parameters: { noiseScale: 2 } },
+    ],
+    connections: [
+      {
+        id: 'c1',
+        sourceNodeId: 'n1',
+        sourcePort: 'out',
+        targetNodeId: 'n2',
+        targetPort: 'in',
+        targetParameter: 'noiseScale', // invalid: both set
+      },
+    ],
+  };
+  const r1 = validateGraph(graphWithBoth, mockNodeSpecs);
+  assert(r1.valid === false, 'Connection with both targetPort and targetParameter should fail');
+  assert(r1.errors.some(e => e.includes('exactly one')), 'Should report exactly-one error');
+
+  const graphWithNeither: NodeGraph = {
+    id: 'g1',
+    name: 'Test',
+    version: '2.0',
+    nodes: [
+      { id: 'n1', type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+      { id: 'n2', type: 'noise', position: { x: 100, y: 0 }, parameters: { noiseScale: 2 } },
+    ],
+    connections: [
+      {
+        id: 'c1',
+        sourceNodeId: 'n1',
+        sourcePort: 'out',
+        targetNodeId: 'n2',
+        // neither targetPort nor targetParameter
+      },
+    ],
+  };
+  const r2 = validateGraph(graphWithNeither, mockNodeSpecs);
+  assert(r2.valid === false, 'Connection with neither targetPort nor targetParameter should fail');
+  assert(r2.errors.some(e => e.includes('exactly one') || e.includes('missing targetPort')), 'Should report missing target');
+}
+
+describe('data-model', () => {
+  it('createEmptyGraph', testCreateEmptyGraph);
+  it('idGeneration', testIdGeneration);
+  it('getParameterValue', testGetParameterValue);
+  it('coerceParameterValue', testCoerceParameterValue);
+  it('validateValidGraph', testValidateValidGraph);
+  it('validateMissingFields', testValidateMissingFields);
+  it('validateDuplicateNodeIds', testValidateDuplicateNodeIds);
+  it('validateOrphanedConnection', testValidateOrphanedConnection);
+  it('validateInvalidParameter', testValidateInvalidParameter);
+  it('validateParameterOutOfRange', testValidateParameterOutOfRange);
+  it('serializeGraph', testSerializeGraph);
+  it('deserializeValidGraph', testDeserializeValidGraph);
+  it('serializeDeserializeGraphWithAutomation', testSerializeDeserializeGraphWithAutomation);
+  it('deserializeGraphWithoutAutomation', testDeserializeGraphWithoutAutomation);
+  it('deserializeInvalidFormat', testDeserializeInvalidFormat);
+  it('deserializeUnsupportedFormatVersion', testDeserializeUnsupportedFormatVersion);
+  it('deserializeMissingFormatVersion', testDeserializeMissingFormatVersion);
+  it('deserializeAppliesBandRemapMigration', testDeserializeAppliesBandRemapMigration);
+  it('deserializeAppliesBandRemapMigrationFromFixture', testDeserializeAppliesBandRemapMigrationFromFixture);
+  it(
+    'deserializeBandRemapMigrationIdempotentFromFixture',
+    testDeserializeBandRemapMigrationIdempotentFromFixture
+  );
+  it(
+    'deserializeBandRemapMigrationSkipsWhenAudioSetupMissing',
+    testDeserializeBandRemapMigrationSkipsWhenAudioSetupMissing
+  );
+  it(
+    'deserializeUnvalidatedAppliesBandRemapMigration',
+    testDeserializeUnvalidatedAppliesBandRemapMigration
+  );
+  it('deserializeInvalidJSON', testDeserializeInvalidJSON);
+  it('findNode', testFindNode);
+  it('findConnection', testFindConnection);
+  it('getConnections', testGetConnections);
+  it('validateEmptyGraph', testValidateEmptyGraph);
+  it('validateSingleNodeGraph', testValidateSingleNodeGraph);
+  it('validateNoDuplicateConnections', testValidateNoDuplicateConnections);
+  it('addConnectionWithValidation', testAddConnectionWithValidation);
+  it('validateConnectionInvariant', testValidateConnectionInvariant);
+  it('setAutomationDuration', testSetAutomationDuration);
+  it('validateAutomationIntLaneWarning', testValidateAutomationIntLaneWarning);
+});

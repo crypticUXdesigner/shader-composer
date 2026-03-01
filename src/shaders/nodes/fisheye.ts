@@ -1,21 +1,23 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const fisheyeNodeSpec: NodeSpec = {
   id: 'fisheye',
   category: 'Distort',
   displayName: 'Fisheye',
-  icon: 'circle',
+  icon: 'fish-simple',
   description: 'Lens-style radial distortion; negative strength = barrel, positive = pincushion',
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   parameters: {
@@ -51,6 +53,16 @@ export const fisheyeNodeSpec: NodeSpec = {
       step: 0.01,
       label: 'Aspect'
     }
+  },
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['fisheyeCenterX', 'fisheyeCenterY', 'fisheyeStrength', 'fisheyeAspect'],
+        parameterUI: { fisheyeCenterX: 'coords', fisheyeCenterY: 'coords' },
+        layout: { columns: 2, coordsSpan: 2 }
+      }
+    ]
   },
   functions: `
 vec2 fisheye(vec2 p, vec2 center, float strength, float aspect) {

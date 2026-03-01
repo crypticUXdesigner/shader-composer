@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const brickTilingNodeSpec: NodeSpec = {
   id: 'brick-tiling',
@@ -9,13 +9,15 @@ export const brickTilingNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   parameters: {
@@ -37,7 +39,7 @@ export const brickTilingNodeSpec: NodeSpec = {
     },
     brickOffsetX: {
       type: 'float',
-      default: 0.5,
+      default: 0.0,
       min: 0.0,
       max: 1.0,
       step: 0.01,
@@ -51,6 +53,16 @@ export const brickTilingNodeSpec: NodeSpec = {
       step: 0.01,
       label: 'Offset Y'
     }
+  },
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['brickScaleX', 'brickScaleY', 'brickOffsetX', 'brickOffsetY'],
+        parameterUI: { brickOffsetX: 'coords', brickOffsetY: 'coords' },
+        layout: { columns: 2, coordsSpan: 2, coordsOrigin: 'bottom-left' }
+      }
+    ]
   },
   functions: `
 vec2 brickTiling(vec2 p, vec2 scale, float rowOffsetX, float offsetY) {

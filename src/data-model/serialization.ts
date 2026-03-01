@@ -9,21 +9,87 @@ import type {
   NodeGraph,
   SerializedGraphFile,
 } from './types';
+import type { AudioSetup } from './audioSetupTypes';
 import { validateGraph } from './validation';
 import type { NodeSpecification } from './validation';
+import { migrateBandRemapToRemappers } from './audioBandRemapMigration';
+
+const CURRENT_FORMAT_VERSION = '2.0' as const;
+
+function isSupportedFormatVersion(val: unknown): val is typeof CURRENT_FORMAT_VERSION {
+  return val === CURRENT_FORMAT_VERSION;
+}
+
+interface MigrationContext {
+  graph: NodeGraph;
+  audioSetup?: AudioSetup;
+}
+
+/**
+ * Registry for file-format–level migrations keyed by SerializedGraphFile.formatVersion.
+ *
+ * Today we only support formatVersion "2.0". The registry is structured so future versions
+ * (e.g. "2.1", "3.0") can add ordered MigrationStep lists without changing deserializeGraph.
+ * To add a new version: add a key (e.g. "2.1") with an array of MigrationStep functions;
+ * then extend isSupportedFormatVersion and CURRENT_FORMAT_VERSION as needed so the new
+ * version is accepted and migrations run.
+ *
+ * Only migrations that depend on the on-disk formatVersion belong here. App-level graph
+ * migrations that are independent of formatVersion (e.g. noise-node shape changes or
+ * stripping legacy audio nodes for presets) are composed at a higher layer (see presetManager)
+ * and intentionally remain outside this registry.
+ */
+type MigrationStep = (ctx: MigrationContext) => MigrationContext;
+
+const MIGRATIONS_BY_VERSION: Record<string, MigrationStep[]> = {
+  [CURRENT_FORMAT_VERSION]: [
+    (ctx: MigrationContext): MigrationContext => {
+      const audio = ctx.audioSetup;
+      if (!audio || audio.bands.length === 0) return ctx;
+      const migrated = migrateBandRemapToRemappers(ctx.graph, audio);
+      return { graph: migrated.graph, audioSetup: migrated.audioSetup };
+    },
+  ],
+};
+
+function applyMigrationsForVersion(
+  formatVersion: unknown,
+  ctx: MigrationContext
+): MigrationContext {
+  if (!isSupportedFormatVersion(formatVersion)) {
+    return ctx;
+  }
+  const steps = MIGRATIONS_BY_VERSION[CURRENT_FORMAT_VERSION] ?? [];
+  return steps.reduce((acc, step) => step(acc), ctx);
+}
+
+export interface SerializeGraphOptions {
+  /** Optional starting track id for preset/copy (playlist); stored so paste/load can restore current track. */
+  startingTrackId?: string;
+}
 
 /**
  * Serializes a node graph to JSON string.
- * 
+ * Includes audioSetup when provided (panel audio configuration, primarySource, playlistState).
+ *
  * @param graph - The graph to serialize
  * @param pretty - Whether to pretty-print the JSON (default: true)
+ * @param audioSetup - Optional panel audio setup (files, bands, remappers, primarySource, playlistState)
+ * @param options - Optional startingTrackId for preset/copy
  * @returns JSON string representation of the graph
  */
-export function serializeGraph(graph: NodeGraph, pretty: boolean = true): string {
+export function serializeGraph(
+  graph: NodeGraph,
+  pretty: boolean = true,
+  audioSetup?: AudioSetup,
+  options?: SerializeGraphOptions
+): string {
   const wrapper: SerializedGraphFile = {
     format: 'shader-composer-node-graph',
-    formatVersion: '2.0',
+    formatVersion: CURRENT_FORMAT_VERSION,
     graph,
+    ...(audioSetup && { audioSetup }),
+    ...(options?.startingTrackId && { startingTrackId: options.startingTrackId }),
   };
 
   return JSON.stringify(wrapper, null, pretty ? 2 : 0);
@@ -34,6 +100,10 @@ export function serializeGraph(graph: NodeGraph, pretty: boolean = true): string
  */
 export interface DeserializationResult {
   graph: NodeGraph | null;
+  /** Present when file included audioSetup; undefined when absent or invalid. */
+  audioSetup?: AudioSetup;
+  /** Starting track id from file (for preset/copy); app may set playlist currentIndex from this. */
+  startingTrackId?: string;
   errors: string[];
   warnings: string[];
 }
@@ -62,8 +132,8 @@ export function deserializeGraph(
     }
 
     // Validate format version
-    if (data.formatVersion !== '2.0') {
-      errors.push(`Unsupported format version: ${data.formatVersion} (expected "2.0")`);
+    if (!isSupportedFormatVersion(data.formatVersion)) {
+      errors.push(`Unsupported format version: ${data.formatVersion} (expected "${CURRENT_FORMAT_VERSION}")`);
       return { graph: null, errors, warnings };
     }
 
@@ -85,7 +155,25 @@ export function deserializeGraph(
       return { graph: null, errors, warnings };
     }
 
-    return { graph, errors, warnings };
+    let graphResult = graph;
+    let audioSetup = isValidAudioSetup(data.audioSetup) ? data.audioSetup : undefined;
+
+    const migrated = applyMigrationsForVersion(data.formatVersion, {
+      graph: graphResult,
+      audioSetup,
+    });
+    graphResult = migrated.graph;
+    audioSetup = migrated.audioSetup;
+
+    const startingTrackId = typeof data.startingTrackId === 'string' ? data.startingTrackId : undefined;
+    if (audioSetup && startingTrackId && audioSetup.playlistState?.order) {
+      const idx = audioSetup.playlistState.order.indexOf(startingTrackId);
+      if (idx >= 0) {
+        audioSetup = { ...audioSetup, playlistState: { ...audioSetup.playlistState, currentIndex: idx } };
+      }
+    }
+
+    return { graph: graphResult, audioSetup, startingTrackId, errors, warnings };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     errors.push(`JSON parse error: ${message}`);
@@ -114,8 +202,8 @@ export function deserializeGraphUnvalidated(json: string): DeserializationResult
     }
 
     // Validate format version
-    if (data.formatVersion !== '2.0') {
-      errors.push(`Unsupported format version: ${data.formatVersion} (expected "2.0")`);
+    if (!isSupportedFormatVersion(data.formatVersion)) {
+      errors.push(`Unsupported format version: ${data.formatVersion} (expected "${CURRENT_FORMAT_VERSION}")`);
       return { graph: null, errors, warnings };
     }
 
@@ -125,12 +213,39 @@ export function deserializeGraphUnvalidated(json: string): DeserializationResult
       return { graph: null, errors, warnings };
     }
 
-    const graph = data.graph as NodeGraph;
+    let graphResult = data.graph as NodeGraph;
+    let audioSetup = isValidAudioSetup(data.audioSetup) ? data.audioSetup : undefined;
 
-    return { graph, errors, warnings };
+    const migrated = applyMigrationsForVersion(data.formatVersion, {
+      graph: graphResult,
+      audioSetup,
+    });
+    graphResult = migrated.graph;
+    audioSetup = migrated.audioSetup;
+
+    const startingTrackId = typeof data.startingTrackId === 'string' ? data.startingTrackId : undefined;
+    if (audioSetup && startingTrackId && audioSetup.playlistState?.order) {
+      const idx = audioSetup.playlistState.order.indexOf(startingTrackId);
+      if (idx >= 0) {
+        audioSetup = { ...audioSetup, playlistState: { ...audioSetup.playlistState, currentIndex: idx } };
+      }
+    }
+
+    return { graph: graphResult, audioSetup, startingTrackId, errors, warnings };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     errors.push(`JSON parse error: ${message}`);
     return { graph: null, errors, warnings };
   }
+}
+
+function isValidAudioSetup(val: unknown): val is AudioSetup {
+  if (!val || typeof val !== 'object') return false;
+  const o = val as Record<string, unknown>;
+  // primarySource and playlistState are optional (legacy presets omit them)
+  return (
+    Array.isArray(o.files) &&
+    Array.isArray(o.bands) &&
+    Array.isArray(o.remappers)
+  );
 }

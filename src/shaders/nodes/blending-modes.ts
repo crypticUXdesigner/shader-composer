@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const blendingModesNodeSpec: NodeSpec = {
   id: 'blending-modes',
@@ -9,13 +9,15 @@ export const blendingModesNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec4'
+      type: 'vec4',
+      label: 'Color'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec4'
+      type: 'vec4',
+      label: 'Result'
     }
   ],
   parameters: {
@@ -65,7 +67,7 @@ export const blendingModesNodeSpec: NodeSpec = {
       min: 0.1,
       max: 50.0,
       step: 0.1,
-      label: 'Wave Freq'
+      label: 'Wave Frequency'
     },
     blendTimeSpeed: {
       type: 'float',
@@ -84,36 +86,30 @@ export const blendingModesNodeSpec: NodeSpec = {
       label: 'Time Offset'
     }
   },
-  parameterGroups: [
-    {
-      id: 'blend-main',
-      label: 'Blending Modes',
-      parameters: ['blendMode', 'blendOpacity', 'blendSource'],
-      collapsible: true,
-      defaultCollapsed: false
-    },
-    {
-      id: 'blend-parameter',
-      label: 'Parameter Source',
-      parameters: ['blendValue'],
-      collapsible: true,
-      defaultCollapsed: true
-    },
-    {
-      id: 'blend-noise',
-      label: 'Noise Source',
-      parameters: ['blendScale', 'blendTimeSpeed', 'blendTimeOffset'],
-      collapsible: true,
-      defaultCollapsed: true
-    },
-    {
-      id: 'blend-wave',
-      label: 'Wave Source',
-      parameters: ['blendFrequency', 'blendTimeSpeed', 'blendTimeOffset'],
-      collapsible: true,
-      defaultCollapsed: true
-    }
-  ],
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['blendMode', 'blendOpacity', 'blendSource', 'blendValue'],
+        layout: {
+          columns: 'auto',
+          parameterSpan: { blendOpacity: 2, blendValue: 2 }
+        }
+      },
+      {
+        type: 'grid',
+        label: 'Noise Source',
+        parameters: ['blendScale', 'blendTimeSpeed', 'blendTimeOffset'],
+        layout: { columns: 'auto' }
+      },
+      {
+        type: 'grid',
+        label: 'Wave Source',
+        parameters: ['blendFrequency', 'blendTimeSpeed', 'blendTimeOffset'],
+        layout: { columns: 'auto' }
+      }
+    ]
+  },
   functions: `
 // Hash function for noise
 float hash(vec2 p) {

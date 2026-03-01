@@ -1,0 +1,273 @@
+/* =============================================================================
+   SHAPES â€” sub-groups: primitive (muted, default), derived (prominent)
+   ============================================================================= */
+
+:root {
+  /* Primitive (default): teal-gray scale â€” muted */
+  /* Node body shadow (outermost) */
+  --node-body-shadow-color-mid-shapes: var(--color-teal-gray-50);
+  --node-body-shadow-color-outer-shapes: var(--color-teal-gray-30);
+
+  /* Node header */
+  --node-header-bg-shapes: var(--color-teal-gray-70);
+  --node-header-bg-end-shapes: var(--color-teal-gray-50);
+  --node-header-print-shapes: var(--color-gray-130);
+
+  /* Icon box */
+  --node-icon-box-bg-shapes: var(--color-teal-gray-80);
+  --node-icon-box-color-shapes: var(--color-yellow-110);
+
+  /* Param group header */
+  --param-group-header-color-shapes: var(--color-teal-gray-gray-60);
+
+  /* Param cell */
+  --node-param-cell-bg-shapes: var(--color-teal-gray-gray-120);
+  --node-param-cell-bg-end-shapes: var(--color-teal-gray-gray-120);
+  --node-param-label-color-shapes: var(--color-teal-gray-40);
+
+  /* Knob: thin ring and active ring; center with border and bg */
+  --node-knob-value-bg-shapes: var(--color-teal-gray-40);
+  --node-knob-value-color-shapes: var(--color-teal-gray-120);
+  --node-knob-ring-color-shapes: var(--color-yellow-gray-110);
+  --node-knob-arc-active-shapes: var(--color-red-orange-100);
+  --node-knob-marker-shapes: var(--color-teal-gray-60);
+  --knob-ring-bg-width-shapes: 4px;
+  --knob-ring-active-width-shapes: 4px;
+  --knob-marker-size-shapes: 6px;
+  --knob-marker-radius-offset-shapes: -20px;
+  --node-knob-center-bg-shapes: var(--color-clean-gray-110);
+  --node-knob-center-border-color-shapes: var(--color-teal-gray-gray-130);
+  --knob-center-filter-shapes: drop-shadow(0 4px 6px var(--color-teal-gray-80));
+  --knob-center-size-shapes: 60px;
+  --knob-center-border-width-shapes: 6px;
+
+  /* Bezier editor */
+  --node-bezier-curve-shapes: var(--color-teal-gray-100);
+  --node-bezier-control-shapes: var(--color-teal-gray-100);
+  --node-bezier-control-hover-shapes: var(--color-teal-gray-110);
+
+  /* Param grid (shapes + derived: same padding/radius, different bg) */
+  --node-param-grid-bg-shapes: var(--color-teal-gray-gray-50);
+  --node-param-grid-bg-shapes-derived: var(--color-blue-gray-20);
+
+  /* Derived sub-group: teal scale â€” more prominent */
+  /* Node body shadow (outermost) */
+  --node-body-shadow-color-mid-shapes-derived: var(--color-teal-50);
+  --node-body-shadow-color-outer-shapes-derived: var(--color-teal-30);
+
+  /* Node header */
+  --node-header-bg-shapes-derived: var(--color-teal-gray-gray-110);
+  --node-header-bg-end-shapes-derived: var(--color-teal-60);
+  --node-header-print-shapes-derived: var(--color-teal-10);
+
+  /* Icon box */
+  --node-icon-box-bg-shapes-derived: var(--color-orange-80);
+  --node-icon-box-color-shapes-derived: var(--color-blue-110);
+
+  /* Param group header */
+  --param-group-header-color-shapes-derived: var(--color-blue-gray-100);
+
+  /* Param cell */
+  --node-param-cell-bg-shapes-derived: var(--color-blue-gray-70);
+  --node-param-cell-bg-end-shapes-derived: var(--color-blue-gray-70);
+  --node-param-label-color-shapes-derived: var(--color-orange-120);
+
+  /* Knob (same thin ring; center colors differ) */
+  --node-knob-value-bg-shapes-derived: var(--color-teal-gray-40);
+  --node-knob-value-color-shapes-derived: var(--color-teal-gray-120);
+  --node-knob-ring-color-shapes-derived: var(--color-blue-gray-80);
+  --node-knob-arc-active-shapes-derived: var(--color-orange-110);
+  --node-knob-marker-shapes-derived: var(--color-blue-gray-40);
+  --node-knob-center-bg-shapes-derived: var(--color-orange-90);
+  --node-knob-center-border-color-shapes-derived: var(--color-orange-100);
+  --knob-center-filter-shapes-derived: drop-shadow(0 4px 6px var(--color-teal-gray-90));
+
+  /* Bezier editor */
+  --node-bezier-curve-shapes-derived: var(--color-teal-gray-100);
+  --node-bezier-control-shapes-derived: var(--color-teal-gray-100);
+  --node-bezier-control-hover-shapes-derived: var(--color-teal-gray-110);
+}
+
+.node.shapes {
+  /* CSS custom properties */
+  --node-body-shadow-color-mid: var(--node-body-shadow-color-mid-shapes);
+  --node-body-shadow-color-outer: var(--node-body-shadow-color-outer-shapes);
+  --node-header-name-color: var(--node-header-print-shapes);
+  --param-group-header-color: var(--param-group-header-color-shapes);
+  --knob-ring-color: var(--node-knob-ring-color-shapes);
+  --knob-ring-active-color-static: var(--node-knob-arc-active-shapes);
+  --knob-marker-color: var(--node-knob-marker-shapes);
+  --knob-value-bg: var(--node-knob-value-bg-shapes);
+  --knob-value-color: var(--node-knob-value-color-shapes);
+  --param-control-bg: var(--node-knob-value-bg-shapes);
+  --param-control-bg-hover: var(--color-teal-gray-50);
+  --param-control-bg-active: var(--color-teal-gray-60);
+  --param-control-value-color: var(--node-knob-value-color-shapes);
+  --node-param-grid-bg: var(--node-param-grid-bg-shapes);
+
+  /* Knob: thin ring and active ring; center with border and bg; marker size/position */
+  --knob-ring-bg-width: var(--knob-ring-bg-width-shapes);
+  --knob-ring-active-width: var(--knob-ring-active-width-shapes);
+  --knob-marker-size: var(--knob-marker-size-shapes);
+  --knob-marker-radius-offset: var(--knob-marker-radius-offset-shapes);
+  --knob-center-size: var(--knob-center-size-shapes);
+  --knob-center-bg: var(--node-knob-center-bg-shapes);
+  --knob-center-border-width: var(--knob-center-border-width-shapes);
+  --knob-center-border-color: var(--node-knob-center-border-color-shapes);
+  --knob-center-filter: var(--knob-center-filter-shapes);
+
+  /* Node header (outermost) */
+  background: radial-gradient(
+    ellipse var(--node-header-bg-gradient-ellipse-width) var(--node-header-bg-gradient-ellipse-height) at var(--node-header-bg-gradient-ellipse-x) var(--node-header-bg-gradient-ellipse-y),
+    var(--node-header-bg-shapes),
+    var(--node-header-bg-end-shapes)
+  );
+
+  /* Node body */
+  .node-body {
+    background: radial-gradient(
+      ellipse 120% 160% at 50% 25%, 
+      var(--color-teal-gray-gray-110), 
+      var(--color-blue-gray-80)
+    );
+  }
+
+  /* Icon box */
+  .icon-box {
+    background: var(--node-icon-box-bg-shapes);
+
+    .header-icon {
+      color: var(--node-icon-box-color-shapes);
+    }
+  }
+
+  /* Node header */
+  .node-header {
+    .label-text,
+    .label-input,
+    .port .name-label {
+      color: var(--node-header-print-shapes);
+    }
+  }
+
+  /* Param grid: shared padding and radius; bg from --node-param-grid-bg (overridden by .derived) */
+  .param-grid {
+    background: var(--node-param-grid-bg);
+    padding: var(--pd-xs);
+    border-radius: calc(var(--radius-md) + var(--pd-xs));
+    gap: var(--pd-xs) !important;
+  }
+
+  /* Param cell: re-set knob tokens so knob (descendant) reliably inherits center/marker */
+  .param-cell {
+    --knob-center-size: var(--knob-center-size-shapes);
+    --knob-center-bg: var(--node-knob-center-bg-shapes);
+    --knob-center-border-width: var(--knob-center-border-width-shapes);
+    --knob-center-border-color: var(--node-knob-center-border-color-shapes);
+    --knob-marker-size: var(--knob-marker-size-shapes);
+    --knob-marker-radius-offset: var(--knob-marker-radius-offset-shapes);
+    background: radial-gradient(ellipse 120% 160% at 50% 25%, var(--node-param-cell-bg-shapes), var(--node-param-cell-bg-end-shapes));
+    border-radius: var(--radius-md);
+
+    &.connected {
+      background: var(--color-orange-gray-120);
+      border-color: transparent;
+    }
+
+    .left-column .top .label {
+      color: var(--node-param-label-color-shapes);
+    }
+  }
+
+  /* Bezier editor */
+  .bezier-editor {
+    .curve {
+      stroke: var(--node-bezier-curve-shapes);
+    }
+
+    .control-point {
+      background: var(--node-bezier-control-shapes);
+
+      &:hover {
+        background: var(--node-bezier-control-hover-shapes);
+      }
+    }
+  }
+}
+
+/* Sub-group: derived (fractal, environment, surface) â€” teal scale, more prominent */
+.node.shapes.derived {
+  --node-header-bg-shapes: var(--node-header-bg-shapes-derived);
+  --node-header-bg-end-shapes: var(--node-header-bg-end-shapes-derived);
+  --node-header-name-color: var(--node-header-print-shapes-derived);
+  --node-icon-box-bg-shapes: var(--node-icon-box-bg-shapes-derived);
+  --node-icon-box-color-shapes: var(--node-icon-box-color-shapes-derived);
+  --param-group-header-color-shapes: var(--param-group-header-color-shapes-derived);
+  --node-param-cell-bg-shapes: var(--node-param-cell-bg-shapes-derived);
+  --node-param-cell-bg-end-shapes: var(--node-param-cell-bg-end-shapes-derived);
+  --node-param-label-color-shapes: var(--node-param-label-color-shapes-derived);
+  --node-knob-value-color-shapes: var(--node-knob-value-color-shapes-derived);
+  --node-knob-value-bg-shapes: var(--node-knob-value-bg-shapes-derived);
+  --node-knob-ring-color-shapes: var(--node-knob-ring-color-shapes-derived);
+  --node-knob-arc-active-shapes: var(--node-knob-arc-active-shapes-derived);
+  --node-knob-marker-shapes: var(--node-knob-marker-shapes-derived);
+  --node-bezier-curve-shapes: var(--node-bezier-curve-shapes-derived);
+  --node-bezier-control-shapes: var(--node-bezier-control-shapes-derived);
+  --node-bezier-control-hover-shapes: var(--node-bezier-control-hover-shapes-derived);
+  --node-body-shadow-color-mid-shapes: var(--node-body-shadow-color-mid-shapes-derived);
+  --node-body-shadow-color-outer-shapes: var(--node-body-shadow-color-outer-shapes-derived);
+  --node-param-grid-bg: var(--node-param-grid-bg-shapes-derived);
+  --node-knob-center-bg-shapes: var(--node-knob-center-bg-shapes-derived);
+  --node-knob-center-border-color-shapes: var(--node-knob-center-border-color-shapes-derived);
+  --knob-center-filter-shapes: drop-shadow(0 4px 6px var(--color-orange-gray-60));
+
+  .node-body {
+    background: radial-gradient(
+      ellipse 120% 160% at 50% 25%, 
+      var(--color-blue-gray-70), 
+      var(--color-blue-gray-40)
+      );
+  }
+
+  .param-cell {
+    &.connected {
+      background: var(--color-blue-gray-90);
+      border-color: transparent;
+    }
+  }
+}
+
+.node.shapes.derived {
+  /* Icon box */
+  .icon-box .header-icon {
+    color: var(--node-icon-box-color-shapes);
+  }
+
+  /* Node header */
+  .node-header {
+    .label-text,
+    .label-input,
+    .port .name-label {
+      color: var(--node-header-print-shapes-derived);
+    }
+  }
+}
+
+.node.shapes.derived .param-cell .left-column .top .label {
+  color: var(--node-param-label-color-shapes-derived);
+}
+
+.node.shapes.derived {
+  --param-control-bg-hover: var(--color-teal-50);
+  --param-control-bg-active: var(--color-teal-60);
+}
+
+/* Shiny: use header print color as ring accent */
+.node.shapes.shiny {
+  --node-shiny-ring-color: var(--node-header-print-shapes);
+}
+
+.node.shapes.derived.shiny {
+  --node-shiny-ring-color: var(--node-header-print-shapes-derived);
+}
+

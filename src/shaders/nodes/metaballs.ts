@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const metaballsNodeSpec: NodeSpec = {
   id: 'metaballs',
@@ -9,13 +9,15 @@ export const metaballsNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'float'
+      type: 'float',
+      label: 'Glow'
     }
   ],
   parameters: {
@@ -57,7 +59,7 @@ export const metaballsNodeSpec: NodeSpec = {
       min: -2.0,
       max: 2.0,
       step: 0.1,
-      label: 'X'
+      label: 'Center X'
     },
     centerY: {
       type: 'float',
@@ -65,7 +67,7 @@ export const metaballsNodeSpec: NodeSpec = {
       min: -2.0,
       max: 2.0,
       step: 0.1,
-      label: 'Y'
+      label: 'Center Y'
     },
     centerZ: {
       type: 'float',
@@ -82,6 +84,14 @@ export const metaballsNodeSpec: NodeSpec = {
       max: 3.0,
       step: 0.05,
       label: 'Orbit Speed'
+    },
+    timeOffset: {
+      type: 'float',
+      default: 0.0,
+      min: -10.0,
+      max: 10.0,
+      step: 0.1,
+      label: 'Offset'
     },
     raymarchSteps: {
       type: 'int',
@@ -118,7 +128,7 @@ export const metaballsNodeSpec: NodeSpec = {
     {
       id: 'animation',
       label: 'Animation',
-      parameters: ['timeSpeed'],
+      parameters: ['timeSpeed', 'timeOffset'],
       collapsible: true,
       defaultCollapsed: true
     },
@@ -130,6 +140,35 @@ export const metaballsNodeSpec: NodeSpec = {
       defaultCollapsed: false
     }
   ],
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: [
+          'blobCount',
+          'blobRadius',
+          'threshold',
+          'centerX',
+          'centerY',
+          'centerZ',
+          'orbitRadius',
+          'raymarchSteps',
+          'glowIntensity'
+        ],
+        parameterUI: { centerX: 'coords', centerY: 'coords' },
+        layout: { columns: 3, coordsSpan: 2 }
+      },
+      {
+        type: 'grid',
+        label: 'Animation',
+        parameters: ['timeSpeed', 'timeOffset'],
+        layout: {
+          columns: 3,
+          parameterSpan: { timeOffset: 2 }
+        }
+      }
+    ]
+  },
   functions: `
 // Blob center: orbit around scene center with phase per blob
 vec3 metaballCenter(int i, vec3 center, float orbitRadius, float t) {
@@ -174,7 +213,7 @@ vec3 metaballGradient(vec3 p, vec3 center, float orbitRadius, float blobRadius, 
   float orbitRadius = $param.orbitRadius;
   float blobRadius = $param.blobRadius;
   float threshold = $param.threshold;
-  float t = $time * $param.timeSpeed;
+  float t = $time * $param.timeSpeed + $param.timeOffset;
   int blobCount = int(clamp(float($param.blobCount), 2.0, 6.0));
   int steps = $param.raymarchSteps;
   float glowIntensity = $param.glowIntensity;

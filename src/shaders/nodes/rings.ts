@@ -1,21 +1,23 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const ringsNodeSpec: NodeSpec = {
   id: 'rings',
   category: 'Patterns',
   displayName: 'Rings',
   description: 'Concentric rings or ripples pattern',
-  icon: 'ring',
+  icon: 'rings',
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'Position'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'float'
+      type: 'float',
+      label: 'Value'
     }
   ],
   parameters: {
@@ -85,6 +87,16 @@ export const ringsNodeSpec: NodeSpec = {
       defaultCollapsed: false
     }
   ],
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['ringCenterX', 'ringCenterY', 'ringRadius', 'ringFrequency', 'ringAmplitude', 'ringTimeOffset', 'ringIntensity'],
+        parameterUI: { ringCenterX: 'coords', ringCenterY: 'coords' },
+        layout: { columns: 2, coordsSpan: 2, parameterSpan: { ringRadius: 2 } }
+      }
+    ]
+  },
   functions: `
 float rings(vec2 p, vec2 center, float radius, float frequency) {
   float dist = length(p - center);

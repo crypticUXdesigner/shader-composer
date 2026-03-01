@@ -1,0 +1,86 @@
+/* =============================================================================
+   DEFAULT (fallback when category unknown)
+   ============================================================================= */
+
+:root {
+  /* Node body shadow (outermost) */
+  --node-body-shadow-color-mid-default: var(--color-gray-50);
+  --node-body-shadow-color-outer-default: var(--color-gray-30);
+
+  /* Node header */
+  --node-header-bg-default: var(--color-gray-70);
+  --node-header-bg-end-default: var(--color-gray-50);
+  --node-header-print-default: var(--color-gray-130);
+
+  /* Icon box */
+  --node-icon-box-bg-default: var(--color-gray-50);
+  --node-icon-box-color-default: var(--color-gray-120);
+
+  /* Param group header */
+  --param-group-header-color-default: var(--color-gray-110);
+
+  /* Param cell */
+  --node-param-cell-bg-default: var(--color-gray-50);
+  --node-param-cell-bg-end-default: var(--color-gray-40);
+  --node-param-label-color-default: var(--color-gray-110);
+
+  /* Knob */
+  --node-knob-value-bg-default: var(--color-gray-40);
+  --node-knob-value-color-default: var(--color-gray-120);
+  --node-knob-ring-color-default: var(--knob-ring-color);
+  --node-knob-arc-active-default: var(--color-gray-130);
+  --node-knob-marker-default: var(--color-gray-120);
+
+  /* Bezier editor */
+  --node-bezier-curve-default: var(--color-gray-90);
+  --node-bezier-control-default: var(--color-gray-90);
+  --node-bezier-control-hover-default: var(--color-gray-100);
+}
+
+.node.default {
+  /* CSS custom properties */
+  --node-body-shadow-color-mid: var(--node-body-shadow-color-mid-default);
+  --node-body-shadow-color-outer: var(--node-body-shadow-color-outer-default);
+  --node-header-name-color: var(--node-header-print-default);
+  --param-group-header-color: var(--param-group-header-color-default);
+  --knob-ring-color: var(--node-knob-ring-color-default);
+  --knob-ring-active-color-static: var(--node-knob-arc-active-default);
+  --knob-marker-color: var(--node-knob-marker-default);
+  --knob-value-bg: var(--node-knob-value-bg-default);
+  --knob-value-color: var(--node-knob-value-color-default);
+  --param-control-bg: var(--node-knob-value-bg-default);
+  --param-control-bg-hover: var(--color-gray-60);
+  --param-control-bg-active: var(--color-gray-70);
+  --param-control-value-color: var(--node-knob-value-color-default);
+
+  /* Node header (outermost) */
+  background: radial-gradient(
+    ellipse var(--node-header-bg-gradient-ellipse-width) var(--node-header-bg-gradient-ellipse-height) at var(--node-header-bg-gradient-ellipse-x) var(--node-header-bg-gradient-ellipse-y),
+    var(--node-header-bg-default),
+    var(--node-header-bg-end-default)
+  );
+
+  /* Node body */
+  .node-body {
+    background: radial-gradient(ellipse 120% 160% at 50% 25%, var(--color-gray-50), var(--color-gray-40));
+  }
+
+  /* Icon box */
+  .icon-box {
+    background: var(--node-icon-box-bg-default);
+
+    .header-icon {
+      color: var(--node-icon-box-color-default);
+    }
+  }
+
+  /* Node header */
+  .node-header {
+    .label-text,
+    .label-input,
+    .port .name-label {
+      color: var(--node-header-print-default);
+    }
+  }
+}
+

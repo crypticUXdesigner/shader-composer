@@ -1,0 +1,242 @@
+/* =============================================================================
+   EFFECTS â€” sub-groups: filter (muted, default), stylize (prominent)
+   ============================================================================= */
+
+:root {
+  /* Filter (default): red-purple-gray scale â€” muted */
+  /* Node body shadow (outermost) */
+  --node-body-shadow-color-mid-effects: var(--color-red-purple-gray-50);
+  --node-body-shadow-color-outer-effects: var(--color-red-purple-gray-30);
+
+  /* Node header */
+  --node-header-bg-effects: var(--color-red-purple-gray-40);
+  --node-header-bg-end-effects: var(--color-purple-gray-70);
+  --node-header-print-effects: var(--color-gray-110);
+
+  /* Icon box */
+  --node-icon-box-bg-effects: transparent;
+  --node-icon-box-color-effects: var(--color-orange-red-110);
+
+  /* Param group header */
+  --param-group-header-color-effects: var(--color-red-purple-gray-110);
+
+  /* Param cell */
+  --node-param-cell-bg-effects: transparent;
+  --node-param-cell-bg-end-effects: transparent;
+  --node-param-label-color-effects: var(--color-orange-red-120);
+
+  /* Knob */
+  --node-knob-value-bg-effects: var(--color-red-purple-gray-40);
+  --node-knob-value-color-effects: var(--color-red-purple-gray-120);
+  --node-knob-ring-color-effects: var(--color-orange-red-gray-70);
+  --node-knob-arc-active-effects: var(--color-red-orange-100);
+  --node-knob-marker-effects: var(--color-orange-red-100);
+  --knob-ring-bg-width-effects: 2px;
+  --knob-ring-active-width-effects: 4px;
+  --knob-marker-size-effects: 3px;
+  --knob-marker-radius-offset-effects: -12px;
+
+  /* Bezier editor */
+  --node-bezier-curve-effects: var(--color-red-purple-gray-90);
+  --node-bezier-control-effects: var(--color-red-purple-gray-90);
+  --node-bezier-control-hover-effects: var(--color-red-purple-gray-100);
+
+  /* Stylize sub-group: red-purple scale â€” more prominent */
+  /* Node body shadow (outermost) */
+  --node-body-shadow-color-mid-effects-stylize: var(--color-red-purple-50);
+  --node-body-shadow-color-outer-effects-stylize: var(--color-red-purple-30);
+
+  /* Node header */
+  --node-header-bg-effects-stylize: var(--color-red-purple-gray-30);
+  --node-header-bg-end-effects-stylize: var(--color-red-purple-50);
+  --node-header-print-effects-stylize: var(--color-gray-100);
+
+  /* Icon box */
+  --node-icon-box-bg-effects-stylize: transparent;
+  --node-icon-box-color-effects-stylize: var(--color-yellow-110);
+
+  /* Param group header */
+  --param-group-header-color-effects-stylize: var(--color-red-purple-gray-70);
+
+  /* Param cell */
+  --node-param-cell-bg-effects-stylize: transparent;
+  --node-param-cell-bg-end-effects-stylize: transparent;
+  --node-param-label-color-effects-stylize: var(--color-yellow-gray-100);
+
+  /* Knob */
+  --node-knob-value-bg-effects-stylize: var(--color-red-purple-50);
+  --node-knob-value-color-effects-stylize: var(--color-red-purple-120);
+  --node-knob-ring-color-effects-stylize: var(--color-red-purple-gray-40);
+  --node-knob-arc-active-effects-stylize: var(--color-yellow-110);
+  --node-knob-marker-effects-stylize: var(--color-red-purple-120);
+
+  /* Bezier editor */
+  --node-bezier-curve-effects-stylize: var(--color-red-purple-90);
+  --node-bezier-control-effects-stylize: var(--color-red-purple-90);
+  --node-bezier-control-hover-effects-stylize: var(--color-red-purple-100);
+}
+
+.node.effects {
+  /* CSS custom properties */
+  --node-body-shadow-color-mid: var(--node-body-shadow-color-mid-effects);
+  --node-body-shadow-color-outer: var(--node-body-shadow-color-outer-effects);
+  --node-header-name-color: var(--node-header-print-effects);
+  --param-group-header-color: var(--param-group-header-color-effects);
+  --knob-ring-color: var(--node-knob-ring-color-effects);
+  --knob-ring-active-color-static: var(--node-knob-arc-active-effects);
+  --knob-marker-color: var(--node-knob-marker-effects);
+  --knob-value-bg: var(--node-knob-value-bg-effects);
+  --knob-value-color: var(--node-knob-value-color-effects);
+  --param-control-bg: var(--node-knob-value-bg-effects);
+  --param-control-bg-hover: var(--color-red-purple-gray-50);
+  --param-control-bg-active: var(--color-red-purple-gray-60);
+  --param-control-value-color: var(--node-knob-value-color-effects);
+  --knob-ring-bg-width: var(--knob-ring-bg-width-effects);
+  --knob-ring-active-width: var(--knob-ring-active-width-effects);
+  --knob-marker-size: var(--knob-marker-size-effects);
+  --knob-marker-radius-offset: var(--knob-marker-radius-offset-effects);
+
+  /* Node header (outermost) */
+  background: radial-gradient(
+    ellipse var(--node-header-bg-gradient-ellipse-width) var(--node-header-bg-gradient-ellipse-height) at var(--node-header-bg-gradient-ellipse-x) var(--node-header-bg-gradient-ellipse-y),
+    var(--node-header-bg-effects),
+    var(--node-header-bg-end-effects)
+  );
+
+  /* Node body */
+  .node-body {
+    background: radial-gradient(
+      ellipse 120% 160% at 50% 25%, 
+      var(--color-red-purple-gray-40), 
+      var(--color-red-purple-gray-60)
+    );
+    .param-grid {
+      border-radius: var(--radius-xl);
+      background: rgba(255,255,255,0.02);
+    }
+  }
+
+  /* Icon box */
+  .icon-box {
+    background: var(--node-icon-box-bg-effects);
+
+    .header-icon {
+      color: var(--node-icon-box-color-effects);
+    }
+  }
+
+  /* Node header */
+  .node-header {
+    .label-text,
+    .label-input,
+    .port .name-label {
+      color: var(--node-header-print-effects);
+    }
+  }
+
+  /* Param cell */
+  .param-cell {
+    background: radial-gradient(ellipse 120% 160% at 50% 25%, var(--node-param-cell-bg-effects), var(--node-param-cell-bg-end-effects));
+
+    &.connected {
+      background: var(--color-yellow-gray-80);
+      border-color: transparent;
+    }
+
+    .left-column .top .label {
+      color: var(--node-param-label-color-effects);
+    }
+  }
+
+  /* Bezier editor */
+  .bezier-editor {
+    .curve {
+      stroke: var(--node-bezier-curve-effects);
+    }
+
+    .control-point {
+      background: var(--node-bezier-control-effects);
+
+      &:hover {
+        background: var(--node-bezier-control-hover-effects);
+      }
+    }
+  }
+}
+
+/* Sub-group: stylize (chromatic aberration, RGB separation, scanlines, etc.) â€” red-purple scale, more prominent */
+.node.effects.stylize {
+  --node-header-bg-effects: var(--node-header-bg-effects-stylize);
+  --node-header-bg-end-effects: var(--node-header-bg-end-effects-stylize);
+  --node-header-name-color: var(--node-header-print-effects-stylize);
+  --node-icon-box-bg-effects: var(--node-icon-box-bg-effects-stylize);
+  --node-icon-box-color-effects: var(--node-icon-box-color-effects-stylize);
+  --param-group-header-color-effects: var(--param-group-header-color-effects-stylize);
+  --node-param-cell-bg-effects: var(--node-param-cell-bg-effects-stylize);
+  --node-param-cell-bg-end-effects: var(--node-param-cell-bg-end-effects-stylize);
+  --node-param-label-color-effects: var(--node-param-label-color-effects-stylize);
+  --node-knob-value-color-effects: var(--node-knob-value-color-effects-stylize);
+  --node-knob-value-bg-effects: var(--node-knob-value-bg-effects-stylize);
+  --node-knob-ring-color-effects: var(--node-knob-ring-color-effects-stylize);
+  --node-knob-arc-active-effects: var(--node-knob-arc-active-effects-stylize);
+  --node-knob-marker-effects: var(--node-knob-marker-effects-stylize);
+  --node-bezier-curve-effects: var(--node-bezier-curve-effects-stylize);
+  --node-bezier-control-effects: var(--node-bezier-control-effects-stylize);
+  --node-bezier-control-hover-effects: var(--node-bezier-control-hover-effects-stylize);
+  --node-body-shadow-color-mid-effects: var(--node-body-shadow-color-mid-effects-stylize);
+  --node-body-shadow-color-outer-effects: var(--node-body-shadow-color-outer-effects-stylize);
+
+  .node-body {
+    background: radial-gradient(
+      ellipse 120% 160% at 50% 25%, 
+      var(--color-red-purple-gray-10), 
+      var(--color-red-purple-40)
+    );
+    .param-grid {
+      border-radius: var(--radius-xl);
+      background: rgba(255,255,255,0.02);
+    }
+  }
+
+  .param-cell {
+    &.connected {
+      background: var(--color-red-purple-60);
+      border-color: transparent;
+    }
+  }
+}
+
+.node.effects.stylize {
+  /* Icon box */
+  .icon-box .header-icon {
+    color: var(--node-icon-box-color-effects);
+  }
+
+  /* Node header */
+  .node-header {
+    .label-text,
+    .label-input,
+    .port .name-label {
+      color: var(--node-header-print-effects-stylize);
+    }
+  }
+}
+
+.node.effects.stylize .param-cell .left-column .top .label {
+  color: var(--node-param-label-color-effects-stylize);
+}
+
+.node.effects.stylize {
+  --param-control-bg-hover: var(--color-red-purple-50);
+  --param-control-bg-active: var(--color-red-purple-60);
+}
+
+/* Shiny: use header print color as ring accent */
+.node.effects.shiny {
+  --node-shiny-ring-color: var(--node-header-print-effects);
+}
+
+.node.effects.stylize.shiny {
+  --node-shiny-ring-color: var(--node-header-print-effects-stylize);
+}
+

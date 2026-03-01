@@ -1,0 +1,19 @@
+---
+description: Image and video export — resolution, duration, progress, full audio; WebCodecs check.
+globs: "src/video-export/**/*.ts"
+alwaysApply: false
+---
+
+# Export (Image and Video)
+
+When changing export code: image = current frame at resolution/format, download; video = dialog, progress overlay, primary audio when "use full audio," WebCodecs check.
+
+## Do
+
+- **Image**: Capture current shader output at defined resolution (e.g. 1600×1600) and format (PNG); same compiler/graph as preview; offer download.
+- **Video**: Dialog (width, height, duration, frame rate, "use full audio," bitrates). Progress overlay ("Frame N / M"), cancel, background export (OfflineAudioContext, ExportRenderPath, WebCodecs). On success: download, dismiss overlay. "Use full audio" → primary audio from audio setup. Enforce max dimensions/duration; clamp or error. If WebCodecs unavailable, show clear message and do not start.
+- Example: progress callback reports current and total frames; overlay shows "Frame N / M" and cancel.
+
+## Reference
+
+- `docs/user-goals/09-export.md`, `docs/user-goals/06-audio.md`

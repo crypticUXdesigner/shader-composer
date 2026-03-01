@@ -1,0 +1,69 @@
+---
+description: Strict TypeScript for .ts and Svelte script (no any, explicit returns, errors).
+globs: "**/*.ts,**/*.svelte"
+alwaysApply: false
+---
+
+# TypeScript Standards
+
+This project uses **strict** TypeScript (`strict: true`). Follow these in `.ts` files, in shared Svelte store modules like `.svelte.ts`, and in `<script lang="ts">` blocks.
+
+## Strictness and types
+
+- **No `any`**: Use `unknown` and narrow with type guards or `typeof`/`instanceof` before use.
+- **Minimal `as`**: Prefer narrowing, generics, or better types. If you must assert, add a short comment (e.g. `// known shape from API`).
+- **Explicit return types** on exported functions and public methods (e.g. `export function foo(): Bar`).
+
+```ts
+function handlePayload(payload: unknown) {
+  if (typeof payload === 'object' && payload !== null && 'id' in payload) {
+    console.log((payload as { id: string }).id);
+  }
+}
+```
+
+## Inference vs explicit
+
+- **Infer** for locals, `$derived`, and simple props.
+- **Explicit types** for function parameters and return types of exported/public APIs, and when inference would be `any` or too loose.
+
+## Modern patterns
+
+- **`satisfies`**: When you need to validate shape without widening (e.g. `const config = { ... } satisfies Config`).
+- **Discriminated unions** for state/variants (e.g. `{ kind: 'success'; data } | { kind: 'error'; message }`).
+- **`import type`** for type-only imports.
+
+## Error handling
+
+- **Name caught errors** (e.g. `catch (err)`); log or rethrow. No empty `catch` blocks.
+- **Rethrow with cause**: `new Error('message', { cause: err })`.
+
+```ts
+try {
+  await loadGraph();
+} catch (err) {
+  logger.error('Failed to load graph', { error: err });
+  throw new Error('Unable to load graph', { cause: err });
+}
+```
+
+## Null vs undefined
+
+- **Prefer `undefined`** for optional or absent values in TypeScript types and at API boundaries.
+- **Use `null` only** when required by serialization (e.g. JSON), by a documented contract (e.g. `DeserializationResult.graph: NodeGraph | null` for invalid load), or by an external API.
+- Optional properties: use `prop?: Type` (absent = `undefined`). For "not found" or "no value" returns, use `T | undefined` unless the API contract requires `null`.
+- Use `?.` and `??` where readable. When checking for absent values, `x == null` catches both `null` and `undefined`; use `x === undefined` when you only mean "absent".
+
+## Imports
+
+- Prefer named exports; use `import type { X }` for types.
+
+## Unused code
+
+- Project enables `noUnusedLocals` and `noUnusedParameters`. Prefix unused parameters with `_` (e.g. `_event`) when required by a signature.
+
+For Svelte script blocks, also follow `.cursor/rules/frontend/svelte-standards.mdc`.
+
+## Review and quality bar
+
+For code quality scoring and red flags when reviewing tasks (e.g. no error suppression, type safety), see the `review-project` skill in `.cursor/skills/review-project/SKILL.md`.

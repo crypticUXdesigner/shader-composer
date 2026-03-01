@@ -2,33 +2,17 @@
 @import './scales.css';
 
 /* Import tokens - component-specific tokens that reference scales */
-@import './tokens-dom.css';
-@import './tokens-canvas.css';
+@import './tokens.css';
+@import './tokens-node-editor.css';
 
 /* Import reset and typography */
 @import './reset.css';
 @import './typography.css';
 
-/* Import layout styles */
-@import './layout/top-bar.css';
-@import './layout/bottom-bar.css';
-@import './layout/node-panel.css';
+/* Import component styles (param-cell styles are scoped in ParamCell.svelte) */
+@import './layer.css';
+@import './components/menu.css';
+@import './components/node-categories.css';
+@import './reduced-motion.css';
 
-/* Import design component styles */
-@import './components/icon.css';
-@import './components/button.css';
-@import './components/input.css';
-@import './components/controls-wrapper.css';
-@import './components/tag.css';
-@import './components/message.css';
-@import './components/menu-wrapper.css';
-@import './components/menu-item.css';
-@import './components/menu-header.css';
-@import './components/menu-separator.css';
-@import './components/menu-input.css';
-@import './components/menu-results.css';
-@import './components/menu-no-results.css';
-@import './components/slider.css';
-@import './components/help-popover.css';
-@import './components/color-picker-popover.css';
-@import './components/video-export-dialog.css';
+/* Import layout styles (top-bar, bottom-bar, timeline in 02A–02C) */

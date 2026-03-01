@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 /**
  * Blending Nodes
@@ -11,11 +11,11 @@ export const blendModeNodeSpec: NodeSpec = {
   description: 'Applies blending mode between two values',
   icon: 'blend-mode',
   inputs: [
-    { name: 'base', type: 'float' },
-    { name: 'blend', type: 'float', fallbackParameter: 'blend' }
+    { name: 'base', type: 'float', label: 'Background' },
+    { name: 'blend', type: 'float', fallbackParameter: 'blend', label: 'Blend' }
   ],
   outputs: [
-    { name: 'out', type: 'float' }
+    { name: 'out', type: 'float', label: 'Result' }
   ],
   parameters: {
     mode: {
@@ -41,6 +41,18 @@ export const blendModeNodeSpec: NodeSpec = {
       step: 0.01,
       label: 'Blend'
     }
+  },
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['mode', 'opacity', 'blend'],
+        layout: {
+          columns: 2,
+          parameterSpan: { mode: 2 }
+        }
+      }
+    ]
   },
   functions: `
     float blendMultiply(float base, float blend) {

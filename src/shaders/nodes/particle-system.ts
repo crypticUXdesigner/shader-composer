@@ -1,21 +1,23 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const particleSystemNodeSpec: NodeSpec = {
   id: 'particle-system',
   category: 'Patterns',
   displayName: 'Particle System',
   description: 'Point-based particle effects for texture and detail enhancement',
-  icon: 'particle',
+  icon: 'atom-2',
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'float'
+      type: 'float',
+      label: 'Particles'
     }
   ],
   parameters: {
@@ -88,7 +90,7 @@ export const particleSystemNodeSpec: NodeSpec = {
     {
       id: 'particle-main',
       label: 'Particle System',
-      parameters: ['particleScale', 'particleCellSize', 'particleCount', 'particleSize', 'particleIntensity'],
+      parameters: ['particleScale', 'particleCellSize', 'particleCount', 'particleFalloff', 'particleSize', 'particleIntensity'],
       collapsible: true,
       defaultCollapsed: false
     },
@@ -98,15 +100,23 @@ export const particleSystemNodeSpec: NodeSpec = {
       parameters: ['particleTimeSpeed', 'particleTimeOffset'],
       collapsible: true,
       defaultCollapsed: true
-    },
-    {
-      id: 'particle-advanced',
-      label: 'Advanced',
-      parameters: ['particleFalloff'],
-      collapsible: true,
-      defaultCollapsed: true
     }
   ],
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['particleScale', 'particleCellSize', 'particleCount', 'particleFalloff', 'particleSize', 'particleIntensity'],
+        layout: { columns: 3 }
+      },
+      {
+        type: 'grid',
+        label: 'Animation',
+        parameters: ['particleTimeSpeed', 'particleTimeOffset'],
+        layout: { columns: 3, parameterSpan: { particleTimeOffset: 2 } }
+      }
+    ]
+  },
   functions: `
 // Hash function for particle positions
 float hash(float n) {

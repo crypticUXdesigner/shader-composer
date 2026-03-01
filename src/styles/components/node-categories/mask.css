@@ -1,0 +1,153 @@
+/* =============================================================================
+   MASK
+   ============================================================================= */
+
+:root {
+  /* Violet-gray scale */
+  /* Node body shadow (outermost) */
+  --node-body-shadow-color-mid-mask: var(--color-yellow-90);
+  --node-body-shadow-color-outer-mask: var(--color-yellow-gray-70);
+
+  /* Node header */
+  --node-header-bg-mask: var(--color-violet-gray-gray-50);
+  --node-header-bg-end-mask: var(--color-violet-gray-gray-40);
+  --node-header-print-mask: var(--color-gray-110);
+
+  /* Icon box */
+  --node-icon-box-bg-mask: var(--color-violet-gray-80);
+  --node-icon-box-color-mask: var(--color-violet-gray-40);
+
+  /* Param group header */
+  --param-group-header-color-mask: var(--color-violet-gray-110);
+
+  /* Param grid */
+  --node-param-grid-bg-mask: var(--color-violet-gray-80);
+
+  /* Param cell (same as node body) */
+  --node-param-cell-bg-mask: var(--color-violet-gray-gray-100);
+  --node-param-cell-bg-end-mask: var(--color-violet-gray-gray-90);
+  --node-param-label-color-mask: var(--color-gray-40);
+
+  /* Knob */
+  --node-knob-value-bg-mask: var(--color-violet-gray-40);
+  --node-knob-value-color-mask: var(--color-violet-gray-120);
+  --node-knob-ring-color-mask: var(--color-violet-gray-80);
+  --node-knob-arc-active-mask: var(--color-leaf-120);
+  --node-knob-marker-mask: var(--color-violet-gray-gray-60);
+  --knob-ring-bg-width-mask: 8px;
+  --knob-ring-active-width-mask: 3px;
+  --knob-marker-size-mask: 6px;
+  --knob-marker-radius-offset-mask: -16px;
+  --node-knob-center-bg-mask: var(--color-violet-gray-70);
+  --node-knob-center-border-color-mask: var(--color-violet-gray-gray-80);
+  --knob-center-filter-mask: drop-shadow(0 4px 6px var(--color-leaf-gray-60));
+  --knob-center-size-mask: 52px;
+  --knob-center-border-width-mask: 14px;
+
+  /* Bezier editor */
+  --node-bezier-curve-mask: var(--color-violet-gray-90);
+  --node-bezier-control-mask: var(--color-violet-gray-90);
+  --node-bezier-control-hover-mask: var(--color-violet-gray-100);
+}
+
+.node.mask {
+  /* CSS custom properties */
+  --node-body-shadow-color-mid: var(--node-body-shadow-color-mid-mask);
+  --node-body-shadow-color-outer: var(--node-body-shadow-color-outer-mask);
+  --node-header-name-color: var(--node-header-print-mask);
+  --param-group-header-color: var(--param-group-header-color-mask);
+  --knob-ring-color: var(--node-knob-ring-color-mask);
+  --knob-ring-active-color-static: var(--node-knob-arc-active-mask);
+  --knob-marker-color: var(--node-knob-marker-mask);
+  --knob-value-bg: var(--node-knob-value-bg-mask);
+  --knob-value-color: var(--node-knob-value-color-mask);
+  --param-control-bg: var(--node-knob-value-bg-mask);
+  --param-control-bg-hover: var(--color-violet-gray-50);
+  --param-control-bg-active: var(--color-violet-gray-60);
+  --param-control-value-color: var(--node-knob-value-color-mask);
+  --knob-ring-bg-width: var(--knob-ring-bg-width-mask);
+  --knob-ring-active-width: var(--knob-ring-active-width-mask);
+  --knob-marker-size: var(--knob-marker-size-mask);
+  --knob-marker-radius-offset: var(--knob-marker-radius-offset-mask);
+  --knob-center-size: var(--knob-center-size-mask);
+  --knob-center-bg: var(--node-knob-center-bg-mask);
+  --knob-center-border-width: var(--knob-center-border-width-mask);
+  --knob-center-border-color: var(--node-knob-center-border-color-mask);
+  --knob-center-filter: var(--knob-center-filter-mask);
+
+  /* Node header (outermost) */
+  background: radial-gradient(
+    ellipse var(--node-header-bg-gradient-ellipse-width) var(--node-header-bg-gradient-ellipse-height) at var(--node-header-bg-gradient-ellipse-x) var(--node-header-bg-gradient-ellipse-y),
+    var(--node-header-bg-mask),
+    var(--node-header-bg-end-mask)
+  );
+
+  /* Node body */
+  .node-body {
+    background: radial-gradient(
+      ellipse 120% 160% at 50% 25%, 
+      var(--color-violet-gray-gray-100), 
+      var(--color-violet-gray-gray-70));
+  }
+
+  /* Icon box */
+  .icon-box {
+    background: var(--node-icon-box-bg-mask);
+
+    .header-icon {
+      color: var(--node-icon-box-color-mask);
+    }
+  }
+
+  /* Node header */
+  .node-header {
+    .label-text,
+    .label-input,
+    .port .name-label {
+      color: var(--node-header-print-mask);
+    }
+  }
+
+  /* Param grid: same setup as shapes (padding + gap on grid, overflow hidden) with 1px gap/padding */
+  .param-grid {
+    background: var(--node-param-grid-bg-mask);
+    padding: 0;
+    gap: 2px !important;
+    overflow: hidden;
+    border-radius: var(--radius-xl);
+    border: 2px solid var(--node-param-grid-bg-mask);
+    box-shadow: 0 4px 18px -3px var(--color-red-gray-80);
+
+  }
+
+  /* Param cell */
+  .param-cell {
+    background: radial-gradient(ellipse 120% 200% at 50% 25%, var(--node-param-cell-bg-mask), var(--node-param-cell-bg-end-mask));
+    border-radius: 0;
+
+    &.connected {
+      background: var(--color-violet-gray-gray-110);
+      border-color: transparent;
+    } 
+
+    .left-column .top .label {
+      color: var(--node-param-label-color-mask);
+    }
+  }
+
+  /* Bezier editor */
+  .bezier-editor {
+    .curve {
+      stroke: var(--node-bezier-curve-mask);
+    }
+
+    .control-point {
+      background: var(--node-bezier-control-mask);
+
+      &:hover {
+        background: var(--node-bezier-control-hover-mask);
+      }
+    }
+  }
+}
+

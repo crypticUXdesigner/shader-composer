@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const blurNodeSpec: NodeSpec = {
   id: 'blur',
@@ -9,13 +9,15 @@ export const blurNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec4'
+      type: 'vec4',
+      label: 'Color'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec4'
+      type: 'vec4',
+      label: 'Color'
     }
   ],
   parameters: {
@@ -91,6 +93,16 @@ export const blurNodeSpec: NodeSpec = {
       defaultCollapsed: true
     }
   ],
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['blurAmount', 'blurRadius', 'blurType', 'blurDirection', 'blurCenterX', 'blurCenterY'],
+        parameterUI: { blurCenterX: 'coords', blurCenterY: 'coords' },
+        layout: { columns: 3, coordsSpan: 2 }
+      }
+    ]
+  },
   functions: `
 // Simple softening effect (approximation since we can't sample neighbors easily)
 float soften(float value, float amount) {

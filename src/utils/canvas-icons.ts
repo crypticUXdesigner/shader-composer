@@ -1,166 +1,188 @@
 /**
  * Canvas Icon Renderer
- * 
+ *
  * Provides efficient SVG-to-canvas rendering with caching.
- * Uses Tabler Icons exclusively - all icons come from the Tabler library.
- * 
+ * Uses Phosphor Icons exclusively. Path data from public/phosphor-nodes-*.json
+ * (see scripts/build-phosphor-icons.ts). https://phosphoricons.com
+ *
  * CENTRALIZED ICON DEFINITION SYSTEM:
- * - All icons are defined once here with their Tabler icon name AND variant (line/filled)
- * - This ensures consistent icon styling across DOM UI and Canvas UI
- * - To change an icon, update both the Tabler icon name and variant here
- * 
- * Browse available icons at: https://tabler.io/icons
+ * - All icons are defined once here with phosphorIconName + variant (line/filled)
+ * - line → Phosphor "regular" weight; filled → Phosphor "fill" weight
+ * - Phosphor path data is 256×256; we scale to 24×24 at render time.
  */
 
-import { getTablerNodesOutline, getTablerNodesFilled } from './tabler-icons-loader';
+import { getPhosphorNodesOutline, getPhosphorNodesFilled } from './phosphor-icons-loader';
 
 /**
- * Icon definition: Tabler icon name + variant (line or filled)
+ * Icon definition: Phosphor icon name (kebab-case, as in JSON keys) + variant
  */
 export interface IconDefinition {
-  tablerIconName: string;
+  phosphorIconName: string;
   variant: 'line' | 'filled';
 }
 
 /**
- * Centralized icon registry
- * 
- * Defines ALL icons used in the application with:
- * - tablerIconName: The Tabler icon name to use
- * - variant: 'line' (default) or 'filled' - the style variant to use
- * 
- * This is the SINGLE SOURCE OF TRUTH for icon definitions.
- * Both DOM UI and Canvas UI use this registry.
+ * Centralized icon registry. Single source of truth for DOM and canvas.
+ * phosphorIconName must match a key in phosphor-nodes-regular.json or phosphor-nodes-fill.json.
  */
 export const iconRegistry: Record<string, IconDefinition> = {
   // Basic shapes
-  'circle': { tablerIconName: 'circle', variant: 'filled' },
-  'circle-dotted': { tablerIconName: 'circle-dotted', variant: 'line' },
-  'square': { tablerIconName: 'square', variant: 'line' },
-  'star': { tablerIconName: 'star', variant: 'line' },
-  'square-rounded-corners': { tablerIconName: 'square-rounded-corners', variant: 'line' },
-  'hexagon': { tablerIconName: 'hexagon', variant: 'line' },
-  'sphere': { tablerIconName: 'sphere', variant: 'line' },
-  'cube': { tablerIconName: 'cube', variant: 'filled' },
-  'box': { tablerIconName: 'box', variant: 'line' },
-  'cylinder': { tablerIconName: 'cylinder', variant: 'line' },
-  'ring': { tablerIconName: 'ripple', variant: 'line' },
-  'infinity': { tablerIconName: 'infinity', variant: 'line' },
-  'sparkles-2': { tablerIconName: 'sparkles', variant: 'line' },
-  
+  'circle': { phosphorIconName: 'circle', variant: 'filled' },
+  'circle-dotted': { phosphorIconName: 'circle-dashed', variant: 'line' },
+  'square': { phosphorIconName: 'square', variant: 'line' },
+  'star': { phosphorIconName: 'star', variant: 'line' },
+  'square-rounded-corners': { phosphorIconName: 'square', variant: 'line' },
+  'rectangle': { phosphorIconName: 'rectangle', variant: 'line' },
+  'hexagon': { phosphorIconName: 'hexagon', variant: 'line' },
+  'sphere': { phosphorIconName: 'circle', variant: 'line' },
+  'cube': { phosphorIconName: 'cube', variant: 'filled' },
+  'cube-transparent': { phosphorIconName: 'cube-transparent', variant: 'line' },
+  'box': { phosphorIconName: 'cube', variant: 'line' },
+  'cylinder': { phosphorIconName: 'cylinder', variant: 'line' },
+  'ring': { phosphorIconName: 'circle', variant: 'line' },
+  'rings': { phosphorIconName: 'circle', variant: 'line' },
+  'infinity': { phosphorIconName: 'infinity', variant: 'line' },
+  'sparkles-2': { phosphorIconName: 'sparkles', variant: 'line' },
+  'circle-dashed': { phosphorIconName: 'circle-dashed', variant: 'line' },
+  'car': { phosphorIconName: 'headlights', variant: 'line' },
+  'droplets': { phosphorIconName: 'drop', variant: 'line' },
+
   // Patterns & grids
-  'grid': { tablerIconName: 'grid-4x4', variant: 'line' },
-  'dither': { tablerIconName: 'grid-pattern', variant: 'filled' },
-  'grain': { tablerIconName: 'grain', variant: 'line' },
-  'noise': { tablerIconName: 'grain', variant: 'line' },
-  'particle': { tablerIconName: 'grain', variant: 'line' },
-  'kaleidoscope': { tablerIconName: 'shapes', variant: 'line' },
-  
+  'grid': { phosphorIconName: 'grid-four', variant: 'line' },
+  'grid-nine': { phosphorIconName: 'grid-nine', variant: 'line' },
+  'dither': { phosphorIconName: 'checkerboard', variant: 'line' },
+  'grain': { phosphorIconName: 'dots-three', variant: 'line' },
+  'noise': { phosphorIconName: 'dots-three', variant: 'line' },
+  'particle': { phosphorIconName: 'dots-three', variant: 'line' },
+  'cell': { phosphorIconName: 'squares-four', variant: 'line' },
+  'curly-loop': { phosphorIconName: 'infinity', variant: 'line' },
+  'hexagons': { phosphorIconName: 'hexagon', variant: 'line' },
+  'dots': { phosphorIconName: 'dot', variant: 'line' },
+  'dots-nine': { phosphorIconName: 'dots-nine', variant: 'line' },
+  'spray': { phosphorIconName: 'dots-three', variant: 'line' },
+  'atom-2': { phosphorIconName: 'atom', variant: 'line' },
+  'topology-star-ring': { phosphorIconName: 'star', variant: 'line' },
+  'sunrise': { phosphorIconName: 'sun', variant: 'line' },
+  'triangles': { phosphorIconName: 'caret-up', variant: 'line' },
+  'streak': { phosphorIconName: 'arrow-down-right', variant: 'line' },
+  'shape-2': { phosphorIconName: 'shapes', variant: 'line' },
+  'shapes-filled': { phosphorIconName: 'shapes', variant: 'filled' },
+  'layout-board': { phosphorIconName: 'squares-four', variant: 'line' },
+  'kaleidoscope': { phosphorIconName: 'shapes', variant: 'line' },
+  'compass-rose': { phosphorIconName: 'compass-rose', variant: 'line' },
+
   // Audio & waveforms
-  'audio-waveform': { tablerIconName: 'wave-sine', variant: 'line' },
-  'wave': { tablerIconName: 'ripple', variant: 'line' },
-  'ripple': { tablerIconName: 'ripple', variant: 'line' },
-  'trig-wave': { tablerIconName: 'wave-sine', variant: 'line' },
-  
+  'audio-waveform': { phosphorIconName: 'wave-sine', variant: 'line' },
+  'wave': { phosphorIconName: 'wave-sine', variant: 'line' },
+  'waves': { phosphorIconName: 'waves', variant: 'line' },
+  'ripple': { phosphorIconName: 'wave-sine', variant: 'line' },
+  'trig-wave': { phosphorIconName: 'wave-sine', variant: 'line' },
+
   // Math & operations
-  'calculator': { tablerIconName: 'calculator', variant: 'line' },
-  'plus': { tablerIconName: 'hexagon-plus', variant: 'filled' },
-  'minus': { tablerIconName: 'hexagon-minus', variant: 'filled' },
-  'multiply-x': { tablerIconName: 'hexagon-asterisk', variant: 'filled' },
-  'divide': { tablerIconName: 'divide', variant: 'line' },
-  'power': { tablerIconName: 'bolt', variant: 'line' },
-  'sqrt': { tablerIconName: 'math-function', variant: 'line' },
-  'constant': { tablerIconName: 'hash', variant: 'line' },
-  'hash': { tablerIconName: 'hash', variant: 'line' },
-  'percentage': { tablerIconName: 'percentage', variant: 'line' },
-  'math-min': { tablerIconName: 'math-min', variant: 'line' },
-  'math-max': { tablerIconName: 'math-max', variant: 'line' },
-  'math-max-min': { tablerIconName: 'math-max-min', variant: 'line' },
-  'math-cos': { tablerIconName: 'math-cos', variant: 'line' },
-  'math-tg': { tablerIconName: 'math-tg', variant: 'line' },
-  'math-function-y': { tablerIconName: 'math-function-y', variant: 'line' },
-  'math-symbols': { tablerIconName: 'math-symbols', variant: 'line' },
-  'math-xy': { tablerIconName: 'math-xy', variant: 'line' },
-  'math-function': { tablerIconName: 'math-function', variant: 'line' },
-  'wave-sine': { tablerIconName: 'wave-sine', variant: 'line' },
-  
+  'calculator': { phosphorIconName: 'calculator', variant: 'line' },
+  'plus': { phosphorIconName: 'plus', variant: 'filled' },
+  'minus': { phosphorIconName: 'minus', variant: 'filled' },
+  'multiply-x': { phosphorIconName: 'asterisk', variant: 'filled' },
+  'divide': { phosphorIconName: 'divide', variant: 'line' },
+  'power': { phosphorIconName: 'caret-up', variant: 'line' },
+  'sqrt': { phosphorIconName: 'function', variant: 'line' },
+  'constant': { phosphorIconName: 'hash', variant: 'line' },
+  'hash': { phosphorIconName: 'hash', variant: 'line' },
+  'hash-straight': { phosphorIconName: 'hash-straight', variant: 'line' },
+  'percentage': { phosphorIconName: 'percent', variant: 'line' },
+  'math-min': { phosphorIconName: 'caret-down', variant: 'line' },
+  'math-max': { phosphorIconName: 'caret-up', variant: 'line' },
+  'math-max-min': { phosphorIconName: 'arrows-vertical', variant: 'line' },
+  'math-cos': { phosphorIconName: 'wave-sine', variant: 'line' },
+  'math-tg': { phosphorIconName: 'wave-sine', variant: 'line' },
+  'math-function-y': { phosphorIconName: 'function', variant: 'line' },
+  'math-symbols': { phosphorIconName: 'plus-minus', variant: 'line' },
+  'math-xy': { phosphorIconName: 'grid-four', variant: 'line' },
+  'math-function': { phosphorIconName: 'function', variant: 'line' },
+  'wave-sine': { phosphorIconName: 'wave-sine', variant: 'line' },
+
   // Vectors & geometry
-  'arrow-right': { tablerIconName: 'arrow-right', variant: 'line' },
-  'arrow-down': { tablerIconName: 'arrow-down', variant: 'line' },
-  'arrow-up': { tablerIconName: 'arrow-up', variant: 'line' },
-  'arrows-left-right': { tablerIconName: 'arrows-left-right', variant: 'line' },
-  'arrows-right-left': { tablerIconName: 'arrows-right-left', variant: 'line' },
-  'vector-dot': { tablerIconName: 'circle-dot', variant: 'filled' },
-  'vector-cross': { tablerIconName: 'navigation', variant: 'line' },
-  'normalize': { tablerIconName: 'arrows-up-down', variant: 'line' },
-  'reflect': { tablerIconName: 'arrow-bounce-right', variant: 'line' },
-  'refract': { tablerIconName: 'lens', variant: 'line' },
-  'bezier': { tablerIconName: 'curve', variant: 'line' },
-  'normal-map': { tablerIconName: 'background', variant: 'line' },
-  
+  'arrow-right': { phosphorIconName: 'arrow-right', variant: 'line' },
+  'arrow-down': { phosphorIconName: 'arrow-down', variant: 'line' },
+  'arrow-up': { phosphorIconName: 'arrow-up', variant: 'line' },
+  'arrows-left-right': { phosphorIconName: 'arrows-left-right', variant: 'line' },
+  'arrows-right-left': { phosphorIconName: 'arrows-left-right', variant: 'line' },
+  'vector-dot': { phosphorIconName: 'dot', variant: 'filled' },
+  'vector-cross': { phosphorIconName: 'x', variant: 'line' },
+  'vector-two': { phosphorIconName: 'vector-two', variant: 'line' },
+  'vector-three': { phosphorIconName: 'vector-three', variant: 'line' },
+  'normalize': { phosphorIconName: 'arrows-vertical', variant: 'line' },
+  'reflect': { phosphorIconName: 'arrows-left-right', variant: 'line' },
+  'refract': { phosphorIconName: 'circle-half', variant: 'line' },
+  'bezier': { phosphorIconName: 'bezier-curve', variant: 'line' },
+  'normal-map': { phosphorIconName: 'circle-half', variant: 'line' },
+
   // Transform & movement
-  'move': { tablerIconName: 'arrows-move', variant: 'line' },
-  'rotate': { tablerIconName: 'rotate-clockwise', variant: 'line' },
-  'resize': { tablerIconName: 'maximize', variant: 'line' },
-  'twist': { tablerIconName: 'gauge', variant: 'line' },
-  'arrow-move-right': { tablerIconName: 'arrow-move-right', variant: 'line' },
-  'arrow-autofit-height': { tablerIconName: 'arrow-autofit-height', variant: 'line' },
-  'arrow-up-right': { tablerIconName: 'arrow-up-right', variant: 'line' },
-  'arrow-big-right': { tablerIconName: 'arrow-big-right', variant: 'line' },
-  'flip-horizontal': { tablerIconName: 'flip-horizontal', variant: 'line' },
-  'zoom-in': { tablerIconName: 'zoom-in', variant: 'line' },
-  'spiral': { tablerIconName: 'spiral', variant: 'line' },
-  'ikosaedr': { tablerIconName: 'ikosaedr', variant: 'line' },
-  
+  'move': { phosphorIconName: 'arrows-out', variant: 'line' },
+  'rotate': { phosphorIconName: 'arrow-clockwise', variant: 'line' },
+  'resize': { phosphorIconName: 'arrows-out-simple', variant: 'line' },
+  'twist': { phosphorIconName: 'arrow-clockwise', variant: 'line' },
+  'arrow-move-right': { phosphorIconName: 'arrow-right', variant: 'line' },
+  'arrow-autofit-height': { phosphorIconName: 'arrows-vertical', variant: 'line' },
+  'arrow-up-right': { phosphorIconName: 'arrow-up-right', variant: 'line' },
+  'arrow-big-right': { phosphorIconName: 'arrow-fat-right', variant: 'line' },
+  'flip-horizontal': { phosphorIconName: 'arrows-left-right', variant: 'line' },
+  'zoom-in': { phosphorIconName: 'magnifying-glass-plus', variant: 'line' },
+  'spiral': { phosphorIconName: 'spiral', variant: 'line' },
+  'ikosaedr': { phosphorIconName: 'cube', variant: 'line' },
+
   // Effects & filters
-  'blur-circle': { tablerIconName: 'blur', variant: 'line' },
-  'glow': { tablerIconName: 'sun', variant: 'filled' },
-  'scanline': { tablerIconName: 'scan', variant: 'line' },
-  'rgb-split': { tablerIconName: 'color-swatch', variant: 'line' },
-  'glitch-block': { tablerIconName: 'layout-grid', variant: 'filled' },
-  'adjustments': { tablerIconName: 'adjustments', variant: 'line' },
-  'focus': { tablerIconName: 'focus', variant: 'line' },
-  'glitch': { tablerIconName: 'bolt', variant: 'line' },
-  'displacement': { tablerIconName: 'arrows-move', variant: 'line' },
-  'brightness': { tablerIconName: 'brightness', variant: 'line' },
-  
+  'blur-circle': { phosphorIconName: 'circle-half', variant: 'line' },
+  'glow': { phosphorIconName: 'sun', variant: 'filled' },
+  'scanline': { phosphorIconName: 'scan', variant: 'line' },
+  'rgb-split': { phosphorIconName: 'arrows-out', variant: 'line' },
+  'glitch-block': { phosphorIconName: 'grid-four', variant: 'filled' },
+  'adjustments': { phosphorIconName: 'sliders', variant: 'line' },
+  'focus': { phosphorIconName: 'crosshair', variant: 'line' },
+  'glitch': { phosphorIconName: 'lightning', variant: 'line' },
+  'displacement': { phosphorIconName: 'arrows-out', variant: 'line' },
+  'brightness': { phosphorIconName: 'sun', variant: 'line' },
+  'fish-simple': { phosphorIconName: 'fish-simple', variant: 'line' },
+  'perspective': { phosphorIconName: 'perspective', variant: 'line' },
+
   // Color & gradients
-  'color-palette': { tablerIconName: 'palette', variant: 'line' },
-  'color-wheel': { tablerIconName: 'color-picker', variant: 'filled' },
-  'color-picker': { tablerIconName: 'color-picker', variant: 'line' },
-  'color-swatch': { tablerIconName: 'color-swatch', variant: 'line' },
-  'gradient': { tablerIconName: 'filter', variant: 'line' },
-  'ease-in-out-control-points': { tablerIconName: 'ease-in-out-control-points', variant: 'line' },
-  
-  // Coordinates - LINE style to match canvas
-  'chart-scatter': { tablerIconName: 'chart-scatter', variant: 'line' },
-  'chart-scatter-3d': { tablerIconName: 'chart-scatter-3d', variant: 'line' },
-  
+  'color-palette': { phosphorIconName: 'palette', variant: 'line' },
+  'color-wheel': { phosphorIconName: 'circle-half', variant: 'filled' },
+  'color-picker': { phosphorIconName: 'eyedropper', variant: 'line' },
+  'color-swatch': { phosphorIconName: 'palette', variant: 'line' },
+  'gradient': { phosphorIconName: 'gradient', variant: 'line' },
+  'ease-in-out-control-points': { phosphorIconName: 'chart-line', variant: 'line' },
+
+  // Coordinates
+  'chart-scatter': { phosphorIconName: 'chart-scatter', variant: 'line' },
+  'chart-scatter-3d': { phosphorIconName: 'chart-scatter', variant: 'line' },
+
   // Special icons
-  'brand-planetscale': { tablerIconName: 'brand-planetscale', variant: 'filled' },
-  'screen-share': { tablerIconName: 'screen-share', variant: 'line' },
-  'contrast-2': { tablerIconName: 'contrast-2', variant: 'line' },
-  
+  'brand-planetscale': { phosphorIconName: 'database', variant: 'filled' },
+  'screen-share': { phosphorIconName: 'share', variant: 'line' },
+  'contrast-2': { phosphorIconName: 'circle-half', variant: 'line' },
+
   // UI & controls
-  'settings': { tablerIconName: 'settings', variant: 'line' },
-  'settings-2': { tablerIconName: 'settings-2', variant: 'line' },
-  'monitor': { tablerIconName: 'device-desktop', variant: 'line' },
-  'time-clock': { tablerIconName: 'clock', variant: 'line' },
-  'layers': { tablerIconName: 'layers', variant: 'line' },
-  'layers-selected': { tablerIconName: 'layers-selected', variant: 'line' },
-  'layers-union': { tablerIconName: 'layers-union', variant: 'line' },
-  'layers-difference': { tablerIconName: 'layers-difference', variant: 'line' },
-  'blend-mode': { tablerIconName: 'blend-mode', variant: 'line' },
-  'sparkles': { tablerIconName: 'sparkles', variant: 'filled' },
-  'light': { tablerIconName: 'bulb', variant: 'filled' },
-  'ruler': { tablerIconName: 'ruler', variant: 'line' },
-  'tone-curve': { tablerIconName: 'chart-line', variant: 'line' },
-  'select': { tablerIconName: 'toggle-left', variant: 'line' },
-  'compare': { tablerIconName: 'arrows-left-right', variant: 'line' },
-  'mask': { tablerIconName: 'mask', variant: 'line' },
-  
+  'settings': { phosphorIconName: 'gear', variant: 'line' },
+  'settings-2': { phosphorIconName: 'gear', variant: 'line' },
+  'monitor': { phosphorIconName: 'desktop', variant: 'line' },
+  'video': { phosphorIconName: 'video', variant: 'line' },
+  'time-clock': { phosphorIconName: 'clock', variant: 'line' },
+  'layers': { phosphorIconName: 'stack', variant: 'line' },
+  'layers-selected': { phosphorIconName: 'stack', variant: 'line' },
+  'layers-union': { phosphorIconName: 'stack', variant: 'line' },
+  'layers-difference': { phosphorIconName: 'stack-minus', variant: 'line' },
+  'blend-mode': { phosphorIconName: 'circles-four', variant: 'line' },
+  'sparkles': { phosphorIconName: 'sparkle', variant: 'filled' },
+  'light': { phosphorIconName: 'lightbulb', variant: 'filled' },
+  'ruler': { phosphorIconName: 'ruler', variant: 'line' },
+  'tone-curve': { phosphorIconName: 'chart-line', variant: 'line' },
+  'select': { phosphorIconName: 'selection', variant: 'line' },
+  'compare': { phosphorIconName: 'columns', variant: 'line' },
+  'mask': { phosphorIconName: 'frame-corners', variant: 'line' },
+
   // Utility operations
-  'transfer-out': { tablerIconName: 'transfer-out', variant: 'line' },
+  'transfer-out': { phosphorIconName: 'arrow-square-out', variant: 'line' },
 };
 
 
@@ -171,54 +193,47 @@ export const iconRegistry: Record<string, IconDefinition> = {
 const iconCache = new Map<string, HTMLCanvasElement>();
 
 /**
- * Cache for Tabler icon path data
- * Key: icon name
+ * Cache for Phosphor icon path data. Key: `${registryKey}-${variant}`
  */
 const pathDataCache = new Map<string, string[]>();
 
 /**
- * Extracts path data from Tabler icon nodes
+ * Extracts path data from Phosphor icon nodes: [["path", {d}], ...].
  */
-function getTablerIconPathData(tablerIconName: string, variant: 'line' | 'filled'): string[] {
+function getPhosphorIconPathData(phosphorIconName: string, variant: 'line' | 'filled'): string[] {
   try {
-    const tablerNodes = variant === 'filled' ? getTablerNodesFilled() : getTablerNodesOutline();
-    const iconData = tablerNodes[tablerIconName];
+    const nodes = variant === 'filled' ? getPhosphorNodesFilled() : getPhosphorNodesOutline();
+    const iconData = nodes[phosphorIconName];
     if (!iconData || !Array.isArray(iconData)) {
       return [];
     }
-    
-    // Extract path data from the node format: [["path", {d: "..."}], ...]
     return iconData
-      .filter((node: any) => Array.isArray(node) && node[0] === 'path' && node[1]?.d)
-      .map((node: any) => node[1].d);
-  } catch (e) {
+      .filter((node: unknown): node is ['path', { d: string }] =>
+        Array.isArray(node) && node[0] === 'path' && typeof (node[1] as { d?: string })?.d === 'string')
+      .map((node) => node[1].d);
+  } catch {
     return [];
   }
 }
 
-/**
- * Gets cached path data for a Tabler icon
- */
-function getCachedPathData(iconName: string, tablerIconName: string, variant: 'line' | 'filled'): string[] {
+function getCachedPathData(iconName: string, phosphorIconName: string, variant: 'line' | 'filled'): string[] {
   const cacheKey = `${iconName}-${variant}`;
-  if (pathDataCache.has(cacheKey)) {
-    return pathDataCache.get(cacheKey)!;
-  }
-  
-  const pathData = getTablerIconPathData(tablerIconName, variant);
-  if (pathData.length > 0) {
-    pathDataCache.set(cacheKey, pathData);
-  }
+  const cached = pathDataCache.get(cacheKey);
+  if (cached) return cached;
+  const pathData = getPhosphorIconPathData(phosphorIconName, variant);
+  if (pathData.length > 0) pathDataCache.set(cacheKey, pathData);
   return pathData;
 }
 
+/** Phosphor path data is 256×256; we scale to size with origin at center. */
+const PHOSPHOR_VIEW_SIZE = 256;
+
 /**
- * Renders a Tabler icon on canvas using path data (synchronous)
- * If path data is not available, renders a simple placeholder
+ * Renders a Phosphor icon on canvas using path data (synchronous).
  */
-function renderTablerIconOnCanvas(
+function renderPhosphorIconOnCanvas(
   ctx: CanvasRenderingContext2D,
-  tablerIconName: string,
+  phosphorIconName: string,
   iconName: string,
   x: number,
   y: number,
@@ -227,10 +242,9 @@ function renderTablerIconOnCanvas(
   variant: 'line' | 'filled',
   strokeWidth: number = 2
 ): void {
-  const pathData = getCachedPathData(iconName, tablerIconName, variant);
-  
+  const pathData = getCachedPathData(iconName, phosphorIconName, variant);
+
   if (pathData.length === 0) {
-    // If no path data available, draw a simple placeholder circle
     ctx.save();
     ctx.translate(x, y);
     if (variant === 'filled') {
@@ -248,29 +262,21 @@ function renderTablerIconOnCanvas(
     ctx.restore();
     return;
   }
-  
-  // Render using path data directly (more efficient)
+
   ctx.save();
   ctx.translate(x, y);
-  const scale = size / 24; // Tabler icons are 24x24
+  const scale = size / PHOSPHOR_VIEW_SIZE;
   ctx.scale(scale, scale);
-  ctx.translate(-12, -12);
-  
-  ctx.strokeStyle = color;
+  ctx.translate(-PHOSPHOR_VIEW_SIZE / 2, -PHOSPHOR_VIEW_SIZE / 2);
+
+  // Phosphor path data is authored as filled shapes (fill="currentColor") in both
+  // regular and fill weights; we always fill, never stroke, for correct appearance.
   ctx.fillStyle = color;
-  ctx.lineWidth = strokeWidth / scale; // Adjust line width for scale
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  
-  pathData.forEach((pathString) => {
+  for (const pathString of pathData) {
     const path = new Path2D(pathString);
-    if (variant === 'filled') {
-      ctx.fill(path);
-    } else {
-      ctx.stroke(path);
-    }
-  });
-  
+    ctx.fill(path);
+  }
+
   ctx.restore();
 }
 
@@ -300,8 +306,7 @@ function getCachedIcon(
   const iconDef = iconRegistry[iconName];
   
   if (iconDef) {
-    // Render Tabler icon with correct variant
-    renderTablerIconOnCanvas(ctx, iconDef.tablerIconName, iconName, size / 2, size / 2, size, color, iconDef.variant, strokeWidth);
+    renderPhosphorIconOnCanvas(ctx, iconDef.phosphorIconName, iconName, size / 2, size / 2, size, color, iconDef.variant, strokeWidth);
   } else {
     // Fallback: draw placeholder
     if (variant === 'filled') {
@@ -323,9 +328,8 @@ function getCachedIcon(
 }
 
 /**
- * Renders an icon on canvas using cached icons (synchronous)
- * This is the main entry point for rendering icons
- * Uses the centralized icon registry to get both Tabler icon name and variant
+ * Renders an icon on canvas using cached icons (synchronous).
+ * Uses the centralized icon registry (phosphorIconName + variant).
  */
 export function renderIconOnCanvas(
   ctx: CanvasRenderingContext2D,
@@ -385,24 +389,15 @@ export function clearIconCache(): void {
 }
 
 /**
- * Gets the Tabler icon name for a given icon name (if available)
- * @deprecated Use getIconDefinition instead
- */
-export function getTablerIcon(iconName: string): string | null {
-  const def = iconRegistry[iconName];
-  return def ? def.tablerIconName : null;
-}
-
-/**
- * Gets the complete icon definition (Tabler icon name + variant) for a given icon name
+ * Gets the complete icon definition (phosphorIconName + variant) for a given icon name.
  */
 export function getIconDefinition(iconName: string): IconDefinition | null {
-  return iconRegistry[iconName] || null;
+  return iconRegistry[iconName] ?? null;
 }
 
 /**
- * Checks if an icon has a Tabler equivalent
+ * Checks if an icon is in the registry (API preserved for callers).
  */
-export function hasTablerIcon(iconName: string): boolean {
+export function hasIcon(iconName: string): boolean {
   return iconName in iconRegistry;
 }

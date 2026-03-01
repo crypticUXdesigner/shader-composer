@@ -19,6 +19,7 @@ export class BezierControlDragHandler implements InteractionHandler {
   private isDraggingBezierControl: boolean = false;
   private draggingBezierNodeId: string | null = null;
   private draggingBezierControlIndex: number | null = null;
+  private draggingParamNames: [string, string, string, string] | null = null; // [x1, y1, x2, y2]
   private dragBezierStartValues: { x1: number; y1: number; x2: number; y2: number } | null = null;
   
   // Phase 3.4: Throttle parameter updates for smooth performance
@@ -54,7 +55,10 @@ export class BezierControlDragHandler implements InteractionHandler {
   }
   
   onStart(event: InteractionEvent): void {
-    const bezierHit = this.context.hitTestBezierControlPoint?.(event.screenPosition.x, event.screenPosition.y);
+    const raw = event.target ?? this.context.hitTestBezierControlPoint?.(event.screenPosition.x, event.screenPosition.y);
+    const bezierHit = raw && typeof raw === 'object' && 'paramNames' in raw
+      ? raw as { nodeId: string; paramNames: [string, string, string, string]; controlIndex: number }
+      : null;
     if (!bezierHit) return;
     
     const graph = this.context.getGraph();
@@ -64,15 +68,17 @@ export class BezierControlDragHandler implements InteractionHandler {
     
     if (!node || !spec) return;
     
+    const [x1Name, y1Name, x2Name, y2Name] = bezierHit.paramNames;
+    
     this.isDraggingBezierControl = true;
     this.draggingBezierNodeId = bezierHit.nodeId;
     this.draggingBezierControlIndex = bezierHit.controlIndex;
+    this.draggingParamNames = bezierHit.paramNames;
     
-    // Store initial parameter values
-    const x1 = (node.parameters.x1 ?? spec.parameters.x1?.default ?? 0) as number;
-    const y1 = (node.parameters.y1 ?? spec.parameters.y1?.default ?? 0) as number;
-    const x2 = (node.parameters.x2 ?? spec.parameters.x2?.default ?? 1) as number;
-    const y2 = (node.parameters.y2 ?? spec.parameters.y2?.default ?? 1) as number;
+    const x1 = (node.parameters[x1Name] ?? spec.parameters[x1Name]?.default ?? 0) as number;
+    const y1 = (node.parameters[y1Name] ?? spec.parameters[y1Name]?.default ?? 0) as number;
+    const x2 = (node.parameters[x2Name] ?? spec.parameters[x2Name]?.default ?? 1) as number;
+    const y2 = (node.parameters[y2Name] ?? spec.parameters[y2Name]?.default ?? 1) as number;
     this.dragBezierStartValues = { x1, y1, x2, y2 };
     
     this.context.setCursor('move');
@@ -86,6 +92,9 @@ export class BezierControlDragHandler implements InteractionHandler {
       return;
     }
     
+    const paramNames = this.draggingParamNames;
+    if (!paramNames) return;
+
     const graph = this.context.getGraph();
     const node = graph.nodes.find(n => n.id === this.draggingBezierNodeId);
     const nodeSpecs = this.context.getNodeSpecs();
@@ -94,60 +103,40 @@ export class BezierControlDragHandler implements InteractionHandler {
     
     if (!node || !spec || !metrics) return;
     
-    // Get bezier editor position
-    const x1Pos = metrics.parameterGridPositions.get('x1');
+    const [x1Name, y1Name, x2Name, y2Name] = paramNames;
+    const x1Pos = metrics.parameterGridPositions.get(x1Name);
     if (!x1Pos) return;
     
-    const bezierEditorX = x1Pos.cellX;
-    const bezierEditorY = x1Pos.cellY;
-    const bezierEditorWidth = x1Pos.cellWidth;
-    const bezierEditorHeight = x1Pos.cellHeight;
     const bezierEditorPadding = getCSSVariableAsNumber('bezier-editor-padding', 12);
+    const drawX = x1Pos.cellX + bezierEditorPadding;
+    const drawY = x1Pos.cellY + bezierEditorPadding;
+    const drawWidth = x1Pos.cellWidth - bezierEditorPadding * 2;
+    const drawHeight = x1Pos.cellHeight - bezierEditorPadding * 2;
     
-    // Calculate drawing area
-    const drawX = bezierEditorX + bezierEditorPadding;
-    const drawY = bezierEditorY + bezierEditorPadding;
-    const drawWidth = bezierEditorWidth - bezierEditorPadding * 2;
-    const drawHeight = bezierEditorHeight - bezierEditorPadding * 2;
-    
-    // Convert mouse position to canvas coordinates
     const canvasPos = this.context.screenToCanvas(event.screenPosition.x, event.screenPosition.y);
-    
-    // Calculate new control point position (clamped to editor bounds)
     let newX = (canvasPos.x - drawX) / drawWidth;
-    let newY = 1 - (canvasPos.y - drawY) / drawHeight; // Flip Y for parameter space
-    
-    // Clamp to [0, 1]
+    let newY = 1 - (canvasPos.y - drawY) / drawHeight;
     newX = Math.max(0, Math.min(1, newX));
     newY = Math.max(0, Math.min(1, newY));
     
-    // Update the appropriate parameters based on control index
     if (this.draggingBezierControlIndex === 0) {
-      // Control point 1 (x1, y1)
-      node.parameters.x1 = newX;
-      node.parameters.y1 = newY;
-      
-      // Throttle callback and render requests (Phase 3.4)
-      // Throttle parameter updates
-      this.bezierThrottler.schedule(`${this.draggingBezierNodeId}:x1`, newX, () => {
-        this.context.onParameterChanged?.(this.draggingBezierNodeId!, 'x1', newX);
+      node.parameters[x1Name] = newX;
+      node.parameters[y1Name] = newY;
+      this.bezierThrottler.schedule(`${this.draggingBezierNodeId!}:${x1Name}`, newX, () => {
+        this.context.onParameterChanged?.(this.draggingBezierNodeId!, x1Name, newX);
       });
-      this.bezierThrottler.schedule(`${this.draggingBezierNodeId}:y1`, newY, () => {
-        this.context.onParameterChanged?.(this.draggingBezierNodeId!, 'y1', newY);
+      this.bezierThrottler.schedule(`${this.draggingBezierNodeId!}:${y1Name}`, newY, () => {
+        this.context.onParameterChanged?.(this.draggingBezierNodeId!, y1Name, newY);
       });
       this.context.requestRender();
     } else if (this.draggingBezierControlIndex === 1) {
-      // Control point 2 (x2, y2)
-      node.parameters.x2 = newX;
-      node.parameters.y2 = newY;
-      
-      // Throttle callback and render requests (Phase 3.4)
-      // Throttle parameter updates
-      this.bezierThrottler.schedule(`${this.draggingBezierNodeId}:x2`, newX, () => {
-        this.context.onParameterChanged?.(this.draggingBezierNodeId!, 'x2', newX);
+      node.parameters[x2Name] = newX;
+      node.parameters[y2Name] = newY;
+      this.bezierThrottler.schedule(`${this.draggingBezierNodeId!}:${x2Name}`, newX, () => {
+        this.context.onParameterChanged?.(this.draggingBezierNodeId!, x2Name, newX);
       });
-      this.bezierThrottler.schedule(`${this.draggingBezierNodeId}:y2`, newY, () => {
-        this.context.onParameterChanged?.(this.draggingBezierNodeId!, 'y2', newY);
+      this.bezierThrottler.schedule(`${this.draggingBezierNodeId!}:${y2Name}`, newY, () => {
+        this.context.onParameterChanged?.(this.draggingBezierNodeId!, y2Name, newY);
       });
       this.context.requestRender();
     }
@@ -164,6 +153,7 @@ export class BezierControlDragHandler implements InteractionHandler {
     this.isDraggingBezierControl = false;
     this.draggingBezierNodeId = null;
     this.draggingBezierControlIndex = null;
+    this.draggingParamNames = null;
     this.dragBezierStartValues = null;
     
     this.context.setCursor('default');

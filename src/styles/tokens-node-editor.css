@@ -1,0 +1,629 @@
+:root {
+/*
+ * Node editor tokens — consumed by JS via getCSSVariable*() and by DOM components.
+ * Covers: graph layer (grid, connections), node layout (box, header, body), ports,
+ * parameters, embedded UIs. Per-category tokens live in node-categories.css.
+ *
+ * 1. Graph layer    → grid, bg, guides (canvas)
+ * 2. Node — Box     → outer container, border, shadow
+ * 3. Node — Header  → layout, content, gradient, icon box
+ * 4. Node — Body    → body padding, flex
+ * 5. Ports          → port dot, label, type chip
+ * 6. Connections    → wire stroke
+ * 7. Parameters     → param grid, cells, knob, toggle, enum, range, etc.
+ * 8. Embedded UIs   → range-editor, bezier, remap-range, frequency-range, color-picker, etc.
+ * 9. Icons / Other  → icon design, delete button, zoom
+ */
+
+/* === 1. GRAPH LAYER (grid, bg, guides) === */
+--canvas-bg: var(--color-gray-40);
+--canvas-grid-color: var(--color-gray-60);
+--canvas-grid-size: 150px;
+--canvas-grid-dot-radius: 2.5px;
+--smart-guide-color: var(--color-blue-90);
+
+/* === 2. NODE — BOX (outer container, border, shadow) === */
+--node-bg: var(--color-gray-80);
+--node-bg-end: var(--color-gray-80);
+--node-bg-selected: var(--color-blue-40);
+--node-bg-selected-end: var(--color-blue-40);
+--node-border: #ffffff4e;
+--node-border-selected: #ffffff99;
+--node-border-width: 1px;
+--node-border-width-selected: 6px;
+--node-border-offset-selected: 6px;
+--node-padding: 0px;
+--node-radius: var(--radius-lg);
+
+/* Node box gradient (background of full node) */
+--node-bg-gradient-ellipse-width: 150%;
+--node-bg-gradient-ellipse-height: 200%;
+--node-bg-gradient-ellipse-x: 50%;
+--node-bg-gradient-ellipse-y: 20%;
+
+/* Node box chrome (min-width, radius, shadow) — used with Node — Box */
+--node-box-min-width: 400px;
+--node-box-border-radius: 36px;
+--node-box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+--node-box-shadow-selected: 0 4px 12px var(--color-blue-60);
+--node-shadow-color: rgba(0, 0, 0, 0.15);
+--node-shadow-color-selected-rgba: rgba(68, 72, 191, 0.3);
+
+/* Shiny nodes: shared intensity tokens (colors can be overridden per category) */
+--node-shiny-ring-width: 3px;
+--node-shiny-glow-radius: 18px;
+--node-shiny-ring-color: rgba(255, 255, 255, 0.9);
+--node-shiny-glow-color: rgba(255, 255, 255, 0.35);
+
+/* Node panel shiny cards: shared intensity tokens */
+--panel-node-shiny-ring-width: 2px;
+--panel-node-shiny-glow-radius: 12px;
+--panel-node-shiny-ring-color: rgba(255, 255, 255, 0.8);
+--panel-node-shiny-glow-color: rgba(255, 255, 255, 0.3);
+--panel-shiny-border-radius-adjust: 0px;
+
+/* === 3. NODE — HEADER (HeaderFlexboxLayout, DomNodeLayer, NodeHeader.svelte) === */
+
+/* Header content: padding, min-height, icon, name */
+--node-header-padding: 36px; /* General header inset — inputs and outputs react to this */
+--node-header-logo-padding: 60px; /* Padding around icon box + label (center part only) */
+--node-header-min-height: 200px;
+--node-header-icon-size: 60px;
+--node-header-name-size: var(--text-xl);
+--node-header-name-weight: 600;
+--node-header-name-color: var(--color-gray-130);
+
+/* Header background gradient (ellipse for radial gradient) */
+--node-header-bg-gradient-ellipse-width: 200%;
+--node-header-bg-gradient-ellipse-height: 150%;
+--node-header-bg-gradient-ellipse-x: 50%;
+--node-header-bg-gradient-ellipse-y: 15%;
+
+/* Header icon box (center block: icon + name). Per-category → node-categories.css */
+--node-icon-box-width: 90px;
+--node-icon-box-height: 90px;
+--node-icon-box-radius: 36px;
+--node-icon-box-shape: circle; /* circle | square | diamond */
+--node-icon-box-padding: 15px; /* Padding inside icon box around icon */
+--node-icon-box-name-spacing: 24px;
+
+/* Header layout (flex): prefix "node-header" for FlexboxLayoutEngine */
+--node-header-flex-direction: row;
+--node-header-justify-content: space-between;
+--node-header-align-items: center;
+--node-header-gap: 12px;
+--node-header-inputs-flex-direction: column;
+--node-header-inputs-justify-content: flex-start;
+--node-header-inputs-align-items: flex-start;
+--node-header-inputs-gap: 42px;
+--node-header-logo-flex-direction: column;
+--node-header-logo-justify-content: center;
+--node-header-logo-align-items: center;
+--node-header-logo-gap: 4px;
+--node-header-outputs-flex-direction: column;
+--node-header-outputs-justify-content: flex-start;
+--node-header-outputs-align-items: flex-end;
+--node-header-outputs-gap: 42px;
+
+/* Header ports: spacing between ports, row height (port + type + name labels), label color */
+--node-header-input-port-spacing: var(--scale-11); /* 54px */
+--node-header-port-row-height: 28px; /* Height per port row (port dot + type label + name label) */
+--node-header-port-label-color: var(--color-gray-110);
+
+/* Legacy/alias (referenced by DOM or older code) */
+--node-header-bg: var(--color-gray-50);
+--node-header-border: var(--color-gray-100);
+--node-title-color: var(--color-gray-130);
+
+/* === 4. NODE — BODY (BodyFlexboxLayout, AutoGridElement, param layout) === */
+--node-body-padding: 18px;
+--node-body-border-radius: var(--radius-2xl);
+
+/* Node body box-shadow (per-category overrides in node-categories.css) */
+--node-body-shadow-color-mid: var(--color-blue-50);
+--node-body-shadow-color-outer: var(--color-blue-gray-30);
+--node-body-shadow-inset: rgba(255, 255, 255, 0.5);
+
+/* === 5. PORTS (RenderingUtils, DOM ports; header + param ports) === */
+--node-port-size: var(--scale-4); /* 12px */
+--node-port-spacing: var(--scale-6); /* 24px */
+--node-port-regular-size: var(--scale-4); /* 12px */
+--port-radius: var(--scale-4); /* 12px */
+--port-border-width: var(--scale-3); /* 2px */
+--port-border-color: #19191b6e;
+--port-color-float: var(--color-gray-60);
+--port-color-vec2: var(--color-blue-gray-100);
+--port-color-vec3: var(--color-teal-gray-100);
+--port-color-vec4: var(--color-purple-gray-100);
+--port-color-default: var(--color-gray-100);
+/* Port connected colors (per type — used when port has a connection, no hover/drag) */
+--port-connected-color-float: var(--color-gray-120);
+--port-connected-color-vec2: var(--color-blue-gray-90);
+--port-connected-color-vec3: var(--color-teal-gray-90);
+--port-connected-color-vec4: var(--color-purple-gray-90);
+--port-connected-color-default: var(--color-gray-120);
+--port-hover-color: var(--color-teal-130);
+--port-hover-outer-opacity: 0.6;
+--port-dragging-color: var(--color-teal-110);
+--port-dragging-outer-opacity: 0.3;
+
+/* === NODE PORT LABEL TOKENS === */
+--port-label-font-size: var(--text-sm);
+--port-label-font-weight: 600;
+--port-label-color: var(--color-gray-10);
+--port-label-spacing: var(--scale-4); /* 12px - Space between port and label */
+
+/* Port Type Background Colors (per type) */
+--port-type-bg-float: var(--color-gray-40);
+--port-type-bg-vec2: var(--color-blue-gray-40);
+--port-type-bg-vec3: var(--color-teal-gray-40);
+--port-type-bg-vec4: var(--color-purple-gray-40);
+--port-type-bg-default: var(--color-gray-40);
+
+/* Port Type Text Colors (per type) - uses port type colors */
+--port-type-text-float: var(--color-gray-110);
+--port-type-text-vec2: var(--color-blue-gray-110);
+--port-type-text-vec3: var(--color-teal-gray-110);
+--port-type-text-vec4: var(--color-purple-gray-110);
+--port-type-text-default: var(--color-gray-110);
+
+/* Port Type Styling */
+--port-type-font-size: var(--text-sm);
+--port-type-font-weight: 600;
+--port-type-spacing: var(--scale-2); /* 4px - Space between name and type */
+--port-type-bg-radius: var(--scale-4); /* 12px */
+--port-type-padding-horizontal: var(--scale-4); /* 12px - Increased from 8px to match larger ports */
+--port-type-padding-vertical: var(--scale-2); /* 4px */
+
+/* === 9. ICONS / OTHER (icon rendering, delete button, zoom) === */
+--node-delete-bg: var(--color-red-80);
+--node-delete-color: var(--color-gray-130);
+
+/* Icon design (stroke, ratios, etc.) */
+--icon-stroke-width: 4px;
+--icon-stroke-width-thick: 9px;
+--icon-stroke-width-thin: 2px;
+--icon-line-cap: round;
+--icon-line-join: round;
+
+/* Icon Size Ratios (relative to icon size) */
+--icon-size-base: 1; /* Full icon size */
+--icon-size-large: 0.9; /* 90% of icon size */
+--icon-size-medium: 0.8; /* 80% of icon size */
+--icon-size-small: 0.6; /* 60% of icon size */
+--icon-size-tiny: 0.4; /* 40% of icon size */
+
+/* Icon Spacing Ratios */
+--icon-spacing-half: 0.5; /* Half of icon size */
+--icon-spacing-quarter: 0.25; /* Quarter of icon size */
+--icon-spacing-eighth: 0.125; /* Eighth of icon size */
+
+/* Icon Element Ratios */
+--icon-element-primary: 0.8; /* Primary element size (e.g., main circle) */
+--icon-element-secondary: 0.6; /* Secondary element size */
+--icon-element-tertiary: 0.4; /* Tertiary element size */
+--icon-element-accent: 0.3; /* Accent element size */
+
+/* Icon Grid & Pattern Ratios */
+--icon-grid-spacing: 0.25; /* Grid spacing (4x4 grid) */
+--icon-pattern-density: 0.15; /* Pattern element density */
+
+/* Icon Shape Ratios */
+--icon-shape-padding: 0.1; /* Padding inside shapes */
+--icon-shape-radius: 0.2; /* Border radius for rounded shapes */
+
+/* Icon Arrow & Direction Ratios */
+--icon-arrow-size: 0.5; /* Arrow size relative to icon */
+--icon-arrow-width: 0.3; /* Arrow width ratio */
+
+/* Icon Circle & Arc Ratios */
+--icon-circle-outer: 0.8; /* Outer circle radius */
+--icon-circle-inner: 0.5; /* Inner circle radius */
+--icon-circle-center: 0.3; /* Center circle radius */
+
+/* Icon Line & Path Ratios */
+--icon-line-length: 0.7; /* Line length */
+--icon-line-offset: 0.15; /* Line offset from center */
+
+/* === 6. CONNECTIONS (ConnectionLayerRenderer, ParameterConnectionLayerRenderer) === */
+--connection-color: var(--color-gray-100);
+--connection-color-selected: var(--color-blue-90);
+--connection-width: 6px;
+--connection-width-selected: 12px;
+--connection-width-preview: 4px;
+--connection-opacity: 0.8;
+--connection-opacity-selected: 1.0;
+
+/* === CONNECTION COLOR BY PORT TYPE TOKENS === */
+--connection-color-float: var(--color-gray-90);
+--connection-color-float-parameter: var(--color-teal-110);
+--connection-color-vec2: var(--color-blue-gray-110);
+--connection-color-vec3: var(--color-teal-gray-110);
+--connection-color-vec4: var(--color-purple-gray-110);
+--connection-color-int: var(--color-gray-110);
+--connection-color-bool: var(--color-gray-110);
+--connection-color-default: var(--color-gray-110);
+
+/* === 7. PARAMETERS (param grid, cells, knob, toggle, enum, range, etc.) === */
+--node-param-bg: transparent;
+--node-param-label-color: var(--color-gray-100);
+--node-param-value-color: var(--color-gray-130);
+--node-param-value-animated-color: var(--reserved-animated-connected);
+--node-param-separator: var(--color-gray-100);
+--node-param-group-header-color: var(--color-gray-110);
+
+/*
+ * RESERVED: Animated/Connected state
+ * The color scale used by --reserved-animated-connected (teal) must NOT be used for any
+ * node category (header, body, icon box, param cell, knob, value). It is reserved
+ * exclusively for "animated" / "connected" state so that state is always recognizable.
+ */
+--reserved-animated-connected: var(--color-teal-110);
+
+/*
+ * Parameter UI design system: param-* = cell shell; input-* = value box primitive;
+ * knob-* = rotary only; toggle-* / range-editor-* / remap-range-* = per-component.
+ * Enum/dropdown selectors use Button (secondary, sm) tokens.
+ */
+
+/* Parameter Grid */
+--param-grid-bg: transparent;
+--param-grid-padding: 24px;
+--param-grid-gap: 1px;
+--param-cell-min-width: 300px;
+--param-cell-padding: 24px;
+--param-body-top-padding: 24px; /* Top padding when body doesn't start with a group header */
+
+/* Parameter Cell (global defaults; per-category in node-categories.css) */
+--param-cell-bg: #e4e4ed75; /* Gradient start (center); transparent hex */
+--param-cell-bg-end: var(--color-gray-40); /* Gradient end (outer); same scale as body, darker */
+--param-cell-bg-connected: #ffffff60;
+
+/* Parameter cell background gradient (ellipse for radial gradient; start → end) */
+--param-cell-bg-gradient-ellipse-width: 120%;
+--param-cell-bg-gradient-ellipse-height: 160%;
+--param-cell-bg-gradient-ellipse-x: 50%;
+--param-cell-bg-gradient-ellipse-y: 25%;
+--param-cell-border: #ffffff00;
+--param-cell-border-connected: #ffffff;
+--param-cell-border-radius: 0;
+--param-cell-height: 220px; /* Increased to accommodate larger ports and spacing */
+
+/* Header Port (input/output in node header) */
+--header-port-size: var(--scale-4); /* 12px visual dot */
+--header-port-hit-size: 24px; /* Larger hit area for easier dragging */
+
+/* Parameter Port (in cell) */
+--param-port-size: var(--scale-4); /* 12px */
+--param-port-circle-size: var(--scale-5); /* 14px - visible port dot */
+--param-port-offset-x: var(--scale-5); /* 18px */
+--param-port-offset-y: var(--scale-5); /* 18px */
+
+/* Parameter Label (global; per-category in node-categories.css) */
+--param-label-font-size: var(--text-2xl);
+--param-label-font-weight: 600;
+--param-label-color: var(--color-gray-40);
+--param-label-knob-spacing: 24px;
+
+/* Parameter Type Label */
+--param-type-label-font-size: var(--text-sm);
+--param-type-label-font-weight: 600;
+
+/* Rotary Knob (global; per-category in node-categories.css) */
+--knob-size: 78px; /* Diameter */
+--knob-ring-bg-width: 9px;
+--knob-ring-active-width: 3px;
+--knob-ring-color: #171718c2;
+--knob-ring-active-color-static: var(--color-gray-130);
+--knob-ring-active-color-animated: var(--reserved-animated-connected);
+--knob-marker-size: 9px;
+--knob-marker-color: var(--color-gray-130);
+--knob-marker-radius-offset: -16px; /* Offset from arc radius (positive = further out, negative = further in) */
+--knob-center-size: 0; /* Center circle diameter in px; 0 = hidden */
+--knob-center-bg: transparent;
+--knob-center-border-width: 0;
+--knob-center-border-color: transparent;
+--knob-value-font-size: var(--text-md);
+--knob-value-color: var(--color-gray-130);
+--knob-value-bg: #0000007a;
+--knob-value-radius: 6px;
+--knob-value-padding-horizontal: 16px;
+--knob-value-padding-vertical: 6px;
+--knob-value-spacing: 6px; /* Space between knob and value */
+--knob-arc-start: 225deg; /* Bottom-left  */
+--knob-arc-end: 315deg; /* Bottom-right */
+--knob-arc-sweep: 270deg; /* Total sweep angle (270deg arc from bottom-left to bottom-right) */
+
+/* === INPUT / VALUE BOX PRIMITIVE === */
+--input-value-font-size: var(--text-md);
+--input-value-color: var(--color-gray-130);
+--input-value-bg: #000000d9;
+--input-value-color-connected: var(--reserved-animated-connected);
+--input-value-bg-connected: #ffffff60;
+--input-value-radius: 12px;
+--input-value-padding-horizontal: 18px;
+--input-value-padding-vertical: 6px;
+--input-value-animated-color: var(--reserved-animated-connected);
+
+/* Parameter Mode Button */
+--param-mode-button-size: 24px;
+--param-mode-button-font-size: var(--text-md);
+--param-mode-button-font-weight: 900;
+--param-mode-button-color-static: #00000034; /* Color when parameter is NOT connected (clicking does nothing) */
+--param-mode-button-color-connected: var(--reserved-animated-connected); /* Color when parameter IS connected (clicking has effect) */
+--param-mode-button-bg: #ffffff32;
+--param-mode-button-bg-hover: var(--color-gray-130);
+--param-mode-button-text-offset-y: 2px; /* Vertical offset adjustment for symbol centering (positive = down) */
+
+/* Parameter Group */
+--param-group-header-height: 18px;
+--param-group-header-font-size: var(--text-lg);
+--param-group-header-color: var(--color-gray-40);
+--param-group-header-weight: 600;
+--param-group-header-margin-top: 12px;
+--param-group-header-margin-bottom: 12px;
+--param-group-divider-height: 1px;
+--param-group-divider-color: #00000020;
+--param-group-divider-spacing: 24px;
+
+/* Zoom Interaction */
+--zoom-interaction-threshold: 0.3; /* Disable parameter drag below this zoom */
+
+/* === 8. EMBEDDED UIs (range-editor, bezier, toggle, enum, remap-range, etc.) === */
+--bezier-editor-bg: var(--embed-slot-bg);
+--bezier-editor-border: 0 solid var(--color-gray-70);
+--bezier-editor-border-color: var(--color-gray-70);
+--bezier-editor-radius: var(--embed-slot-radius);
+--bezier-editor-padding: var(--embed-slot-pd);
+--bezier-editor-height: 240px;
+--bezier-editor-grid-color: var(--color-blue-gray-50);
+--bezier-editor-grid-line-width: 1px;
+--bezier-editor-grid-border-color: var(--color-blue-gray-50);
+--bezier-editor-grid-border-width: 1px;
+--bezier-editor-curve-color: var(--color-blue-gray-100);
+--bezier-editor-curve-width: 2px;
+--bezier-editor-control-point-size: 12px;
+--bezier-editor-control-point-bg: var(--color-blue-gray-90);
+--bezier-editor-control-point-border: 1px solid var(--color-gray-130);
+--bezier-editor-control-point-hover-size: 12px;
+--bezier-editor-control-point-hover-bg: var(--color-blue-100);
+--bezier-editor-control-line-color: var(--color-gray-90);
+--bezier-editor-control-line-width: 2px;
+--bezier-editor-control-line-dash: 2px;
+--bezier-editor-label-font-size: var(--text-sm);
+--bezier-editor-label-color: var(--color-gray-110);
+--bezier-editor-label-spacing: 4px;
+--bezier-param-port-spacing: var(--scale-11); /* 54px */
+
+/* === COLOR PICKER (in-node swatch only; popover tokens live in tokens.css) === */
+--color-map-row-button-height: 42px;
+--color-map-row-button-gap: 12px;
+--color-map-row-button-radius: var(--radius-md);
+--color-map-row-button-font-size: var(--text-md);
+--color-map-row-button-font-weight: 900;
+--color-map-row-button-bg-active: var(--color-teal-100);
+--color-map-row-button-border-active: var(--color-teal-120);
+--color-map-row-button-color-active: var(--color-teal-10);
+--color-picker-node-swatch-height: 180px;
+--color-picker-node-swatch-bg: var(--embed-slot-bg);
+--color-picker-node-swatch-radius: var(--embed-slot-radius);
+--color-picker-node-swatch-color-radius: var(--radius-sm);
+--color-map-preview-height: 24px;
+--color-map-preview-radius: var(--embed-slot-radius);
+--color-map-preview-bg: var(--embed-slot-bg);
+
+/* === 2D VECTOR EDITOR TOKENS === */
+--vector2d-editor-size: 160px;
+--vector2d-editor-bg: var(--color-gray-20);
+--vector2d-editor-border: 0 solid var(--color-gray-70);
+--vector2d-editor-radius: 12px;
+--vector2d-editor-padding: 12px;
+--vector2d-editor-grid-color: var(--color-gray-60);
+--vector2d-editor-grid-line-width: 1px;
+--vector2d-editor-grid-steps: 4;
+--vector2d-editor-axis-color: var(--color-gray-100);
+--vector2d-editor-axis-width: 2px;
+--vector2d-editor-point-size: 8px;
+--vector2d-editor-point-bg: var(--color-blue-90);
+--vector2d-editor-point-border: 2px solid var(--color-gray-130);
+--vector2d-editor-point-hover-size: 12px;
+--vector2d-editor-point-hover-bg: var(--color-blue-100);
+--vector2d-editor-input-width: 70px;
+--vector2d-editor-input-height: 24px;
+--vector2d-editor-input-font-size: var(--text-md);
+--vector2d-editor-input-spacing: 8px;
+--vector2d-editor-label-font-size: var(--text-sm);
+--vector2d-editor-label-color: var(--color-gray-110);
+--vector2d-editor-label-spacing: 4px;
+
+/* === 3D VECTOR EDITOR TOKENS === */
+--vector3d-editor-size: 140px;
+--vector3d-editor-bg: var(--color-gray-20);
+--vector3d-editor-border: 0 solid var(--color-gray-70);
+--vector3d-editor-radius: 12px;
+--vector3d-editor-padding: 12px;
+--vector3d-editor-view-bg: var(--color-gray-30);
+--vector3d-editor-view-border: 1px solid var(--color-gray-60);
+--vector3d-editor-view-radius: 6px;
+--vector3d-editor-arrow-color: var(--color-blue-90);
+--vector3d-editor-arrow-width: 2px;
+--vector3d-editor-arrow-head-size: 6px;
+--vector3d-editor-knob-size: 40px;
+--vector3d-editor-knob-ring-width: 4px;
+--vector3d-editor-knob-ring-color: var(--color-gray-30);
+--vector3d-editor-knob-ring-active-color: var(--color-gray-120);
+--vector3d-editor-knob-marker-size: 4px;
+--vector3d-editor-knob-marker-color: var(--color-gray-10);
+--vector3d-editor-input-width: 60px;
+--vector3d-editor-input-height: 24px;
+--vector3d-editor-input-font-size: var(--text-md);
+--vector3d-editor-input-spacing: 6px;
+--vector3d-editor-label-font-size: var(--text-sm);
+--vector3d-editor-label-color: var(--color-gray-110);
+--vector3d-editor-label-spacing: 4px;
+
+/* === RANGE EDITOR TOKENS === */
+--range-editor-height: 300px;
+--range-editor-bg: var(--color-gray-20);
+--range-editor-border: 0 solid var(--color-gray-70);
+--range-editor-radius: var(--radius-lg);
+--range-editor-padding: var(--pd-lg);
+--range-editor-slider-width: 120px;
+--range-editor-slider-bg: var(--color-gray-30);
+--range-editor-slider-radius: 2px;
+--range-editor-slider-track-color: var(--color-gray-60);
+--range-editor-slider-input-active-color: var(--color-green-90);
+--range-editor-slider-output-active-color: var(--color-purple-90);
+--range-editor-slider-spacing: 90px;
+--range-editor-handle-size: 12px;
+--range-editor-handle-bg: var(--color-blue-90);
+--range-editor-handle-border: 2px solid var(--color-gray-130);
+--range-editor-handle-hover-size: 14px;
+--range-editor-handle-hover-bg: var(--color-blue-100);
+--range-editor-edge-thickness: 3px;
+--range-editor-edge-hover-thickness: 4px;
+--range-editor-connection-color: var(--color-blue-90);
+--range-editor-connection-width: 2px;
+--range-editor-connection-dash: 4px;
+--range-editor-label-font-size: var(--text-sm);
+--range-editor-label-color: var(--color-gray-110);
+--range-editor-label-spacing: 18px;
+--range-editor-input-width: 60px;
+--range-editor-input-height: 24px;
+--range-editor-input-font-size: var(--text-md);
+--range-editor-input-spacing: 6px;
+--range-editor-param-label-spacing: 24px;
+
+/* Range slider (horizontal/vertical) */
+--range-slider-track-height: 42px;
+--range-slider-radius: var(--range-editor-slider-radius);
+--range-slider-bg: var(--range-editor-slider-bg);
+--range-slider-track-color: var(--range-editor-slider-track-color);
+--range-slider-active-color: var(--range-editor-slider-input-active-color);
+
+/* === TOGGLE SWITCH TOKENS === */
+--toggle-width: 48px;
+--toggle-height: 24px;
+--toggle-bg-off: var(--color-gray-50);
+--toggle-bg-on: var(--color-blue-90);
+--toggle-bg-hover: var(--color-gray-70);
+--toggle-border: 1px solid var(--color-gray-70);
+--toggle-border-radius: 12px;
+--toggle-slider-size: 20px;
+--toggle-slider-bg: var(--color-gray-130);
+--toggle-slider-border: 1px solid var(--color-gray-100);
+--toggle-slider-offset: 2px;
+--toggle-transition-duration: 0.2s;
+--toggle-label-font-size: var(--text-sm);
+--toggle-label-font-weight: 600;
+--toggle-label-color: var(--color-gray-90);
+--toggle-label-spacing: 12px;
+
+/* === ELEMENT BOX TOKENS === */
+--element-box-bg: var(--color-gray-40);
+--element-box-bg-dragging: var(--color-gray-20);
+--element-box-border-highlight: 2px solid var(--color-blue-100);
+--element-box-name-weight: 500;
+
+/* === FLEXBOX LAYOUT (Node/Header/Body prefixes for FlexboxLayoutEngine) === */
+--node-flex-direction: column;
+--node-justify-content: flex-start;
+--node-align-items: stretch;
+--node-gap: 0px;
+--node-min-width: 300px;
+--node-max-width: none;
+
+--node-body-flex-direction: column;
+--node-body-justify-content: flex-start;
+--node-body-align-items: stretch;
+--node-body-gap: 0px;
+
+--param-grid-flex-direction: row;
+--param-grid-flex-wrap: wrap;
+--param-grid-justify-content: flex-start;
+--param-grid-align-items: flex-start;
+
+--param-cell-flex-direction: column;
+--param-cell-justify-content: center;
+--param-cell-align-items: center;
+--param-cell-gap: 12px;
+--param-cell-min-height: 120px;
+--param-cell-flex-grow: 0;
+--param-cell-flex-shrink: 1;
+--param-cell-flex-basis: auto;
+
+--param-cell-label-order: 1;
+--param-cell-label-align-self: center;
+--param-cell-label-margin-bottom: 0px;
+
+--param-cell-control-container-flex-direction: column;
+--param-cell-control-container-justify-content: center;
+--param-cell-control-container-align-items: center;
+--param-cell-control-container-gap: 0px;
+--param-cell-control-container-order: 2;
+
+--param-cell-knob-order: 1;
+--param-cell-knob-align-self: center;
+--param-cell-knob-flex-grow: 0;
+--param-cell-knob-flex-shrink: 0;
+
+--param-cell-value-order: 2;
+--param-cell-value-align-self: center;
+--param-cell-value-margin-top: 4px;
+
+--param-cell-port-position: absolute;
+--param-cell-port-order: 1;
+--param-cell-port-align-self: flex-start;
+--param-cell-port-offset-x: 18px;
+--param-cell-port-offset-y: 18px;
+--param-cell-port-margin-right: 8px;
+
+--param-cell-mode-position: absolute;
+--param-cell-mode-order: 0;
+--param-cell-mode-align-self: flex-start;
+--param-cell-mode-offset-x: 18px;
+--param-cell-mode-offset-y: 18px;
+
+/* Remap Range Container */
+--remap-range-height: 120px;
+--remap-range-padding: var(--embed-slot-pd);
+--remap-range-gap: 0px;
+--remap-range-radius: var(--embed-slot-radius);
+--remap-range-editor-padding: var(--embed-slot-pd);
+--remap-range-slider-row-height: 120px;
+--remap-range-input-row-height: 30px;
+
+--remap-range-input-group-gap: 60px;
+--remap-range-input-dash-width: 6px;
+--remap-range-input-item-spacing: 4px;
+--remap-range-input-label-font-size: var(--canvas-headline-md-size);
+--remap-range-input-label-font-weight: var(--canvas-headline-md-weight);
+--remap-range-input-label-width: 30px;
+--remap-range-input-label-in-width: 12px;
+--remap-range-input-label-out-width: 30px;
+--remap-range-input-label-color: var(--range-editor-label-color);
+
+--remap-range-slider-width: var(--range-editor-slider-width);
+--remap-range-slider-radius: var(--range-editor-slider-radius);
+--remap-range-connection-width: var(--range-editor-connection-width);
+--remap-range-connection-dash: var(--range-editor-connection-dash);
+
+--remap-range-bg: var(--embed-slot-bg);
+--remap-range-slider-bg: var(--color-gray-30);
+--remap-range-slider-track-color: var(--color-gray-60);
+--remap-range-slider-input-color: var(--color-purple-90);
+--remap-range-slider-output-color: var(--color-green-90);
+--remap-range-connection-color: var(--color-blue-90);
+--remap-range-needle-color: #ffffff;
+--remap-range-needle-width: 3px;
+--remap-range-needle-extend: 4px;
+
+/* Bezier Editor Container */
+--bezier-editor-gap: 6px;
+
+/* === EMBED SLOT (shared container for embedded UIs) === */
+--embed-slot-pd: var(--pd-lg);
+--embed-slot-radius: var(--radius-lg);
+--embed-slot-bg: var(--color-gray-20);
+
+}

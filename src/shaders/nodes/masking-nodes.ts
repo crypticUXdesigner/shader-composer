@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 /**
  * Masking/Control Nodes
@@ -11,20 +11,31 @@ export const compareNodeSpec: NodeSpec = {
   description: 'Compares two values and outputs 0.0 or 1.0',
   icon: 'compare',
   inputs: [
-    { name: 'a', type: 'float' },
-    { name: 'b', type: 'float', fallbackParameter: 'b' }
+    { name: 'a', type: 'float', label: 'First value' },
+    { name: 'b', type: 'float', fallbackParameter: 'b', label: 'Second value' }
   ],
   outputs: [
-    { name: 'out', type: 'float' }
+    { name: 'out', type: 'float', label: 'Result' }
   ],
   parameters: {
     operation: {
       type: 'int',
       default: 0,
       min: 0,
-      max: 5
+      max: 5,
+      label: 'Operation'
     },
-    b: { type: 'float', default: 0.5, min: -1000.0, max: 1000.0, step: 0.01, label: 'B' }
+    b: { type: 'float', default: 0.5, min: -1000.0, max: 1000.0, step: 0.01, label: 'Compare Value' }
+  },
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['operation', 'b'],
+        layout: { columns: 1 }
+      }
+    ],
+    minColumns: 2
   },
   mainCode: `
     if ($param.operation == 0) {
@@ -50,16 +61,26 @@ export const selectNodeSpec: NodeSpec = {
   description: 'Selects between two values based on condition',
   icon: 'select',
   inputs: [
-    { name: 'condition', type: 'float' },
-    { name: 'trueValue', type: 'float', fallbackParameter: 'trueValue' },
-    { name: 'falseValue', type: 'float', fallbackParameter: 'falseValue' }
+    { name: 'condition', type: 'float', label: 'Condition' },
+    { name: 'trueValue', type: 'float', fallbackParameter: 'trueValue', label: 'If true' },
+    { name: 'falseValue', type: 'float', fallbackParameter: 'falseValue', label: 'If false' }
   ],
   outputs: [
-    { name: 'out', type: 'float' }
+    { name: 'out', type: 'float', label: 'Result' }
   ],
   parameters: {
-    trueValue: { type: 'float', default: 1.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'True' },
-    falseValue: { type: 'float', default: 0.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'False' }
+    trueValue: { type: 'float', default: 1.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'True Value' },
+    falseValue: { type: 'float', default: 0.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'False Value' }
+  },
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['trueValue', 'falseValue'],
+        layout: { columns: 1 }
+      }
+    ],
+    minColumns: 2
   },
   mainCode: `
     $output.out = ($input.condition > 0.5) ? $input.trueValue : $input.falseValue;
@@ -74,17 +95,26 @@ export const maskCompositeFloatNodeSpec: NodeSpec = {
   description: 'Composites foreground over background using a mask. Dark areas show background, bright areas show foreground.',
   icon: 'mask',
   inputs: [
-    { name: 'bg', type: 'float', fallbackParameter: 'bg' },
-    { name: 'mask', type: 'float', fallbackParameter: 'mask' },
-    { name: 'fg', type: 'float', fallbackParameter: 'fg' }
+    { name: 'bg', type: 'float', fallbackParameter: 'bg', label: 'Background' },
+    { name: 'mask', type: 'float', fallbackParameter: 'mask', label: 'Mask' },
+    { name: 'fg', type: 'float', fallbackParameter: 'fg', label: 'Foreground' }
   ],
   outputs: [
-    { name: 'out', type: 'float' }
+    { name: 'out', type: 'float', label: 'Result' }
   ],
   parameters: {
-    bg: { type: 'float', default: 0.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'Bg' },
+    bg: { type: 'float', default: 0.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'Background' },
     mask: { type: 'float', default: 0.5, min: 0.0, max: 1.0, step: 0.01, label: 'Mask' },
-    fg: { type: 'float', default: 1.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'Fg' }
+    fg: { type: 'float', default: 1.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'Foreground' }
+  },
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['bg', 'mask', 'fg'],
+        layout: { columns: 3 }
+      }
+    ]
   },
   mainCode: `
     $output.out = mix($input.bg, $input.fg, $input.mask);
@@ -99,15 +129,19 @@ export const maskCompositeVec3NodeSpec: NodeSpec = {
   description: 'Composites colored foreground over colored background using a mask. Dark areas show background, bright areas show foreground.',
   icon: 'mask',
   inputs: [
-    { name: 'bg', type: 'vec3' },
-    { name: 'mask', type: 'float', fallbackParameter: 'mask' },
-    { name: 'fg', type: 'vec3' }
+    { name: 'bg', type: 'vec3', label: 'Background' },
+    { name: 'mask', type: 'float', fallbackParameter: 'mask', label: 'Mask' },
+    { name: 'fg', type: 'vec3', label: 'Foreground' }
   ],
   outputs: [
-    { name: 'out', type: 'vec3' }
+    { name: 'out', type: 'vec3', label: 'Color' }
   ],
   parameters: {
     mask: { type: 'float', default: 0.5, min: 0.0, max: 1.0, step: 0.01, label: 'Mask' }
+  },
+  parameterLayout: {
+    elements: [{ type: 'auto-grid' }],
+    minColumns: 2
   },
   mainCode: `
     $output.out = mix($input.bg, $input.fg, $input.mask);

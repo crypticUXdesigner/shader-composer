@@ -1,27 +1,29 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const star2dNodeSpec: NodeSpec = {
   id: 'star-2d',
   category: 'Shapes',
-  displayName: 'Star 2D',
-  description: 'N-point star shape with inner/outer radius and optional rounded corners',
+  displayName: 'Starburst',
+  description: 'Radial starburst segment mask with inner/outer radius and optional rounded corners',
   icon: 'star',
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'Position'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'float'
+      type: 'float',
+      label: 'Value'
     }
   ],
   parameters: {
     starCenterX: {
       type: 'float',
-      default: 0.5,
+      default: 0.0,
       min: -2.0,
       max: 2.0,
       step: 0.01,
@@ -29,7 +31,7 @@ export const star2dNodeSpec: NodeSpec = {
     },
     starCenterY: {
       type: 'float',
-      default: 0.5,
+      default: 0.0,
       min: -2.0,
       max: 2.0,
       step: 0.01,
@@ -107,6 +109,31 @@ export const star2dNodeSpec: NodeSpec = {
       defaultCollapsed: false
     }
   ],
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: [
+          'starCenterX',
+          'starCenterY',
+          'starPoints',
+          'starRoundness',
+          'starInnerRadius',
+          'starOuterRadius',
+          'starSoftness',
+          'starIntensity'
+        ],
+        parameterUI: { starCenterX: 'coords', starCenterY: 'coords' },
+        layout: {
+          columns: 3,
+          coordsSpan: 2,
+          parameterSpan: {
+            starIntensity: 2
+          }
+        }
+      }
+    ]
+  },
   functions: `
 float sdSegment(vec2 p, vec2 a, vec2 b) {
   vec2 pa = p - a;

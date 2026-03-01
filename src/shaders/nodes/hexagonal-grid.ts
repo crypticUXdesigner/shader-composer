@@ -1,21 +1,23 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const hexagonalGridNodeSpec: NodeSpec = {
   id: 'hexagonal-grid',
   category: 'Patterns',
   displayName: 'Hexagons',
   description: 'Creates hexagonal tiling patterns for structured, geometric backgrounds',
-  icon: 'hexagon',
+  icon: 'hexagons',
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'float'
+      type: 'float',
+      label: 'Value'
     }
   ],
   parameters: {

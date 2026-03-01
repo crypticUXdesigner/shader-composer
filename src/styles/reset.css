@@ -10,8 +10,24 @@ body {
   overflow: hidden;
   font-family: var(--font-sans);
   font-optical-sizing: auto;
-  background: var(--color-gray-10);
-  color: var(--color-gray-130);
+  background: var(--layout-bg);
+  color: var(--print-default);
+  user-select: none;
+}
+
+/* Allow text selection in input fields for editing */
+input,
+textarea,
+[contenteditable='true'] {
+  user-select: text;
+}
+
+/* Text selection styling for inputs */
+input::selection,
+textarea::selection,
+[contenteditable='true']::selection {
+  background: var(--input-selection-bg);
+  color: var(--input-selection-color);
 }
 
 button,
@@ -24,7 +40,7 @@ select {
 button {
   border: none;
   background: none;
-  cursor: pointer;
+  cursor: default;
 }
 
 input,

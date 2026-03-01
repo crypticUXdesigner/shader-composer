@@ -1,0 +1,23 @@
+---
+description: Use one error-reporting interface; compilation and runtime report via it; user can dismiss.
+globs: "src/runtime/**/*.ts,src/shaders/**/*.ts,src/utils/errorHandling.ts"
+alwaysApply: false
+---
+
+# Error Handling and Reporting
+
+Use one error-reporting interface for compilation and runtime; global errors (WebGL, compilation) must be user-dismissible.
+
+## Do
+
+- **Single interface**: Report errors through the project's abstraction (e.g. `ErrorHandler`); no ad-hoc logging or direct DOM updates for user-facing errors.
+- **Dismissible**: WebGL unsupported, compilation errors, etc. — user can dismiss (user-goals 01).
+- **Rethrow with cause**: When catching and rethrowing, use `throw new Error('message', { cause: err });` so the original error is preserved in `error.cause` for debugging. See `.cursor/rules/frontend/typescript-standards.mdc`.
+
+## Avoid
+
+- Per-module ad-hoc error paths. Empty `catch` blocks; name and log or rethrow.
+
+## Reference
+
+- `src/utils/errorHandling.ts`, `docs/projects/core-architecture/_OVERVIEW.md` (05), `docs/user-goals/01-overview-and-app-shell.md`

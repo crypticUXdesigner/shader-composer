@@ -1,0 +1,67 @@
+---
+description: Svelte 5 runes, snippets, and callback props for .svelte files.
+globs: "**/*.svelte"
+alwaysApply: false
+---
+
+# Svelte Component Standards
+
+Use **Svelte 5** runes and snippets when writing or editing `.svelte` files.
+
+## Runes
+
+- **Props**: `$props()` with a typed `Props` interface; destructure with defaults in the same line.
+- **State**: `$state()` for mutable component state; `$derived` / `$derived.by()` for computed values.
+- **Avoid**: Legacy `let` reactivity and `$:`; use runes instead.
+- **Effects**: `$effect()` only for side effects (DOM, subscriptions). Prefer `$derived` for computed values. Return a teardown from `$effect` when adding listeners/intervals.
+- **Bindable**: `$bindable()` in `$props()` when the parent should bind (e.g. `value = $bindable()`).
+
+```svelte
+<script lang="ts">
+  interface Props { count: number; label?: string; }
+  let { count, label = 'Count' }: Props = $props();
+  const doubled = $derived(count * 2);
+</script>
+```
+
+## Events and callbacks
+
+- Use **callback props** (e.g. `onSelect`, `onClose`) instead of `createEventDispatcher`. Type as optional; call with `callback?.(payload)`.
+- Use DOM events: `onclick`, `oninput` (not legacy `on:click`). Avoid `on:eventName` on component tags.
+
+## Snippets (slots)
+
+- Use Svelte 5 **snippets**. Type as `import('svelte').Snippet` or `Snippet<[T]>` when the snippet receives arguments.
+- Prefer named snippets when a component has multiple slots.
+
+## Structure and style
+
+- **File naming**: Components PascalCase (`NodePanel.svelte`); stores and shared modules camelCase (`graphStore.svelte.ts`).
+- **Order**: `<script lang="ts">` → markup → `<style>` (if any).
+- **Placement**: Place components in the feature folder they belong to (e.g. `lib/components/node-panel/`, `lib/components/timeline/`). Use `src/lib/components/ui/` for shared primitives, with subfolders: button, menu, input, icon, overlay, feedback, layout.
+- **Markup**: Single root where possible; add `role` and `aria-*` for semantic/accessible nodes.
+- **Style**: Colocate in `<style>` when the component owns the styles. Follow `.cursor/rules/frontend/css-standards.mdc` for tokens and nesting.
+- **Base UI**: Use components from `src/lib/components/ui/` (Button, Input, Tag, Slider, Popover, Modal, etc.) for buttons, inputs, tags, overlays. Do not use raw HTML + ad-hoc classes for those; use the shared components.
+- **Canvas**: Keep canvas as vanilla TypeScript. Use `bind:this` and `$effect` to sync props to the canvas. Do not put 60fps canvas state in Svelte reactive state.
+
+## Accessibility
+
+- Use `<!-- svelte-ignore a11y_... -->` only for false positives (e.g. custom region with its own keyboard handling). Prefer fixing (e.g. `tabindex` + key handlers). Add a short comment when the ignore is non-obvious.
+
+## Stores vs runes
+
+- **Runes** work only in `.svelte`, `.svelte.ts`, or `.svelte.js`; plain `.ts` cannot use runes. Use `.svelte.ts` for shared reactive state (e.g. `graphStore.svelte.ts`).
+- **Stores**: App-wide or shared state in such files.
+- **Runes**: Component-local state and props. Don't wrap simple parent→child data in a store; pass via `$props()` and derive with `$derived`.
+
+## Script and imports
+
+- Use `<script lang="ts">`. Import component types when needed: `import type { X } from './Component.svelte';`. Prefer `import type` for Svelte types.
+
+## Reactivity
+
+- Prefer `$derived` over recalculating in the template. Use `$derived.by()` for expensive or multi-dependency derivations.
+- Avoid mutating props or store values in place when the UI is reactive; return new references so updates are detected.
+- In `$effect`, don't update reactive state that the effect reads (infinite loops). Use effects for sync/subscriptions; use `$derived` or event handlers for state updates.
+
+For CSS in Svelte, follow `.cursor/rules/frontend/css-standards.mdc`.

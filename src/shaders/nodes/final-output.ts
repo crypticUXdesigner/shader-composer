@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 /**
  * Final Output Node
@@ -14,7 +14,8 @@ export const finalOutputNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec3'  // Accepts vec3 (use color-map node before this for float inputs)
+      type: 'vec3',  // Accepts vec3 (use color-map node before this for float inputs)
+      label: 'Color'
     }
   ],
   outputs: [],  // Terminal node - no outputs

@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 /**
  * Utility Nodes
@@ -11,10 +11,10 @@ export const oneMinusNodeSpec: NodeSpec = {
   description: 'Subtracts input from 1.0 (invert for 0-1 range)',
   icon: 'settings-2',
   inputs: [
-    { name: 'in', type: 'float' }
+    { name: 'in', type: 'float', label: 'Value' }
   ],
   outputs: [
-    { name: 'out', type: 'float' }
+    { name: 'out', type: 'float', label: 'Result' }
   ],
   parameters: {},
   mainCode: `
@@ -29,10 +29,10 @@ export const negateNodeSpec: NodeSpec = {
   description: 'Negates input value',
   icon: 'settings-2',
   inputs: [
-    { name: 'in', type: 'float' }
+    { name: 'in', type: 'float', label: 'Value' }
   ],
   outputs: [
-    { name: 'out', type: 'float' }
+    { name: 'out', type: 'float', label: 'Result' }
   ],
   parameters: {},
   mainCode: `
@@ -47,42 +47,14 @@ export const reciprocalNodeSpec: NodeSpec = {
   description: 'Reciprocal (1.0 / input)',
   icon: 'settings-2',
   inputs: [
-    { name: 'in', type: 'float' }
+    { name: 'in', type: 'float', label: 'Value' }
   ],
   outputs: [
-    { name: 'out', type: 'float' }
+    { name: 'out', type: 'float', label: 'Result' }
   ],
   parameters: {},
   mainCode: `
     $output.out = 1.0 / $input.in;
-  `
-};
-
-export const remapNodeSpec: NodeSpec = {
-  id: 'remap',
-  category: 'Utilities',
-  displayName: 'Remap',
-  description: 'Remaps value from one range to another',
-  icon: 'settings-2',
-  inputs: [
-    { name: 'in', type: 'float' },
-    { name: 'inMin', type: 'float', fallbackParameter: 'inMin' },
-    { name: 'inMax', type: 'float', fallbackParameter: 'inMax' },
-    { name: 'outMin', type: 'float', fallbackParameter: 'outMin' },
-    { name: 'outMax', type: 'float', fallbackParameter: 'outMax' }
-  ],
-  outputs: [
-    { name: 'out', type: 'float' }
-  ],
-  parameters: {
-    inMin: { type: 'float', default: 0.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'In Min' },
-    inMax: { type: 'float', default: 1.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'In Max' },
-    outMin: { type: 'float', default: 0.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'Out Min' },
-    outMax: { type: 'float', default: 1.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'Out Max' }
-  },
-  mainCode: `
-    float t = ($input.in - $input.inMin) / ($input.inMax - $input.inMin);
-    $output.out = mix($input.outMin, $input.outMax, t);
   `
 };
 
@@ -93,10 +65,10 @@ export const clamp01NodeSpec: NodeSpec = {
   description: 'Clamps value to 0.0-1.0 range',
   icon: 'settings-2',
   inputs: [
-    { name: 'in', type: 'float' }
+    { name: 'in', type: 'float', label: 'Value' }
   ],
   outputs: [
-    { name: 'out', type: 'float' }
+    { name: 'out', type: 'float', label: 'Result' }
   ],
   parameters: {},
   mainCode: `
@@ -111,10 +83,10 @@ export const saturateNodeSpec: NodeSpec = {
   description: 'Same as Clamp 01 (common shader term)',
   icon: 'settings-2',
   inputs: [
-    { name: 'in', type: 'float' }
+    { name: 'in', type: 'float', label: 'Value' }
   ],
   outputs: [
-    { name: 'out', type: 'float' }
+    { name: 'out', type: 'float', label: 'Result' }
   ],
   parameters: {},
   mainCode: `
@@ -129,10 +101,10 @@ export const signNodeSpec: NodeSpec = {
   description: 'Returns sign of value (-1.0, 0.0, or 1.0)',
   icon: 'settings-2',
   inputs: [
-    { name: 'in', type: 'float' }
+    { name: 'in', type: 'float', label: 'Value' }
   ],
   outputs: [
-    { name: 'out', type: 'float' }
+    { name: 'out', type: 'float', label: 'Result' }
   ],
   parameters: {},
   mainCode: `
@@ -147,10 +119,10 @@ export const roundNodeSpec: NodeSpec = {
   description: 'Rounds to nearest integer',
   icon: 'settings-2',
   inputs: [
-    { name: 'in', type: 'float' }
+    { name: 'in', type: 'float', label: 'Value' }
   ],
   outputs: [
-    { name: 'out', type: 'float' }
+    { name: 'out', type: 'float', label: 'Result' }
   ],
   parameters: {},
   mainCode: `
@@ -165,10 +137,10 @@ export const truncateNodeSpec: NodeSpec = {
   description: 'Truncates (removes fractional part)',
   icon: 'settings-2',
   inputs: [
-    { name: 'in', type: 'float' }
+    { name: 'in', type: 'float', label: 'Value' }
   ],
   outputs: [
-    { name: 'out', type: 'float' }
+    { name: 'out', type: 'float', label: 'Result' }
   ],
   parameters: {},
   mainCode: `
@@ -183,17 +155,26 @@ export const lerpNodeSpec: NodeSpec = {
   description: 'Linear interpolation (alias for Mix)',
   icon: 'settings-2',
   inputs: [
-    { name: 'a', type: 'float', fallbackParameter: 'a' },
-    { name: 'b', type: 'float', fallbackParameter: 'b' },
-    { name: 't', type: 'float', fallbackParameter: 't' }
+    { name: 'a', type: 'float', fallbackParameter: 'a', label: 'Start' },
+    { name: 'b', type: 'float', fallbackParameter: 'b', label: 'End' },
+    { name: 't', type: 'float', fallbackParameter: 't', label: 'Factor' }
   ],
   outputs: [
-    { name: 'out', type: 'float' }
+    { name: 'out', type: 'float', label: 'Result' }
   ],
   parameters: {
-    a: { type: 'float', default: 0.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'A' },
-    b: { type: 'float', default: 1.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'B' },
-    t: { type: 'float', default: 0.5, min: 0.0, max: 1.0, step: 0.01, label: 'T' }
+    a: { type: 'float', default: 0.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'Start' },
+    b: { type: 'float', default: 1.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'End' },
+    t: { type: 'float', default: 0.5, min: 0.0, max: 1.0, step: 0.01, label: 'Factor' }
+  },
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['a', 'b', 't'],
+        layout: { columns: 2, parameterSpan: { a: 2, b: 2, t: 2 } }
+      }
+    ]
   },
   mainCode: `
     $output.out = mix($input.a, $input.b, $input.t);
@@ -207,16 +188,26 @@ export const swizzleNodeSpec: NodeSpec = {
   description: 'Reorders/swizzles vector components (supports common patterns)',
   icon: 'arrows-right-left',
   inputs: [
-    { name: 'in', type: 'vec4' }
+    { name: 'in', type: 'vec4', label: 'Vector' }
   ],
   outputs: [
-    { name: 'out', type: 'vec4' }
+    { name: 'out', type: 'vec4', label: 'Result' }
   ],
   parameters: {
     swizzle: {
       type: 'string',
-      default: 'xyzw'
+      default: 'xyzw',
+      label: 'Pattern'
     }
+  },
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['swizzle'],
+        layout: { columns: 2, parameterSpan: { swizzle: 2 } }
+      }
+    ]
   },
   mainCode: `
     // Swizzle pattern - supports common 2, 3, and 4 component patterns
@@ -251,15 +242,20 @@ export const splitVectorNodeSpec: NodeSpec = {
   description: 'Splits vector into components',
   icon: 'layers-difference',
   inputs: [
-    { name: 'in', type: 'vec4' }
+    { name: 'in', type: 'vec4', label: 'Vector' }
   ],
   outputs: [
-    { name: 'x', type: 'float' },
-    { name: 'y', type: 'float' },
-    { name: 'z', type: 'float' },
-    { name: 'w', type: 'float' }
+    { name: 'x', type: 'float', label: 'X' },
+    { name: 'y', type: 'float', label: 'Y' },
+    { name: 'z', type: 'float', label: 'Z' },
+    { name: 'w', type: 'float', label: 'W' }
   ],
   parameters: {},
+  parameterLayout: {
+    elements: [
+      { type: 'grid', parameters: [], layout: { columns: 2 } }
+    ]
+  },
   mainCode: `
     $output.x = $input.in.x;
     $output.y = $input.in.y;
@@ -275,23 +271,33 @@ export const combineVectorNodeSpec: NodeSpec = {
   description: 'Combines floats into vector',
   icon: 'layers-union',
   inputs: [
-    { name: 'x', type: 'float' },
-    { name: 'y', type: 'float' },
-    { name: 'z', type: 'float', fallbackParameter: 'z' },
-    { name: 'w', type: 'float', fallbackParameter: 'w' }
+    { name: 'x', type: 'float', label: 'X' },
+    { name: 'y', type: 'float', label: 'Y' },
+    { name: 'z', type: 'float', fallbackParameter: 'z', label: 'Z' },
+    { name: 'w', type: 'float', fallbackParameter: 'w', label: 'W' }
   ],
   outputs: [
-    { name: 'out', type: 'vec4' }
+    { name: 'out', type: 'vec4', label: 'Vector' }
   ],
   parameters: {
     outputType: {
       type: 'int',
       default: 2,
       min: 2,
-      max: 4
+      max: 4,
+      label: 'Output Type'
     },
-    z: { type: 'float', default: 0.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'Z' },
-    w: { type: 'float', default: 1.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'W' }
+    z: { type: 'float', default: 0.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'Z Component' },
+    w: { type: 'float', default: 1.0, min: -1000.0, max: 1000.0, step: 0.01, label: 'W Component' }
+  },
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['outputType', 'z', 'w'],
+        layout: { columns: 2, parameterSpan: { outputType: 2, z: 2, w: 2 } }
+      }
+    ]
   },
   mainCode: `
     // Output type is vec4, compiler will handle promotion/demotion based on connections

@@ -7,6 +7,7 @@
 
 import type { InteractionEvent, InteractionHandler } from '../InteractionHandler';
 import type { HandlerContext } from '../HandlerContext';
+import { shouldRequestPanRender } from '../panRenderThrottle';
 
 interface VelocityPoint {
   panX: number;
@@ -35,7 +36,11 @@ export class HandToolHandler implements InteractionHandler {
   private panAnimationFrame: number | null = null;
   private lastMouseX: number = 0;
   private lastMouseY: number = 0;
-  
+  /** Last time requestRender was called during pan (0 = not yet). Used to throttle render rate. */
+  private lastPanRenderRequestTime: number = 0;
+  /** Last time requestRender was called during momentum (0 = not yet). Used to throttle render rate. */
+  private lastMomentumRenderRequestTime: number = 0;
+
   constructor(private context: HandlerContext) {}
   
   canHandle(event: InteractionEvent): boolean {
@@ -75,7 +80,7 @@ export class HandToolHandler implements InteractionHandler {
     this.panStartY = mouseY - state.panY;
     this.lastMouseX = mouseX;
     this.lastMouseY = mouseY;
-    this.context.setCursor('grabbing');
+    this.context.setCursor('all-scroll');
     
     // Record initial position for velocity tracking
     this.recordVelocityPoint(state.panX, state.panY);
@@ -120,6 +125,9 @@ export class HandToolHandler implements InteractionHandler {
       this.panAnimationFrame = null;
     }
     
+    // One final render so canvas matches final view state
+    this.context.requestRender();
+    
     // Update NodeEditorCanvas state for rendering
     this.context.setPanState?.({
       isPanning: false,
@@ -161,14 +169,14 @@ export class HandToolHandler implements InteractionHandler {
     if (this.panAnimationFrame !== null) {
       return; // Already running
     }
-    
+    this.lastPanRenderRequestTime = 0; // First frame always requests a render
     const animate = () => {
       if (!this.isPanning) {
         this.panAnimationFrame = null;
         return;
       }
       
-      // Update pan position using latest mouse position
+      // Update pan position using latest mouse position (every frame for smooth movement)
       const state = this.context.getState();
       const newState = { ...state };
       newState.panX = this.lastMouseX - this.panStartX;
@@ -178,8 +186,11 @@ export class HandToolHandler implements InteractionHandler {
       // Record velocity for momentum calculation
       this.recordVelocityPoint(newState.panX, newState.panY);
       
-      // Panning changes viewport - everything needs to be redrawn
-      this.context.requestRender();
+      // Throttle full redraws during pan (~30 fps) while state updates every frame
+      if (shouldRequestPanRender(this.lastPanRenderRequestTime)) {
+        this.lastPanRenderRequestTime = performance.now();
+        this.context.requestRender();
+      }
       
       // Continue animation
       this.panAnimationFrame = requestAnimationFrame(animate);
@@ -248,7 +259,7 @@ export class HandToolHandler implements InteractionHandler {
     if (this.momentumAnimationFrame !== null) {
       return; // Already running
     }
-    
+    this.lastMomentumRenderRequestTime = 0; // First frame always requests a render
     const animate = () => {
       // Apply friction (exponential decay)
       this.momentumVelocityX *= this.friction;
@@ -261,19 +272,23 @@ export class HandToolHandler implements InteractionHandler {
       );
       
       if (speed < this.minVelocityThreshold) {
+        this.context.requestRender(); // Final render so canvas matches final view state
         this.stopMomentum();
         return;
       }
       
-      // Update pan position
+      // Update pan position (every frame for smooth movement)
       const state = this.context.getState();
       const newState = { ...state };
       newState.panX += this.momentumVelocityX;
       newState.panY += this.momentumVelocityY;
       this.context.setState(() => newState);
       
-      // Request render
-      this.context.requestRender();
+      // Throttle full redraws during momentum (~30 fps)
+      if (shouldRequestPanRender(this.lastMomentumRenderRequestTime)) {
+        this.lastMomentumRenderRequestTime = performance.now();
+        this.context.requestRender();
+      }
       
       // Continue animation
       this.momentumAnimationFrame = requestAnimationFrame(animate);

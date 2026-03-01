@@ -1,0 +1,24 @@
+---
+description: All save/load use data-model serialization; validateGraph before compiler; migrate legacy.
+globs: "src/data-model/**/*.ts,src/utils/presetManager.ts"
+alwaysApply: false
+---
+
+# Data Model and Serialization
+
+Single serialization path for all save/load; every graph passed to the compiler must have passed `validateGraph`; migrate legacy on load.
+
+## Do
+
+- **Save/load**: Use `src/data-model/serialization.ts` only. Format `SerializedGraphFile`: `format`, `formatVersion: "2.0"`, `graph`, optional `audioSetup`. Extend serialization/types there; no second path.
+- **Validate**: After deserialization or migration, run `validateGraph`; do not pass unchecked graphs to compiler or runtime.
+- **Migration**: Migrate legacy on load (e.g. audio nodes, noise renames); produce new graph, no in-place mutation. See data-model migration modules and `.cursor/rules/domain/presets.mdc`.
+- Example: load path = deserialize → migrate → validateGraph → then pass to compiler.
+
+## Avoid
+
+- Duplicate serialize/deserialize logic. Skipping validation for "trusted" or default graphs.
+
+## Reference
+
+- `src/data-model/serialization.ts`, `src/data-model/validation.ts`, `.cursor/rules/domain/presets.mdc`, `docs/projects/core-architecture/_OVERVIEW.md` (03A)

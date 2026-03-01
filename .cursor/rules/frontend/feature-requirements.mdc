@@ -1,0 +1,27 @@
+---
+description: When editing canvas, panel, parameters, audio, timeline, or export, align with docs/user-goals/.
+globs: "src/ui/**/*.ts,src/lib/**/*.svelte,src/video-export/**/*.ts"
+alwaysApply: false
+---
+
+# Feature Requirements
+
+When changing behavior of the node graph canvas, node panel, parameters, connections, audio, timeline, or export, check the matching doc in `docs/user-goals/` so implementation stays aligned with user goals and constraints.
+
+Example: when changing how parameters are edited on the canvas (e.g. color picker, input mode), read `docs/user-goals/04-nodes-and-parameters.md` for user goals and constraints first.
+
+## Mapping (examples)
+
+- **Overview & app shell** → `docs/user-goals/01-overview-and-app-shell.md`
+- **Node graph canvas** (selection, pan, zoom, rendering) → `docs/user-goals/02-node-graph-canvas.md`
+- **Node panel** (add node, search, categories) → `docs/user-goals/03-node-panel.md`
+- **Nodes & parameters** (controls, input modes, live values, color/enum on canvas) → `docs/user-goals/04-nodes-and-parameters.md`
+- **Connections** → `docs/user-goals/05-connections.md`
+- **Audio** → `docs/user-goals/06-audio.md`
+- **Timeline & automation** → `docs/user-goals/07-timeline-and-automation.md`
+- **Presets & data** → `docs/user-goals/08-presets-and-data.md`
+- **Export** (image, video, progress) → `docs/user-goals/09-export.md`
+- **Help & discovery** → `docs/user-goals/10-help-and-discovery.md`
+- **Undo/redo & keyboard** → `docs/user-goals/11-undo-redo-and-keyboard.md`
+
+See `docs/user-goals/` for the full list. Use the doc for user goals, key flows, and constraints before changing behavior or adding features in that area.

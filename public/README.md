@@ -4,21 +4,10 @@ This folder contains static assets that are served at the root path.
 
 ## Audio Files
 
-Place your audio files (MP3) here to use them as default audio in presets.
+Place your audio files (MP3) here to make them available to the app’s audio system.
 
-### Example Usage
-
-1. Place an audio file here, e.g., `default-audio.mp3`
-2. In your preset JSON, reference it with:
-   ```json
-   {
-     "type": "audio-file-input",
-     "parameters": {
-       "filePath": "/default-audio.mp3",
-       "autoPlay": 1
-     }
-   }
-   ```
+- Audio playback, bands, and remapping are configured via the audio panel (audioSetup), not visual nodes.
+- Files in this folder are served as static assets and can be referenced by `filePath` in audioSetup or playlist entries.
 
 ### Path Notes
 
@@ -29,4 +18,4 @@ Place your audio files (MP3) here to use them as default audio in presets.
 
 ### Automatic Loading
 
-Files referenced in presets will be automatically loaded when the graph is set, without requiring user interaction.
+Files referenced by the audio setup (e.g. playlist entries or primary source) will be loaded by the audio runtime when needed, subject to browser autoplay policies.

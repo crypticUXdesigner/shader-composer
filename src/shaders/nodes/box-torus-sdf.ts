@@ -1,21 +1,36 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
+import { COOK_TORRANCE_SPECULAR_GLSL } from './cook-torrance-specular';
 
 export const boxTorusSdfNodeSpec: NodeSpec = {
   id: 'box-torus-sdf',
   category: 'Shapes',
-  displayName: 'SDF',
+  displayName: 'Primitives',
   icon: 'box',
-  description: '3D geometric primitives (box, torus, capsule, cylinder, cone, round cone, octahedron) using raymarching',
+  description: '3D geometric primitives (box, torus, capsule, cylinder, cone, round cone, octahedron, icosahedron) using raymarching',
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
+    },
+    {
+      name: 'ro',
+      type: 'vec3',
+      label: 'Ray origin',
+      fallbackParameter: 'cameraRoX,cameraRoY,cameraRoZ'
+    },
+    {
+      name: 'rd',
+      type: 'vec3',
+      label: 'Ray direction',
+      fallbackExpression: 'normalize(vec3($input.in, -1.0))'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'float'
+      type: 'float',
+      label: 'Glow'
     }
   ],
   parameters: {
@@ -23,7 +38,7 @@ export const boxTorusSdfNodeSpec: NodeSpec = {
       type: 'int',
       default: 0,
       min: 0,
-      max: 6,
+      max: 7,
       step: 1,
       label: 'Shape'
     },
@@ -114,6 +129,158 @@ export const boxTorusSdfNodeSpec: NodeSpec = {
       max: 200,
       step: 1,
       label: 'Raymarch'
+    },
+    lightType: {
+      type: 'int',
+      default: 0,
+      min: 0,
+      max: 1,
+      step: 1,
+      label: 'Light Type'
+    },
+    lightDirX: {
+      type: 'float',
+      default: 0.5,
+      min: -1.0,
+      max: 1.0,
+      step: 0.01,
+      label: 'Dir X'
+    },
+    lightDirY: {
+      type: 'float',
+      default: 0.5,
+      min: -1.0,
+      max: 1.0,
+      step: 0.01,
+      label: 'Dir Y'
+    },
+    lightDirZ: {
+      type: 'float',
+      default: 1.0,
+      min: -1.0,
+      max: 1.0,
+      step: 0.01,
+      label: 'Dir Z'
+    },
+    lightPosX: {
+      type: 'float',
+      default: 2.0,
+      min: -5.0,
+      max: 5.0,
+      step: 0.1,
+      label: 'Pos X'
+    },
+    lightPosY: {
+      type: 'float',
+      default: 2.0,
+      min: -5.0,
+      max: 5.0,
+      step: 0.1,
+      label: 'Pos Y'
+    },
+    lightPosZ: {
+      type: 'float',
+      default: 3.0,
+      min: -5.0,
+      max: 5.0,
+      step: 0.1,
+      label: 'Pos Z'
+    },
+    lightIntensity: {
+      type: 'float',
+      default: 1.0,
+      min: 0.0,
+      max: 2.0,
+      step: 0.01,
+      label: 'Intensity'
+    },
+    lightAmbient: {
+      type: 'float',
+      default: 0.25,
+      min: 0.0,
+      max: 1.0,
+      step: 0.01,
+      label: 'Ambient'
+    },
+    lightFalloff: {
+      type: 'float',
+      default: 1.0,
+      min: 0.0,
+      max: 5.0,
+      step: 0.1,
+      label: 'Falloff'
+    },
+    shadowEnable: {
+      type: 'int',
+      default: 0,
+      min: 0,
+      max: 1,
+      step: 1,
+      label: 'Shadows'
+    },
+    shadowSoftness: {
+      type: 'float',
+      default: 8.0,
+      min: 1.0,
+      max: 32.0,
+      step: 1.0,
+      label: 'Softness'
+    },
+    shadowSteps: {
+      type: 'int',
+      default: 16,
+      min: 4,
+      max: 48,
+      step: 1,
+      label: 'Steps'
+    },
+    specularCookTorrance: {
+      type: 'int',
+      default: 0,
+      min: 0,
+      max: 1,
+      step: 1,
+      label: 'Cook-Torrance'
+    },
+    specularRoughness: {
+      type: 'float',
+      default: 0.35,
+      min: 0.01,
+      max: 1.0,
+      step: 0.01,
+      label: 'Roughness'
+    },
+    specularF0: {
+      type: 'float',
+      default: 0.04,
+      min: 0.0,
+      max: 1.0,
+      step: 0.01,
+      label: 'F0'
+    },
+    cameraRoX: {
+      type: 'float',
+      default: 0.0,
+      min: -10.0,
+      max: 10.0,
+      step: 0.1,
+      label: 'Ro X'
+    },
+    cameraRoY: {
+      type: 'float',
+      default: 0.0,
+      min: -10.0,
+      max: 10.0,
+      step: 0.1,
+      label: 'Ro Y'
+    },
+    cameraRoZ: {
+      type: 'float',
+      default: 3.0,
+      min: -10.0,
+      max: 10.0,
+      step: 0.1,
+      label: 'Ro Z'
     }
   },
   parameterGroups: [
@@ -144,8 +311,95 @@ export const boxTorusSdfNodeSpec: NodeSpec = {
       parameters: ['primitiveRotationX', 'primitiveRotationY', 'primitiveRotationZ'],
       collapsible: true,
       defaultCollapsed: true
+    },
+    {
+      id: 'light-main',
+      label: 'Lighting',
+      parameters: ['lightType', 'lightIntensity', 'lightAmbient'],
+      collapsible: true,
+      defaultCollapsed: false
+    },
+    {
+      id: 'light-directional',
+      label: 'Directional',
+      parameters: ['lightDirX', 'lightDirY', 'lightDirZ'],
+      collapsible: true,
+      defaultCollapsed: false
+    },
+    {
+      id: 'light-point',
+      label: 'Point',
+      parameters: ['lightPosX', 'lightPosY', 'lightPosZ', 'lightFalloff'],
+      collapsible: true,
+      defaultCollapsed: true
+    },
+    {
+      id: 'shadow-main',
+      label: 'Shadow',
+      parameters: ['shadowEnable', 'shadowSoftness', 'shadowSteps'],
+      collapsible: true,
+      defaultCollapsed: true
+    },
+    {
+      id: 'specular-main',
+      label: 'Specular',
+      parameters: ['specularCookTorrance', 'specularRoughness', 'specularF0'],
+      collapsible: true,
+      defaultCollapsed: true
     }
   ],
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['primitiveType', 'primitiveGlowIntensity', 'primitiveRaymarchSteps', 'primitiveCenterX', 'primitiveCenterY', 'primitiveCenterZ'],
+        parameterUI: { primitiveCenterX: 'coords', primitiveCenterY: 'coords' },
+        layout: { columns: 3, coordsSpan: 2 }
+      },
+      {
+        type: 'grid',
+        label: 'Size',
+        parameters: ['primitiveSizeX', 'primitiveSizeY', 'primitiveSizeZ'],
+        layout: { columns: 3 }
+      },
+      {
+        type: 'grid',
+        label: 'Rotation',
+        parameters: ['primitiveRotationX', 'primitiveRotationY', 'primitiveRotationZ'],
+        layout: { columns: 3 }
+      },
+      {
+        type: 'grid',
+        label: 'Lighting',
+        parameters: ['lightType', 'lightAmbient', 'lightIntensity'],
+        layout: { columns: 3 }
+      },
+      {
+        type: 'grid',
+        label: 'Directional',
+        parameters: ['lightDirX', 'lightDirY', 'lightDirZ'],
+        layout: { columns: 3 }
+      },
+      {
+        type: 'grid',
+        label: 'Point',
+        parameters: ['lightPosX', 'lightPosY', 'lightPosZ', 'lightFalloff'],
+        layout: { columns: 3, parameterSpan: { lightFalloff: 3 } }
+      },
+      {
+        type: 'grid',
+        label: 'Shadow',
+        parameters: ['shadowEnable', 'shadowSoftness', 'shadowSteps'],
+        layout: { columns: 3 }
+      },
+      {
+        type: 'grid',
+        label: 'Specular',
+        parameters: ['specularCookTorrance', 'specularRoughness', 'specularF0'],
+        layout: { columns: 3 }
+      }
+    ]
+  },
   functions: `
 // Box SDF
 float sdBox(vec3 p, vec3 size) {
@@ -206,6 +460,22 @@ float sdOctahedron(vec3 p, float s) {
   else return m * 0.57735027;
   float k = clamp(0.5 * (q.z - q.y + s), 0.0, s);
   return length(vec3(q.x, q.y - s + k, q.z - k));
+}
+
+// Icosahedron: scale s (exact SDF via symmetry fold; s clamped to avoid degenerate)
+float sdIcosahedron(vec3 p, float s) {
+  const float phi = (1.0 + sqrt(5.0)) / 2.0;
+  float scale = max(s, 0.01);
+  p = abs(p);
+  float t = 0.0;
+  for (int i = 0; i < 3; i++) {
+    if (p.x < p.y) p.xy = p.yx;
+    if (p.x < p.z) p.xz = p.zx;
+    p = p * phi - scale * phi;
+    p.xy = -p.yx;
+    t += 1.0;
+  }
+  return length(p) * pow(phi, -t);
 }
 
 // Rotate point around X axis
@@ -271,6 +541,10 @@ float sceneSDF(vec3 p) {
   else if ($param.primitiveType == 6) {
     d = sdOctahedron(transformedP, $param.primitiveSizeX);
   }
+  // Icosahedron: scale X (clamped inside sdIcosahedron)
+  else if ($param.primitiveType == 7) {
+    d = sdIcosahedron(transformedP, $param.primitiveSizeX);
+  }
   
   return d;
 }
@@ -306,15 +580,89 @@ float calculateGlow(vec3 ro, vec3 rd, int steps) {
   }
   return glow / float(steps);
 }
+
+// SDF gradient (surface normal) at point p
+vec3 sdfNormal(vec3 p) {
+  float eps = 0.001;
+  float d = sceneSDF(p);
+  float dx = sceneSDF(p + vec3(eps, 0.0, 0.0)) - d;
+  float dy = sceneSDF(p + vec3(0.0, eps, 0.0)) - d;
+  float dz = sceneSDF(p + vec3(0.0, 0.0, eps)) - d;
+  return normalize(vec3(dx, dy, dz));
+}
+
+float directionalLight(vec3 N, vec3 lightDir) {
+  return max(dot(N, normalize(lightDir)), 0.0);
+}
+
+float pointLight(vec3 p, vec3 lightPos, float intensity, float falloff) {
+  vec3 toLight = lightPos - p;
+  float dist = length(toLight);
+  return intensity / max(1.0 + falloff * dist * dist, 0.001);
+}
+
+// Soft shadow: raymarch from hit point toward light; returns 0 = in shadow, 1 = lit
+float softShadow(vec3 ro, vec3 rd, float maxDist, int steps, float softness) {
+  float t = 0.0;
+  float res = 1.0;
+  for (int i = 0; i < 48; i++) {
+    if (i >= steps) break;
+    vec3 p = ro + rd * t;
+    float d = sceneSDF(p);
+    if (d < 0.001) return 0.0;
+    res = min(res, softness * d / max(t, 0.001));
+    t += max(d, 0.01);
+    if (t >= maxDist) break;
+  }
+  return clamp(res, 0.0, 1.0);
+}
+${COOK_TORRANCE_SPECULAR_GLSL}
 `,
   mainCode: `
-  vec3 ro = vec3(0.0, 0.0, 3.0);
-  vec3 rd = normalize(vec3($input.in, -1.0));
-  
+  vec3 ro = $input.ro;
+  vec3 rd = normalize($input.rd);
+
   float t = raymarch(ro, rd, $param.primitiveRaymarchSteps);
   if (t > 0.0) {
+    vec3 hitP = ro + rd * t;
+    vec3 N = sdfNormal(hitP);
+    vec3 V = -rd;
+
+    float lighting = $param.lightAmbient;
+    float shadow = 1.0;
+    vec3 L = vec3(0.0, 0.0, 1.0);
+    if ($param.lightType == 0) {
+      vec3 lightDir = vec3($param.lightDirX, $param.lightDirY, $param.lightDirZ);
+      float len = length(lightDir);
+      if (len > 0.001) {
+        L = normalize(lightDir);
+        lighting += directionalLight(N, lightDir) * $param.lightIntensity;
+        if ($param.shadowEnable != 0) {
+          shadow = softShadow(hitP + N * 0.02, L, 20.0, $param.shadowSteps, $param.shadowSoftness);
+          lighting = $param.lightAmbient + (lighting - $param.lightAmbient) * shadow;
+        }
+        if ($param.specularCookTorrance != 0) {
+          lighting += ctSpecular(N, V, L, $param.specularRoughness, $param.specularF0) * $param.lightIntensity * shadow;
+        }
+      }
+    } else {
+      vec3 lightPos = vec3($param.lightPosX, $param.lightPosY, $param.lightPosZ);
+      float atten = pointLight(hitP, lightPos, 1.0, $param.lightFalloff);
+      L = normalize(lightPos - hitP);
+      float diff = max(dot(N, L), 0.0) * atten * $param.lightIntensity;
+      if ($param.shadowEnable != 0) {
+        float lightDist = length(lightPos - hitP);
+        shadow = softShadow(hitP + N * 0.02, L, lightDist, $param.shadowSteps, $param.shadowSoftness);
+      }
+      lighting += diff * shadow;
+      if ($param.specularCookTorrance != 0) {
+        lighting += ctSpecular(N, V, L, $param.specularRoughness, $param.specularF0) * atten * $param.lightIntensity * shadow;
+      }
+    }
+
     float glow = calculateGlow(ro, rd, $param.primitiveRaymarchSteps);
-    $output.out += (1.0 - t * 0.1) + glow * $param.primitiveGlowIntensity;
+    float base = (1.0 - t * 0.1) + glow * $param.primitiveGlowIntensity;
+    $output.out += base * lighting;
   }
 `
 };

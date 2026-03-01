@@ -14,6 +14,7 @@ import { parametersEqual, connectionsEqual } from '../../runtime/utils/deepEqual
 import type { ChangeDetectionResult, ChangeDetectionOptions } from './types';
 import { ChangeType } from './types';
 import { GraphAnalyzer } from '../../shaders/compilation/GraphAnalyzer';
+import { automationEqual, automationOnlyCurveDataDiffer, automationOnlyRegionTimesDiffer } from './automationComparison';
 
 /**
  * Graph Change Detector
@@ -125,8 +126,57 @@ export class GraphChangeDetector {
       return false;
     }
 
+    if (!automationEqual(oldGraph.automation, newGraph.automation)) {
+      return false;
+    }
+
     // If we get here, only positions (or viewState) changed
     return true;
+  }
+
+  /**
+   * True when the only change is automation curve data (keyframes, interpolation) within existing regions.
+   * Same nodes, connections, parameters, lanes, region start/duration/loop; only region.curve differs.
+   * Used to skip recompile when dragging keyframes (shader code unchanged; runtime only needs updated graph for evaluation).
+   */
+  static isOnlyAutomationCurveDataChange(
+    oldGraph: NodeGraph | null,
+    newGraph: NodeGraph
+  ): boolean {
+    if (oldGraph === newGraph || !oldGraph) return false;
+    if (oldGraph.nodes.length !== newGraph.nodes.length) return false;
+    if ((oldGraph.connections?.length ?? 0) !== (newGraph.connections?.length ?? 0)) return false;
+    if (!connectionsEqual(oldGraph.connections, newGraph.connections)) return false;
+    const oldNodesById = new Map(oldGraph.nodes.map(n => [n.id, n]));
+    for (const newNode of newGraph.nodes) {
+      const oldNode = oldNodesById.get(newNode.id);
+      if (!oldNode || oldNode.type !== newNode.type || !parametersEqual(oldNode.parameters, newNode.parameters)) {
+        return false;
+      }
+    }
+    return automationOnlyCurveDataDiffer(oldGraph.automation, newGraph.automation);
+  }
+
+  /**
+   * True when the only change is automation region startTime/duration/loop (same nodes, connections, lanes, curve keyframes).
+   * Used to run recompile in setTimeout(0) instead of requestIdleCallback to avoid long idle-handler violations.
+   */
+  static isOnlyAutomationRegionTimesChange(
+    oldGraph: NodeGraph | null,
+    newGraph: NodeGraph
+  ): boolean {
+    if (oldGraph === newGraph || !oldGraph) return false;
+    if (oldGraph.nodes.length !== newGraph.nodes.length) return false;
+    if ((oldGraph.connections?.length ?? 0) !== (newGraph.connections?.length ?? 0)) return false;
+    if (!connectionsEqual(oldGraph.connections, newGraph.connections)) return false;
+    const oldNodesById = new Map(oldGraph.nodes.map(n => [n.id, n]));
+    for (const newNode of newGraph.nodes) {
+      const oldNode = oldNodesById.get(newNode.id);
+      if (!oldNode || oldNode.type !== newNode.type || !parametersEqual(oldNode.parameters, newNode.parameters)) {
+        return false;
+      }
+    }
+    return automationOnlyRegionTimesDiffer(oldGraph.automation, newGraph.automation);
   }
 
   /**
@@ -365,7 +415,6 @@ export class GraphChangeDetector {
           if (result.removedNodeIds.length > 0) {
             // Use old graph to find what depended on removed nodes
             const oldGraphAnalyzer = new GraphAnalyzer();
-            // const removedNodeSet = new Set(result.removedNodeIds); // Unused but kept for potential future use
             const oldDependents = oldGraphAnalyzer.buildDependentsGraph(oldGraph);
             
             // Find all nodes in new graph that depended on removed nodes

@@ -1,0 +1,238 @@
+/* =============================================================================
+   PATTERNS â€” sub-groups: noise (muted, default), structured (prominent)
+   ============================================================================= */
+
+:root {
+  /* Noise (default): leaf-gray scale â€” muted */
+  /* Node body shadow (outermost) */
+  --node-body-shadow-color-mid-patterns: var(--color-leaf-gray-50);
+  --node-body-shadow-color-outer-patterns: var(--color-leaf-gray-30);
+
+  /* Node header */
+  --node-header-bg-patterns: var(--color-leaf-gray-60);
+  --node-header-bg-end-patterns: var(--color-leaf-gray-40);
+  --node-header-print-patterns: var(--color-yellow-120);
+
+  /* Icon box */
+  --node-icon-box-bg-patterns: var(--color-red-purple-90);
+  --node-icon-box-color-patterns: var(--color-leaf-gray-50);
+
+  /* Param group header */
+  --param-group-header-color-patterns: var(--color-leaf-gray-50);
+
+  /* Param cell */
+  --node-param-cell-bg-patterns: rgba(0,0,0,0.03);
+  --node-param-cell-bg-end-patterns: rgba(0,0,0,0.09);
+  --node-param-label-color-patterns: var(--color-red-purple-90);
+
+  /* Knob */
+  --node-knob-value-bg-patterns: var(--color-leaf-gray-40);
+  --node-knob-value-color-patterns: var(--color-leaf-gray-120);
+  --node-knob-ring-color-patterns: var(--color-leaf-gray-100);
+  --node-knob-arc-active-patterns: var(--color-red-purple-90);
+  --node-knob-marker-patterns: var(--color-red-purple-90);
+  --knob-ring-bg-width-patterns: 10px;
+  --knob-ring-active-width-patterns: 10px;
+
+  /* Bezier editor */
+  --node-bezier-curve-patterns: var(--color-leaf-gray-90);
+  --node-bezier-control-patterns: var(--color-leaf-gray-90);
+  --node-bezier-control-hover-patterns: var(--color-leaf-gray-100);
+
+  /* Structured sub-group: leaf scale â€” more prominent */
+  /* Node body shadow (outermost) */
+  --node-body-shadow-color-mid-patterns-structured: var(--color-leaf-50);
+  --node-body-shadow-color-outer-patterns-structured: var(--color-leaf-30);
+
+  /* Node header */
+  --node-header-bg-patterns-structured: var(--color-leaf-120);
+  --node-header-bg-end-patterns-structured: var(--color-leaf-gray-50);
+  --node-header-print-patterns-structured: var(--color-leaf-gray-60);
+
+  /* Icon box */
+  --node-icon-box-bg-patterns-structured: var(--color-violet-90);
+  --node-icon-box-color-patterns-structured: var(--color-gray-130);
+
+  /* Param group header */
+  --param-group-header-color-patterns-structured: var(--color-cyan-40);
+
+  /* Param cell */
+  --node-param-cell-bg-patterns-structured: rgba(255,255,255,0.09);
+  --node-param-cell-bg-end-patterns-structured: rgba(255,255,255,0.03);
+  --node-param-label-color-patterns-structured: var(--color-cyan-120);
+
+  /* Knob */
+  --node-knob-value-bg-patterns-structured: var(--color-leaf-40);
+  --node-knob-value-color-patterns-structured: var(--color-cyan-120);
+  --node-knob-ring-color-patterns-structured: var(--color-cyan-70);
+  --node-knob-arc-active-patterns-structured: var(--color-violet-100);
+  --node-knob-marker-patterns-structured: var(--color-cyan-40);
+  --knob-ring-bg-width-patterns-structured: 10px;
+  --knob-ring-active-width-patterns-structured: 10px;
+
+  /* Bezier editor */
+  --node-bezier-curve-patterns-structured: var(--color-leaf-90);
+  --node-bezier-control-patterns-structured: var(--color-leaf-90);
+  --node-bezier-control-hover-patterns-structured: var(--color-leaf-100);
+}
+
+.node.patterns {
+  /* CSS custom properties */
+  --node-body-shadow-color-mid: var(--node-body-shadow-color-mid-patterns);
+  --node-body-shadow-color-outer: var(--node-body-shadow-color-outer-patterns);
+  --node-header-name-color: var(--node-header-print-patterns);
+  --param-group-header-color: var(--param-group-header-color-patterns);
+  --knob-ring-color: var(--node-knob-ring-color-patterns);
+  --knob-ring-active-color-static: var(--node-knob-arc-active-patterns);
+  --knob-ring-bg-width: var(--knob-ring-bg-width-patterns);
+  --knob-ring-active-width: var(--knob-ring-active-width-patterns);
+  --knob-marker-color: var(--node-knob-marker-patterns);
+  --knob-value-bg: var(--node-knob-value-bg-patterns);
+  --knob-value-color: var(--node-knob-value-color-patterns);
+  --param-control-bg: var(--node-knob-value-bg-patterns);
+  --param-control-bg-hover: var(--color-leaf-gray-50);
+  --param-control-bg-active: var(--color-leaf-gray-60);
+  --param-control-value-color: var(--node-knob-value-color-patterns);
+
+  /* Node header (outermost) */
+  background: radial-gradient(
+    ellipse var(--node-header-bg-gradient-ellipse-width) var(--node-header-bg-gradient-ellipse-height) at var(--node-header-bg-gradient-ellipse-x) var(--node-header-bg-gradient-ellipse-y),
+    var(--node-header-bg-patterns),
+    var(--node-header-bg-end-patterns)
+  );
+
+  /* Node body */
+  .node-body {
+    background: radial-gradient(
+      ellipse 120% 160% at 50% 25%,
+      var(--color-leaf-gray-120),
+      var(--color-blue-gray-100)
+    );
+  }
+
+  /* Icon box */
+  .icon-box {
+    background: var(--node-icon-box-bg-patterns);
+
+    .header-icon {
+      color: var(--node-icon-box-color-patterns);
+    }
+  }
+
+  /* Node header */
+  .node-header {
+    .label-text,
+    .label-input,
+    .port .name-label {
+      color: var(--node-header-print-patterns);
+    }
+  }
+
+  .param-grid {
+    border-radius: var(--radius-xl);
+  }
+
+  /* Param cell */
+  .param-cell {
+    background: radial-gradient(ellipse 120% 160% at 50% 25%, var(--node-param-cell-bg-patterns), var(--node-param-cell-bg-end-patterns));
+
+    &.connected {
+      background: var(--color-leaf-gray-120);
+      border-color: transparent;
+    }
+
+    .left-column .top .label {
+      color: var(--node-param-label-color-patterns);
+    }
+  }
+
+  /* Bezier editor */
+  .bezier-editor {
+    .curve {
+      stroke: var(--node-bezier-curve-patterns);
+    }
+
+    .control-point {
+      background: var(--node-bezier-control-patterns);
+
+      &:hover {
+        background: var(--node-bezier-control-hover-patterns);
+      }
+    }
+  }
+}
+
+/* Sub-group: structured (rays, grids, gradients, waves) â€” leaf scale, more prominent */
+.node.patterns.structured {
+  --node-header-bg-patterns: var(--node-header-bg-patterns-structured);
+  --node-header-bg-end-patterns: var(--node-header-bg-end-patterns-structured);
+  --node-header-name-color: var(--node-header-print-patterns-structured);
+  --node-icon-box-bg-patterns: var(--node-icon-box-bg-patterns-structured);
+  --node-icon-box-color-patterns: var(--node-icon-box-color-patterns-structured);
+  --param-group-header-color-patterns: var(--param-group-header-color-patterns-structured);
+  --node-param-cell-bg-patterns: var(--node-param-cell-bg-patterns-structured);
+  --node-param-cell-bg-end-patterns: var(--node-param-cell-bg-end-patterns-structured);
+  --node-param-label-color-patterns: var(--node-param-label-color-patterns-structured);
+  --node-knob-value-color-patterns: var(--node-knob-value-color-patterns-structured);
+  --node-knob-value-bg-patterns: var(--node-knob-value-bg-patterns-structured);
+  --node-knob-ring-color-patterns: var(--node-knob-ring-color-patterns-structured);
+  --node-knob-arc-active-patterns: var(--node-knob-arc-active-patterns-structured);
+  --node-knob-marker-patterns: var(--node-knob-marker-patterns-structured);
+  --knob-ring-bg-width-patterns: var(--knob-ring-bg-width-patterns-structured);
+  --knob-ring-active-width-patterns: var(--knob-ring-active-width-patterns-structured);
+  --node-bezier-curve-patterns: var(--node-bezier-curve-patterns-structured);
+  --node-bezier-control-patterns: var(--node-bezier-control-patterns-structured);
+  --node-bezier-control-hover-patterns: var(--node-bezier-control-hover-patterns-structured);
+  --node-body-shadow-color-mid-patterns: var(--node-body-shadow-color-mid-patterns-structured);
+  --node-body-shadow-color-outer-patterns: var(--node-body-shadow-color-outer-patterns-structured);
+
+  .node-body {
+    background: radial-gradient(
+      ellipse 120% 160% at 50% 25%, 
+      var(--color-cyan-80), 
+      var(--color-cyan-gray-50)
+      );
+  }
+
+  .param-cell {
+    &.connected {
+      background: var(--color-cyan-90);
+      border-color: transparent;
+    }
+  }
+}
+
+.node.patterns.structured {
+  --param-control-bg-hover: var(--color-leaf-50);
+  --param-control-bg-active: var(--color-leaf-60);
+}
+
+.node.patterns.structured {
+  /* Icon box */
+  .icon-box .header-icon {
+    color: var(--node-icon-box-color-patterns);
+  }
+
+  /* Node header */
+  .node-header {
+    .label-text,
+    .label-input,
+    .port .name-label {
+      color: var(--node-header-print-patterns-structured);
+    }
+  }
+}
+
+.node.patterns.structured .param-cell .left-column .top .label {
+  color: var(--node-param-label-color-patterns-structured);
+}
+
+/* Shiny: use header print color as ring accent */
+.node.patterns.shiny {
+  --node-shiny-ring-color: var(--node-header-print-patterns);
+}
+
+.node.patterns.structured.shiny {
+  --node-shiny-ring-color: var(--node-header-print-patterns-structured);
+}
+

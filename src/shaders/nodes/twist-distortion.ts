@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const twistDistortionNodeSpec: NodeSpec = {
   id: 'twist-distortion',
@@ -9,13 +9,15 @@ export const twistDistortionNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   parameters: {
@@ -65,7 +67,7 @@ export const twistDistortionNodeSpec: NodeSpec = {
       min: 0.0,
       max: 5.0,
       step: 0.01,
-      label: 'Time Speed'
+      label: 'Speed'
     },
     twistTimeOffset: {
       type: 'float',
@@ -73,14 +75,15 @@ export const twistDistortionNodeSpec: NodeSpec = {
       min: -100.0,
       max: 100.0,
       step: 0.05,
-      label: 'Time Offset'
+      label: 'Offset',
+      inputMode: 'add'
     }
   },
   parameterGroups: [
     {
       id: 'twist-main',
-      label: 'Twist Distortion',
-      parameters: ['twistCenterX', 'twistCenterY', 'twistStrength', 'twistRadius', 'twistFalloff'],
+      label: 'Twist',
+      parameters: ['twistStrength', 'twistCenterX', 'twistCenterY', 'twistRadius', 'twistFalloff'],
       collapsible: true,
       defaultCollapsed: false
     },
@@ -92,6 +95,21 @@ export const twistDistortionNodeSpec: NodeSpec = {
       defaultCollapsed: true
     }
   ],
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['twistStrength', 'twistCenterX', 'twistCenterY', 'twistRadius', 'twistFalloff'],
+        parameterUI: { twistCenterX: 'coords', twistCenterY: 'coords' },
+        layout: { columns: 3, coordsSpan: 2, parameterSpan: { twistFalloff: 2 } }
+      },
+      {
+        type: 'grid',
+        label: 'Animation',
+        parameters: ['twistTimeSpeed', 'twistTimeOffset']
+      }
+    ]
+  },
   functions: `
 vec2 twist(vec2 p, vec2 center, float strength, float radius, float falloff) {
   vec2 offset = p - center;
@@ -111,7 +129,7 @@ vec2 twist(vec2 p, vec2 center, float strength, float radius, float falloff) {
 }
 `,
   mainCode: `
-  float twistTime = ($time + $param.twistTimeOffset) * $param.twistTimeSpeed;
+  float twistTime = $time * $param.twistTimeSpeed + $param.twistTimeOffset;
   vec2 twistCenter = vec2($param.twistCenterX, $param.twistCenterY);
   float dynamicStrength = $param.twistStrength + sin(twistTime) * 0.1; // Optional: subtle animation
   $output.out = twist($input.in, twistCenter, dynamicStrength, $param.twistRadius, $param.twistFalloff);

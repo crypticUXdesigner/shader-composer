@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const rgbSeparationNodeSpec: NodeSpec = {
   id: 'rgb-separation',
@@ -9,13 +9,15 @@ export const rgbSeparationNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec4'
+      type: 'vec4',
+      label: 'Color'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec4'
+      type: 'vec4',
+      label: 'Color'
     }
   ],
   parameters: {
@@ -25,7 +27,7 @@ export const rgbSeparationNodeSpec: NodeSpec = {
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'X Offset'
+      label: 'Red'
     },
     rgbSeparationRY: {
       type: 'float',
@@ -33,7 +35,7 @@ export const rgbSeparationNodeSpec: NodeSpec = {
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Y Offset'
+      label: 'Y'
     },
     rgbSeparationGX: {
       type: 'float',
@@ -41,7 +43,7 @@ export const rgbSeparationNodeSpec: NodeSpec = {
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'X Offset'
+      label: 'Green'
     },
     rgbSeparationGY: {
       type: 'float',
@@ -49,7 +51,7 @@ export const rgbSeparationNodeSpec: NodeSpec = {
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Y Offset'
+      label: 'Y'
     },
     rgbSeparationBX: {
       type: 'float',
@@ -57,7 +59,7 @@ export const rgbSeparationNodeSpec: NodeSpec = {
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'X Offset'
+      label: 'Blue'
     },
     rgbSeparationBY: {
       type: 'float',
@@ -65,7 +67,7 @@ export const rgbSeparationNodeSpec: NodeSpec = {
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Y Offset'
+      label: 'Y'
     },
     rgbSeparationStrength: {
       type: 'float',
@@ -79,33 +81,22 @@ export const rgbSeparationNodeSpec: NodeSpec = {
   parameterGroups: [
     {
       id: 'rgb-separation-main',
-      label: 'RGB Separation',
-      parameters: ['rgbSeparationStrength'],
-      collapsible: true,
-      defaultCollapsed: false
-    },
-    {
-      id: 'rgb-separation-red',
-      label: 'Red Channel',
-      parameters: ['rgbSeparationRX', 'rgbSeparationRY'],
-      collapsible: true,
-      defaultCollapsed: false
-    },
-    {
-      id: 'rgb-separation-green',
-      label: 'Green Channel',
-      parameters: ['rgbSeparationGX', 'rgbSeparationGY'],
-      collapsible: true,
-      defaultCollapsed: false
-    },
-    {
-      id: 'rgb-separation-blue',
-      label: 'Blue Channel',
-      parameters: ['rgbSeparationBX', 'rgbSeparationBY'],
-      collapsible: true,
+      label: '',
+      parameters: ['rgbSeparationStrength', 'rgbSeparationRX', 'rgbSeparationRY', 'rgbSeparationGX', 'rgbSeparationGY', 'rgbSeparationBX', 'rgbSeparationBY'],
+      collapsible: false,
       defaultCollapsed: false
     }
   ],
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['rgbSeparationStrength', 'rgbSeparationRX', 'rgbSeparationRY', 'rgbSeparationGX', 'rgbSeparationGY', 'rgbSeparationBX', 'rgbSeparationBY'],
+        parameterUI: { rgbSeparationRX: 'coords', rgbSeparationGX: 'coords', rgbSeparationBX: 'coords' },
+        layout: { columns: 2, parameterSpan: { rgbSeparationStrength: 2 }, coordsSpan: 2 }
+      }
+    ]
+  },
   functions: `
 // RGB channel separation: modulate each channel by screen position so that
 // red/green/blue are boosted or reduced in different directions (no texture sampling).

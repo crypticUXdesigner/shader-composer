@@ -1,0 +1,270 @@
+/* =============================================================================
+   SDF — signed-distance-field nodes (3D primitives, raymarcher, displacement, etc.)
+   Distinct palette (cyan/blue-cyan) so SDF reads as its own pillar alongside Shapes.
+   ============================================================================= */
+
+:root {
+  /* Node body shadow (outermost) */
+  --node-body-shadow-color-mid-sdf: var(--color-cyan-gray-50);
+  --node-body-shadow-color-outer-sdf: var(--color-cyan-gray-30);
+
+  /* Node header */
+  --node-header-bg-sdf: var(--color-cyan-gray-70);
+  --node-header-bg-end-sdf: var(--color-cyan-gray-50);
+  --node-header-print-sdf: var(--color-gray-130);
+
+  /* Raymarcher subgroup (palette section badge + canvas variant) */
+  --node-header-bg-sdf-raymarcher: var(--color-cyan-80);
+  --node-header-bg-end-sdf-raymarcher: var(--color-cyan-gray-60);
+  --node-header-print-sdf-raymarcher: var(--color-cyan-130);
+
+  --node-icon-box-bg-sdf-raymarcher: var(--node-header-bg-sdf-raymarcher);
+  --node-icon-box-color-sdf-raymarcher: var(--node-header-print-sdf-raymarcher);
+
+  --node-param-grid-bg-sdf-raymarcher: var(--color-blue-gray-40);
+  --node-param-cell-bg-sdf-raymarcher: var(--color-cyan-gray-70);
+  --node-param-cell-bg-end-sdf-raymarcher: var(--color-cyan-gray-50);
+  --node-param-label-color-sdf-raymarcher: var(--color-cyan-gray-20);
+
+  --node-knob-value-bg-sdf-raymarcher: var(--color-cyan-gray-30);
+  --node-knob-value-color-sdf-raymarcher: var(--color-cyan-gray-140);
+
+  /* Icon box */
+  --node-icon-box-bg-sdf: var(--color-cyan-gray-80);
+  --node-icon-box-color-sdf: var(--color-cyan-110);
+
+  /* Param group header */
+  --param-group-header-color-sdf: var(--color-cyan-gray-60);
+
+  /* Param cell */
+  --node-param-cell-bg-sdf: var(--color-blue-gray-80);
+  --node-param-cell-bg-end-sdf: var(--color-blue-gray-80);
+  --node-param-label-color-sdf: var(--color-cyan-gray-40);
+
+  /* Knob */
+  --node-knob-value-bg-sdf: var(--color-cyan-gray-40);
+  --node-knob-value-color-sdf: var(--color-cyan-gray-120);
+  --node-knob-ring-color-sdf: var(--color-cyan-gray-110);
+  --node-knob-arc-active-sdf: var(--color-cyan-100);
+  --node-knob-marker-sdf: var(--color-cyan-gray-60);
+  --knob-ring-bg-width-sdf: 4px;
+  --knob-ring-active-width-sdf: 4px;
+  --knob-marker-size-sdf: 6px;
+  --knob-marker-radius-offset-sdf: -20px;
+  --node-knob-center-bg-sdf: var(--color-clean-gray-110);
+  --node-knob-center-border-color-sdf: var(--color-blue-gray-130);
+  --knob-center-filter-sdf: drop-shadow(0 4px 6px var(--color-cyan-gray-80));
+  --knob-center-size-sdf: 60px;
+  --knob-center-border-width-sdf: 6px;
+
+  /* Bezier editor */
+  --node-bezier-curve-sdf: var(--color-cyan-gray-100);
+  --node-bezier-control-sdf: var(--color-cyan-gray-100);
+  --node-bezier-control-hover-sdf: var(--color-cyan-gray-110);
+
+  /* Param grid */
+  --node-param-grid-bg-sdf: var(--color-blue-gray-50);
+}
+
+.node.sdf {
+  /* CSS custom properties */
+  --node-body-shadow-color-mid: var(--node-body-shadow-color-mid-sdf);
+  --node-body-shadow-color-outer: var(--node-body-shadow-color-outer-sdf);
+  --node-header-name-color: var(--node-header-print-sdf);
+  --param-group-header-color: var(--param-group-header-color-sdf);
+  --knob-ring-color: var(--node-knob-ring-color-sdf);
+  --knob-ring-active-color-static: var(--node-knob-arc-active-sdf);
+  --knob-marker-color: var(--node-knob-marker-sdf);
+  --knob-value-bg: var(--node-knob-value-bg-sdf);
+  --knob-value-color: var(--node-knob-value-color-sdf);
+  --param-control-bg: var(--node-knob-value-bg-sdf);
+  --param-control-bg-hover: var(--color-cyan-gray-50);
+  --param-control-bg-active: var(--color-cyan-gray-60);
+  --param-control-value-color: var(--node-knob-value-color-sdf);
+  --node-param-grid-bg: var(--node-param-grid-bg-sdf);
+
+  /* Knob: thin ring and active ring; center with border and bg; marker size/position */
+  --knob-ring-bg-width: var(--knob-ring-bg-width-sdf);
+  --knob-ring-active-width: var(--knob-ring-active-width-sdf);
+  --knob-marker-size: var(--knob-marker-size-sdf);
+  --knob-marker-radius-offset: var(--knob-marker-radius-offset-sdf);
+  --knob-center-size: var(--knob-center-size-sdf);
+  --knob-center-bg: var(--node-knob-center-bg-sdf);
+  --knob-center-border-width: var(--knob-center-border-width-sdf);
+  --knob-center-border-color: var(--node-knob-center-border-color-sdf);
+  --knob-center-filter: var(--knob-center-filter-sdf);
+
+  /* Node header (outermost) */
+  background: radial-gradient(
+    ellipse var(--node-header-bg-gradient-ellipse-width) var(--node-header-bg-gradient-ellipse-height) at var(--node-header-bg-gradient-ellipse-x) var(--node-header-bg-gradient-ellipse-y),
+    var(--node-header-bg-sdf),
+    var(--node-header-bg-end-sdf)
+  );
+
+  /* Node body */
+  .node-body {
+    background: radial-gradient(
+      ellipse 120% 160% at 50% 25%,
+      var(--color-blue-gray-80),
+      var(--color-blue-gray-40)
+    );
+  }
+
+  /* Icon box */
+  .icon-box {
+    background: var(--node-icon-box-bg-sdf);
+
+    .header-icon {
+      color: var(--node-icon-box-color-sdf);
+    }
+  }
+
+  /* Node header */
+  .node-header {
+    .label-text,
+    .label-input,
+    .port .name-label {
+      color: var(--node-header-print-sdf);
+    }
+  }
+
+  /* Raymarcher subgroup variant (canvas): brighter header text + icon box */
+  &.raymarcher {
+    --node-header-name-color: var(--node-header-print-sdf-raymarcher);
+
+    .icon-box {
+      background: var(--node-icon-box-bg-sdf-raymarcher);
+
+      .header-icon {
+        color: var(--node-icon-box-color-sdf-raymarcher);
+      }
+    }
+
+    .node-header {
+      .label-text,
+      .label-input,
+      .port .name-label {
+        color: var(--node-header-print-sdf-raymarcher);
+      }
+    }
+  }
+
+  /* Param grid */
+  .param-grid {
+    background: var(--node-param-grid-bg-sdf);
+    padding: var(--pd-xs);
+    border-radius: calc(var(--radius-md) + var(--pd-xs));
+    gap: var(--pd-xs) !important;
+  }
+
+  /* Param cell */
+  .param-cell {
+    --knob-center-size: var(--knob-center-size-sdf);
+    --knob-center-bg: var(--node-knob-center-bg-sdf);
+    --knob-center-border-width: var(--knob-center-border-width-sdf);
+    --knob-center-border-color: var(--node-knob-center-border-color-sdf);
+    --knob-marker-size: var(--knob-marker-size-sdf);
+    --knob-marker-radius-offset: var(--knob-marker-radius-offset-sdf);
+    background: radial-gradient(ellipse 120% 160% at 50% 25%, var(--node-param-cell-bg-sdf), var(--node-param-cell-bg-end-sdf));
+    border-radius: var(--radius-md);
+
+    &.connected {
+      background: var(--color-blue-gray-90);
+      border-color: transparent;
+    }
+
+    .left-column .top .label {
+      color: var(--node-param-label-color-sdf);
+    }
+  }
+
+  /* Bezier editor */
+  .bezier-editor {
+    .curve {
+      stroke: var(--node-bezier-curve-sdf);
+    }
+
+    .control-point {
+      background: var(--node-bezier-control-sdf);
+
+      &:hover {
+        background: var(--node-bezier-control-hover-sdf);
+      }
+    }
+  }
+
+  /* Raymarcher subgroup variant (canvas): brighter header/body + param grid */
+  &.raymarcher {
+    /* Node header (outermost) */
+    background: radial-gradient(
+      ellipse var(--node-header-bg-gradient-ellipse-width) var(--node-header-bg-gradient-ellipse-height) at var(--node-header-bg-gradient-ellipse-x) var(--node-header-bg-gradient-ellipse-y),
+      var(--node-header-bg-sdf-raymarcher),
+      var(--node-header-bg-end-sdf-raymarcher)
+    );
+
+    /* Node body */
+    .node-body {
+      background: radial-gradient(
+        ellipse 120% 160% at 50% 25%,
+        var(--color-cyan-gray-70),
+        var(--color-blue-gray-40)
+      );
+    }
+
+    /* Icon box */
+    .icon-box {
+      background: var(--node-icon-box-bg-sdf-raymarcher);
+
+      .header-icon {
+        color: var(--node-icon-box-color-sdf-raymarcher);
+      }
+    }
+
+    /* Node header text */
+    .node-header {
+      .label-text,
+      .label-input,
+      .port .name-label {
+        color: var(--node-header-print-sdf-raymarcher);
+      }
+    }
+
+    /* Param grid */
+    .param-grid {
+      background: var(--node-param-grid-bg-sdf-raymarcher);
+    }
+
+    /* Param cell */
+    .param-cell {
+      --knob-center-size: var(--knob-center-size-sdf);
+      --knob-center-bg: var(--node-knob-center-bg-sdf);
+      --knob-center-border-width: var(--knob-center-border-width-sdf);
+      --knob-center-border-color: var(--node-knob-center-border-color-sdf);
+      --knob-marker-size: var(--knob-marker-size-sdf);
+      --knob-marker-radius-offset: var(--knob-marker-radius-offset-sdf);
+      background: radial-gradient(
+        ellipse 120% 160% at 50% 25%,
+        var(--node-param-cell-bg-sdf-raymarcher),
+        var(--node-param-cell-bg-end-sdf-raymarcher)
+      );
+
+      &.connected {
+        background: var(--color-cyan-gray-90);
+        border-color: transparent;
+      }
+
+      .left-column .top .label {
+        color: var(--node-param-label-color-sdf-raymarcher);
+      }
+    }
+  }
+}
+
+/* Shiny: use header print color as ring accent */
+.node.sdf.shiny {
+  --node-shiny-ring-color: var(--node-header-print-sdf);
+}
+
+.node.sdf.raymarcher.shiny {
+  --node-shiny-ring-color: var(--node-header-print-sdf-raymarcher);
+}

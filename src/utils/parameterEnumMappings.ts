@@ -1,8 +1,11 @@
 /**
  * Central enum label mappings for int parameters that use the select (dropdown) UI.
- * Used by EnumParameterRenderer and NodeRenderer so the same labels appear in the
- * canvas selector and in the dropdown.
+ * Used by NodeBody (EnumSelector) and OverlayManager dropdown so the same labels appear.
  */
+
+export function isEnumParameter(specId: string, paramName: string): boolean {
+  return getParameterEnumMappings(specId, paramName) !== null;
+}
 
 export function getParameterEnumMappings(
   nodeId: string,
@@ -75,7 +78,8 @@ export function getParameterEnumMappings(
       3: 'Cylinder',
       4: 'Cone',
       5: 'Round Cone',
-      6: 'Octahedron'
+      6: 'Octahedron',
+      7: 'Icosahedron'
     };
   }
 
@@ -90,22 +94,19 @@ export function getParameterEnumMappings(
     return { 0: 'F1', 1: 'F2−F1', 2: 'Edge', 3: 'Cell ID' };
   }
 
-  // truchet
-  if (nodeId === 'truchet' && paramName === 'truchetTileType') {
-    return { 0: 'Circles', 1: 'Lines' };
-  }
-  if (nodeId === 'truchet' && paramName === 'truchetRandomFlip') {
-    return { 0: 'Off', 1: 'On' };
-  }
-
   // gradient
   if (nodeId === 'gradient' && paramName === 'gradientType') {
     return { 0: 'Radial', 1: 'Linear' };
   }
 
-  // circle-ellipse
-  if (nodeId === 'circle-ellipse' && paramName === 'shapeType') {
-    return { 0: 'Circle', 1: 'Ellipse' };
+  // shapes-2d
+  if (nodeId === 'shapes-2d' && paramName === 'shapeType') {
+    return { 0: 'Circle', 1: 'Square' };
+  }
+
+  // hex-voxel - shapeType
+  if (nodeId === 'hex-voxel' && paramName === 'shapeType') {
+    return { 0: 'Boxy', 1: 'Sphere minus box', 2: 'Heightmap' };
   }
 
   // cylinder-cone
@@ -123,12 +124,12 @@ export function getParameterEnumMappings(
 
   // reaction-diffusion
   if (nodeId === 'reaction-diffusion' && paramName === 'steps') {
-    return { 1: '1 Step', 2: '2 Steps' };
+    return { 1: '1 Step', 2: '2 Steps', 3: '3 Steps', 4: '4 Steps', 5: '5 Steps' };
   }
 
-  // cubic-curl-noise
-  if (nodeId === 'cubic-curl-noise' && paramName === 'cubicCurlNoiseType') {
-    return { 0: 'Cubic', 1: 'Curl' };
+  // noise
+  if (nodeId === 'noise' && paramName === 'noiseMode') {
+    return { 0: 'Simplex 2D', 1: 'Simplex 3D', 2: 'Value fBm' };
   }
 
   // blending-modes
@@ -174,16 +175,6 @@ export function getParameterEnumMappings(
   // combine-vector (utility) - outputType 2=vec2, 3=vec3, 4=vec4
   if (nodeId === 'combine-vector' && paramName === 'outputType') {
     return { 2: 'vec2', 3: 'vec3', 4: 'vec4' };
-  }
-
-  // audio-file-input
-  if (nodeId === 'audio-file-input' && paramName === 'autoPlay') {
-    return { 0: 'Off', 1: 'On' };
-  }
-
-  // audio-remap
-  if (nodeId === 'audio-remap' && paramName === 'clamp') {
-    return { 0: 'Off', 1: 'On' };
   }
 
   // ripple

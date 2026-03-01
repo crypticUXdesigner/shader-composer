@@ -15,10 +15,15 @@ export class Renderer implements Disposable {
   private shaderInstance: ShaderInstance | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private pendingResize: boolean = false;
+  /** PERF: Debounce resize during panel open/close (0.3s transition) so we don't run every frame and tank FPS. */
+  private static readonly RESIZE_DEBOUNCE_MS = 320;
+  private resizeDebounceTimeout: number | null = null;
   
   // Event listeners for cleanup
   private contextLostHandler: ((e: Event) => void) | null = null;
   private contextRestoredHandler: (() => void) | null = null;
+  private onContextRestoredCallback: (() => void) | null = null;
+  private onContextLostCallback: (() => void) | null = null;
   
   // Dirty flag system for conditional rendering
   private isDirty: boolean = false;
@@ -27,6 +32,11 @@ export class Renderer implements Disposable {
   
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
+    // Some browsers return null for 0x0 canvas; ensure non-zero backing size.
+    if (canvas.width < 1 || canvas.height < 1) {
+      canvas.width = Math.max(1, canvas.clientWidth || 1);
+      canvas.height = Math.max(1, canvas.clientHeight || 1);
+    }
     const gl = canvas.getContext('webgl2', {
       antialias: false,
       preserveDrawingBuffer: true  // For export
@@ -81,6 +91,11 @@ export class Renderer implements Disposable {
    * Render a single frame (only if dirty).
    */
   render(): void {
+    if (this.gl.isContextLost && this.gl.isContextLost()) {
+      this.shaderInstance = null;
+      this.clearDirty();
+      return;
+    }
     // Always process pending resize
     if (this.pendingResize) {
       this.setupViewport();
@@ -148,12 +163,15 @@ export class Renderer implements Disposable {
   
   /**
    * Setup resize handler.
-   * Uses ResizeObserver for more accurate resize detection and throttles to render loop.
+   * Uses ResizeObserver for more accurate resize detection; debounced during panel transition to avoid FPS drops.
    */
   private setupResizeHandler(): void {
-    // Use ResizeObserver for accurate canvas size changes
     this.resizeObserver = new ResizeObserver(() => {
-      this.handleResize();
+      if (this.resizeDebounceTimeout !== null) window.clearTimeout(this.resizeDebounceTimeout);
+      this.resizeDebounceTimeout = window.setTimeout(() => {
+        this.resizeDebounceTimeout = null;
+        this.handleResize();
+      }, Renderer.RESIZE_DEBOUNCE_MS);
     });
     this.resizeObserver.observe(this.canvas);
   }
@@ -170,15 +188,20 @@ export class Renderer implements Disposable {
   
   /**
    * Cleanup all resources.
+   * Releases the WebGL context so it does not count toward the per-page context limit
+   * (important for HMR or re-initialization).
    */
   destroy(): void {
-    // Clean up resize observer
+    if (this.resizeDebounceTimeout !== null) {
+      window.clearTimeout(this.resizeDebounceTimeout);
+      this.resizeDebounceTimeout = null;
+    }
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
       this.resizeObserver = null;
     }
     
-    // Remove event listeners
+    // Remove event listeners before losing context (avoids firing during loseContext)
     if (this.contextLostHandler) {
       this.canvas.removeEventListener('webglcontextlost', this.contextLostHandler);
       this.contextLostHandler = null;
@@ -194,6 +217,9 @@ export class Renderer implements Disposable {
       this.shaderInstance.destroy();
       this.shaderInstance = null;
     }
+    // Do not call loseContext() here. It was causing the live app's context to be killed when
+    // a second App was created (e.g. DOMContentLoaded firing after a module re-run). The context
+    // is released when the canvas is GC'd or the page unloads.
   }
   
   /**
@@ -203,20 +229,38 @@ export class Renderer implements Disposable {
     this.contextLostHandler = (e: Event) => {
       e.preventDefault();
       console.warn('WebGL context lost');
-      this.stopAnimation();
-      // Attempt recovery - context will be restored automatically
+      // Stop using the invalid context so we don't flood INVALID_OPERATION every frame.
+      this.shaderInstance = null;
+      this.onContextLostCallback?.();
     };
     
     this.contextRestoredHandler = () => {
       console.log('WebGL context restored');
+      this.shaderInstance = null;
       this.setupViewport();
-      // Note: Shader instance will need to be recreated by CompilationManager
+      this.onContextRestoredCallback?.();
     };
     
     this.canvas.addEventListener('webglcontextlost', this.contextLostHandler);
     this.canvas.addEventListener('webglcontextrestored', this.contextRestoredHandler);
   }
   
+  /**
+   * Register a callback to run when the WebGL context is restored after loss.
+   * Used to trigger recompile so the new context gets a new ShaderInstance.
+   */
+  setOnContextRestored(callback: () => void): void {
+    this.onContextRestoredCallback = callback;
+  }
+
+  /**
+   * Register a callback to run when the WebGL context is lost.
+   * Used so the app can stop its animation loop and avoid touching the invalid context.
+   */
+  setOnContextLost(callback: () => void): void {
+    this.onContextLostCallback = callback;
+  }
+
   /**
    * Get WebGL context (for CompilationManager).
    */

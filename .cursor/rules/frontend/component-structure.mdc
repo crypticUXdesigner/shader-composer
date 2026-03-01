@@ -1,0 +1,18 @@
+---
+description: Where components and canvas code live — lib (Svelte) vs ui (TS); feature folders; bridge.
+globs: "src/lib/**/*,src/ui/**/*"
+alwaysApply: false
+---
+
+# Component structure
+
+**lib** = Svelte UI (what the user sees). **ui** = canvas and rendering orchestration (TypeScript only; no Svelte).
+
+- One feature = one folder. Node-related code under `node/` with `node/parameters/` for parameter controls. Primitives (Button, Input, Modal, etc.) under `lib/components/ui/` with subfolders: button, menu, input, icon, overlay, display.
+- Top-bar and bottom-bar are separate feature folders (`top-bar/`, `bottom-bar/`). Side panel (tabs + content) lives under `lib/components/side-panel/`. Editor shell (canvas + layout) lives under `lib/components/editor/` and `ui/editor/` (canvas/, rendering/).
+- **Folder naming:** Use kebab-case for multi-word feature folders (e.g. `side-panel`, `top-bar`, `bottom-bar`). Single-word features stay one word (`node`, `editor`, `timeline`, `export`, `audio`, `ui`).
+- **One main + sub-contents:** For feature folders that have a clear container component (e.g. TopBar, BottomBar, SidePanel, TimelinePanel), that component is the “main” export. Sub-components used only inside the feature are named with the main component as prefix: `<Main><Role>` (e.g. `TopBarViewControls`, `BottomBarScrubber`, `TimelineCurveEditor`). Feature `index.ts` exports only the main component (and types/slots as needed); sub-components are internal unless they must be passed as slots (e.g. side-panel content components).
+- **Where to put new components:** Place in the feature folder they belong to (e.g. `side-panel/`, `timeline/`, `export/`). Shared UI primitives go in `lib/components/ui/<type>/`. Node-only parameter controls go in `node/parameters/`.
+- **Bridge:** Lib imports from `ui/editor` (and `ui/interactions` if needed) via their public `index.ts` only; avoid deep paths into `ui/`.
+
+Full target structure and migration mapping: `docs/architecture/component-structure-consultation.md`.

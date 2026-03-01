@@ -1,21 +1,23 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const triangleGridNodeSpec: NodeSpec = {
   id: 'triangle-grid',
   category: 'Patterns',
   displayName: 'Triangle Grid',
   description: 'Regular triangular tiling with configurable edges and optional fill',
-  icon: 'grid',
+  icon: 'triangles',
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'Position'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'float'
+      type: 'float',
+      label: 'Value'
     }
   ],
   parameters: {

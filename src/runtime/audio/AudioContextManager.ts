@@ -5,6 +5,11 @@
  * Handles browser autoplay policies and context state transitions.
  */
 
+/** Type for window with optional webkit AudioContext (Safari legacy) */
+interface WindowWithWebKitAudio extends Window {
+  webkitAudioContext?: typeof AudioContext;
+}
+
 import type { ErrorHandler } from '../../utils/errorHandling';
 import { globalErrorHandler } from '../../utils/errorHandling';
 import { BaseDisposable } from '../../utils/Disposable';
@@ -34,7 +39,7 @@ export class AudioContextManager extends BaseDisposable {
     }
     
     // Create AudioContext (must be done in response to user interaction)
-    this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    this.audioContext = new (window.AudioContext || (window as WindowWithWebKitAudio).webkitAudioContext!)();
     this.sampleRate = this.audioContext.sampleRate;
     
     // Don't automatically resume - browsers require user interaction
@@ -79,7 +84,7 @@ export class AudioContextManager extends BaseDisposable {
     
     // Check if context was closed and recreate if needed
     if (this.audioContext.state === 'closed') {
-      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      this.audioContext = new (window.AudioContext || (window as WindowWithWebKitAudio).webkitAudioContext!)();
       this.sampleRate = this.audioContext.sampleRate;
     }
     
@@ -130,8 +135,8 @@ export class AudioContextManager extends BaseDisposable {
         if (this.audioContext.state === 'suspended') {
           throw new Error('AudioContext could not be resumed - user interaction required');
         }
-      } catch (error: any) {
-        const errorMsg = error?.message || String(error);
+      } catch (error: unknown) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
         // Only report if it's not the expected autoplay policy error
         if (!errorMsg.includes('user gesture') && !errorMsg.includes('user interaction') && !errorMsg.includes('not allowed to start')) {
           const handler = this.errorHandler || globalErrorHandler;
@@ -139,7 +144,7 @@ export class AudioContextManager extends BaseDisposable {
             'audio',
             'warning',
             'Failed to resume AudioContext',
-            { 
+            {
               originalError: error instanceof Error ? error : new Error(errorMsg)
             }
           );

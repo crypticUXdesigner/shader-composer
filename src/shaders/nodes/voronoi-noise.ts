@@ -1,21 +1,23 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const voronoiNoiseNodeSpec: NodeSpec = {
   id: 'voronoi-noise',
   category: 'Patterns',
   displayName: 'Voronoi',
   description: 'Cell-like patterns using Voronoi diagrams, creating organic crystal-like structures',
-  icon: 'noise',
+  icon: 'cell',
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'float'
+      type: 'float',
+      label: 'Noise'
     }
   ],
   parameters: {
@@ -111,8 +113,8 @@ export const voronoiNoiseNodeSpec: NodeSpec = {
   parameterGroups: [
     {
       id: 'voronoi-main',
-      label: 'Voronoi',
-      parameters: ['voronoiScale', 'voronoiJitter', 'voronoiDistanceMetric'],
+      label: 'Cellular',
+      parameters: ['voronoiDistanceMetric', 'voronoiScale', 'voronoiJitter', 'voronoiOutputMode', 'voronoiIntensity'],
       collapsible: true,
       defaultCollapsed: false
     },
@@ -122,15 +124,24 @@ export const voronoiNoiseNodeSpec: NodeSpec = {
       parameters: ['voronoiAnimationMode', 'voronoiDriftDirection', 'voronoiDriftAmount', 'voronoiRotationSpeed', 'voronoiTimeSpeed', 'voronoiTimeOffset'],
       collapsible: true,
       defaultCollapsed: true
-    },
-    {
-      id: 'voronoi-output',
-      label: 'Output',
-      parameters: ['voronoiOutputMode', 'voronoiIntensity'],
-      collapsible: true,
-      defaultCollapsed: false
     }
   ],
+  parameterLayout: {
+    minColumns: 3,
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['voronoiDistanceMetric', 'voronoiScale', 'voronoiJitter', 'voronoiOutputMode', 'voronoiIntensity'],
+        layout: { columns: 3, parameterSpan: { voronoiDistanceMetric: 3, voronoiIntensity: 3 } }
+      },
+      {
+        type: 'grid',
+        label: 'Animation',
+        parameters: ['voronoiAnimationMode', 'voronoiDriftDirection', 'voronoiDriftAmount', 'voronoiRotationSpeed', 'voronoiTimeSpeed', 'voronoiTimeOffset'],
+        layout: { columns: 3 }
+      }
+    ]
+  },
   functions: `
 // Rotate point around origin (angle in radians)
 vec2 voronoiRotate(vec2 p, float angle) {

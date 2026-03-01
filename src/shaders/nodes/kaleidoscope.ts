@@ -1,21 +1,23 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const kaleidoscopeNodeSpec: NodeSpec = {
   id: 'kaleidoscope',
   category: 'Distort',
   displayName: 'Kaleidoscope',
-  icon: 'ikosaedr',
+  icon: 'compass-rose',
   description: 'Creates symmetric patterns by mirroring/reflecting sections of the image',
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'Position'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   parameters: {
@@ -61,6 +63,16 @@ export const kaleidoscopeNodeSpec: NodeSpec = {
       defaultCollapsed: false
     }
   ],
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['kaleidCenterX', 'kaleidCenterY', 'kaleidSegments', 'kaleidRotation'],
+        parameterUI: { kaleidCenterX: 'coords', kaleidCenterY: 'coords' },
+        layout: { columns: 2, coordsSpan: 2 }
+      }
+    ]
+  },
   functions: `
 vec2 kaleidoscope(vec2 p, int segments, float rotation) {
   float angle = atan(p.y, p.x);

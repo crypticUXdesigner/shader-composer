@@ -1,0 +1,139 @@
+/* =============================================================================
+   BLEND
+   ============================================================================= */
+
+:root {
+  /* Red-gray-gray scale */
+  /* Node body shadow (outermost) */
+  --node-body-shadow-color-mid-blend: var(--color-purple-gray-50);
+  --node-body-shadow-color-outer-blend: var(--color-purple-gray-30);
+
+  /* Node header */
+  --node-header-bg-blend: var(--color-red-gray-gray-90);
+  --node-header-bg-end-blend: var(--color-red-gray-gray-80);
+  --node-header-print-blend: var(--color-gray-40);
+
+  /* Icon box */
+  --node-icon-box-bg-blend: var(--color-gray-60);
+  --node-icon-box-color-blend: var(--color-red-100);
+
+  /* Param group header */
+  --param-group-header-color-blend: var(--color-red-gray-gray-80);
+
+  /* Param cell */
+  --node-param-cell-bg-blend: rgba(255, 255, 255, 0.01);
+  --node-param-cell-bg-end-blend: rgba(255, 255, 255, 0.01);
+  --node-param-label-color-blend: var(--color-gray-110);
+
+  /* Knob */
+  --node-knob-value-bg-blend: var(--color-purple-gray-40);
+  --node-knob-value-color-blend: var(--color-purple-gray-120);
+  --node-knob-ring-color-blend: var(--color-red-gray-gray-40);
+  --node-knob-arc-active-blend: var(--color-red-100);
+  --node-knob-marker-blend: var(--color-red-gray-gray-110);
+  --knob-ring-bg-width-blend: 6px;
+  --knob-ring-active-width-blend: 4px;
+  --knob-marker-size-blend: 6px;
+  --knob-marker-radius-offset-blend: -16px;
+  --node-knob-center-bg-blend: var(--color-red-gray-gray-60);
+  --node-knob-center-border-color-blend: var(--color-red-gray-gray-70);
+  --knob-center-filter-blend: drop-shadow(0 4px 6px var(--color-purple-gray-60));
+  --knob-center-size-blend: 50px;
+  --knob-center-border-width-blend: 12px;
+
+  /* Bezier editor */
+  --node-bezier-curve-blend: var(--color-purple-gray-90);
+  --node-bezier-control-blend: var(--color-purple-gray-90);
+  --node-bezier-control-hover-blend: var(--color-purple-gray-100);
+}
+
+.node.blend {
+  /* CSS custom properties */
+  --node-body-shadow-color-mid: var(--node-body-shadow-color-mid-blend);
+  --node-body-shadow-color-outer: var(--node-body-shadow-color-outer-blend);
+  --node-header-name-color: var(--node-header-print-blend);
+  --param-group-header-color: var(--param-group-header-color-blend);
+  --knob-ring-color: var(--node-knob-ring-color-blend);
+  --knob-ring-active-color-static: var(--node-knob-arc-active-blend);
+  --knob-marker-color: var(--node-knob-marker-blend);
+  --knob-value-bg: var(--node-knob-value-bg-blend);
+  --knob-value-color: var(--node-knob-value-color-blend);
+  --param-control-bg: var(--node-knob-value-bg-blend);
+  --param-control-bg-hover: var(--color-purple-50);
+  --param-control-bg-active: var(--color-purple-60);
+  --param-control-value-color: var(--node-knob-value-color-blend);
+  --knob-ring-bg-width: var(--knob-ring-bg-width-blend);
+  --knob-ring-active-width: var(--knob-ring-active-width-blend);
+  --knob-marker-size: var(--knob-marker-size-blend);
+  --knob-marker-radius-offset: var(--knob-marker-radius-offset-blend);
+  --knob-center-size: var(--knob-center-size-blend);
+  --knob-center-bg: var(--node-knob-center-bg-blend);
+  --knob-center-border-width: var(--knob-center-border-width-blend);
+  --knob-center-border-color: var(--node-knob-center-border-color-blend);
+  --knob-center-filter: var(--knob-center-filter-blend);
+
+  /* Node header (outermost) */
+  background: radial-gradient(
+    ellipse var(--node-header-bg-gradient-ellipse-width) var(--node-header-bg-gradient-ellipse-height) at var(--node-header-bg-gradient-ellipse-x) var(--node-header-bg-gradient-ellipse-y),
+    var(--node-header-bg-blend),
+    var(--node-header-bg-end-blend)
+  );
+
+  /* Node body */
+  .node-body {
+    background: radial-gradient(
+      ellipse 120% 160% at 50% 25%,
+      var(--color-red-gray-gray-50),
+      var(--color-red-gray-gray-40)
+    );
+  }
+
+  /* Icon box */
+  .icon-box {
+    background: var(--node-icon-box-bg-blend);
+
+    .header-icon {
+      color: var(--node-icon-box-color-blend);
+    }
+  }
+
+  /* Node header */
+  .node-header {
+    .label-text,
+    .label-input,
+    .port .name-label {
+      color: var(--node-header-print-blend);
+    }
+  }
+
+  /* Param cell */
+  .param-cell {
+    background: radial-gradient(ellipse 120% 160% at 50% 25%, var(--node-param-cell-bg-blend), var(--node-param-cell-bg-end-blend));
+    border-radius: var(--radius-md);
+
+    &.connected {
+      background: var(--color-red-gray-gray-70);
+      border-color: transparent;
+    }
+
+    .left-column .top .label {
+      color: var(--node-param-label-color-blend);
+    }
+  }
+
+  /* Bezier editor */
+  .bezier-editor {
+    .curve {
+      stroke: var(--node-bezier-curve-blend);
+    }
+
+    .control-point {
+      background: var(--node-bezier-control-blend);
+
+      &:hover {
+        background: var(--node-bezier-control-hover-blend);
+      }
+    }
+  }
+}
+

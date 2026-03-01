@@ -1,21 +1,23 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const chromaticAberrationNodeSpec: NodeSpec = {
   id: 'chromatic-aberration',
   category: 'Effects',
-  displayName: 'Chromatic Aberration',
+  displayName: 'Chroma Aberration',
   description: 'Separates RGB channels to create stylized color fringing effects',
   icon: 'rgb-split',
   inputs: [
     {
       name: 'in',
-      type: 'vec4'
+      type: 'vec4',
+      label: 'Color'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec4'
+      type: 'vec4',
+      label: 'Color'
     }
   ],
   parameters: {
@@ -76,6 +78,16 @@ export const chromaticAberrationNodeSpec: NodeSpec = {
       defaultCollapsed: true
     }
   ],
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['chromaticDirection', 'chromaticFalloff', 'chromaticCenterX', 'chromaticCenterY', 'chromaticStrength'],
+        parameterUI: { chromaticCenterX: 'coords', chromaticCenterY: 'coords' },
+        layout: { columns: 2, coordsSpan: 2, parameterSpan: { chromaticStrength: 2 } }
+      }
+    ]
+  },
   functions: `
 // Chromatic aberration: modulate R/G/B by screen position (radial from center).
 // Full lens-style fringing would need texture sampling at offset UVs.

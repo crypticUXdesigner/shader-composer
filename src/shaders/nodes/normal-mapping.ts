@@ -1,21 +1,23 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const normalMappingNodeSpec: NodeSpec = {
   id: 'normal-mapping',
-  category: 'Shapes',
+  category: 'Effects',
   displayName: 'Normal Mapping',
   description: 'Simulates surface detail using normal mapping for added depth and texture',
   icon: 'normal-map',
   inputs: [
     {
       name: 'in',
-      type: 'vec4'
+      type: 'vec4',
+      label: 'Height'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec4'
+      type: 'vec4',
+      label: 'Value'
     }
   ],
   parameters: {
@@ -76,6 +78,21 @@ export const normalMappingNodeSpec: NodeSpec = {
       defaultCollapsed: false
     }
   ],
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['normalScale', 'normalStrength'],
+        layout: { columns: 3, parameterSpan: { normalStrength: 2 } }
+      },
+      {
+        type: 'grid',
+        label: 'Lighting',
+        parameters: ['normalLightX', 'normalLightY', 'normalLightZ'],
+        layout: { columns: 3 }
+      }
+    ]
+  },
   functions: `
 // Calculate normal from height map (simplified approximation)
 vec3 calculateNormal(vec2 p, float scale, float currentValue) {

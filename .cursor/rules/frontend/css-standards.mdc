@@ -1,0 +1,79 @@
+---
+description: CSS tokens, nesting, class naming (kebab-case, no BEM), and when to use global vs Svelte styles.
+globs: "**/*.css,**/*.svelte"
+alwaysApply: false
+---
+
+# CSS Standards
+
+## Critical rules
+
+1. **Nesting**: Use nested blocks (`.parent { .child { } }`), not flat top-level rules. Chained selectors in separate blocks violate this. Use shorter names when nested (e.g. `.section` not `.bottom-bar-section` inside `.bottom-bar`).
+2. **Tokens, not hardcodes**: Colors, spacing, sizes from `scales.css` or component tokens. Create tokens only when reusable (2+ uses, consumed by JS, or semantic); hardcode one-offs with a comment.
+3. **Token files**: Node editor → `tokens-node-editor.css`. DOM UI → `tokens-dom.css`. Base scales → `scales.css`.
+4. **Disabled state**: Use `--opacity-disabled`; never hardcode `opacity: 0.5`.
+5. **Cursor**: No `cursor: pointer`. Use `cursor: default` for clickable; range/drag cursors (`ew-resize`, `grab`, etc.) allowed.
+
+**File roles:** `scales.css` (shared), `tokens-dom.css`, `tokens-node-editor.css`, `reset.css`, `layout/*.css`, `components/*.css`; Svelte `<style>` for component-owned styles.
+
+## Class naming
+
+- **Kebab-case only**: All class names use lowercase with hyphens (e.g. `.audio-signal-picker`, `.play-button`). Never use camelCase or PascalCase in class names.
+- **Short names when nested**: Inside a parent block, use short names; the parent provides context. Prefer `.header` inside `.panel`, not `.panel-header` or `.panel__header`.
+- **Modifiers**: Use chained classes (`.button.primary`, `.button.is-active`). Use `is-*` for state (e.g. `.is-active`, `.is-expanded`). Do not use BEM-style `block--modifier` or `block__element`.
+
+**Do not:**
+
+- **camelCase / PascalCase**: `.audioSignalPickerPanel`, `.AudioSignalPicker` — use `.audio-signal-picker-panel` etc.
+- **BEM**: `.panel__header`, `.panel--compact`, `.block__element--modifier` — use nesting + short names and chained modifiers instead.
+- **Redundant long names when nested**: `.bottom-bar-section` inside `.bottom-bar`, `.audio-signal-picker-panel-header` inside `.audio-signal-picker-panel` — use `.section`, `.header` in that context.
+
+## Global vs Svelte styles
+
+- **Global (`src/styles/`)**: Layout shells spanning multiple components, styles shared across many components with no single owner, vanilla overlays/canvas DOM, design tokens and scales.
+- **Svelte `<style>`**: Single component owns the styles; reusable primitives; clear boundary, no external sharing.
+- **Colocation**: Prefer moving component-owned styles into that component’s `<style>` (colocation); keep in global only layout shells and shared/token-only styles.
+
+Migrating: If a component only uses classes from a layout file, move those styles into the component's `<style>`.
+
+## Example: tokens and nesting
+
+```css
+.button {
+  padding: var(--pd-md) var(--pd-xl);
+  background: var(--color-blue-90);
+  border-radius: var(--radius-lg);
+}
+
+.bottom-bar {
+  position: fixed;
+  bottom: 0;
+  .section {
+    display: flex;
+    align-items: center;
+    .play-button {
+      width: var(--size-xl);
+      height: var(--size-xl);
+    }
+  }
+}
+```
+
+## Formatting and property order
+
+- **Indent**: 2 spaces, no tabs.
+- **Order**: Layout → box model → visual → typography → other. Section comments for major groupings (e.g. `/* === NODE TOKENS === */`).
+- **Modifiers**: Use `.button.primary`, `.button.is-active`. Transitions: `0.15s` or tokens. Interactive elements with child content: `pointer-events: none` on children.
+- **Browser**: Nesting and custom properties; add vendor prefixes only when needed (e.g. `-webkit-appearance` for sliders).
+
+## Reduced motion (a11y)
+
+Honor `prefers-reduced-motion: reduce` for non-essential animations (WCAG 2.1 Criterion 2.3.3). Essential feedback (e.g. focus indicators) may remain.
+
+- **Global overrides:** `src/styles/reduced-motion.css` disables transition on overlay elements (e.g. `.modal-backdrop`, `.popover-base`) when the user prefers reduced motion.
+- **Component-level:** For components with decorative transitions (e.g. toast/error notifications), add a scoped `@media (prefers-reduced-motion: reduce)` block that sets `transition: none` (or `animation: none`) on the animated element.
+- **Svelte transitions:** Where a Svelte transition (e.g. `transition:fade`) is used for non-essential motion, pass `duration: 0` when `prefers-reduced-motion: reduce` matches (e.g. via `matchMedia` in `$effect`), so the transition is instant.
+
+## Enforcement
+
+Run `stylelint "**/*.css" "**/*.svelte"` (config with `postcss-html` for Svelte). "Nesting matches HTML structure" is not enforced by tooling; follow this rule and code review.

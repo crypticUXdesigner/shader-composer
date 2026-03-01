@@ -1,4 +1,5 @@
-import type { NodeGraph, NodeSpec } from '../../types';
+import type { NodeGraph } from '../../data-model/types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 /**
  * Generates variable names for node outputs
@@ -18,7 +19,7 @@ export class VariableNameGenerator {
 
       const nodeVars = new Map<string, string>();
       
-      // Standard outputs (including audio-analyzer: band, remap)
+      // Standard outputs for all node types
       for (const output of nodeSpec.outputs) {
         const varName = this.generateVariableName(node.id, output.name);
         nodeVars.set(output.name, varName);

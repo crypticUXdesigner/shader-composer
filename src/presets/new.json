@@ -1,0 +1,151 @@
+{
+  "format": "shader-composer-node-graph",
+  "formatVersion": "2.0",
+  "graph": {
+    "id": "graph-1771360393533-qweoj2xz2",
+    "name": "New",
+    "version": "2.0",
+    "nodes": [
+      {
+        "id": "node-1771360393533-gii59o9g0",
+        "type": "uv-coordinates",
+        "position": {
+          "x": -1189,
+          "y": -421
+        },
+        "parameters": {}
+      },
+      {
+        "id": "node-1771360393533-wu36vn51h",
+        "type": "final-output",
+        "position": {
+          "x": 2172,
+          "y": -395
+        },
+        "parameters": {}
+      },
+      {
+        "id": "node-1771360393533-3u7kqw6ky",
+        "type": "fisheye",
+        "position": {
+          "x": -649,
+          "y": -431
+        },
+        "parameters": {
+          "fisheyeCenterX": 0,
+          "fisheyeCenterY": 0,
+          "fisheyeStrength": -0.32999999999999996,
+          "fisheyeAspect": 1
+        }
+      },
+      {
+        "id": "node-1771360393533-xxmy5fpct",
+        "type": "reaction-diffusion",
+        "position": {
+          "x": 285,
+          "y": -431
+        },
+        "parameters": {
+          "feedRate": 0.1,
+          "killRate": 0.1,
+          "diffusionA": 0.1,
+          "diffusionB": 1,
+          "scale": 93,
+          "steps": 3,
+          "timeSpeed": 0.43,
+          "timeOffset": 0,
+          "intensity": 1.01
+        }
+      }
+    ],
+    "connections": [
+      {
+        "id": "conn-1771360393533-2u099amcl",
+        "sourceNodeId": "node-1771360393533-gii59o9g0",
+        "sourcePort": "out",
+        "targetNodeId": "node-1771360393533-3u7kqw6ky",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1771360393533-uwyiymkiw",
+        "sourceNodeId": "node-1771360393533-3u7kqw6ky",
+        "sourcePort": "out",
+        "targetNodeId": "node-1771360393533-xxmy5fpct",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1771360393533-e2h05aqyo",
+        "sourceNodeId": "node-1771360393533-xxmy5fpct",
+        "sourcePort": "out",
+        "targetNodeId": "node-1771360393533-wu36vn51h",
+        "targetPort": "in"
+      }
+    ],
+    "viewState": {
+      "zoom": 1,
+      "panX": 666.4565944177,
+      "panY": 109.68936545415016,
+      "selectedNodeIds": []
+    },
+    "automation": {
+      "bpm": 120,
+      "durationSeconds": 30,
+      "lanes": [
+        {
+          "id": "19d467aa-e6bd-4960-b68d-32bc222ebdb8",
+          "nodeId": "node-1771360393533-3u7kqw6ky",
+          "paramName": "fisheyeStrength",
+          "regions": [
+            {
+              "id": "179198f0-727e-4934-b20d-663e6c8d783e",
+              "startTime": 2.5,
+              "duration": 8,
+              "loop": false,
+              "curve": {
+                "keyframes": [
+                  {
+                    "time": 0,
+                    "value": 0.335
+                  },
+                  {
+                    "time": 0.125,
+                    "value": 0.9217343201508393
+                  },
+                  {
+                    "time": 0.3125,
+                    "value": 0.335
+                  },
+                  {
+                    "time": 0.5,
+                    "value": 0.9386262120427312
+                  },
+                  {
+                    "time": 0.625,
+                    "value": 0.335
+                  },
+                  {
+                    "time": 1,
+                    "value": 0.335
+                  }
+                ],
+                "interpolation": "bezier"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "audioSetup": {
+    "files": [
+      {
+        "id": "file-new-billie",
+        "name": "seb - music xcx",
+        "filePath": "seb - music xcx.mp3",
+        "autoPlay": true
+      }
+    ],
+    "bands": [],
+    "remappers": []
+  }
+}

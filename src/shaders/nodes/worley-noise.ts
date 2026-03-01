@@ -1,21 +1,23 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const worleyNoiseNodeSpec: NodeSpec = {
   id: 'worley-noise',
   category: 'Patterns',
   displayName: 'Worley',
   description: 'Cellular (Worley) noise: same grid-and-jitter structure as Voronoi with F1, F2−F1, or edge output',
-  icon: 'noise',
+  icon: 'cell',
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'float'
+      type: 'float',
+      label: 'Noise'
     }
   ],
   parameters: {
@@ -59,6 +61,14 @@ export const worleyNoiseNodeSpec: NodeSpec = {
       step: 0.01,
       label: 'Time Speed'
     },
+    worleyTimeOffset: {
+      type: 'float',
+      default: 0.0,
+      min: -100.0,
+      max: 100.0,
+      step: 0.05,
+      label: 'Time Offset'
+    },
     worleyIntensity: {
       type: 'float',
       default: 0.5,
@@ -71,19 +81,35 @@ export const worleyNoiseNodeSpec: NodeSpec = {
   parameterGroups: [
     {
       id: 'worley-main',
-      label: 'Worley',
-      parameters: ['worleyScale', 'worleyJitter', 'worleyDistanceMetric'],
+      label: 'Cellular',
+      parameters: ['worleyDistanceMetric', 'worleyScale', 'worleyJitter', 'worleyOutputMode', 'worleyIntensity'],
       collapsible: true,
       defaultCollapsed: false
     },
     {
-      id: 'worley-output',
-      label: 'Output',
-      parameters: ['worleyOutputMode', 'worleyTimeSpeed', 'worleyIntensity'],
+      id: 'worley-animation',
+      label: 'Animation',
+      parameters: ['worleyTimeSpeed', 'worleyTimeOffset'],
       collapsible: true,
-      defaultCollapsed: false
+      defaultCollapsed: true
     }
   ],
+  parameterLayout: {
+    minColumns: 2,
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['worleyDistanceMetric', 'worleyScale', 'worleyJitter', 'worleyOutputMode', 'worleyIntensity'],
+        layout: { columns: 2, parameterSpan: { worleyDistanceMetric: 2 } }
+      },
+      {
+        type: 'grid',
+        label: 'Animation',
+        parameters: ['worleyTimeSpeed', 'worleyTimeOffset'],
+        layout: { columns: 2 }
+      }
+    ]
+  },
   functions: `
 vec2 random2(vec2 p) {
   return fract(
@@ -125,7 +151,7 @@ vec4 worleyFull(vec2 p, float jitter, int metric) {
 }
 `,
   mainCode: `
-  float worleyTime = $time * $param.worleyTimeSpeed;
+  float worleyTime = ($time + $param.worleyTimeOffset) * $param.worleyTimeSpeed;
   float scale = max($param.worleyScale, 0.001);
   vec4 v = worleyFull($input.in * scale + vec2(worleyTime * 0.1, worleyTime * 0.15), $param.worleyJitter, $param.worleyDistanceMetric);
   float f1 = v.x;

@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 /**
  * Domain Repetition
@@ -10,17 +10,19 @@ export const domainRepetitionNodeSpec: NodeSpec = {
   category: 'Distort',
   displayName: 'Domain Repetition',
   description: 'Tiles coordinates so upstream patterns repeat; output is in 0–1 per tile plus optional offset',
-  icon: 'grid',
+  icon: 'grid-nine',
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   parameters: {
@@ -73,6 +75,16 @@ export const domainRepetitionNodeSpec: NodeSpec = {
       defaultCollapsed: false
     }
   ],
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['scaleX', 'scaleY', 'offsetX', 'offsetY'],
+        parameterUI: { offsetX: 'coords', offsetY: 'coords' },
+        layout: { columns: 2, coordsSpan: 2 }
+      }
+    ]
+  },
   mainCode: `
   $output.out = fract($input.in * vec2($param.scaleX, $param.scaleY)) + vec2($param.offsetX, $param.offsetY);
   `

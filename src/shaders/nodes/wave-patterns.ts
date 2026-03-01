@@ -1,21 +1,23 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const wavePatternsNodeSpec: NodeSpec = {
   id: 'wave-patterns',
   category: 'Patterns',
   displayName: 'Wave Patterns',
   description: 'Linear wave patterns (sine, cosine, square, triangle) that complement rings',
-  icon: 'wave',
+  icon: 'wave-sine',
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'float'
+      type: 'float',
+      label: 'Value'
     }
   ],
   parameters: {
@@ -116,6 +118,21 @@ export const wavePatternsNodeSpec: NodeSpec = {
       defaultCollapsed: true
     }
   ],
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['waveScale', 'waveFrequency', 'waveAmplitude', 'waveType', 'waveDirection', 'waveIntensity'],
+        layout: { columns: 'auto' }
+      },
+      {
+        type: 'grid',
+        label: 'Animation',
+        parameters: ['wavePhaseSpeed', 'wavePhaseOffset', 'waveTimeSpeed', 'waveTimeOffset'],
+        layout: { columns: 3, parameterSpan: { wavePhaseOffset: 2, waveTimeOffset: 2 } }
+      }
+    ]
+  },
   functions: `
 float wavePattern(vec2 p, float frequency, float amplitude, float phase, int waveType) {
   float value = 0.0;

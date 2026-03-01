@@ -1,4 +1,10 @@
-import type { NodeGraph, NodeSpec } from '../../types';
+import type { NodeGraph } from '../../data-model/types';
+import type { NodeSpec } from '../../types/nodeSpec';
+import {
+  buildFloatParamExpressions,
+  getAutomationExpressionForParam,
+  type FloatParamExpressionMap
+} from './FloatParamExpressions';
 
 /**
  * Generates and deduplicates function code
@@ -25,7 +31,7 @@ export class FunctionGenerator {
     uniformNames: Map<string, string>,
     variableNames: Map<string, Map<string, string>>
   ): { functions: string, functionNameMap: Map<string, Map<string, string>> } {
-    const processedFunctions: string[] = [];
+    const processedFunctions: Array<{ nodeId: string; funcCode: string }> = [];
     // Map: nodeId -> (originalFunctionName -> nodeSpecificFunctionName)
     const functionNameMap = new Map<string, Map<string, string>>();
 
@@ -35,109 +41,24 @@ export class FunctionGenerator {
 
       // Process function code for this node: replace placeholders with actual uniform names or input values
       let funcCode = nodeSpec.functions;
-      
-      // Build map of parameter input variables (for parameters with input connections)
-      const parameterInputVars = new Map<string, string>();
 
-      for (const conn of graph.connections) {
-        if (conn.targetNodeId === node.id && conn.targetParameter) {
-          const sourceNode = graph.nodes.find(n => n.id === conn.sourceNodeId);
-          if (!sourceNode) {
-            // Source node doesn't exist - skip this connection
-            // This can happen if a node was deleted but connections weren't cleaned up
-            // Validation should catch this, but we handle it gracefully here
-            continue;
-          }
+      // Build GLSL expressions for float parameters (config value + automation + optional input connection).
+      const floatParamExpressions: FloatParamExpressionMap = buildFloatParamExpressions(
+        node,
+        nodeSpec,
+        graph,
+        uniformNames,
+        variableNames,
+        this.nodeSpecs,
+        this.generateParameterCombination,
+        this.escapeRegex
+      );
 
-          const sourceSpec = this.nodeSpecs.get(sourceNode.type);
-          if (!sourceSpec) continue;
-
-          // Resolve source output: prefer connection's sourcePort, then first output (e.g. one-minus "out")
-          const sourceOutput = sourceSpec.outputs.find(o => o.name === conn.sourcePort)
-            ?? sourceSpec.outputs[0];
-          const paramSpec = nodeSpec.parameters[conn.targetParameter];
-          if (!sourceOutput || !paramSpec || paramSpec.type !== 'float') continue;
-
-          const sourcePortName = sourceOutput.name;
-
-          // CRITICAL: Only use variable names that actually exist in variableNames
-          const sourceNodeInGraph = graph.nodes.find(n => n.id === conn.sourceNodeId);
-          if (!sourceNodeInGraph) continue;
-
-          if (!variableNames.has(conn.sourceNodeId)) continue;
-
-          const sourceVarName = variableNames.get(conn.sourceNodeId)?.get(sourcePortName);
-          if (!sourceVarName) continue;
-
-          // Promote to appropriate type based on parameter type (float only)
-          let promotedVar = sourceVarName;
-          // Parameter is float - convert int inputs to float, extract first component for vec types
-          if (sourceOutput.type === 'int') {
-            promotedVar = `float(${sourceVarName})`;
-          } else if (sourceOutput.type !== 'float') {
-            // Extract first component for vec types
-            promotedVar = `${sourceVarName}.x`;
-          }
-          parameterInputVars.set(conn.targetParameter, promotedVar);
-        }
-      }
-      
-      // CRITICAL VALIDATION: Verify all variable references in parameterInputVars will exist
-      // This catches invalid variable references before they're embedded in function code
-      // This is especially important when multiple parameter connections exist
-      const allValidVars = new Set<string>();
-      for (const nodeVars of variableNames.values()) {
-        for (const varName of nodeVars.values()) {
-          allValidVars.add(varName);
-        }
-      }
-      
-      // Extract variable names from parameterInputVars values (handle combined expressions)
-      const paramVarNamePattern = /\bnode_[a-zA-Z0-9_]+_[a-zA-Z0-9_]+\b/g;
-      for (const [paramName, varRef] of parameterInputVars.entries()) {
-        const matches = varRef.match(paramVarNamePattern);
-        if (matches) {
-          for (const varName of matches) {
-            if (!allValidVars.has(varName)) {
-              console.error(
-                `[NodeShaderCompiler] CRITICAL: Node ${node.id} (${nodeSpec.id}), parameter ${paramName}: ` +
-                `Variable ${varName} referenced in expression "${varRef}" will not be declared. ` +
-                `Source connection may be invalid or variable name mismatch. Removing invalid reference.`
-              );
-              // Remove invalid entry to prevent embedding wrong reference in function code
-              parameterInputVars.delete(paramName);
-              break; // Break inner loop, continue to next parameter
-            }
-          }
-        }
-      }
-
-      // Replace parameter placeholders with actual uniform names or input variable names
       for (const paramName of Object.keys(nodeSpec.parameters)) {
-        // Check if parameter has an input connection
-        const paramInputVar = parameterInputVars.get(paramName);
-        if (paramInputVar) {
-          const paramSpec = nodeSpec.parameters[paramName];
-          const inputMode = node.parameterInputModes?.[paramName] || paramSpec?.inputMode || 'override';
-          if (inputMode === 'override') {
-            const regex = new RegExp(`\\$param\\.${this.escapeRegex(paramName)}\\b`, 'g');
-            funcCode = funcCode.replace(regex, paramInputVar);
-          } else {
-            const uniformName = uniformNames.get(`${node.id}.${paramName}`);
-            const configValue = uniformName ?? String(node.parameters[paramName] ?? paramSpec?.default ?? (paramSpec?.type === 'int' ? '0' : '0.0'));
-            const paramType = (paramSpec?.type === 'float' || paramSpec?.type === 'int') ? paramSpec.type : 'float';
-            const combinedExpr = this.generateParameterCombination(configValue, paramInputVar, inputMode, paramType);
-            const regex = new RegExp(`\\$param\\.${this.escapeRegex(paramName)}\\b`, 'g');
-            funcCode = funcCode.replace(regex, combinedExpr);
-          }
-        } else {
-          // No input connection - use uniform name
-          const uniformName = uniformNames.get(`${node.id}.${paramName}`);
-          if (uniformName) {
-            const regex = new RegExp(`\\$param\\.${this.escapeRegex(paramName)}\\b`, 'g');
-            funcCode = funcCode.replace(regex, uniformName);
-          }
-        }
+        const expr = floatParamExpressions[paramName];
+        if (!expr) continue;
+        const regex = new RegExp(`\\$param\\.${this.escapeRegex(paramName)}\\b`, 'g');
+        funcCode = funcCode.replace(regex, expr);
       }
       
       // Replace global placeholders
@@ -146,22 +67,27 @@ export class FunctionGenerator {
       
       // Final cleanup pass: catch any remaining $param.* placeholders that weren't replaced
       // This is a safety net for edge cases where placeholders exist in function code
-      // but the uniform wasn't found or the parameter doesn't exist in the spec
+      // but the uniform wasn't found or the parameter doesn't exist in the spec.
+      // For int parameters (e.g. shape/enum), always prefer uniform over literal so the value
+      // can change at runtime (e.g. box-torus-sdf Shape dropdown).
+      // For float params with automation, use evalAutomation_*(uTimelineTime).
       funcCode = funcCode.replace(/\$param\.\w+/g, (match) => {
-        // Extract parameter name
         const paramName = match.replace('$param.', '');
-        // Try to find it in node.parameters as fallback
+        const paramSpec = nodeSpec.parameters[paramName];
+        const automationExpr = getAutomationExpressionForParam(node.id, paramName, graph, paramSpec);
+        if (automationExpr) {
+          return automationExpr;
+        }
+        const uniformName = uniformNames.get(`${node.id}.${paramName}`);
+        // Prefer uniform so runtime parameter changes (e.g. enum dropdown) take effect
+        if (uniformName) {
+          return uniformName;
+        }
         const paramValue = node.parameters[paramName];
         if (paramValue !== undefined) {
           return String(paramValue);
         }
-        // Try to find uniform name one more time (in case it was added after first pass)
-        const uniformName = uniformNames.get(`${node.id}.${paramName}`);
-        if (uniformName) {
-          return uniformName;
-        }
-        // Default to 0.0 if nothing found (safe default for GLSL)
-        return '0.0';
+        return paramSpec?.type === 'int' ? '0' : '0.0';
       });
       
       // Final safety check: verify all variable names used in function code will be declared
@@ -206,10 +132,25 @@ export class FunctionGenerator {
         }
       }
       
-      // CRITICAL FIX: If this node has parameter connections, we need to create node-specific function names
-      // to prevent incorrect deduplication. When multiple nodes have the same function but different
-      // parameter connections, they embed different variable references, so they must not be deduplicated.
-      if (parameterInputVars.size > 0) {
+      // CRITICAL FIX: Use node-specific function names when the function body is node-specific, so
+      // deduplication doesn't keep one node's implementation for all. This is needed when:
+      // 1) This node has parameter connections (embeds different variable references), or
+      // 2) This node's function code contains any of its uniforms (e.g. box-torus-sdf sceneSDF with
+      //    primitiveType). Otherwise e.g. cylinder-cone and box-torus-sdf both define sceneSDF(vec3);
+      //    the first wins and the other node's uniforms are never read.
+      const nodeUniformPrefix = node.id + '.';
+      let funcCodeHasNodeUniforms = false;
+      for (const [key, uname] of uniformNames) {
+        if (key.startsWith(nodeUniformPrefix) && funcCode.includes(uname)) {
+          funcCodeHasNodeUniforms = true;
+          break;
+        }
+      }
+      const hasParamInputConnections =
+        (floatParamExpressions.__hasInputConnections ?? false) === true;
+      const needsNodeSpecificNames = hasParamInputConnections || funcCodeHasNodeUniforms;
+
+      if (needsNodeSpecificNames) {
         const functions = this.extractFunctions(funcCode);
         const nodeFunctionNameMap = new Map<string, string>();
 
@@ -234,27 +175,46 @@ export class FunctionGenerator {
           functionNameMap.set(node.id, nodeFunctionNameMap);
         }
       }
-      
-      processedFunctions.push(funcCode);
+
+      processedFunctions.push({ nodeId: node.id, funcCode });
     }
 
-    // Extract and deduplicate individual functions by signature
-    const functionMap = new Map<string, string>(); // signature -> function body
-    
-    for (const funcCode of processedFunctions) {
+    // Extract preamble (code before first function) and functions per node.
+    // Preambles often define consts (e.g. SF_PI, SF_GOLDEN) required by that node's functions.
+    const functionStartRegex = /\b(float|vec2|vec3|vec4|int|bool|void|mat2|mat3|mat4)\s+\w+\s*\(/g;
+    const functionMap = new Map<string, { body: string; nodeId: string }>(); // signature -> { body, nodeId }
+    const preambleByNode = new Map<string, string>(); // nodeId -> preamble (trimmed)
+
+    for (const { nodeId, funcCode } of processedFunctions) {
+      const firstMatch = functionStartRegex.exec(funcCode);
+      const firstFunctionIndex = firstMatch ? firstMatch.index : funcCode.length;
+      const preamble = funcCode.substring(0, firstFunctionIndex).trim();
+      if (preamble) {
+        preambleByNode.set(nodeId, preamble);
+      }
+      functionStartRegex.lastIndex = 0;
+
       const functions = this.extractFunctions(funcCode);
       for (const func of functions) {
-        // Use function signature as key (return type + name + parameter types)
         const signature = func.signature;
-        // Only keep the first occurrence of each function signature
         if (!functionMap.has(signature)) {
-          functionMap.set(signature, func.body);
+          functionMap.set(signature, { body: func.body, nodeId });
         }
       }
     }
 
-    // Combine all unique functions
-    const finalFunctions = Array.from(functionMap.values()).join('\n\n');
+    // Emit preambles for nodes that contributed at least one function (first occurrence order), then all function bodies.
+    const nodeOrder = Array.from(functionMap.values()).map((v) => v.nodeId);
+    const seenNodes = new Set<string>();
+    const preambleBlocks: string[] = [];
+    for (const nodeId of nodeOrder) {
+      if (seenNodes.has(nodeId)) continue;
+      seenNodes.add(nodeId);
+      const preamble = preambleByNode.get(nodeId);
+      if (preamble) preambleBlocks.push(preamble);
+    }
+    const preamblesSection = preambleBlocks.length > 0 ? preambleBlocks.join('\n\n') + '\n\n' : '';
+    const finalFunctions = preamblesSection + Array.from(functionMap.values()).map((v) => v.body).join('\n\n');
 
     return {
       functions: finalFunctions,
@@ -271,8 +231,8 @@ export class FunctionGenerator {
     
     // Find all function definitions by looking for "returnType functionName(" pattern
     // Match: returnType functionName(params) { body }
-    // Match common return types: float, vec2, vec3, vec4, int, bool, void
-    const functionStartRegex = /\b(float|vec2|vec3|vec4|int|bool|void)\s+(\w+)\s*\(/g;
+    // Match common return types: float, vec2, vec3, vec4, int, bool, void, mat2, mat3, mat4
+    const functionStartRegex = /\b(float|vec2|vec3|vec4|int|bool|void|mat2|mat3|mat4)\s+(\w+)\s*\(/g;
     let match;
     const functionStarts: Array<{index: number, returnType: string, name: string}> = [];
     
@@ -317,14 +277,10 @@ export class FunctionGenerator {
       
       bracePos = pos;
       
-      // Find the matching closing brace (handle nested braces)
-      let braceCount = 1;
-      let endPos = bracePos + 1;
-      while (endPos < code.length && braceCount > 0) {
-        if (code[endPos] === '{') braceCount++;
-        else if (code[endPos] === '}') braceCount--;
-        endPos++;
-      }
+      // Find the matching closing brace (handle nested braces; ignore braces inside // and /* */)
+      const braceResult = this.findMatchingBraceEnd(code, bracePos + 1);
+      let endPos = braceResult.endPos;
+      let braceCount = braceResult.braceCount;
       
       if (braceCount !== 0) continue;
       
@@ -356,4 +312,45 @@ export class FunctionGenerator {
     
     return functions;
   }
+
+  /**
+   * Find the position after the matching closing '}' for the brace at startPos-1,
+   * ignoring any '{' or '}' inside line/block comments and inside "..." strings.
+   * Returns endPos (index of character after the closing '}') and braceCount (0 if balanced).
+   */
+  private findMatchingBraceEnd(code: string, startPos: number): { endPos: number; braceCount: number } {
+    let braceCount = 1;
+    let pos = startPos;
+    const n = code.length;
+    while (pos < n && braceCount > 0) {
+      const c = code[pos];
+      if (c === '"') {
+        pos++;
+        while (pos < n && code[pos] !== '"') {
+          if (code[pos] === '\\') pos++;
+          pos++;
+        }
+        if (pos < n) pos++;
+        continue;
+      }
+      if (c === '/' && pos + 1 < n) {
+        if (code[pos + 1] === '/') {
+          pos += 2;
+          while (pos < n && code[pos] !== '\n') pos++;
+          continue;
+        }
+        if (code[pos + 1] === '*') {
+          pos += 2;
+          while (pos < n - 1 && (code[pos] !== '*' || code[pos + 1] !== '/')) pos++;
+          if (pos < n - 1) pos += 2;
+          continue;
+        }
+      }
+      if (c === '{') braceCount++;
+      else if (c === '}') braceCount--;
+      pos++;
+    }
+    return { endPos: pos, braceCount };
+  }
+
 }

@@ -2,6 +2,8 @@
 
 This module implements the complete data model for the node-based shader system, including data structures, validation, serialization, and utility functions.
 
+**Type import convention:** Graph types (e.g. `NodeGraph`, `NodeInstance`, `Connection`) — import from `data-model`. Node/spec types (e.g. `NodeSpec`, `ParameterSpec`, `PortSpec`) — import from `types/nodeSpec`.
+
 ## Overview
 
 The data model provides:
@@ -26,7 +28,7 @@ src/data-model/
 
 ## Usage
 
-### Basic Usage
+### Basic Usage (immutable updates)
 
 ```typescript
 import {
@@ -35,21 +37,22 @@ import {
   serializeGraph,
   deserializeGraph,
   generateNodeId,
+  addNode,
   type NodeGraph,
 } from './data-model';
 
 // Create a new graph
-const graph = createEmptyGraph('My Shader');
+let graph: NodeGraph = createEmptyGraph('My Shader');
 
-// Add nodes
+// Add nodes (always use immutable helpers)
 const nodeId = generateNodeId();
-graph.nodes.push({
+graph = addNode(graph, {
   id: nodeId,
-  type: 'fbm-noise',
+  type: 'noise',
   position: { x: 100, y: 100 },
   parameters: {
-    scale: 2.0,
-    octaves: 4,
+    noiseScale: 2.0,
+    noiseOctaves: 4,
   },
 });
 
@@ -63,7 +66,7 @@ if (!result.valid) {
 // Serialize to JSON
 const json = serializeGraph(graph);
 
-// Deserialize from JSON
+// Deserialize from JSON (includes format-version–aware migrations)
 const deserialized = deserializeGraph(json, nodeSpecs);
 if (deserialized.graph) {
   console.log('Graph loaded:', deserialized.graph.name);
@@ -131,7 +134,7 @@ import { validateGraph, type NodeSpecification } from './data-model';
 
 const nodeSpecs: NodeSpecification[] = [
   {
-    id: 'fbm-noise',
+    id: 'noise',
     inputs: [{ name: 'in', type: 'vec2' }],
     outputs: [{ name: 'out', type: 'float' }],
     parameters: {
@@ -149,7 +152,7 @@ if (result.valid) {
 }
 ```
 
-### Serialization Format
+### Serialization Format and Migrations
 
 Graphs are serialized to JSON with the following structure:
 
@@ -168,6 +171,30 @@ Graphs are serialized to JSON with the following structure:
   }
 }
 ```
+
+On load, `deserializeGraph`:
+
+- Checks `format` and `formatVersion` and rejects unsupported versions.
+- Validates the embedded `graph` via `validateGraph` using the provided `NodeSpecification[]`.
+- Runs **format-version–aware migrations** via the internal registry in `serialization.ts`
+  (currently the band-remap → remapper audio migration for `"2.0"` files).
+- Returns the migrated `graph` plus `audioSetup` and any errors/warnings.
+
+Additional app-level graph migrations that are independent of `formatVersion` (e.g. legacy
+noise node shapes) are composed at a higher
+layer but still converge through the same serialize/deserialize path:
+
+- `presetManager.loadPreset(name, toValidationSpecs(nodeSystemSpecs))`:
+  - Handles legacy preset shapes (raw `graph` vs `SerializedGraphFile` wrapper),
+  - Applies `migrateNoiseNodes` to the in-memory `graph`,
+  - Serializes via `serializeGraph` and immediately deserializes via `deserializeGraph` so
+    `validateGraph` and the format-version–aware registry run on the final file shape.
+- `presetManager.loadPresetFromJson(json, toValidationSpecs(nodeSystemSpecs))`:
+  - Deserializes user-provided JSON via `deserializeGraph`,
+  - Then applies `migrateNoiseNodes` to the validated `graph`.
+
+In both flows, the **single source of truth** for persisted graphs is the serialized
+`SerializedGraphFile` shape guarded by `deserializeGraph` and its migration registry.
 
 ### Utility Functions
 

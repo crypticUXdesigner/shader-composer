@@ -1,0 +1,368 @@
+{
+  "format": "shader-composer-node-graph",
+  "formatVersion": "2.0",
+  "graph": {
+    "id": "graph-1771634652219-clrwge4ne",
+    "name": "New",
+    "version": "2.0",
+    "nodes": [
+      {
+        "id": "node-1771634652219-r564ny96w",
+        "type": "uv-coordinates",
+        "position": {
+          "x": -1935,
+          "y": -431
+        },
+        "parameters": {}
+      },
+      {
+        "id": "node-1771634652219-xecqt40l7",
+        "type": "final-output",
+        "position": {
+          "x": 2172,
+          "y": -395
+        },
+        "parameters": {}
+      },
+      {
+        "id": "node-1771634652219-z42n3i88z",
+        "type": "fisheye",
+        "position": {
+          "x": -1426,
+          "y": -431
+        },
+        "parameters": {
+          "fisheyeCenterX": 0,
+          "fisheyeCenterY": 0.20000000000000018,
+          "fisheyeStrength": -1,
+          "fisheyeAspect": 1.08
+        },
+        "parameterInputModes": {
+          "fisheyeStrength": "multiply",
+          "fisheyeCenterY": "multiply"
+        }
+      },
+      {
+        "id": "node-1771634652219-yhkfgad9a",
+        "type": "reaction-diffusion",
+        "position": {
+          "x": 1379,
+          "y": -280
+        },
+        "parameters": {
+          "feedRate": 0.15,
+          "killRate": 0.15,
+          "diffusionA": 4,
+          "diffusionB": 1.5,
+          "scale": 34.8,
+          "steps": 1,
+          "timeSpeed": 5,
+          "timeOffset": 0,
+          "intensity": 1.01,
+          "grainAmount": 0.01
+        }
+      },
+      {
+        "id": "node-1771634652219-xkw1giqvs",
+        "type": "rain-drops",
+        "position": {
+          "x": 581,
+          "y": -431
+        },
+        "parameters": {
+          "scale": 2.4000000000000004,
+          "seed": 17.5,
+          "speed": 3,
+          "layers": 1,
+          "quantityPerLayer": 0.65,
+          "sizeVariation": 2.5
+        },
+        "parameterInputModes": {
+          "quantityPerLayer": "multiply"
+        }
+      },
+      {
+        "id": "node-1771634652219-www6zb1qu",
+        "type": "time",
+        "position": {
+          "x": 104,
+          "y": -331
+        },
+        "parameters": {}
+      },
+      {
+        "id": "node-1771634652219-qaas2zqjh",
+        "type": "fisheye",
+        "position": {
+          "x": -649,
+          "y": -431
+        },
+        "parameters": {
+          "fisheyeCenterX": 0,
+          "fisheyeCenterY": -0.5,
+          "fisheyeStrength": -1,
+          "fisheyeAspect": 1
+        },
+        "parameterInputModes": {
+          "fisheyeStrength": "multiply",
+          "fisheyeCenterY": "multiply"
+        }
+      }
+    ],
+    "connections": [
+      {
+        "id": "conn-1771634652219-g3gnl9une",
+        "sourceNodeId": "node-1771634652219-r564ny96w",
+        "sourcePort": "out",
+        "targetNodeId": "node-1771634652219-z42n3i88z",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1771634652219-grh662vks",
+        "sourceNodeId": "node-1771634652219-www6zb1qu",
+        "sourcePort": "out",
+        "targetNodeId": "node-1771634652219-xkw1giqvs",
+        "targetPort": "time"
+      },
+      {
+        "id": "conn-1771634652219-b3jfdctro",
+        "sourceNodeId": "node-1771634652219-xkw1giqvs",
+        "sourcePort": "out",
+        "targetNodeId": "node-1771634652219-yhkfgad9a",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1771634652219-6r7tdg2x2",
+        "sourceNodeId": "node-1771634652219-yhkfgad9a",
+        "sourcePort": "out",
+        "targetNodeId": "node-1771634652219-xecqt40l7",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1771634652219-k52sazi9l",
+        "sourceNodeId": "node-1771634652219-z42n3i88z",
+        "sourcePort": "out",
+        "targetNodeId": "node-1771634652219-qaas2zqjh",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1771634652219-flmlrcnhr",
+        "sourceNodeId": "node-1771634652219-qaas2zqjh",
+        "sourcePort": "out",
+        "targetNodeId": "node-1771634652219-xkw1giqvs",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1771635055480-yplsb3mdk",
+        "sourceNodeId": "audio-signal:remap-remap-f8d4035a-7a6a-45fc-b12f-84d45779dc37",
+        "sourcePort": "out",
+        "targetNodeId": "node-1771634652219-z42n3i88z",
+        "targetParameter": "fisheyeCenterY"
+      },
+      {
+        "id": "conn-1771635138462-97by79c64",
+        "sourceNodeId": "audio-signal:remap-remap-6d1a9cf9-eaff-4df7-9b8d-675b534bf646",
+        "sourcePort": "out",
+        "targetNodeId": "node-1771634652219-z42n3i88z",
+        "targetParameter": "fisheyeStrength"
+      },
+      {
+        "id": "conn-1771635146315-yhagzu11v",
+        "sourceNodeId": "audio-signal:remap-remap-4e2e249b-5215-40d5-b2f2-bc491eece16d",
+        "sourcePort": "out",
+        "targetNodeId": "node-1771634652219-qaas2zqjh",
+        "targetParameter": "fisheyeStrength"
+      },
+      {
+        "id": "conn-1771635206360-hmbj8zv7n",
+        "sourceNodeId": "audio-signal:remap-remap-f8d4035a-7a6a-45fc-b12f-84d45779dc37",
+        "sourcePort": "out",
+        "targetNodeId": "node-1771634652219-qaas2zqjh",
+        "targetParameter": "fisheyeCenterY"
+      }
+    ],
+    "viewState": {
+      "zoom": 0.4501557493948227,
+      "panX": 660.8787304807747,
+      "panY": 424.9720666937153,
+      "selectedNodeIds": []
+    }
+  },
+  "audioSetup": {
+    "files": [
+      {
+        "id": "file-new-billie",
+        "name": "seb - music xcx",
+        "filePath": "seb - music xcx.mp3",
+        "autoPlay": true
+      }
+    ],
+    "bands": [
+      {
+        "id": "band-03112d8a-5a43-444d-bd69-12374e311fc8",
+        "name": "Band 2",
+        "sourceFileId": "tracks/frdqyw9b3",
+        "frequencyBands": [
+          [
+            359,
+            840
+          ]
+        ],
+        "smoothing": 0.84,
+        "fftSize": 2048
+      },
+      {
+        "id": "band-12e53842-2cf5-477f-8612-ee9b237dbccc",
+        "name": "Kick",
+        "sourceFileId": "tracks/frdqyw9b3",
+        "frequencyBands": [
+          [
+            207,
+            296
+          ]
+        ],
+        "smoothing": 0.1,
+        "fftSize": 2048
+      }
+    ],
+    "remappers": [
+      {
+        "id": "remap-4e2e249b-5215-40d5-b2f2-bc491eece16d",
+        "name": "Clear",
+        "bandId": "band-12e53842-2cf5-477f-8612-ee9b237dbccc",
+        "inMin": 0,
+        "inMax": 1,
+        "outMin": 0,
+        "outMax": 1
+      },
+      {
+        "id": "remap-6d1a9cf9-eaff-4df7-9b8d-675b534bf646",
+        "name": "Invert",
+        "bandId": "band-12e53842-2cf5-477f-8612-ee9b237dbccc",
+        "inMin": 0,
+        "inMax": 1,
+        "outMin": 1,
+        "outMax": 0
+      },
+      {
+        "id": "remap-f8d4035a-7a6a-45fc-b12f-84d45779dc37",
+        "name": "Remap 1",
+        "bandId": "band-03112d8a-5a43-444d-bd69-12374e311fc8",
+        "inMin": 0,
+        "inMax": 1,
+        "outMin": 0.47000000000000003,
+        "outMax": 1
+      }
+    ],
+    "playlistState": {
+      "order": [
+        "tracks/5j5bp9a4kk9v",
+        "tracks/n2b4opfakc",
+        "tracks/4qsm954kom",
+        "tracks/pmw5vfgk0h",
+        "tracks/ke5ptx0po",
+        "tracks/1zgcuf11xs",
+        "tracks/k5o082zh20",
+        "tracks/60tciwin",
+        "tracks/7xipg0fm",
+        "tracks/vgnwo0jxk3",
+        "tracks/a6yjbh5qku",
+        "tracks/lpl325iz2lob",
+        "tracks/ljxzeymjbpo",
+        "tracks/jlv6xanghsvt",
+        "tracks/sxvcfuu54i",
+        "tracks/mmv7zp2dt3o",
+        "tracks/1tcrfgrunk",
+        "tracks/n7cui25f",
+        "tracks/nvz3c13uxt",
+        "tracks/498vy4810a",
+        "tracks/49jeoh0rhp",
+        "tracks/4g9l9eyjk",
+        "tracks/2r7664s10",
+        "tracks/v2bb6pq8b0p8",
+        "tracks/ct0ljdzdbf",
+        "tracks/859u42roj",
+        "tracks/0ny2gzxi",
+        "tracks/33hk728pinb",
+        "tracks/3dglxy0oj3e",
+        "tracks/d7t3riij7",
+        "tracks/0prrh95q",
+        "tracks/apfn3p7evg8w",
+        "tracks/tmw689snu",
+        "tracks/gwn6q88ml",
+        "tracks/ii022sgv",
+        "tracks/wl3fgz1pk",
+        "tracks/aulzk5mt9j",
+        "tracks/eedqngfc",
+        "tracks/2hpqvq5u4lc",
+        "tracks/opu5hcxzvr",
+        "tracks/0lg2fmnji",
+        "tracks/6udqj1rmsfba",
+        "tracks/uc878q6o9",
+        "tracks/e80i7yq0udyr",
+        "tracks/rhvati4uxqxh",
+        "tracks/ybouq91p4u8",
+        "tracks/mwriefhj6x",
+        "tracks/vldg9vtde4",
+        "tracks/ldh77lfjk",
+        "tracks/1627nxqv3",
+        "tracks/0banjok8ae4k",
+        "tracks/y5mih0r9cwik",
+        "tracks/nmv03pprlbb",
+        "tracks/x30b2wbv0g1",
+        "tracks/4xxaknyyf8c",
+        "tracks/z3dysnnp",
+        "tracks/kamxlv2v8of",
+        "tracks/9jxp6mbf",
+        "tracks/frdqyw9b3",
+        "tracks/qf5q0a5wecd3",
+        "tracks/emrcwwwnan",
+        "tracks/lcmbddqjw2",
+        "tracks/9ho763iw3k",
+        "tracks/y27lqj9e",
+        "tracks/v4c5p7rk0",
+        "tracks/hgq0xn1g01",
+        "tracks/qqzqnt4csmat",
+        "tracks/eq4m91kpiddc",
+        "tracks/6gxhj2sv1bx",
+        "tracks/kuq2z0jyr",
+        "tracks/0k3o9jwm9",
+        "tracks/mb6oqwc1",
+        "tracks/gc0xta86be",
+        "tracks/nc49fqfybra",
+        "tracks/ss8zuqay9wy",
+        "tracks/da0tkheo0f",
+        "tracks/cu9ecwvqq",
+        "tracks/ahntfhcz35",
+        "tracks/ua7qf7z7q",
+        "tracks/fe0ggkv485n3",
+        "tracks/fctb85n63qw",
+        "tracks/uz9xig56bvhb",
+        "tracks/2v5fdhyfw",
+        "tracks/k50x9qxd2s",
+        "tracks/5yotqjmqt",
+        "tracks/xctl53ponq7x",
+        "tracks/k2lzshmci6s",
+        "tracks/qg49x1b1",
+        "tracks/lr9t5akeo44",
+        "tracks/oxb34vh9xhr",
+        "tracks/md9p6cbso0j",
+        "tracks/2xusbeg5",
+        "tracks/b7f57fkgqyxb",
+        "tracks/6qkd6kysz",
+        "tracks/ov3argzlaj",
+        "tracks/nvh3b3kdlqee",
+        "tracks/j7osdf7t8hb",
+        "tracks/7geaa5vruw",
+        "tracks/v8w6juocl8"
+      ],
+      "currentIndex": 58,
+      "loopCurrentTrack": true
+    },
+    "primarySource": {
+      "type": "playlist",
+      "trackId": "tracks/frdqyw9b3"
+    }
+  },
+  "startingTrackId": "tracks/frdqyw9b3"
+}

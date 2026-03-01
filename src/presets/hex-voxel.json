@@ -1,0 +1,82 @@
+{
+  "format": "shader-composer-node-graph",
+  "formatVersion": "2.0",
+  "graph": {
+    "id": "graph-1771353523153-6cmnbdy55",
+    "name": "Hex Voxel",
+    "version": "2.0",
+    "nodes": [
+      {
+        "id": "node-1771353523153-dxefunrl9",
+        "type": "uv-coordinates",
+        "position": {
+          "x": -232,
+          "y": 192
+        },
+        "parameters": {}
+      },
+      {
+        "id": "node-1771353523153-c3iwfzga6",
+        "type": "hex-voxel",
+        "position": {
+          "x": 600,
+          "y": 200
+        },
+        "parameters": {
+          "shapeType": 0,
+          "layerCount": 21,
+          "rotationSpeedX": 0,
+          "rotationSpeedY": 0,
+          "zoom": 13.8,
+          "baseColorR": 1,
+          "baseColorG": 1,
+          "baseColorB": 1,
+          "glowIntensity": 0.08,
+          "edgeDarken": 0,
+          "lightDirX": 0.49,
+          "lightDirY": 0.8700000000000001,
+          "lightDirZ": 1,
+          "panX": 0,
+          "timeSpeed": 1.3,
+          "timeOffset": 0
+        }
+      },
+      {
+        "id": "node-1771353523153-86l6g680u",
+        "type": "final-output",
+        "position": {
+          "x": 1805,
+          "y": 189
+        },
+        "parameters": {}
+      }
+    ],
+    "connections": [
+      {
+        "id": "conn-1771353523153-dgfmsvnwj",
+        "sourceNodeId": "node-1771353523153-dxefunrl9",
+        "sourcePort": "out",
+        "targetNodeId": "node-1771353523153-c3iwfzga6",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1771353523153-468559m1z",
+        "sourceNodeId": "node-1771353523153-c3iwfzga6",
+        "sourcePort": "out",
+        "targetNodeId": "node-1771353523153-86l6g680u",
+        "targetPort": "in"
+      }
+    ],
+    "viewState": {
+      "zoom": 0.4904121675224343,
+      "panX": -191.65948002398022,
+      "panY": -70.48499540529906,
+      "selectedNodeIds": []
+    }
+  },
+  "audioSetup": {
+    "files": [],
+    "bands": [],
+    "remappers": []
+  }
+}

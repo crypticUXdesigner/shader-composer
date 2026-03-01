@@ -1,0 +1,23 @@
+---
+description: Graph shortcuts must not fire when focus is in input or dialog open; spacebar for temporary pan.
+globs: "src/ui/**/*.ts"
+alwaysApply: false
+---
+
+# Keyboard and Focus
+
+When adding or changing shortcuts or canvas key handling: guard graph shortcuts when focus is in an input or a dialog is open; spacebar ~200 ms hold = temporary pan.
+
+## Do
+
+- **Guard graph shortcuts**: Do not run Delete, Copy, Paste, Duplicate, Undo, Redo when focus is in an input or a dialog/overlay is open. Use app-level "is input active" / "is dialog visible" and return early.
+- **Spacebar**: Hold ~200 ms → temporary Hand/pan; release → restore tool. Quick press does not activate pan (can trigger play/pause in bottom bar). Use capture phase where needed; still respect guards.
+- Example: `if (isInputFocused || isDialogOpen) return;` before handling graph shortcuts.
+
+## Avoid
+
+- Handling graph shortcuts while user is in a text input or modal; only spacebar-for-pan may apply in dialogs when designed.
+
+## Reference
+
+- `docs/user-goals/11-undo-redo-and-keyboard.md`

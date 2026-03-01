@@ -1,21 +1,23 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const stripesNodeSpec: NodeSpec = {
   id: 'stripes',
   category: 'Patterns',
   displayName: 'Stripes',
   description: 'Directional alternating bands with configurable angle, frequency, and sharp or soft edges',
-  icon: 'grid',
+  icon: 'layout-board',
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'Position'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'float'
+      type: 'float',
+      label: 'Value'
     }
   ],
   parameters: {

@@ -28,7 +28,7 @@ export interface ErrorContext {
   /** Operation being performed when error occurred */
   operation?: string;
   /** Additional context data */
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
   /** Timestamp when error occurred */
   timestamp?: number;
 }
@@ -179,7 +179,7 @@ export function isRecoverableError(error: Error | string | unknown): boolean {
 export function createErrorContext(
   component: string,
   operation?: string,
-  data?: Record<string, any>
+  data?: Record<string, unknown>
 ): ErrorContext {
   return {
     component,
@@ -216,11 +216,13 @@ export interface AppError {
   /** Timestamp when error occurred */
   timestamp: number;
   /** Additional context data */
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
 }
 
 /**
- * Error handler interface for consistent error reporting
+ * Canonical error reporting interface for shader compilation and runtime.
+ * All compilation (CompilationManager, compiler) and runtime (RuntimeManager, ShaderInstance,
+ * audio, etc.) paths report via this interface so errors surface in the main error UI.
  */
 export interface ErrorHandler {
   /**
@@ -231,7 +233,7 @@ export interface ErrorHandler {
   /**
    * Convenience method to report an error with category and severity
    */
-  report(category: ErrorCategory, severity: 'error' | 'warning' | 'info', message: string, details?: string[] | { context?: Record<string, any>; originalError?: Error; [key: string]: any }): void;
+  report(category: ErrorCategory, severity: 'error' | 'warning' | 'info', message: string, details?: string[] | ({ context?: Record<string, unknown>; originalError?: Error } & Record<string, unknown>)): void;
   
   /**
    * Register a callback for error notifications
@@ -258,10 +260,16 @@ class DefaultErrorHandler implements ErrorHandler {
       ErrorSeverity.Info,
       {
         component: error.category,
-        data: error.data,
+        data: { ...error.data, details: error.details },
         timestamp: error.timestamp
       }
     );
+    // Log individual error details when present (e.g. shader compilation errors)
+    if (error.details && error.details.length > 0) {
+      error.details.forEach((detail, i) => {
+        console.error(`  [${i + 1}] ${detail}`);
+      });
+    }
     
     // Notify listeners
     for (const listener of this.listeners) {
@@ -273,7 +281,7 @@ class DefaultErrorHandler implements ErrorHandler {
     }
   }
   
-  report(category: ErrorCategory, severity: 'error' | 'warning' | 'info', message: string, details?: string[] | { context?: Record<string, any>; originalError?: Error; [key: string]: any }): void {
+  report(category: ErrorCategory, severity: 'error' | 'warning' | 'info', message: string, details?: string[] | ({ context?: Record<string, unknown>; originalError?: Error } & Record<string, unknown>)): void {
     const errorDetails = Array.isArray(details) ? details : undefined;
     const errorData = Array.isArray(details) ? undefined : details;
     this.reportError({
@@ -310,7 +318,7 @@ export const ErrorUtils = {
   compilationError(
     message: string,
     errors?: string[],
-    context?: { originalError?: Error; [key: string]: any }
+    context?: { originalError?: Error } & Record<string, unknown>
   ): AppError {
     return {
       message,
@@ -327,7 +335,7 @@ export const ErrorUtils = {
    */
   runtimeError(
     message: string,
-    context?: { originalError?: Error; [key: string]: any }
+    context?: { originalError?: Error } & Record<string, unknown>
   ): AppError {
     return {
       message,
@@ -343,7 +351,7 @@ export const ErrorUtils = {
    */
   audioError(
     message: string,
-    context?: { originalError?: Error; [key: string]: any }
+    context?: { originalError?: Error } & Record<string, unknown>
   ): AppError {
     return {
       message,
@@ -359,7 +367,7 @@ export const ErrorUtils = {
    */
   validationError(
     message: string,
-    context?: { [key: string]: any }
+    context?: Record<string, unknown>
   ): AppError {
     return {
       message,
@@ -375,7 +383,7 @@ export const ErrorUtils = {
    */
   webglError(
     message: string,
-    context?: { originalError?: Error; [key: string]: any }
+    context?: { originalError?: Error } & Record<string, unknown>
   ): AppError {
     return {
       message,
@@ -391,7 +399,7 @@ export const ErrorUtils = {
    */
   networkError(
     message: string,
-    context?: { originalError?: Error; [key: string]: any }
+    context?: { originalError?: Error } & Record<string, unknown>
   ): AppError {
     return {
       message,
@@ -407,7 +415,7 @@ export const ErrorUtils = {
    */
   unexpectedError(
     message: string,
-    context?: { originalError?: Error; [key: string]: any }
+    context?: { originalError?: Error } & Record<string, unknown>
   ): AppError {
     return {
       message,
@@ -420,7 +428,7 @@ export const ErrorUtils = {
 };
 
 /**
- * Adapter function to convert old ErrorCallback format to AppError
+ * Adapter function to convert legacy runtime error payload to AppError.
  */
 export function adaptErrorCallback(error: {
   type: 'compilation' | 'runtime' | 'unexpected';

@@ -1,0 +1,92 @@
+{
+  "format": "shader-composer-node-graph",
+  "formatVersion": "2.0",
+  "graph": {
+    "id": "graph-1771350689142-7r9hm7qf3",
+    "name": "3D Hex",
+    "version": "2.0",
+    "nodes": [
+      {
+        "id": "node-1771350689142-15sjbb93v",
+        "type": "uv-coordinates",
+        "position": {
+          "x": -14,
+          "y": -110
+        },
+        "parameters": {}
+      },
+      {
+        "id": "node-1771350689142-g167jkli6",
+        "type": "hex-prism-sdf",
+        "position": {
+          "x": 118,
+          "y": 306
+        },
+        "parameters": {
+          "hexRadius": 0.3,
+          "halfHeight": 1,
+          "positionX": 0.5,
+          "positionY": 3.5,
+          "positionZ": -2.5
+        }
+      },
+      {
+        "id": "node-1771350689142-3a09u1gd2",
+        "type": "generic-raymarcher",
+        "position": {
+          "x": 1246,
+          "y": -24
+        },
+        "parameters": {
+          "raymarchSteps": 64,
+          "glowIntensity": 0.3,
+          "brightness": 1,
+          "cameraRoZ": 3
+        }
+      },
+      {
+        "id": "node-1771350689142-alf80kyev",
+        "type": "final-output",
+        "position": {
+          "x": 2278,
+          "y": -14
+        },
+        "parameters": {}
+      }
+    ],
+    "connections": [
+      {
+        "id": "conn-1771350689142-kr38run6f",
+        "sourceNodeId": "node-1771350689142-15sjbb93v",
+        "sourcePort": "out",
+        "targetNodeId": "node-1771350689142-3a09u1gd2",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1771350689142-jz5ggaycv",
+        "sourceNodeId": "node-1771350689142-g167jkli6",
+        "sourcePort": "out",
+        "targetNodeId": "node-1771350689142-3a09u1gd2",
+        "targetPort": "sdf"
+      },
+      {
+        "id": "conn-1771350689142-kggktkvku",
+        "sourceNodeId": "node-1771350689142-3a09u1gd2",
+        "sourcePort": "color",
+        "targetNodeId": "node-1771350689142-alf80kyev",
+        "targetPort": "in"
+      }
+    ],
+    "viewState": {
+      "zoom": 0.5722064702235841,
+      "panX": 87.182126861803,
+      "panY": 77.746457326896,
+      "selectedNodeIds": []
+    }
+  },
+  "audioSetup": {
+    "files": [],
+    "bands": [],
+    "remappers": []
+  }
+}

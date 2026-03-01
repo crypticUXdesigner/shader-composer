@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const mirrorFlipNodeSpec: NodeSpec = {
   id: 'mirror-flip',
@@ -9,30 +9,30 @@ export const mirrorFlipNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'Position'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   parameters: {
     mirrorFlipX: {
-      type: 'float',
-      default: 0.0,
-      min: 0.0,
-      max: 1.0,
-      step: 1.0,
+      type: 'int',
+      default: 0,
+      min: 0,
+      max: 1,
       label: 'Flip X'
     },
     mirrorFlipY: {
-      type: 'float',
-      default: 0.0,
-      min: 0.0,
-      max: 1.0,
-      step: 1.0,
+      type: 'int',
+      default: 0,
+      min: 0,
+      max: 1,
       label: 'Flip Y'
     },
     mirrorCenterX: {
@@ -68,11 +68,21 @@ export const mirrorFlipNodeSpec: NodeSpec = {
       defaultCollapsed: true
     }
   ],
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['mirrorFlipX', 'mirrorFlipY', 'mirrorCenterX', 'mirrorCenterY'],
+        parameterUI: { mirrorCenterX: 'coords', mirrorCenterY: 'coords' },
+        layout: { columns: 2, coordsSpan: 2 }
+      }
+    ]
+  },
   mainCode: `
   vec2 c = vec2($param.mirrorCenterX, $param.mirrorCenterY);
   vec2 p = $input.in - c;
-  if ($param.mirrorFlipX > 0.5) p.x = -p.x;
-  if ($param.mirrorFlipY > 0.5) p.y = -p.y;
+  if ($param.mirrorFlipX > 0) p.x = -p.x;
+  if ($param.mirrorFlipY > 0) p.y = -p.y;
   $output.out = c + p;
 `
 };

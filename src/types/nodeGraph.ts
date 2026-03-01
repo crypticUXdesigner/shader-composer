@@ -1,79 +1,30 @@
-// Node Graph Data Model Types
-// Based on DATA_MODEL_SPECIFICATION.md
+/**
+ * Node graph types — re-export hub.
+ * Canonical definitions live in data-model/types.ts.
+ * Import from here for the `types/` namespace or from `data-model/types` directly.
+ */
 
-import type { ParameterInputMode } from './nodeSpec';
+import type { SerializedGraphFile as SerializedGraphFileType } from '../data-model/types';
 
-export type ParameterValue =
-  | number                        // For float/int parameters
-  | string                        // For string parameters (swizzle, etc.)
-  | [number, number, number, number]  // For vec4 parameters (bezier curves)
-  | number[]                      // For array parameters (color stops)
-  | number[][];                   // For array-of-arrays (e.g. frequencyBands)
+export type {
+  ParameterValue,
+  NodePosition,
+  NodeInstance,
+  Connection,
+  GraphMetadata,
+  GraphViewState,
+  NodeGraph,
+  AutomationState,
+  AutomationCurveInterpolation,
+  AutomationKeyframe,
+  AutomationCurve,
+  AutomationRegion,
+  AutomationLane,
+  SerializedGraphFile,
+  ValidationResult,
+} from '../data-model/types';
 
-export interface NodeInstance {
-  // Identity
-  id: string;                    // Unique node ID (UUID recommended)
-  type: string;                   // Node type ID (from Node Specification)
-  
-  // Position and layout
-  position: {                     // Node position in canvas (pixels)
-    x: number;                    // Integer, can be negative
-    y: number;                    // Integer, can be negative
-  };
-  
-  // Parameters
-  parameters: Record<string, ParameterValue>;  // Parameter name → value
-  parameterInputModes?: Record<string, ParameterInputMode>;  // Parameter name → input mode (overrides spec default)
-  
-  // Metadata
-  label?: string;                 // Optional custom label (overrides displayName)
-  color?: string;                 // Optional node color (hex, e.g., "#FF0000")
-}
-
-export interface Connection {
-  id: string;                     // Unique connection ID (UUID recommended)
-  
-  // Source (output)
-  sourceNodeId: string;            // Source node ID
-  sourcePort: string;              // Source port name (from Node Specification)
-  
-  // Target (input)
-  targetNodeId: string;            // Target node ID
-  targetPort?: string;             // Target port name (from Node Specification) - optional if targetParameter is set
-  targetParameter?: string;        // Target parameter name (for parameter input connections)
-}
-
-export interface NodeGraph {
-  // Identity
-  id: string;                     // Unique graph ID (UUID recommended)
-  name: string;                   // Graph name (user-defined)
-  version: string;                // Graph format version ("2.0")
-  
-  // Graph data
-  nodes: NodeInstance[];          // All nodes in the graph
-  connections: Connection[];      // All connections in the graph
-  
-  // Metadata
-  metadata?: {
-    description?: string;         // Optional description
-    author?: string;              // Optional author
-    createdAt?: string;         // ISO 8601 timestamp
-    modifiedAt?: string;         // ISO 8601 timestamp
-    tags?: string[];             // Optional tags
-  };
-  
-  // View state (UI state, not part of graph logic)
-  viewState?: {
-    zoom: number;                 // Canvas zoom level (default: 1.0)
-    panX: number;                 // Canvas pan X (pixels, default: 0)
-    panY: number;                 // Canvas pan Y (pixels, default: 0)
-    selectedNodeIds?: string[];   // Currently selected nodes
-  };
-}
-
-// Serialization format wrapper
-export interface SerializedNodeGraph {
-  format: string;                  // "shader-composer-node-graph"
-  formatVersion: string;           // "2.0"
-  graph: NodeGraph;
-}
+/**
+ * File-format wrapper (graph only). For full format including audioSetup, use SerializedGraphFile from data-model.
+ */
+export type SerializedNodeGraph = Pick<SerializedGraphFileType, 'format' | 'formatVersion' | 'graph'>;

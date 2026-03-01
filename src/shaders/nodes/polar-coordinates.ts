@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const polarCoordinatesNodeSpec: NodeSpec = {
   id: 'polar-coordinates',
@@ -9,13 +9,15 @@ export const polarCoordinatesNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'Polar UV'
     }
   ],
   parameters: {
@@ -67,6 +69,16 @@ export const polarCoordinatesNodeSpec: NodeSpec = {
       step: 1.0,
       label: 'Enabled'
     }
+  },
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['polarCenterX', 'polarCenterY', 'polarScale', 'polarRadiusScale', 'polarRotation', 'polarEnabled'],
+        parameterUI: { polarCenterX: 'coords', polarCenterY: 'coords' },
+        layout: { columns: 3, coordsSpan: 2 }
+      }
+    ]
   },
   functions: `
 vec2 toPolar(vec2 p, vec2 center) {

@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const cylinderConeNodeSpec: NodeSpec = {
   id: 'cylinder-cone',
@@ -9,13 +9,15 @@ export const cylinderConeNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'float'
+      type: 'float',
+      label: 'Glow'
     }
   ],
   parameters: {
@@ -33,7 +35,7 @@ export const cylinderConeNodeSpec: NodeSpec = {
       min: -2.0,
       max: 2.0,
       step: 0.1,
-      label: 'X'
+      label: 'Center X'
     },
     primitiveCenterY: {
       type: 'float',
@@ -41,7 +43,7 @@ export const cylinderConeNodeSpec: NodeSpec = {
       min: -2.0,
       max: 2.0,
       step: 0.1,
-      label: 'Y'
+      label: 'Center Y'
     },
     primitiveCenterZ: {
       type: 'float',
@@ -49,7 +51,7 @@ export const cylinderConeNodeSpec: NodeSpec = {
       min: -2.0,
       max: 2.0,
       step: 0.1,
-      label: 'Z'
+      label: 'Center Z'
     },
     primitiveSizeX: {
       type: 'float',
@@ -129,7 +131,7 @@ export const cylinderConeNodeSpec: NodeSpec = {
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Dir X'
+      label: 'Direction X'
     },
     lightDirY: {
       type: 'float',
@@ -137,7 +139,7 @@ export const cylinderConeNodeSpec: NodeSpec = {
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Dir Y'
+      label: 'Direction Y'
     },
     lightDirZ: {
       type: 'float',
@@ -145,7 +147,7 @@ export const cylinderConeNodeSpec: NodeSpec = {
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Dir Z'
+      label: 'Direction Z'
     },
     lightPosX: {
       type: 'float',
@@ -153,7 +155,7 @@ export const cylinderConeNodeSpec: NodeSpec = {
       min: -5.0,
       max: 5.0,
       step: 0.1,
-      label: 'Pos X'
+      label: 'Position X'
     },
     lightPosY: {
       type: 'float',
@@ -161,7 +163,7 @@ export const cylinderConeNodeSpec: NodeSpec = {
       min: -5.0,
       max: 5.0,
       step: 0.1,
-      label: 'Pos Y'
+      label: 'Position Y'
     },
     lightPosZ: {
       type: 'float',
@@ -169,7 +171,7 @@ export const cylinderConeNodeSpec: NodeSpec = {
       min: -5.0,
       max: 5.0,
       step: 0.1,
-      label: 'Pos Z'
+      label: 'Position Z'
     },
     lightIntensity: {
       type: 'float',
@@ -247,6 +249,28 @@ export const cylinderConeNodeSpec: NodeSpec = {
       defaultCollapsed: true
     }
   ],
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['primitiveType', 'primitiveGlowIntensity', 'primitiveRaymarchSteps', 'primitiveCenterX', 'primitiveCenterY', 'primitiveCenterZ'],
+        parameterUI: { primitiveCenterX: 'coords', primitiveCenterY: 'coords' },
+        layout: { columns: 3, coordsSpan: 2 }
+      },
+      {
+        type: 'grid',
+        label: 'Size',
+        parameters: ['primitiveSizeX', 'primitiveSizeY', 'primitiveSizeZ'],
+        layout: { columns: 3 }
+      },
+      {
+        type: 'grid',
+        label: 'Rotation',
+        parameters: ['primitiveRotationX', 'primitiveRotationY', 'primitiveRotationZ'],
+        layout: { columns: 3 }
+      }
+    ]
+  },
   functions: `
 // Capped cylinder SDF (Y-up): radius r, half-height h
 float sdCylinder(vec3 p, float r, float h) {
@@ -254,12 +278,15 @@ float sdCylinder(vec3 p, float r, float h) {
   return min(max(d.x, d.y), 0.0) + length(max(d, 0.0));
 }
 
-// Capped cone SDF (Y-up, centered): base radius b at y=-halfH, apex at y=+halfH
-float sdCone(vec3 p, float b, float halfH) {
+// Capped cone SDF (Y-up): half-height h, radius r1 at y=-h, radius r2 at y=+h (Top Radius)
+float sdCappedCone(vec3 p, float h, float r1, float r2) {
   vec2 q = vec2(length(p.xz), p.y);
-  vec2 c = normalize(vec2(2.0 * halfH, b));
-  float coneBody = dot(c, vec2(q.x, q.y - halfH));
-  return max(max(coneBody, -q.y - halfH), q.y - halfH);
+  vec2 k1 = vec2(r2, h);
+  vec2 k2 = vec2(r2 - r1, 2.0 * h);
+  vec2 ca = vec2(q.x - min(q.x, (q.y < 0.0) ? r1 : r2), abs(q.y) - h);
+  vec2 cb = q - k1 + k2 * clamp(dot(k1 - q, k2) / dot(k2, k2), 0.0, 1.0);
+  float s = (cb.x < 0.0 && ca.y < 0.0) ? -1.0 : 1.0;
+  return s * sqrt(min(dot(ca, ca), dot(cb, cb)));
 }
 
 // Rotate point around X axis
@@ -294,11 +321,12 @@ float sceneSDF(vec3 p) {
 
   float r = $param.primitiveSizeX;
   float h = $param.primitiveSizeY * 0.5;
+  float topR = $param.primitiveSizeZ;
 
   if ($param.primitiveType == 0) {
     return sdCylinder(transformedP, r, h);
   } else {
-    return sdCone(transformedP, r, h);
+    return sdCappedCone(transformedP, h, r, topR);
   }
 }
 

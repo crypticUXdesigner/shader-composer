@@ -9,7 +9,8 @@ import { Renderer } from './Renderer';
 import { AudioManager } from './AudioManager';
 import { CompilationManager } from './CompilationManager';
 import { RuntimeManager } from './RuntimeManager';
-import type { ShaderCompiler, ErrorCallback, IRenderer, IAudioManager, ICompilationManager } from './types';
+import type { ShaderCompiler, IRenderer, IAudioManager, ICompilationManager } from './types';
+import type { NodeSpec } from '../types';
 
 /**
  * Create a Renderer instance.
@@ -33,45 +34,97 @@ export function createAudioManager(errorHandler?: import('../utils/errorHandling
  * Create a CompilationManager instance.
  * @param compiler - Shader compiler instance
  * @param renderer - Renderer instance
- * @param errorCallback - Optional error callback (deprecated, use errorHandler)
- * @param errorHandler - Optional error handler
+ * @param errorHandler - Optional error handler (falls back to globalErrorHandler when not set)
+ * @param worker - Optional compilation worker; when set, recompile runs in worker
  * @returns CompilationManager instance
  */
 export function createCompilationManager(
   compiler: ShaderCompiler,
   renderer: IRenderer,
-  errorCallback?: ErrorCallback,
-  errorHandler?: import('../utils/errorHandling').ErrorHandler
+  errorHandler?: import('../utils/errorHandling').ErrorHandler,
+  worker: Worker | null = null
 ): ICompilationManager {
-  return new CompilationManager(
+  const cm = new CompilationManager(
     compiler,
     renderer as Renderer, // Type assertion needed because CompilationManager expects concrete Renderer
-    errorCallback,
     errorHandler
   );
+  if (worker !== null) {
+    cm.setWorker(worker);
+  }
+  return cm;
+}
+
+const INIT_TIMEOUT_MS = 5000;
+
+/**
+ * Wait for the compilation worker to reply with 'inited' after init.
+ * Rejects on timeout or worker error.
+ */
+function waitForWorkerInited(worker: Worker): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      cleanup();
+      reject(new Error('Compilation worker init timeout'));
+    }, INIT_TIMEOUT_MS);
+
+    const onMessage = (ev: MessageEvent) => {
+      if (ev.data?.type === 'inited') {
+        cleanup();
+        resolve();
+      }
+    };
+
+    const onError = (err: ErrorEvent) => {
+      cleanup();
+      reject(err.message ? new Error(err.message) : new Error('Compilation worker init error'));
+    };
+
+    const cleanup = () => {
+      clearTimeout(timeoutId);
+      worker.onmessage = null;
+      worker.onerror = null;
+    };
+
+    worker.onmessage = onMessage;
+    worker.onerror = onError;
+  });
 }
 
 /**
  * Create a RuntimeManager instance with all dependencies injected.
+ * When nodeSpecsForWorker is provided, a compilation worker is created, inited, and passed to CompilationManager (async).
+ * When omitted, no worker is created and compilation runs on the main thread (sync).
  * @param canvas - HTML canvas element for rendering
  * @param compiler - Shader compiler instance
- * @param errorCallback - Optional error callback (deprecated, use errorHandler)
- * @param errorHandler - Optional error handler
- * @returns RuntimeManager instance
+ * @param errorHandler - Optional error handler (falls back to globalErrorHandler when not set)
+ * @param nodeSpecsForWorker - Optional node specs to init the compilation worker; when provided, returns Promise
+ * @returns RuntimeManager, or Promise<RuntimeManager> when nodeSpecsForWorker is provided
  */
 export function createRuntimeManager(
   canvas: HTMLCanvasElement,
   compiler: ShaderCompiler,
-  errorCallback?: ErrorCallback,
-  errorHandler?: import('../utils/errorHandling').ErrorHandler
-): RuntimeManager {
-  // Create dependencies using factories
+  errorHandler?: import('../utils/errorHandling').ErrorHandler,
+  nodeSpecsForWorker?: Map<string, NodeSpec> | Record<string, NodeSpec>
+): RuntimeManager | Promise<RuntimeManager> {
   const renderer = createRenderer(canvas);
   const audioManager = createAudioManager(errorHandler);
-  const compilationManager = createCompilationManager(compiler, renderer, errorCallback, errorHandler);
 
-  // Create RuntimeManager with injected dependencies
-  return new RuntimeManager(renderer, audioManager, compilationManager, errorCallback, errorHandler);
+  if (nodeSpecsForWorker == null) {
+    const compilationManager = createCompilationManager(compiler, renderer, errorHandler);
+    return new RuntimeManager(renderer, audioManager, compilationManager, errorHandler);
+  }
+
+  return (async (): Promise<RuntimeManager> => {
+    const workerUrl = new URL('./compilation/compilationWorker.ts', import.meta.url);
+    const worker = new Worker(workerUrl, { type: 'module' });
+    const nodeSpecsObj =
+      nodeSpecsForWorker instanceof Map ? Object.fromEntries(nodeSpecsForWorker) : nodeSpecsForWorker;
+    worker.postMessage({ type: 'init', nodeSpecs: nodeSpecsObj });
+    await waitForWorkerInited(worker);
+    const compilationManager = createCompilationManager(compiler, renderer, errorHandler, worker);
+    return new RuntimeManager(renderer, audioManager, compilationManager, errorHandler);
+  })();
 }
 
 /**
@@ -79,16 +132,14 @@ export function createRuntimeManager(
  * @param renderer - Renderer instance
  * @param audioManager - AudioManager instance
  * @param compilationManager - CompilationManager instance
- * @param errorCallback - Optional error callback (deprecated, use errorHandler)
- * @param errorHandler - Optional error handler
+ * @param errorHandler - Optional error handler (falls back to globalErrorHandler when not set)
  * @returns RuntimeManager instance
  */
 export function createRuntimeManagerWithDependencies(
   renderer: IRenderer,
   audioManager: IAudioManager,
   compilationManager: ICompilationManager,
-  errorCallback?: ErrorCallback,
   errorHandler?: import('../utils/errorHandling').ErrorHandler
 ): RuntimeManager {
-  return new RuntimeManager(renderer, audioManager, compilationManager, errorCallback, errorHandler);
+  return new RuntimeManager(renderer, audioManager, compilationManager, errorHandler);
 }

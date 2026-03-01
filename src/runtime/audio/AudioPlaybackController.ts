@@ -23,6 +23,11 @@ export interface AudioNodeState {
   duration: number;
   frequencyData: Uint8Array | null;
   smoothedValues: Map<string, number>; // For smoothing frequency bands
+  /**
+   * Monotonic token to prevent overlapping play/seek calls from starting multiple sources.
+   * Incremented on each play request; only the latest request is allowed to start.
+   */
+  playRequestId: number;
 }
 
 /**
@@ -65,7 +70,8 @@ export class AudioPlaybackController extends BaseDisposable {
       currentTime: 0,
       duration: audioBuffer.duration,
       frequencyData: new Uint8Array(frequencyDataBuffer),
-      smoothedValues: new Map()
+      smoothedValues: new Map(),
+      playRequestId: 0
     };
     
     this.audioNodes.set(nodeId, state);
@@ -73,10 +79,13 @@ export class AudioPlaybackController extends BaseDisposable {
   }
   
   /**
-   * Play audio for a node
-   * Automatically resumes AudioContext if suspended (requires user interaction)
+   * Play audio for a node.
+   * Automatically resumes AudioContext if suspended (requires user interaction).
+   * @param nodeId - Node (or track) id
+   * @param offset - Start time in seconds
+   * @param options - loop (default true for backward compat); onEnded called when playback ends (when loop is false)
    */
-  async playAudio(nodeId: string, offset: number = 0): Promise<void> {
+  async playAudio(nodeId: string, offset: number = 0, options?: { loop?: boolean; onEnded?: () => void }): Promise<void> {
     this.ensureNotDestroyed();
     
     const state = this.audioNodes.get(nodeId);
@@ -91,8 +100,17 @@ export class AudioPlaybackController extends BaseDisposable {
       return;
     }
     
+    // Prevent overlapping play/seek requests from starting multiple sources.
+    // (e.g. rapid scrubbing triggers many seekAllAudio() calls.)
+    const requestId = state.playRequestId + 1;
+    state.playRequestId = requestId;
+
     // Ensure AudioContext is ready
     await this.contextManager.ensureReady();
+    if (state.playRequestId !== requestId) {
+      // A newer play request superseded this one.
+      return;
+    }
     const audioContext = this.contextManager.getContext();
     
     // Check if we have an audio buffer
@@ -124,12 +142,23 @@ export class AudioPlaybackController extends BaseDisposable {
     
     // Clamp offset to valid range
     const clampedOffset = Math.max(0, Math.min(offset, state.audioBuffer.duration));
+    const loop = options?.loop ?? true;
+    const onEnded = options?.onEnded;
     
     try {
       // Create new source node
       const source = audioContext.createBufferSource();
       source.buffer = state.audioBuffer;
-      source.loop = true; // Loop playback
+      source.loop = loop;
+      
+      if (!loop && onEnded) {
+        source.onended = () => {
+          state.isPlaying = false;
+          state.sourceNode = null;
+          state.currentTime = 0;
+          onEnded();
+        };
+      }
       
       // Connect: source -> gain -> analyser -> destination
       source.connect(state.gainNode);
@@ -143,8 +172,8 @@ export class AudioPlaybackController extends BaseDisposable {
       state.isPlaying = true;
       
       source.start(0, clampedOffset);
-    } catch (error: any) {
-      const errorMessage = error?.message || String(error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(`[AudioPlaybackController] Failed to start audio playback for node ${nodeId}:`, errorMessage);
       state.isPlaying = false;
       state.sourceNode = null;
@@ -164,6 +193,9 @@ export class AudioPlaybackController extends BaseDisposable {
     }
     
     try {
+      // If we manually stop, suppress onended so playlist-advance callbacks
+      // only run for natural playback completion.
+      state.sourceNode.onended = null;
       state.sourceNode.stop();
     } catch (e) {
       // Already stopped, ignore
@@ -178,7 +210,39 @@ export class AudioPlaybackController extends BaseDisposable {
    * Pause audio playback
    */
   pauseAudio(nodeId: string): void {
-    this.stopAudio(nodeId);
+    this.ensureNotDestroyed();
+    
+    const state = this.audioNodes.get(nodeId);
+    if (!state || !state.sourceNode) {
+      return;
+    }
+    
+    // Capture playback position before stopping the source.
+    try {
+      if (state.isPlaying && state.audioBuffer && this.contextManager.isInitialized()) {
+        const audioContext = this.contextManager.getContext();
+        let t = audioContext.currentTime - state.startTime;
+        // Clamp into [0, duration]
+        if (state.audioBuffer.duration > 0) {
+          t = t % state.audioBuffer.duration;
+          if (t < 0) t = 0;
+        }
+        state.currentTime = Math.max(0, Math.min(t, state.audioBuffer.duration));
+      }
+    } catch {
+      // If context isn't available, fall back to last known state.currentTime.
+    }
+    
+    try {
+      // Suppress onended (manual pause must not advance playlists).
+      state.sourceNode.onended = null;
+      state.sourceNode.stop();
+    } catch {
+      // ignore
+    }
+    
+    state.sourceNode = null;
+    state.isPlaying = false;
   }
   
   /**
@@ -192,6 +256,17 @@ export class AudioPlaybackController extends BaseDisposable {
       promises.push(this.playAudio(nodeId, offset));
     }
     await Promise.all(promises);
+  }
+
+  /**
+   * Pause all audio nodes (preserves currentTime for resume).
+   */
+  pauseAllAudio(): void {
+    this.ensureNotDestroyed();
+    
+    for (const nodeId of this.audioNodes.keys()) {
+      this.pauseAudio(nodeId);
+    }
   }
   
   /**
@@ -211,11 +286,11 @@ export class AudioPlaybackController extends BaseDisposable {
   async seekAllAudio(time: number): Promise<void> {
     this.ensureNotDestroyed();
     
-    const isPlaying = Array.from(this.audioNodes.values()).some(s => s.isPlaying);
+    const wasPlaying = Array.from(this.audioNodes.values()).some(s => s.isPlaying);
     await this.playAllAudio(time);
-    if (!isPlaying) {
-      // If it wasn't playing before, stop it after seeking
-      this.stopAllAudio();
+    if (!wasPlaying) {
+      // If it wasn't playing before, pause after seeking so the playhead stays at the seek time.
+      this.pauseAllAudio();
     }
   }
   
@@ -259,25 +334,26 @@ export class AudioPlaybackController extends BaseDisposable {
   }
   
   /**
-   * Get global audio state (from first loaded audio file)
+   * Get global audio state. When primaryNodeId is provided, returns that node's state only; otherwise first loaded node.
    */
-  getGlobalAudioState(): { isPlaying: boolean; currentTime: number; duration: number } | null {
-    for (const state of this.audioNodes.values()) {
-      if (state.audioBuffer) {
-        let currentTime = state.currentTime;
-        if (state.isPlaying && state.sourceNode && this.contextManager.isInitialized()) {
-          const audioContext = this.contextManager.getContext();
-          currentTime = (audioContext.currentTime - state.startTime) % state.audioBuffer.duration;
-          if (currentTime < 0) currentTime = 0;
-          state.currentTime = currentTime;
-        }
-        
-        return {
-          isPlaying: state.isPlaying,
-          currentTime,
-          duration: state.audioBuffer.duration
-        };
+  getGlobalAudioState(primaryNodeId?: string): { isPlaying: boolean; currentTime: number; duration: number } | null {
+    const nodesToCheck = primaryNodeId
+      ? (this.audioNodes.has(primaryNodeId) ? [this.audioNodes.get(primaryNodeId)!] : [])
+      : Array.from(this.audioNodes.values());
+    for (const state of nodesToCheck) {
+      if (!state?.audioBuffer) continue;
+      let currentTime = state.currentTime;
+      if (state.isPlaying && state.sourceNode && this.contextManager.isInitialized()) {
+        const audioContext = this.contextManager.getContext();
+        currentTime = (audioContext.currentTime - state.startTime) % state.audioBuffer.duration;
+        if (currentTime < 0) currentTime = 0;
+        state.currentTime = currentTime;
       }
+      return {
+        isPlaying: state.isPlaying,
+        currentTime,
+        duration: state.audioBuffer.duration
+      };
     }
     return null;
   }

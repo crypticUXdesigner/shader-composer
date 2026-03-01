@@ -72,11 +72,26 @@ src/
 ## Tech Stack
 
 - **TypeScript** - Type-safe development
+- **Svelte 5** - Component framework and reactivity (editor UI)
 - **Vite** - Fast build tool and dev server
 - **WebGL** - GPU-accelerated shader rendering
 - **GLSL** - Shader programming language
-- **Vanilla TypeScript** - No framework dependencies
-- **Tabler Icons** - Icon library
+- **Phosphor Icons** - Icon library
+
+## Environment variables
+
+Optional variables (copy `.env.example` to `.env` and edit as needed). **Do not commit `.env`** — it is gitignored; it may contain tokens (e.g. `VITE_AUDIOTOOL_API_TOKEN`) and should stay local.
+
+| Variable | Description |
+|----------|-------------|
+| `VITE_AUDIOGRAPH_API_URL` | Optional. Base URL for the Audiograph RPC (default: `https://rpc.audiotool.com`). The mini timeline calls `POST {baseUrl}/audiotool.audiograph.v1.AudiographService/GetAudiographs` with `resource_names`, `resolution`, `channels`. Override only if using a different host or proxy. |
+| `VITE_AUDIOTOOL_API_TOKEN` | Optional. Bearer token sent as `Authorization: Bearer <token>` when set. Required only if rpc.audiotool.com demands auth for your origin. |
+
+### Config scope (public vs private)
+
+All variables above are **client-side**: Vite inlines `VITE_*` (and `BASE_URL`) at build time, so they appear in the client bundle and are visible to anyone who inspects the app. **Tokens** (e.g. `VITE_AUDIOTOOL_API_TOKEN`) must not be committed; use a local `.env` (gitignored) and never put real secrets in `.env.example`.
+
+If a **backend or server-side build** is added later, keep server-only config (secrets, internal API keys) **out of the client**: do not prefix them with `VITE_`, do not add them to `.env.example`, and do not expose them to the client bundle.
 
 ## Development
 
@@ -85,7 +100,11 @@ src/
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
 - `npm run type-check` - Run TypeScript type checking
+- `npm run test` - Run Vitest test suite
+- `npm run lint` - Run ESLint on TypeScript and Svelte sources
+- `npm run check` - Run type-check, tests, and lint (pre-commit gate)
 - `npm run preview` - Preview production build locally
+- `npm run a11y` - Run automated accessibility checks (axe-core, WCAG 2 A/AA) on the main route. Requires `npm run build` first; optionally set `PREVIEW_URL` if the preview server is already running. See [docs/projects/quality-review-remediation/a11y-baseline.md](docs/projects/quality-review-remediation/a11y-baseline.md).
 
 ### Building
 
@@ -95,12 +114,17 @@ npm run build
 
 The build output will be in the `dist/` directory, ready for deployment.
 
+## Contributors
+
+See [docs/onboarding-checklist.md](docs/onboarding-checklist.md) for a short checklist: clone, run dev, run `npm run check` before commit, and where to find user-goals, rules, and work packages.
+
 ## Deployment
 
 This project is automatically deployed to GitHub Pages via GitHub Actions when changes are pushed to the `main` branch. The deployment workflow:
 
 1. Builds the project using `npm run build`
-2. Deploys the `dist/` directory to GitHub Pages
+2. Runs automated accessibility checks (axe-core on the main route)
+3. Deploys the `dist/` directory to GitHub Pages
 3. Available at: `https://crypticUXdesigner.github.io/shader-composer/`
 
 ## License

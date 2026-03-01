@@ -19,7 +19,13 @@ void main() {
   gl_Position = vec4(a_position, 0.0, 1.0);
 }`;
 
+/** Message thrown when WebGL context is lost so callers can skip without reporting a compilation error. */
+export const SHADER_INSTANCE_CONTEXT_LOST_MESSAGE = 'WEBGL_CONTEXT_LOST';
+
 export class ShaderInstance implements Disposable {
+  /** Same as SHADER_INSTANCE_CONTEXT_LOST_MESSAGE; use for catch checks. */
+  static readonly CONTEXT_LOST_MESSAGE = SHADER_INSTANCE_CONTEXT_LOST_MESSAGE;
+
   private gl: WebGL2RenderingContext;
   private program: WebGLProgram | null = null;
   private vertexShader: WebGLShader | null = null;
@@ -31,11 +37,12 @@ export class ShaderInstance implements Disposable {
   // Uniform type cache (for type checking)
   private uniformTypes: Map<string, string> = new Map();
   
-  // Current parameter values
-  private parameters: Map<string, number> = new Map();
+  /** Parameter values that map to uniforms: scalar (float/int) or vec4. */
+  private parameters: Map<string, number | [number, number, number, number]> = new Map();
   
   // Global uniforms
   private time: number = 0.0;
+  private timelineTime: number = 0.0;
   private resolution: [number, number] = [0, 0];
   
   // Cached position buffer (reused every frame for performance)
@@ -43,6 +50,9 @@ export class ShaderInstance implements Disposable {
   private positionAttribLocation: number = -1;
   
   constructor(gl: WebGL2RenderingContext, compilationResult: CompilationResult) {
+    if (gl.isContextLost && gl.isContextLost()) {
+      throw new Error(ShaderInstance.CONTEXT_LOST_MESSAGE);
+    }
     this.gl = gl;
     this.createProgram(compilationResult);
     this.cacheUniformLocations(compilationResult);
@@ -100,14 +110,22 @@ export class ShaderInstance implements Disposable {
   
   /**
    * Create and compile a shader; on failure return null and the info log.
+   * If the context is lost, throws so the caller can skip without reporting a compile error.
    */
   private createShaderAndCaptureError(type: number, source: string): { shader: WebGLShader | null; infoLog: string | null } {
+    if (this.gl.isContextLost && this.gl.isContextLost()) {
+      throw new Error(ShaderInstance.CONTEXT_LOST_MESSAGE);
+    }
     const shader = this.gl.createShader(type);
     if (!shader) return { shader: null, infoLog: 'createShader returned null' };
 
     this.gl.shaderSource(shader, source);
     this.gl.compileShader(shader);
 
+    if (this.gl.isContextLost && this.gl.isContextLost()) {
+      this.gl.deleteShader(shader);
+      throw new Error(ShaderInstance.CONTEXT_LOST_MESSAGE);
+    }
     if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
       const infoLog = this.gl.getShaderInfoLog(shader);
       const shaderType = type === this.gl.VERTEX_SHADER ? 'VERTEX' : 'FRAGMENT';
@@ -152,7 +170,7 @@ export class ShaderInstance implements Disposable {
     }
     
     // Also cache global uniforms
-    const globalUniforms = ['uTime', 'uResolution'];
+    const globalUniforms = ['uTime', 'uResolution', 'uTimelineTime'];
     for (const name of globalUniforms) {
       const location = this.gl.getUniformLocation(this.program, name);
       if (location) {
@@ -204,30 +222,24 @@ export class ShaderInstance implements Disposable {
   }
   
   /**
-   * Update node parameter value.
+   * Update node parameter value (scalar for float/int uniforms, vec4 tuple for vec4 uniforms).
    */
-  setParameter(nodeId: string, paramName: string, value: number): void {
-    // Store parameter value
+  setParameter(nodeId: string, paramName: string, value: number | [number, number, number, number]): void {
     const key = `${nodeId}.${paramName}`;
     this.parameters.set(key, value);
-    
-    // Get uniform name (must match compiler's naming)
+
     const uniformName = getUniformName(nodeId, paramName);
     const uniformType = this.uniformTypes.get(uniformName);
-    
-    // Silently skip if uniform doesn't exist (was optimized out by WebGL)
-    if (!uniformType) {
-      return;
-    }
-    
-    // Update uniform immediately
+
+    if (!uniformType) return;
+
     this.setUniformValue(uniformName, uniformType, value);
   }
-  
+
   /**
    * Batch parameter updates (more efficient).
    */
-  setParameters(updates: Array<{ nodeId: string, paramName: string, value: number }>): void {
+  setParameters(updates: Array<{ nodeId: string, paramName: string, value: number | [number, number, number, number] }>): void {
     if (!this.program) return;
     
     this.gl.useProgram(this.program);
@@ -247,9 +259,13 @@ export class ShaderInstance implements Disposable {
 
   /**
    * Set audio uniform (for audio node outputs that are uniforms)
+   * Silently skips when uniform is not in shader (e.g. panel band not connected to any parameter).
    */
   setAudioUniform(nodeId: string, outputName: string, value: number): void {
     const uniformName = getUniformName(nodeId, outputName);
+    if (!this.uniformLocations.has(uniformName)) {
+      return; // Not in shader (optimized out or not declared) - expected for unused audio bands
+    }
     const uniformType = this.uniformTypes.get(uniformName) || 'float';
     this.setUniformValue(uniformName, uniformType, value);
   }
@@ -267,6 +283,28 @@ export class ShaderInstance implements Disposable {
       this.gl.useProgram(this.program);
       this.gl.uniform1f(location, time);
     }
+  }
+
+  /**
+   * Set timeline time uniform (for automation; WP 03).
+   * Set each frame from timeline currentTime so automation in shader stays in sync.
+   */
+  setTimelineTime(time: number): void {
+    this.timelineTime = time;
+    if (!this.program) return;
+    const location = this.uniformLocations.get('uTimelineTime');
+    if (location) {
+      this.gl.useProgram(this.program);
+      this.gl.uniform1f(location, time);
+    }
+  }
+
+  getTime(): number {
+    return this.time;
+  }
+
+  getTimelineTime(): number {
+    return this.timelineTime;
   }
   
   /**
@@ -291,7 +329,7 @@ export class ShaderInstance implements Disposable {
   /**
    * Get all parameter values (for transfer to new instance).
    */
-  getParameters(): Map<string, number> {
+  getParameters(): Map<string, number | [number, number, number, number]> {
     return new Map(this.parameters);
   }
   
@@ -344,6 +382,11 @@ export class ShaderInstance implements Disposable {
     const timeLocation = this.uniformLocations.get('uTime');
     if (timeLocation) {
       this.gl.uniform1f(timeLocation, this.time);
+    }
+
+    const timelineTimeLocation = this.uniformLocations.get('uTimelineTime');
+    if (timelineTimeLocation) {
+      this.gl.uniform1f(timelineTimeLocation, this.timelineTime);
     }
     
     // Use cached position buffer

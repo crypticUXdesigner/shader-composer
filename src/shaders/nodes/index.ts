@@ -1,6 +1,6 @@
 // Node specs for the node system (all VisualElements have been migrated to native NodeSpecs)
 
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 import { colorMapNodeSpec } from './color-map';
 import { finalOutputNodeSpec } from './final-output';
 import {
@@ -13,6 +13,8 @@ import {
   constantVec3NodeSpec,
   constantVec4NodeSpec
 } from './input-nodes';
+import { orbitCameraNodeSpec } from './orbit-camera';
+import { lookAtCameraNodeSpec } from './look-at-camera';
 import {
   translateNodeSpec,
   rotateNodeSpec,
@@ -36,9 +38,8 @@ import { directionalDisplaceNodeSpec } from './directional-displace';
 import { brickTilingNodeSpec } from './brick-tiling';
 import { infiniteZoomNodeSpec } from './infinite-zoom';
 import { kaleidoscopeSmoothNodeSpec } from './kaleidoscope-smooth';
-import { fbmNoiseNodeSpec } from './fbm-noise';
-import { simplexNoiseNodeSpec } from './simplex-noise';
-import { simplex3dNodeSpec } from './simplex-3d';
+import { noiseNodeSpec } from './noise';
+import { warpTerrainNodeSpec } from './warp-terrain';
 import { voronoiNoiseNodeSpec } from './voronoi-noise';
 import { cubicCurlNoiseNodeSpec } from './cubic-curl-noise';
 import { worleyNoiseNodeSpec } from './worley-noise';
@@ -54,22 +55,40 @@ import { wavePatternsNodeSpec } from './wave-patterns';
 import { hexagonalGridNodeSpec } from './hexagonal-grid';
 import { stripesNodeSpec } from './stripes';
 import { dotsNodeSpec } from './dots';
+import { discoPatternNodeSpec } from './disco-pattern';
 import { reactionDiffusionNodeSpec } from './reaction-diffusion';
-import { truchetNodeSpec } from './truchet';
 import { triangleGridNodeSpec } from './triangle-grid';
 import { particleSystemNodeSpec } from './particle-system';
 import { sphereRaymarchNodeSpec } from './sphere-raymarch';
+import { sphericalFibonacciNodeSpec } from './spherical-fibonacci';
+import { bloomSphereNodeSpec } from './bloom-sphere';
+import { bloomSphereEffectNodeSpec } from './bloom-sphere-effect';
 import { boxTorusSdfNodeSpec } from './box-torus-sdf';
+import { glassShellNodeSpec } from './glass-shell';
+import { hexPrismSdfNodeSpec } from './hex-prism-sdf';
+import { hexVoxelNodeSpec } from './hex-voxel';
+import { radialRepeatSdfNodeSpec } from './radial-repeat-sdf';
+import { repeatedHexPrismSdfNodeSpec } from './repeated-hex-prism-sdf';
+import { kifsSdfNodeSpec } from './kifs-sdf';
+import { etherSdfNodeSpec } from './ether-sdf';
+import { displacement3dNodeSpec } from './displacement-3d';
+import { genericRaymarcherNodeSpec } from './generic-raymarcher';
 import { cylinderConeNodeSpec } from './cylinder-cone';
-import { box2dNodeSpec } from './box-2d';
-import { circleEllipseNodeSpec } from './circle-ellipse';
+import { iridescentTunnelNodeSpec } from './iridescent-tunnel';
+import { inflatedIcosahedronNodeSpec } from './inflated-icosahedron';
+import { shapes2dNodeSpec } from './shapes-2d';
+import { starShape2dNodeSpec } from './star-shape-2d';
 import { metaballsNodeSpec } from './metaballs';
 import { star2dNodeSpec } from './star-2d';
 import { superellipseNodeSpec } from './superellipse';
 import { flowFieldPatternNodeSpec } from './flow-field-pattern';
 import { fractalNodeSpec } from './fractal';
+import { iteratedInversionNodeSpec } from './iterated-inversion';
 import { planeGridNodeSpec } from './plane-grid';
 import { skyDomeNodeSpec } from './sky-dome';
+import { rainDropsNodeSpec } from './rain-drops';
+import { bokehPointNodeSpec } from './bokeh-point';
+import { driveHomeLightsNodeSpec } from './drive-home-lights';
 import {
   addNodeSpec,
   subtractNodeSpec,
@@ -123,11 +142,11 @@ import { normalMappingNodeSpec } from './normal-mapping';
 import { lightingShadingNodeSpec } from './lighting-shading';
 import { blendingModesNodeSpec } from './blending-modes';
 // Post-processing nodes are now native NodeSpecs (migrated from VisualElements)
+import { hash32NodeSpec } from './hash32';
 import {
   oneMinusNodeSpec,
   negateNodeSpec,
   reciprocalNodeSpec,
-  remapNodeSpec,
   clamp01NodeSpec,
   saturateNodeSpec,
   signNodeSpec,
@@ -146,12 +165,6 @@ import {
   oklchColorMapThresholdNodeSpec,
   toneMappingNodeSpec
 } from './color-system-nodes';
-import {
-  audioFileInputNodeSpec,
-  audioAnalyzerNodeSpec,
-  audioRemapNodeSpec
-} from './audio-nodes';
-
 const _metaballs = metaballsNodeSpec;
 export const nodeSystemSpecs: NodeSpec[] = [
   // Input nodes
@@ -163,6 +176,8 @@ export const nodeSystemSpecs: NodeSpec[] = [
   constantVec2NodeSpec,
   constantVec3NodeSpec,
   constantVec4NodeSpec,
+  orbitCameraNodeSpec,
+  lookAtCameraNodeSpec,
   oklchColorNodeSpec,
   bezierCurveNodeSpec,
   
@@ -192,9 +207,8 @@ export const nodeSystemSpecs: NodeSpec[] = [
   kaleidoscopeSmoothNodeSpec,
 
   // Pattern/Noise nodes
-  fbmNoiseNodeSpec,
-  simplexNoiseNodeSpec,
-  simplex3dNodeSpec,
+  noiseNodeSpec,
+  warpTerrainNodeSpec,
   voronoiNoiseNodeSpec,
   cubicCurlNoiseNodeSpec,
   worleyNoiseNodeSpec,
@@ -211,23 +225,41 @@ export const nodeSystemSpecs: NodeSpec[] = [
   hexagonalGridNodeSpec,
   stripesNodeSpec,
   dotsNodeSpec,
+  discoPatternNodeSpec,
   reactionDiffusionNodeSpec,
-  truchetNodeSpec,
   triangleGridNodeSpec,
   particleSystemNodeSpec,
+  rainDropsNodeSpec,
 
   // Shape/Geometry nodes
   sphereRaymarchNodeSpec,
+  sphericalFibonacciNodeSpec,
+  bloomSphereNodeSpec,
+  bloomSphereEffectNodeSpec,
   boxTorusSdfNodeSpec,
+  glassShellNodeSpec,
+  hexPrismSdfNodeSpec,
+  hexVoxelNodeSpec,
+  radialRepeatSdfNodeSpec,
+  repeatedHexPrismSdfNodeSpec,
+  kifsSdfNodeSpec,
+  etherSdfNodeSpec,
+  displacement3dNodeSpec,
+  genericRaymarcherNodeSpec,
   cylinderConeNodeSpec,
-  box2dNodeSpec,
-  circleEllipseNodeSpec,
+  iridescentTunnelNodeSpec,
+  inflatedIcosahedronNodeSpec,
+  shapes2dNodeSpec,
+  starShape2dNodeSpec,
   _metaballs,
   star2dNodeSpec,
   superellipseNodeSpec,
   fractalNodeSpec,
+  iteratedInversionNodeSpec,
   planeGridNodeSpec,
   skyDomeNodeSpec,
+  bokehPointNodeSpec,
+  driveHomeLightsNodeSpec,
 
   // Math/Operation nodes
   addNodeSpec,
@@ -286,10 +318,10 @@ export const nodeSystemSpecs: NodeSpec[] = [
   blendingModesNodeSpec,
   
   // Utility nodes
+  hash32NodeSpec,
   oneMinusNodeSpec,
   negateNodeSpec,
   reciprocalNodeSpec,
-  remapNodeSpec,
   clamp01NodeSpec,
   saturateNodeSpec,
   signNodeSpec,
@@ -311,9 +343,4 @@ export const nodeSystemSpecs: NodeSpec[] = [
   
   // Output nodes
   finalOutputNodeSpec,
-  
-  // Audio nodes
-  audioFileInputNodeSpec,
-  audioAnalyzerNodeSpec,
-  audioRemapNodeSpec
 ];

@@ -1,0 +1,30 @@
+/*
+ * Node Categories â€” single file for all category-specific node styling.
+ * Edit one category at a time: tokens + .node.{slug} rules grouped per category.
+ * Tokens are on :root so node-panel, timeline, and categoryStyleMap can reference them.
+ *
+ * Node body box-shadow (tweak per category):
+ *   --node-body-shadow-color-mid   â€” mid shadow (default: var(--color-blue-50))
+ *   --node-body-shadow-color-outer â€” outer shadow (default: var(--color-blue-gray-30))
+ *   --node-body-shadow-inset      â€” inner highlight (default: rgba(255,255,255,0.5))
+ * Add these to any .node.{category} block to override.
+ */
+
+.node .node-header {
+  background: transparent;
+}
+
+/*
+ * Param controls: buttons and enum selectors in param cells.
+ * One class (param-controls) + token overrides. Uses --param-control-* (set per category on .node.X).
+ * Interactions (hover, active) use the same tokens â€” no per-category repetition.
+ */
+.param-cell .control-slot.param-controls {
+  --secondary-bg: var(--param-control-bg);
+  --secondary-bg-hover: var(--param-control-bg-hover, var(--param-control-bg));
+  --secondary-bg-active: var(--param-control-bg-active, var(--param-control-bg-hover, var(--param-control-bg)));
+  --secondary-print: var(--param-control-value-color);
+  --secondary-print-hover: var(--param-control-value-color);
+  --secondary-print-active: var(--param-control-value-color);
+}
+

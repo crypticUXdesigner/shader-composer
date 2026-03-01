@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const displaceNodeSpec: NodeSpec = {
   id: 'displace',
@@ -9,7 +9,8 @@ export const displaceNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     },
     {
       name: 'offset',
@@ -21,7 +22,8 @@ export const displaceNodeSpec: NodeSpec = {
   outputs: [
     {
       name: 'out',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   parameters: {
@@ -35,6 +37,16 @@ export const displaceNodeSpec: NodeSpec = {
     },
     offsetX: { type: 'float', default: 0.0, min: -10.0, max: 10.0, step: 0.01, label: 'Offset X' },
     offsetY: { type: 'float', default: 0.0, min: -10.0, max: 10.0, step: 0.01, label: 'Offset Y' }
+  },
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['offsetX', 'offsetY', 'displaceScale'],
+        parameterUI: { offsetX: 'coords', offsetY: 'coords' },
+        layout: { columns: 2, coordsSpan: 2, parameterSpan: { displaceScale: 2 } }
+      }
+    ]
   },
   mainCode: `
   $output.out = $input.in + $input.offset * $param.displaceScale;

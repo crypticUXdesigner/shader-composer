@@ -1,17 +1,28 @@
 // Utility for managing default/starting state
 // Allows saving the current graph state to become the new starting point
+// Uses data-model serialization so every graph has passed validateGraph.
 
-import type { NodeGraph } from '../types/nodeGraph';
-import { serializeGraph, deserializeGraph } from './nodeGraphSerialization';
+import type { NodeGraph } from '../data-model/types';
+import type { AudioSetup } from '../data-model/audioSetupTypes';
+import type { NodeSpecification } from '../data-model/validation';
+import {
+  serializeGraph,
+  deserializeGraph,
+  type DeserializationResult,
+} from '../data-model/serialization';
 
 const DEFAULT_STATE_KEY = 'shader-composer-default-state';
 
 /**
- * Save the current graph as the default starting state
+ * Save the current graph (and optional audio setup) as the default starting state.
+ * Uses data-model serialization (format 2.0, includes audioSetup when provided).
  */
-export function saveDefaultState(graph: NodeGraph): void {
+export function saveDefaultState(
+  graph: NodeGraph,
+  audioSetup?: AudioSetup
+): void {
   try {
-    const serialized = serializeGraph(graph, true);
+    const serialized = serializeGraph(graph, true, audioSetup);
     localStorage.setItem(DEFAULT_STATE_KEY, serialized);
     console.log('[DefaultState] Saved current state as default');
   } catch (error) {
@@ -21,31 +32,41 @@ export function saveDefaultState(graph: NodeGraph): void {
 }
 
 /**
- * Load the default starting state from localStorage
- * Returns null if no default state is saved
+ * Load the default starting state from localStorage.
+ * Uses data-model deserializeGraph + validateGraph; returns result with graph, audioSetup, errors, warnings.
+ * Returns null graph and errors if invalid or missing; caller should set graph/audioSetup only when result.graph is non-null.
+ *
+ * @param nodeSpecs - Node specifications for validation (e.g. from node system specs)
  */
-export function loadDefaultState(): NodeGraph | null {
+export function loadDefaultState(
+  nodeSpecs: NodeSpecification[] = []
+): DeserializationResult {
   try {
     const serialized = localStorage.getItem(DEFAULT_STATE_KEY);
     if (!serialized) {
-      return null;
+      return { graph: null, errors: [], warnings: [] };
     }
-    
-    const result = deserializeGraph(serialized);
+
+    const result = deserializeGraph(serialized, nodeSpecs);
     if (result.graph) {
       console.log('[DefaultState] Loaded default state from localStorage');
-      return result.graph;
     } else {
-      console.warn('[DefaultState] Failed to deserialize default state:', result.errors);
-      // Clear invalid state
+      console.warn(
+        '[DefaultState] Failed to deserialize default state:',
+        result.errors
+      );
       localStorage.removeItem(DEFAULT_STATE_KEY);
-      return null;
     }
+    return result;
   } catch (error) {
     console.error('[DefaultState] Failed to load default state:', error);
-    // Clear corrupted state
     localStorage.removeItem(DEFAULT_STATE_KEY);
-    return null;
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      graph: null,
+      errors: [message],
+      warnings: [],
+    };
   }
 }
 

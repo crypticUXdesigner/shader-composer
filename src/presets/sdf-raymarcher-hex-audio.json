@@ -1,0 +1,119 @@
+{
+  "format": "shader-composer-node-graph",
+  "formatVersion": "2.0",
+  "graph": {
+    "id": "graph-sdf-raymarcher-hex-audio",
+    "name": "SDF Raymarcher Hex Audio",
+    "version": "2.0",
+    "nodes": [
+      {
+        "id": "node-uv-hex-audio",
+        "type": "uv-coordinates",
+        "position": { "x": -200, "y": 200 },
+        "parameters": {}
+      },
+      {
+        "id": "node-hex-sdf-audio",
+        "type": "repeated-hex-prism-sdf",
+        "position": { "x": 200, "y": 220 },
+        "parameters": {
+          "spacingX": 2.5,
+          "spacingY": 2.5,
+          "spacingZ": 2.5,
+          "hexRadius": 0.3,
+          "halfHeight": 1.0,
+          "positionX": 0.0,
+          "positionY": 0.0,
+          "positionZ": 0.0
+        }
+      },
+      {
+        "id": "node-ray-hex-audio",
+        "type": "generic-raymarcher",
+        "position": { "x": 800, "y": 180 },
+        "parameters": {
+          "raymarchSteps": 80,
+          "glowIntensity": 0.5,
+          "brightness": 1.0,
+          "cameraRoX": 0.0,
+          "cameraRoY": 0.0,
+          "cameraRoZ": 3.0
+        }
+      },
+      {
+        "id": "node-out-hex-audio",
+        "type": "final-output",
+        "position": { "x": 1400, "y": 200 },
+        "parameters": {}
+      }
+    ],
+    "connections": [
+      {
+        "id": "conn-uv-to-ray-hex-audio",
+        "sourceNodeId": "node-uv-hex-audio",
+        "sourcePort": "out",
+        "targetNodeId": "node-ray-hex-audio",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-hex-to-ray-sdf-hex-audio",
+        "sourceNodeId": "node-hex-sdf-audio",
+        "sourcePort": "out",
+        "targetNodeId": "node-ray-hex-audio",
+        "targetPort": "sdf"
+      },
+      {
+        "id": "conn-ray-color-to-out-hex-audio",
+        "sourceNodeId": "node-ray-hex-audio",
+        "sourcePort": "color",
+        "targetNodeId": "node-out-hex-audio",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-audio-to-hexRadius",
+        "sourceNodeId": "audio-signal:remap-hex-audio-remap",
+        "sourcePort": "out",
+        "targetNodeId": "node-hex-sdf-audio",
+        "targetParameter": "hexRadius"
+      }
+    ],
+    "viewState": {
+      "zoom": 0.6,
+      "panX": 0.0,
+      "panY": 0.0,
+      "selectedNodeIds": []
+    }
+  },
+  "audioSetup": {
+    "files": [
+      {
+        "id": "file-hex-audio",
+        "name": "Hex Audio",
+        "filePath": "classic-billie.mp3",
+        "autoPlay": true
+      }
+    ],
+    "bands": [
+      {
+        "id": "band-hex",
+        "name": "Hex Band",
+        "sourceFileId": "file-hex-audio",
+        "frequencyBands": [[40, 8000]],
+        "smoothing": 0.75,
+        "fftSize": 4096
+      }
+    ],
+    "remappers": [
+      {
+        "id": "hex-audio-remap",
+        "name": "Hex Remap",
+        "bandId": "band-hex",
+        "inMin": 0.0,
+        "inMax": 1.0,
+        "outMin": 0.1,
+        "outMax": 1.5
+      }
+    ]
+  }
+}
+

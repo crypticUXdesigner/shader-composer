@@ -1,14 +1,15 @@
 /**
  * Offline Audio Provider - Per-frame audio state for video export
  *
- * Given the primary audio-file-input's AudioBuffer, sample rate, frame rate, and graph
- * (for audio-analyzer band config), produces per-frame state: raw channel samples for
+ * Given the primary audio file's AudioBuffer, sample rate, frame rate, and audioSetup
+ * (for band/remapper config), produces per-frame state: raw channel samples for
  * the export file and FFT-derived band values (and remapped values) for shader uniforms.
  * No dependency on live AudioManager or DOM.
+ *
+ * WP 15B: Reads from audioSetup instead of graph nodes.
  */
 
-import type { NodeGraph } from '../data-model/types';
-import { findNode } from '../data-model/utils';
+import type { AudioSetup } from '../data-model/audioSetupTypes';
 
 // --- Types (API for 02B / 03) ---
 
@@ -17,6 +18,8 @@ export interface FrameAudioState {
   channelSamples: Float32Array[];
   /** Uniform updates: { nodeId, paramName, value } — apply via setAudioUniform / setParameters */
   uniformUpdates: Array<{ nodeId: string; paramName: string; value: number }>;
+  /** Timeline currentTime for this frame (seconds). Used as uTimelineTime so automation stays in sync (WP 07). */
+  timelineTime: number;
 }
 
 export interface UniformUpdate {
@@ -25,7 +28,7 @@ export interface UniformUpdate {
   value: number;
 }
 
-/** Per-analyzer config derived from graph (connected to primary audio-file-input) */
+/** Per-band config derived from audioSetup (WP 15B) */
 export interface AnalyzerConfig {
   nodeId: string;
   frequencyBands: Array<{ minHz: number; maxHz: number }>;
@@ -38,10 +41,12 @@ export interface AnalyzerConfig {
 export interface OfflineAudioProviderConfig {
   sampleRate: number;
   frameRate: number;
-  /** Primary audio-file-input node id (single source of truth) */
-  primaryAudioFileNodeId: string;
-  /** Analyzer nodes connected to primary audio (from graph) */
+  /** Primary file id (from audioSetup.files[0]) */
+  primaryFileId: string;
+  /** Band configs from audioSetup (filtered by primary file) */
   analyzerConfigs: AnalyzerConfig[];
+  /** Remapper configs from audioSetup */
+  remapperConfigs: Array<{ id: string; bandId: string; inMin: number; inMax: number; outMin: number; outMax: number }>;
 }
 
 // --- Offline FFT (radix-2, real input → magnitude spectrum 0–255) ---
@@ -200,28 +205,19 @@ function extractFrequencyBandsOffline(
 export class OfflineAudioProvider {
   private readonly buffer: AudioBuffer;
   private readonly config: OfflineAudioProviderConfig;
-  /** Per-analyzer smoothed band values (first stage, stateful across frames) */
+  /** Per-band smoothed band values (first stage, stateful across frames) */
   private readonly smoothedBandValues: Map<string, number[]> = new Map();
-  /** Per-analyzer double-smoothed band values (second stage, matches live AnalyserNode + app smoothing) */
+  /** Per-band double-smoothed band values (second stage, matches live AnalyserNode + app smoothing) */
   private readonly doubleSmoothedBandValues: Map<string, number[]> = new Map();
   /** FFT work buffer (reuse to avoid allocations) */
   private readonly fftWorkBuffer: Float32Array;
 
   constructor(
-    _graph: NodeGraph,
-    primaryAudioFileNodeId: string,
     buffer: AudioBuffer,
-    config: Pick<OfflineAudioProviderConfig, 'sampleRate' | 'frameRate' | 'primaryAudioFileNodeId'> & {
-      analyzerConfigs: AnalyzerConfig[];
-    }
+    config: OfflineAudioProviderConfig
   ) {
     this.buffer = buffer;
-    this.config = {
-      sampleRate: config.sampleRate,
-      frameRate: config.frameRate,
-      primaryAudioFileNodeId: config.primaryAudioFileNodeId ?? primaryAudioFileNodeId,
-      analyzerConfigs: config.analyzerConfigs,
-    };
+    this.config = config;
     const maxFftSize = Math.max(4096, ...this.config.analyzerConfigs.map((a) => a.fftSize));
     this.fftWorkBuffer = new Float32Array(maxFftSize * 2);
   }
@@ -254,15 +250,14 @@ export class OfflineAudioProvider {
 
     const uniformUpdates: UniformUpdate[] = [];
 
-    // Audio-file-input uniforms (same names as AudioManager)
+    // Primary file uniforms (fileId.currentTime, fileId.duration, fileId.isPlaying)
     uniformUpdates.push(
-      { nodeId: config.primaryAudioFileNodeId, paramName: 'currentTime', value: t },
-      { nodeId: config.primaryAudioFileNodeId, paramName: 'duration', value: buffer.duration },
-      { nodeId: config.primaryAudioFileNodeId, paramName: 'isPlaying', value: 1 }
+      { nodeId: config.primaryFileId, paramName: 'currentTime', value: t },
+      { nodeId: config.primaryFileId, paramName: 'duration', value: buffer.duration },
+      { nodeId: config.primaryFileId, paramName: 'isPlaying', value: 1 }
     );
 
-    // Analyzer FFT and band extraction (one FFT per analyzer; use first analyzer's fftSize for window, or center time).
-    // We apply two smoothing stages so export matches live: live has AnalyserNode smoothingTimeConstant + app smoothing.
+    // Band FFT and extraction (one FFT per band). Two smoothing stages to match live.
     for (const analyzer of config.analyzerConfigs) {
       const { fftSize, frequencyBands, smoothing, bandRemap } = analyzer;
       const workBuf = fftSize <= this.fftWorkBuffer.length / 2 ? this.fftWorkBuffer : new Float32Array(fftSize * 2);
@@ -301,15 +296,17 @@ export class OfflineAudioProvider {
         doubleSmoothed[i] = s * smoothed[i] + (1 - s) * (doubleSmoothed[i] ?? 0);
       }
 
-      // Push band0, band1, ... (double-smoothed) so reactivity matches live
+      // Push band / band0, band1, ... (double-smoothed) to match live FrequencyAnalyzer naming
+      const bandParamName = (i: number) => (doubleSmoothed.length === 1 ? 'band' : `band${i}`);
       for (let i = 0; i < doubleSmoothed.length; i++) {
         uniformUpdates.push({
           nodeId: analyzer.nodeId,
-          paramName: `band${i}`,
+          paramName: bandParamName(i),
           value: doubleSmoothed[i] ?? 0,
         });
       }
 
+      const remapParamName = (i: number) => (bandRemap.length === 1 ? 'remap' : `remap${i}`);
       for (let i = 0; i < bandRemap.length; i++) {
         const bandValue = doubleSmoothed[i] ?? 0;
         const { inMin, inMax, outMin, outMax } = bandRemap[i];
@@ -319,102 +316,95 @@ export class OfflineAudioProvider {
         const remapped = outMin + clamped * (outMax - outMin);
         uniformUpdates.push({
           nodeId: analyzer.nodeId,
-          paramName: `remap${i}`,
+          paramName: remapParamName(i),
           value: remapped,
         });
       }
     }
 
-    return { channelSamples, uniformUpdates };
+    // Remapper outputs (remap-{id}.out): each remapper takes its band's raw value and remaps
+    const bandRawValues = new Map<string, number>();
+    for (const analyzer of config.analyzerConfigs) {
+      const raw = this.doubleSmoothedBandValues.get(analyzer.nodeId)?.[0] ?? 0;
+      bandRawValues.set(analyzer.nodeId, raw);
+    }
+    for (const remap of config.remapperConfigs) {
+      const bandRaw = bandRawValues.get(remap.bandId) ?? 0;
+      const { inMin, inMax, outMin, outMax } = remap;
+      const range = inMax - inMin;
+      const normalized = range !== 0 ? (bandRaw - inMin) / range : 0;
+      const clamped = Math.max(0, Math.min(1, normalized));
+      const remapped = outMin + clamped * (outMax - outMin);
+      uniformUpdates.push({
+        nodeId: `remap-${remap.id}`,
+        paramName: 'out',
+        value: remapped,
+      });
+    }
+
+    return { channelSamples, uniformUpdates, timelineTime: t };
   }
 }
 
-// --- Factory: build provider from graph + buffer + config ---
+// --- Factory: build provider from audioSetup (WP 15B) ---
 
 /**
- * Create OfflineAudioProvider from graph, primary audio-file-input node id, and buffer.
- * Derives analyzer configs from graph (analyzers connected to primary audio-file-input).
+ * Create OfflineAudioProvider from audioSetup, primary file id, and buffer.
+ * Derives band and remapper configs from audioSetup.
+ * Only includes bands whose sourceFileId matches the primary file.
  */
 export function createOfflineAudioProvider(
-  graph: NodeGraph,
-  primaryAudioFileNodeId: string,
+  audioSetup: AudioSetup,
+  primaryFileId: string,
   buffer: AudioBuffer,
   sampleRate: number,
   frameRate: number
 ): OfflineAudioProvider {
-  const primaryNode = findNode(graph, primaryAudioFileNodeId);
-  if (!primaryNode || primaryNode.type !== 'audio-file-input') {
-    throw new Error(`Primary audio-file-input node not found: ${primaryAudioFileNodeId}`);
-  }
+  const bandsForPrimary = audioSetup.bands.filter((b) => b.sourceFileId === primaryFileId);
 
-  const analyzerConfigs: AnalyzerConfig[] = [];
-  for (const conn of graph.connections) {
-    if (conn.sourceNodeId !== primaryAudioFileNodeId || conn.targetPort !== 'audioFile') continue;
-    const analyzerNode = findNode(graph, conn.targetNodeId);
-    if (!analyzerNode || analyzerNode.type !== 'audio-analyzer') continue;
+  const analyzerConfigs: AnalyzerConfig[] = bandsForPrimary.map((band) => {
+    const fb = band.frequencyBands[0];
+    const frequencyBands: Array<{ minHz: number; maxHz: number }> = fb
+      ? [{ minHz: Number(fb[0]), maxHz: Number(fb[1]) }]
+      : [{ minHz: 20, maxHz: 20000 }];
 
-    const freqParam = analyzerNode.parameters.frequencyBands;
-    let frequencyBands: Array<{ minHz: number; maxHz: number }> = [];
-    if (Array.isArray(freqParam) && freqParam.length > 0 && Array.isArray(freqParam[0])) {
-      const valid = (freqParam as unknown as number[][]).every(
-        (item) => Array.isArray(item) && item.length >= 2
-      );
-      if (valid) {
-        frequencyBands = (freqParam as unknown as number[][]).map((b) => ({
-          minHz: Number(b[0]),
-          maxHz: Number(b[1]),
-        }));
-      }
-    }
-    if (frequencyBands.length === 0) {
-      frequencyBands = [{ minHz: 20, maxHz: 20000 }];
-    }
+    const smoothing = band.smoothing ?? 0.8;
+    const fftSize = band.fftSize ?? 4096;
 
-    const smoothingValue =
-      typeof analyzerNode.parameters.smoothing === 'number' ? analyzerNode.parameters.smoothing : 0.8;
-    const smoothing: number[] = frequencyBands.map(() => smoothingValue);
-    const fftSize =
-      typeof analyzerNode.parameters.fftSize === 'number' ? analyzerNode.parameters.fftSize : 4096;
+    const bandRemap: Array<{ inMin: number; inMax: number; outMin: number; outMax: number }> = [
+      {
+        inMin: band.remapInMin ?? 0,
+        inMax: band.remapInMax ?? 1,
+        outMin: band.remapOutMin ?? 0,
+        outMax: band.remapOutMax ?? 1,
+      },
+    ];
 
-    const bandRemap: Array<{ inMin: number; inMax: number; outMin: number; outMax: number }> = [];
-    for (let i = 0; i < frequencyBands.length; i++) {
-      bandRemap.push({
-        inMin: (typeof (analyzerNode.parameters as Record<string, unknown>).inMin === 'number'
-          ? (analyzerNode.parameters as Record<string, unknown>).inMin
-          : typeof (analyzerNode.parameters as Record<string, unknown>)[`band${i}RemapInMin`] === 'number'
-            ? (analyzerNode.parameters as Record<string, unknown>)[`band${i}RemapInMin`]
-            : 0) as number,
-        inMax: (typeof (analyzerNode.parameters as Record<string, unknown>).inMax === 'number'
-          ? (analyzerNode.parameters as Record<string, unknown>).inMax
-          : typeof (analyzerNode.parameters as Record<string, unknown>)[`band${i}RemapInMax`] === 'number'
-            ? (analyzerNode.parameters as Record<string, unknown>)[`band${i}RemapInMax`]
-            : 1) as number,
-        outMin: (typeof (analyzerNode.parameters as Record<string, unknown>).outMin === 'number'
-          ? (analyzerNode.parameters as Record<string, unknown>).outMin
-          : typeof (analyzerNode.parameters as Record<string, unknown>)[`band${i}RemapOutMin`] === 'number'
-            ? (analyzerNode.parameters as Record<string, unknown>)[`band${i}RemapOutMin`]
-            : 0) as number,
-        outMax: (typeof (analyzerNode.parameters as Record<string, unknown>).outMax === 'number'
-          ? (analyzerNode.parameters as Record<string, unknown>).outMax
-          : typeof (analyzerNode.parameters as Record<string, unknown>)[`band${i}RemapOutMax`] === 'number'
-            ? (analyzerNode.parameters as Record<string, unknown>)[`band${i}RemapOutMax`]
-            : 1) as number,
-      });
-    }
-
-    analyzerConfigs.push({
-      nodeId: analyzerNode.id,
+    return {
+      nodeId: band.id,
       frequencyBands,
-      smoothing,
+      smoothing: [smoothing],
       fftSize,
       bandRemap,
-    });
-  }
+    };
+  });
 
-  return new OfflineAudioProvider(graph, primaryAudioFileNodeId, buffer, {
+  const remapperConfigs = audioSetup.remappers
+    .filter((r) => bandsForPrimary.some((b) => b.id === r.bandId))
+    .map((r) => ({
+      id: r.id,
+      bandId: r.bandId,
+      inMin: r.inMin,
+      inMax: r.inMax,
+      outMin: r.outMin,
+      outMax: r.outMax,
+    }));
+
+  return new OfflineAudioProvider(buffer, {
     sampleRate,
     frameRate,
-    primaryAudioFileNodeId,
+    primaryFileId,
     analyzerConfigs,
+    remapperConfigs,
   });
 }

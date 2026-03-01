@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const volumeRaysNodeSpec: NodeSpec = {
   id: 'volume-rays',
@@ -9,13 +9,15 @@ export const volumeRaysNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'float'
+      type: 'float',
+      label: 'Color'
     }
   ],
   parameters: {
@@ -50,31 +52,56 @@ export const volumeRaysNodeSpec: NodeSpec = {
       max: 3.0,
       step: 0.01,
       label: 'Intensity'
+    },
+    cameraPosX: {
+      type: 'float',
+      default: 0.0,
+      min: -5.0,
+      max: 5.0,
+      step: 0.1,
+      label: 'Camera X'
+    },
+    cameraPosY: {
+      type: 'float',
+      default: 0.0,
+      min: -5.0,
+      max: 5.0,
+      step: 0.1,
+      label: 'Camera Y'
+    },
+    cameraPosZ: {
+      type: 'float',
+      default: 3.0,
+      min: 0.5,
+      max: 10.0,
+      step: 0.1,
+      label: 'Camera Z'
+    },
+    cameraYaw: {
+      type: 'float',
+      default: 0.0,
+      min: -3.14159,
+      max: 3.14159,
+      step: 0.01,
+      label: 'Yaw'
+    },
+    cameraPitch: {
+      type: 'float',
+      default: 0.0,
+      min: -1.57,
+      max: 1.57,
+      step: 0.01,
+      label: 'Pitch'
+    },
+    cameraFovScale: {
+      type: 'float',
+      default: 1.0,
+      min: 0.2,
+      max: 3.0,
+      step: 0.05,
+      label: 'FOV Scale'
     }
   },
-  parameterGroups: [
-    {
-      id: 'raymarch',
-      label: 'Raymarch',
-      parameters: ['volumeSteps', 'volumeStepSize'],
-      collapsible: true,
-      defaultCollapsed: false
-    },
-    {
-      id: 'volume',
-      label: 'Volume',
-      parameters: ['volumeDensityScale'],
-      collapsible: true,
-      defaultCollapsed: false
-    },
-    {
-      id: 'output',
-      label: 'Output',
-      parameters: ['volumeIntensity'],
-      collapsible: true,
-      defaultCollapsed: false
-    }
-  ],
   functions: `
 float hash11(float n) {
   return fract(sin(n) * 43758.5453);
@@ -102,8 +129,15 @@ float vnoise3(vec3 p) {
 }
 `,
   mainCode: `
-  vec3 ro = vec3(0.0, 0.0, 3.0);
-  vec3 rd = normalize(vec3($input.in, -1.0));
+  float yaw = $param.cameraYaw;
+  float pitch = $param.cameraPitch;
+  vec3 forward = vec3(cos(pitch) * sin(yaw), sin(pitch), -cos(pitch) * cos(yaw));
+  vec3 right = vec3(cos(yaw), 0.0, sin(yaw));
+  vec3 up = vec3(-sin(pitch) * sin(yaw), cos(pitch), sin(pitch) * cos(yaw));
+  vec2 uv = $input.in * $param.cameraFovScale;
+  vec3 rdCam = normalize(vec3(uv, -1.0));
+  vec3 rd = normalize(right * rdCam.x + up * rdCam.y - forward * rdCam.z);
+  vec3 ro = vec3($param.cameraPosX, $param.cameraPosY, $param.cameraPosZ);
   float stepSize = $param.volumeStepSize;
   float densityScale = $param.volumeDensityScale;
   int steps = int(clamp(float($param.volumeSteps), 8.0, 128.0));

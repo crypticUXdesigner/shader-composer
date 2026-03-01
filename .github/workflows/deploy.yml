@@ -31,8 +31,29 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+
+      - name: Type-check
+        run: npm run type-check
+
+      - name: Test
+        run: npm test
+
+      - name: Lint
+        run: npm run lint
+
       - name: Build
         run: npm run build
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Run a11y check
+        run: |
+          npx vite preview --port 4173 &
+          npx wait-on http://localhost:4173/shader-composer/ --timeout 30000
+          PREVIEW_URL=http://localhost:4173/shader-composer npm run a11y
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

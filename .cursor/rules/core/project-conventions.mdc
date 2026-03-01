@@ -1,0 +1,11 @@
+---
+description: Project north star — user-goals for features, data-model for graph; follow when unsure.
+globs: ""
+alwaysApply: true
+---
+
+# Project Conventions
+
+- **Feature and UX work**: Align with `docs/user-goals/` (by area: canvas, panel, parameters, audio, timeline, export, etc.). Check the matching user-goals doc before changing behavior.
+- **Graph and data**: The graph is the single source of truth. Use `src/data-model/` (immutable updates, serialization, validation); never mutate the graph in place. Runtime and compilation receive the graph; they do not mutate it.
+- **Where to look**: `.cursor/rules/` for how to implement; `docs/user-goals/` for what the user can do; `docs/projects/` for current multi-step work; `.cursor/skills/` for the core project/task workflow; `.cursor/commands/` for additional tools.

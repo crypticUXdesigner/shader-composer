@@ -1,21 +1,23 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const lightingShadingNodeSpec: NodeSpec = {
   id: 'lighting-shading',
-  category: 'Shapes',
+  category: 'Effects',
   displayName: 'Lighting',
   description: 'Adds directional or point lighting to create depth and dimension',
   icon: 'light',
   inputs: [
     {
       name: 'in',
-      type: 'vec4'
+      type: 'vec4',
+      label: 'Luminance'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec4'
+      type: 'vec4',
+      label: 'Shading'
     }
   ],
   parameters: {
@@ -154,6 +156,34 @@ export const lightingShadingNodeSpec: NodeSpec = {
       defaultCollapsed: true
     }
   ],
+  parameterLayout: {
+    minColumns: 3,
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['lightType', 'lightAmbient', 'lightIntensity'],
+        layout: { columns: 3 }
+      },
+      {
+        type: 'grid',
+        label: 'Directional',
+        parameters: ['lightDirX', 'lightDirY', 'lightDirZ'],
+        layout: { columns: 3 }
+      },
+      {
+        type: 'grid',
+        label: 'Point',
+        parameters: ['lightPosX', 'lightPosY', 'lightPosZ', 'lightFalloff'],
+        layout: { columns: 3, parameterSpan: { lightFalloff: 3 } }
+      },
+      {
+        type: 'grid',
+        label: 'Color',
+        parameters: ['lightColorR', 'lightColorG', 'lightColorB'],
+        layout: { columns: 3 }
+      }
+    ]
+  },
   functions: `
 // Directional light
 float directionalLight(vec3 normal, vec3 lightDir) {

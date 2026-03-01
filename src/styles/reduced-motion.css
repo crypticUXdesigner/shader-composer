@@ -1,0 +1,12 @@
+/**
+ * Honor prefers-reduced-motion: reduce for non-essential animations.
+ * Modal, Popover, and toast/error notifications use no or minimal motion when the user prefers reduced motion.
+ * Essential feedback (e.g. focus indicators) is unchanged.
+ */
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-backdrop,
+  .popover-base {
+    transition: none !important;
+  }
+}

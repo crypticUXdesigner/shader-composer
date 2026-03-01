@@ -6,51 +6,59 @@
  */
 
 import { GraphChangeDetector } from '../utils/changeDetection/GraphChangeDetector';
-import type { ErrorCallback, IRenderer, IAudioManager, ICompilationManager } from './types';
+import type { IRenderer, IAudioManager, ICompilationManager, TimelineState } from './types';
 import type { NodeGraph, NodeInstance, Connection } from '../data-model/types';
+import type { AudioSetup } from '../data-model/audioSetupTypes';
+import { getPrimaryFileId } from '../data-model/audioSetupTypes';
 import type { ErrorHandler } from '../utils/errorHandling';
+import { globalErrorHandler } from '../utils/errorHandling';
 import type { Disposable } from '../utils/Disposable';
 import { safeDestroy } from '../utils/Disposable';
 import { TimeManager } from './runtime/TimeManager';
 import { AudioParameterHandler } from './runtime/AudioParameterHandler';
+import { RuntimePlaybackHandler } from './runtime/RuntimePlaybackHandler';
+import { SyntheticTransport } from './timeline/SyntheticTransport';
+import { isRuntimeOnlyParameter } from '../utils/runtimeOnlyParams';
 
-// Global error handler fallback (for backward compatibility)
-let globalErrorHandler: ErrorHandler | undefined;
-try {
-  // Try to import if it exists
-  const errorHandling = require('../utils/errorHandling');
-  if (errorHandling.globalErrorHandler) {
-    globalErrorHandler = errorHandling.globalErrorHandler;
-  }
-} catch {
-  // globalErrorHandler not available
-}
+/** Callback when playlist advances (e.g. on track end or next); app updates store and calls setAudioSetup + playPrimary. */
+export type OnPlaylistAdvance = (nextState: { currentIndex: number }) => void;
 
 export class RuntimeManager implements Disposable {
   private compilationManager: ICompilationManager;
   private renderer: IRenderer;
   private audioManager: IAudioManager;
   private currentGraph: NodeGraph | null = null;
+  /** Current audio setup (for primary resolution and playlist state). */
+  private currentAudioSetup: AudioSetup | null = null;
+  private audioSetupFileIds: string[] = [];
+  private audioSetupBandIds: string[] = [];
+  private onPlaylistAdvance?: OnPlaylistAdvance;
 
   // Extracted components
   private timeManager: TimeManager;
   private audioParameterHandler: AudioParameterHandler;
+  private syntheticTransport: SyntheticTransport;
+  private playbackHandler: RuntimePlaybackHandler;
 
   private errorHandler?: ErrorHandler;
+
+  /** Optional callback run after context is restored (e.g. restart app animation loop). */
+  private onAppContextRestored?: () => void;
+
+  /** Optional callback run when context is lost (e.g. stop app animation loop). */
+  private onContextLostCallback?: () => void;
 
   /**
    * Create a RuntimeManager with injected dependencies.
    * @param renderer - Renderer instance
    * @param audioManager - AudioManager instance
    * @param compilationManager - CompilationManager instance
-   * @param errorCallback - Optional error callback (deprecated, use errorHandler)
-   * @param errorHandler - Optional error handler
+   * @param errorHandler - Optional error handler (falls back to globalErrorHandler when not set)
    */
   constructor(
     renderer: IRenderer,
     audioManager: IAudioManager,
     compilationManager: ICompilationManager,
-    _errorCallback?: ErrorCallback,
     errorHandler?: ErrorHandler
   ) {
     this.errorHandler = errorHandler;
@@ -58,31 +66,111 @@ export class RuntimeManager implements Disposable {
     this.audioManager = audioManager;
     this.compilationManager = compilationManager;
 
+    // After every recompile, mark dirty so the next setTime() renders (with audio uniforms).
+    // Without this, when paused the first post-recompile frame is drawn without audio uniforms
+    // and we rarely re-render (time unchanged, not dirty), so the wrong preview stays until Play.
+    this.compilationManager.setOnRecompiled(() => this.syncTimeAfterRecompile());
+
     // Create extracted components
     this.timeManager = new TimeManager();
     this.audioParameterHandler = new AudioParameterHandler(audioManager, errorHandler);
-    
+    this.syntheticTransport = new SyntheticTransport();
+    this.playbackHandler = new RuntimePlaybackHandler({
+      audioManager,
+      getCurrentAudioSetup: () => this.currentAudioSetup,
+      getCurrentGraph: () => this.currentGraph,
+      getOnPlaylistAdvance: () => this.onPlaylistAdvance,
+      syntheticTransport: this.syntheticTransport,
+      errorHandler
+    });
+
+    // Before the first render of a new shader instance, push audio uniforms so the first frame is correct.
+    this.compilationManager.setOnBeforeFirstRender((instance) => {
+      this.audioParameterHandler.updateAudioUniforms(instance, this.currentGraph, { forcePushAll: true });
+    });
+
     // Start periodic cleanup (every 30 seconds)
     this.audioManager.startPeriodicCleanup(() => {
-      if (this.currentGraph) {
-        this.audioManager.cleanupOrphanedResources(this.currentGraph);
-      }
+      const extraIds = [...this.audioSetupFileIds, ...this.audioSetupBandIds];
+      this.audioManager.cleanupOrphanedResources(
+        this.currentGraph ?? undefined,
+        extraIds.length > 0 ? extraIds : undefined
+      );
     }, 30000);
+
+    this.renderer.setOnContextRestored(() => {
+      this.compilationManager.recompileAfterContextRestore();
+      this.onAppContextRestored?.();
+    });
   }
-  
+
+  /**
+   * Register a callback to run when the WebGL context is lost (e.g. stop app animation loop).
+   * Also clears the compilation manager's shader instance so no code uses the invalid context.
+   */
+  setOnContextLost(callback: () => void): void {
+    this.onContextLostCallback = callback;
+    this.renderer.setOnContextLost(() => {
+      this.compilationManager.clearShaderInstanceForContextLoss();
+      this.onContextLostCallback?.();
+    });
+  }
+
+  /**
+   * Register a callback to run after the WebGL context is restored and recompilation has run (e.g. restart app animation loop).
+   */
+  setOnAppContextRestored(callback: () => void): void {
+    this.onAppContextRestored = callback;
+  }
+
+  /**
+   * Register callback when playlist advances (track end or next/previous). App should update store and call setAudioSetup then playPrimary().
+   */
+  setOnPlaylistAdvance(callback: OnPlaylistAdvance | undefined): void {
+    this.onPlaylistAdvance = callback;
+  }
+
+  /**
+   * Called by CompilationManager after a successful recompile. Optional hook to sync time/uniforms
+   * onto the new shader instance (e.g. so paused preview shows current time). No-op by default.
+   */
+  syncTimeAfterRecompile(): void {
+    this.timeManager.markDirty(this.renderer, 'compilation');
+  }
+
   /**
    * Check if only node positions changed (not structure, connections, or parameters)
-   * Uses unified change detection system.
    */
   private isOnlyPositionChange(oldGraph: NodeGraph | null, newGraph: NodeGraph): boolean {
     return GraphChangeDetector.isOnlyPositionChange(oldGraph, newGraph);
   }
 
   /**
+   * Apply structure change: cleanup removed nodes, set graph on compiler, schedule recompile, cleanup orphans.
+   */
+  private applyGraphStructureChange(oldGraph: NodeGraph | null, graph: NodeGraph): void {
+    const changeResult = GraphChangeDetector.detectChanges(oldGraph, graph, {
+      trackAffectedNodes: false,
+      includeConnectionIds: false
+    });
+    if (changeResult.removedNodeIds.length > 0) {
+      this.audioParameterHandler.cleanupRemovedNodes(changeResult.removedNodeIds);
+    }
+    this.compilationManager.setGraph(graph);
+    const onlyCurveData = GraphChangeDetector.isOnlyAutomationCurveDataChange(oldGraph, graph);
+    if (!onlyCurveData) {
+      const onlyRegionTimes = GraphChangeDetector.isOnlyAutomationRegionTimesChange(oldGraph, graph);
+      const connectionsOnly = changeResult.isConnectionsChanged && !changeResult.isStructureChanged;
+      this.compilationManager.onGraphStructureChange(onlyRegionTimes || connectionsOnly);
+    }
+    const extraIds = [...this.audioSetupFileIds, ...this.audioSetupBandIds];
+    this.audioManager.cleanupOrphanedResources(graph, extraIds.length > 0 ? extraIds : undefined);
+  }
+
+  /**
    * Set the node graph (triggers compilation).
    */
   async setGraph(graph: NodeGraph): Promise<void> {
-    // Validate graph
     if (!graph || !graph.nodes) {
       const handler = this.errorHandler || globalErrorHandler;
       if (handler) {
@@ -95,63 +183,12 @@ export class RuntimeManager implements Disposable {
       }
       return;
     }
-    
-    // With immutable updates, graph is always a new reference when changed.
-    // If it's the same reference, it hasn't changed (no-op).
     const oldGraph = this.currentGraph;
-    
-    // Fast path: same reference means no change
-    if (oldGraph === graph) {
-      return; // No change, skip processing
-    }
-    
-    // Check if only positions/viewState changed (structure unchanged)
+    if (oldGraph === graph) return;
     const onlyPositionsChanged = this.isOnlyPositionChange(oldGraph, graph);
-    
-    // Always update current graph reference (after checking position changes)
-    // This ensures the graph is available even if audio loading fails
     this.currentGraph = graph;
-    
     if (!onlyPositionsChanged) {
-      // Use change detection to find removed nodes
-      const changeResult = GraphChangeDetector.detectChanges(oldGraph, graph, {
-        trackAffectedNodes: false,
-        includeConnectionIds: false
-      });
-      
-      // Clean up audio nodes that are no longer in the graph
-      if (changeResult.removedNodeIds.length > 0) {
-        this.audioParameterHandler.cleanupRemovedNodes(changeResult.removedNodeIds);
-      }
-      
-      // Only update compilation manager if structure actually changed
-      this.compilationManager.setGraph(graph);
-      // When only connections changed (e.g. parameter connection added), compile immediately so the connection takes effect right away
-      const connectionsOnly = changeResult.isConnectionsChanged && !changeResult.isStructureChanged;
-      this.compilationManager.onGraphStructureChange(connectionsOnly);
-      
-      // Clean up orphaned resources (safety check)
-      this.audioManager.cleanupOrphanedResources(graph);
-      
-      // Load default audio files first (async) - only if structure changed
-      // Note: Errors in audio loading are caught and logged, but don't prevent graph from being set
-      try {
-        await this.audioParameterHandler.loadDefaultAudioFiles(graph);
-      } catch (error) {
-        const handler = this.errorHandler || globalErrorHandler;
-        if (handler) {
-          handler.report(
-            'audio',
-            'warning',
-            'Error loading default audio files (non-fatal)',
-            { originalError: error instanceof Error ? error : new Error(String(error)) }
-          );
-        }
-        // Continue - graph is already set, audio loading failure shouldn't break the app
-      }
-      
-      // Then initialize audio analyzers (after audio files are loaded)
-      this.audioParameterHandler.initializeAudioAnalyzers(graph);
+      this.applyGraphStructureChange(oldGraph, graph);
     }
   }
 
@@ -159,64 +196,25 @@ export class RuntimeManager implements Disposable {
   /**
    * Update a parameter value.
    * Determines if recompilation is needed or just uniform update.
-   * @param graph - When provided (from editor after immutable param update), sync currentGraph so runtime uses latest state (e.g. audio-analyzer frequencyBands → remap signal flow).
+   * Accepts full ParameterValue (number, string, vec4, number[], number[][]). Runtime-only params
+   * (runtime-only params) are handled here and do not call the compilation manager.
+   * @param graph - When provided (from editor after immutable param update), sync currentGraph so runtime uses latest state.
    */
-  updateParameter(nodeId: string, paramName: string, value: number | number[][], graph?: NodeGraph): void {
+  updateParameter(nodeId: string, paramName: string, value: import('../data-model/types').ParameterValue, graph?: NodeGraph): void {
     // Sync runtime graph when editor passes updated graph (avoids stale graph and wrong band ranges)
     if (graph) {
       this.currentGraph = graph;
       // Keep compilation manager in sync so parameter-only updates use latest graph and uniforms update correctly
       this.compilationManager.setGraph(graph);
     }
-    // Handle runtime-only parameters for audio nodes
+    // Handle runtime-only parameters (no shader uniform; apply in JS only where needed)
     if (this.currentGraph) {
       const node = this.currentGraph.nodes.find(n => n.id === nodeId);
-      
-      // Handle audio-file-input runtime parameters
-      if (node && node.type === 'audio-file-input' && paramName === 'autoPlay') {
-        // autoPlay is runtime-only, not a shader uniform
-        // Update the graph parameter but don't try to set it as a uniform
-        if (node) {
-          node.parameters[paramName] = value;
-        }
-        
-        // Trigger playback if autoPlay is enabled (handle both int and float)
-        const autoPlayValue = typeof value === 'number' ? Math.round(value) : 0;
-        if (autoPlayValue === 1) {
-          this.audioManager.playAudio(nodeId).catch(_error => {
-            // Autoplay blocked is expected - don't report as error
-            // This is a browser security feature, not an actual error
-          });
-        } else {
-          // Stop playback if autoPlay is disabled
-          this.audioManager.stopAudio(nodeId);
-        }
-        return;
-      }
-      
-      // Handle audio-analyzer runtime parameters (smoothing, fftSize, frequencyBands, and band remap)
-      const isAnalyzerCoreParam = paramName === 'smoothing' || paramName === 'fftSize' || paramName === 'frequencyBands';
-      const isAnalyzerBandRemapParam = /^band\d+Remap(InMin|InMax|OutMin|OutMax)$/.test(paramName);
-      if (node && node.type === 'audio-analyzer' && (isAnalyzerCoreParam || isAnalyzerBandRemapParam)) {
-        // Update the graph parameter so runtime uses latest state
-        if (node) {
-          node.parameters[paramName] = value;
-        }
-        if (isAnalyzerCoreParam) {
-          this.audioParameterHandler.onAudioAnalyzerParameterChange(nodeId, paramName, value, this.currentGraph);
-        }
-        // Tick analyzers immediately so smoothedBandValues are filled before the next canvas render.
-        // Push uniforms so visualizer needles and shader (remapped output) update when frequency range
-        // or band remap sliders change, not only on connection/node changes.
-        this.audioParameterHandler.tickAudioAnalyzers(this.currentGraph);
-        const shaderInstance = this.compilationManager.getShaderInstance();
-        if (shaderInstance) {
-          this.audioParameterHandler.updateAudioUniforms(shaderInstance, this.currentGraph);
-        }
-        return;
+      if (node && isRuntimeOnlyParameter(node.type, paramName)) {
+        return; // No uniform update for runtime-only params
       }
     }
-    
+
     // For all other parameters, use normal flow
     this.compilationManager.onParameterChange(nodeId, paramName, value);
   }
@@ -248,17 +246,9 @@ export class RuntimeManager implements Disposable {
   /**
    * Handle connection added (graph structure changed).
    */
-  onConnectionAdded(connection: Connection): void {
+  onConnectionAdded(_connection: Connection): void {
     if (this.currentGraph) {
-      // Connection should already be in graph (added by UI)
-      // Just trigger recompilation
       this.compilationManager.onGraphStructureChange();
-      
-      // If this connects an audio-analyzer to an audio-file-input, initialize analyzer
-      const targetNode = this.currentGraph.nodes.find(n => n.id === connection.targetNodeId);
-      if (targetNode && targetNode.type === 'audio-analyzer' && connection.targetPort === 'audioFile') {
-        this.audioParameterHandler.initializeAudioAnalyzers(this.currentGraph);
-      }
     }
   }
   
@@ -275,19 +265,26 @@ export class RuntimeManager implements Disposable {
   
   /**
    * Set time uniform.
+   * Also sets uTimelineTime from getTimelineState().currentTime so automation stays in sync (WP 03).
    */
   setTime(time: number): void {
     const shaderInstance = this.compilationManager.getShaderInstance();
     if (!shaderInstance) return;
-    
-    // Use TimeManager to handle time updates
+
+    const timelineState = this.getTimelineState();
+    shaderInstance.setTimelineTime(timelineState?.currentTime ?? time);
+
+    // When audio is playing, always mark dirty so we render every frame for audio reactivity
+    if (timelineState?.isPlaying) {
+      this.timeManager.markDirty(this.renderer, 'audio');
+    }
+
+    // Use TimeManager to handle time updates; pass audio-uniforms callback so shader receives band/remap values every frame
     this.timeManager.updateTime(
       time,
       shaderInstance,
       this.renderer,
-      (instance) => {
-        this.audioParameterHandler.updateAudioUniforms(instance, this.currentGraph);
-      }
+      (si) => this.audioParameterHandler.updateAudioUniforms(si, this.currentGraph)
     );
   }
 
@@ -306,158 +303,69 @@ export class RuntimeManager implements Disposable {
   }
 
   /**
-   * Tick audio analyzers and push uniforms so the next canvas render sees fresh values.
-   * Call after setGraph when syncing due to audio-analyzer param changes (frequency range, remap).
+   * Handle audio file parameter change (no-op; audio is via audioSetup only).
    */
-  syncAudioAnalyzers(): void {
-    if (this.currentGraph) {
-      this.audioParameterHandler.tickAudioAnalyzers(this.currentGraph);
-      const shaderInstance = this.compilationManager.getShaderInstance();
-      if (shaderInstance) {
-        this.audioParameterHandler.updateAudioUniforms(shaderInstance, this.currentGraph);
-      }
-    }
+  async onAudioFileParameterChange(_nodeId: string, _paramName: string, _value: unknown): Promise<void> {
+    // Audio files are managed via audioSetup and bottom bar upload only
   }
 
   /**
-   * Handle audio file parameter change
-   */
-  async onAudioFileParameterChange(nodeId: string, paramName: string, value: any): Promise<void> {
-    await this.audioParameterHandler.onAudioFileParameterChange(nodeId, paramName, value, this.currentGraph);
-  }
-
-  /**
-   * Toggle global audio playback (all audio file inputs)
+   * Toggle global audio playback (primary source only).
    */
   toggleGlobalAudioPlayback(): void {
-    // Debug: Check graph state
-    if (!this.currentGraph) {
-      const handler = this.errorHandler || globalErrorHandler;
-      if (handler) {
-        handler.report('validation', 'warning', 'No current graph set - cannot toggle playback');
-      }
-      return;
-    }
-    
-    if (!this.currentGraph.nodes || this.currentGraph.nodes.length === 0) {
-      const handler = this.errorHandler || globalErrorHandler;
-      if (handler) {
-        handler.report('validation', 'warning', 'Graph has no nodes - cannot toggle playback');
-      }
-      return;
-    }
-    
-    // Check if there are any audio file input nodes first
-    const audioFileNodes = this.currentGraph.nodes.filter(n => n.type === 'audio-file-input');
-    const hasAudioNodes = audioFileNodes.length > 0;
-    
-    if (!hasAudioNodes) {
-      const handler = this.errorHandler || globalErrorHandler;
-      if (handler) {
-        handler.report(
-          'validation',
-          'warning',
-          `No audio file input nodes in graph - cannot toggle playback`,
-          { 
-            nodeCount: this.currentGraph.nodes.length,
-            nodeTypes: [...new Set(this.currentGraph.nodes.map(n => n.type))].join(', ')
-          }
-        );
-      }
-      return;
-    }
-    
-    // Get audio node IDs
-    const audioNodeIds = this.currentGraph?.nodes
-      .filter(n => n.type === 'audio-file-input')
-      .map(n => n.id) || [];
-    
-    // Check if audio is actually loaded
-    const loadedStates = audioNodeIds.map(id => {
-      const state = this.audioManager.getAudioNodeState(id);
-      return { id, state, hasBuffer: state && state.audioBuffer !== null };
-    });
-    
-    const loadedCount = loadedStates.filter(s => s.hasBuffer).length;
-    const globalState = this.audioManager.getGlobalAudioState();
-    
-    if (!globalState) {
-      if (loadedCount === 0) {
-        const handler = this.errorHandler || globalErrorHandler;
-        if (handler) {
-          handler.report(
-            'audio',
-            'warning',
-            `Audio nodes found (${audioNodeIds.length}) but no audio loaded yet. Audio may still be loading, or loading may have failed.`,
-            { audioNodeCount: audioNodeIds.length }
-          );
-        }
-      } else {
-        // Try to play even if getGlobalAudioState returns null - it might work
-        const firstLoadedNode = loadedStates.find(s => s.hasBuffer);
-        if (firstLoadedNode) {
-          this.audioManager.playAudio(firstLoadedNode.id).catch(error => {
-            const handler = this.errorHandler || globalErrorHandler;
-            if (handler) {
-              handler.report(
-                'audio',
-                'error',
-                `Failed to play audio for node ${firstLoadedNode.id}`,
-                {
-                  originalError: error instanceof Error ? error : new Error(String(error)),
-                  nodeId: firstLoadedNode.id,
-                }
-              );
-            }
-          });
-        }
-      }
-      return;
-    }
-    
-    if (globalState.isPlaying) {
-      this.audioManager.stopAllAudio();
-    } else {
-      // Resume from current position
-      this.audioManager.playAllAudio(globalState.currentTime).catch(error => {
-        const handler = this.errorHandler || globalErrorHandler;
-        if (handler) {
-          handler.report(
-            'audio',
-            'error',
-            'Failed to play audio',
-            { originalError: error instanceof Error ? error : new Error(String(error)) }
-          );
-        }
-      });
-    }
+    this.playbackHandler.toggleGlobalAudioPlayback();
   }
-  
+
   /**
-   * Seek global audio to a specific time
+   * Start playing the primary source (with correct loop/onEnded). Call after setAudioSetup when advancing playlist.
+   */
+  playPrimary(): void {
+    this.playbackHandler.playPrimary();
+  }
+
+  /**
+   * Playlist: advance to next track. Calls onPlaylistAdvance; app updates store, setAudioSetup, playPrimary().
+   */
+  playNext(): void {
+    this.playbackHandler.playNext();
+  }
+
+  /**
+   * Playlist: previous track or start of current (if within first 3s). Calls onPlaylistAdvance for previous; app updates and playPrimary.
+   */
+  playPrevious(): void {
+    this.playbackHandler.playPrevious();
+  }
+
+  /**
+   * Start: seek to 0 or go to first playlist track.
+   */
+  playStart(): void {
+    this.playbackHandler.playStart();
+  }
+
+  /**
+   * Seek global audio to a specific time (or synthetic timeline when no audio).
    */
   seekGlobalAudio(time: number): void {
-    this.audioManager.seekAllAudio(time).catch(error => {
-      const handler = this.errorHandler || globalErrorHandler;
-      if (handler) {
-        handler.report(
-          'audio',
-          'warning',
-          'Failed to seek audio',
-          { 
-            originalError: error instanceof Error ? error : new Error(String(error)),
-            time
-          }
-        );
-      }
-    });
+    this.playbackHandler.seekGlobalAudio(time);
   }
-  
+
   /**
-   * Get global audio state
+   * Get timeline state: current time, duration, BPM, and whether time comes from audio.
+   * When no graph: null. When graph but no audio: synthetic transport (30s default duration).
+   * For WP 03: uTimelineTime should be set from the returned currentTime each frame.
+   */
+  getTimelineState(): TimelineState | null {
+    if (!this.currentGraph) return null;
+    return this.playbackHandler.getTimelineState();
+  }
+
+  /**
+   * Get global audio state (legacy). Prefer getTimelineState() for timeline/scrubber.
    */
   getGlobalAudioState(): { isPlaying: boolean; currentTime: number; duration: number } | null {
-    return this.audioManager.getGlobalAudioState();
+    return this.playbackHandler.getGlobalAudioState();
   }
 
   /**
@@ -465,6 +373,37 @@ export class RuntimeManager implements Disposable {
    */
   getAudioManager(): IAudioManager {
     return this.audioManager;
+  }
+
+  /**
+   * Set audio setup (for cleanup - panel file IDs must not be removed as orphaned).
+   * Syncs AudioManager analyzers from panel bands. Loads only the current primary (playlist track or upload).
+   * @param options.autoPlayWhenReady - If true, start playback when the primary is ready (immediately if already loaded, or when load completes).
+   */
+  setAudioSetup(audioSetup: AudioSetup | null, options?: { autoPlayWhenReady?: boolean }): void {
+    const autoPlayWhenReady = options?.autoPlayWhenReady ?? false;
+    this.currentAudioSetup = audioSetup ?? null;
+    const primaryId = getPrimaryFileId(audioSetup);
+    this.audioSetupFileIds = primaryId ? [primaryId] : [];
+    this.audioSetupBandIds = audioSetup?.bands.map((b) => b.id) ?? [];
+    this.audioManager.setAudioSetup?.(audioSetup);
+    this.compilationManager.setAudioSetup?.(audioSetup);
+    const extraIds = [...this.audioSetupFileIds, ...this.audioSetupBandIds];
+    this.audioManager.cleanupOrphanedResources(
+      this.currentGraph ?? undefined,
+      extraIds.length > 0 ? extraIds : undefined
+    );
+    this.compilationManager.onGraphStructureChange(true);
+
+    // Load only the current primary (no preload)
+    this.playbackHandler.loadPrimaryAndMaybePlay(
+      primaryId ?? '',
+      audioSetup,
+      autoPlayWhenReady,
+      (setup) => {
+        this.audioManager.setAudioSetup?.(setup);
+      }
+    );
   }
   
   /**
@@ -519,4 +458,4 @@ export class RuntimeManager implements Disposable {
 }
 
 // Re-export types for convenience
-export type { ShaderCompiler, ErrorCallback, IRenderer, IAudioManager, ICompilationManager } from './types';
+export type { ShaderCompiler, IRenderer, IAudioManager, ICompilationManager } from './types';

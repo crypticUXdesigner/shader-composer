@@ -7,9 +7,9 @@
  * Phase 3.4: Performance Optimization
  */
 
-export class Throttler {
-  private pending: Map<string, any> = new Map();
-  private callbacks: Map<string, (value: any) => void> = new Map();
+export class Throttler<T = unknown> {
+  private pending: Map<string, T> = new Map();
+  private callbacks: Map<string, (value: T) => void> = new Map();
   private timeout: number | null = null;
   private readonly delay: number;
   
@@ -27,7 +27,7 @@ export class Throttler {
    * @param value Value to pass to callback (latest value wins if multiple calls)
    * @param callback Function to call when throttle period elapses
    */
-  schedule(key: string, value: any, callback: (value: any) => void): void {
+  schedule(key: string, value: T, callback: (value: T) => void): void {
     // Store the latest value and callback
     this.pending.set(key, value);
     this.callbacks.set(key, callback);

@@ -1,4 +1,5 @@
-import type { NodeGraph, NodeSpec } from '../../types';
+import type { NodeGraph } from '../../data-model/types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 /**
  * Validates type compatibility for connections

@@ -5,6 +5,14 @@ dist/
 .vscode/
 .idea/
 
+# Local environment (secrets, tokens). Copy .env.example to .env and edit locally.
+.env
+.env.local
+.env.*.local
+
+# Performance baseline: Lighthouse JSON report (regenerate with npx lighthouse ...)
+docs/projects/quality-review-remediation/lighthouse-report.json
+
 # Exclude all markdown files except README.md
 *.md
 !README.md

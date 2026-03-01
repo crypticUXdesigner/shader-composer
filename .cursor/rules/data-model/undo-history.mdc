@@ -1,0 +1,25 @@
+---
+description: Graph-mutating actions must push undo state; preset load clears history; expose canUndo/canRedo.
+globs: "src/lib/stores/**/*.ts,src/ui/**/*.ts"
+alwaysApply: false
+---
+
+# Undo and History
+
+When adding graph-mutating actions, ensure they push undo state; preset load must clear history; expose canUndo/canRedo for UI.
+
+## Do
+
+- **Push state** for each meaningful change (add/remove node or connection, parameter edit, view state, automation). The **graph store** invokes an optional `graphChangedListener` whenever the graph is mutated via the store (`setGraph`, `updateNodeParameter`, `addNode`, etc.). The app sets this listener to `(g) => undoRedoManager.pushState(g)` so a single integration point pushes undo; call sites do not need to call `pushState` themselves.
+- **Clear history** when loading a preset or pasting the full graph; then set the new graph so the listener pushes the new state once (or use the same clear-then-set flow).
+- Example: after `graphStore.addNode()` the store updates and the listener pushes state; after `loadPreset()` the app calls `undoRedoManager.clear()` then `graphStore.setGraph(remapped)` so the listener pushes the loaded graph as the only history entry.
+
+## Avoid
+
+- Applying graph changes outside the store (or the path that pushes undo). Pushing state when loading a preset.
+
+## Reference
+
+- `src/lib/stores/graphStore.svelte.ts` — `setGraphChangedListener(fn)`; listener is invoked on every graph-mutating action.
+- `.cursor/rules/data-model/graph-updates.mdc` — store and immutable helpers.
+- `docs/user-goals/11-undo-redo-and-keyboard.md`, `docs/user-goals/08-presets-and-data.md`

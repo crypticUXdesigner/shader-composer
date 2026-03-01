@@ -1,21 +1,23 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const kaleidoscopeSmoothNodeSpec: NodeSpec = {
   id: 'kaleidoscope-smooth',
   category: 'Distort',
-  displayName: 'Kaleidoscope Smooth',
-  icon: 'ikosaedr',
+  displayName: 'KalScope Smooth',
+  icon: 'compass-rose',
   description: 'Kaleidoscope with smooth folding at segment edges for softer symmetry',
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'Position'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   parameters: {
@@ -59,6 +61,20 @@ export const kaleidoscopeSmoothNodeSpec: NodeSpec = {
       step: 0.01,
       label: 'Smooth Edge'
     }
+  },
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['kaleidSmoothCenterX', 'kaleidSmoothCenterY', 'kaleidSmoothSegments', 'kaleidSmoothRotation', 'kaleidSmoothEdge'],
+        parameterUI: { kaleidSmoothCenterX: 'coords', kaleidSmoothCenterY: 'coords' },
+        layout: {
+          columns: 2,
+          coordsSpan: 2,
+          parameterSpan: { kaleidSmoothSegments: 2 }
+        }
+      }
+    ]
   },
   functions: `
 vec2 kaleidoscopeSmooth(vec2 p, int segments, float rotation, float smoothEdge) {

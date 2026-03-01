@@ -1,0 +1,115 @@
+/* =============================================================================
+   OUTPUT
+   ============================================================================= */
+
+:root {
+  /* Node body shadow (outermost) */
+  --node-body-shadow-color-mid-output: var(--color-red-50);
+  --node-body-shadow-color-outer-output: var(--color-red-30);
+
+  /* Node header */
+  --node-header-bg-output: var(--color-red-80);
+  --node-header-bg-end-output: var(--color-red-70);
+  --node-header-print-output: var(--color-red-gray-130);
+
+  /* Icon box */
+  --node-icon-box-bg-output: var(--color-red-90);
+  --node-icon-box-color-output: var(--color-red-gray-130);
+
+  /* Param group header */
+  --param-group-header-color-output: var(--color-red-110);
+
+  /* Param cell */
+  --node-param-cell-bg-output: var(--color-red-50);
+  --node-param-cell-bg-end-output: var(--color-red-40);
+  --node-param-label-color-output: var(--color-red-110);
+
+  /* Knob */
+  --node-knob-value-bg-output: var(--color-red-40);
+  --node-knob-value-color-output: var(--color-red-120);
+  --node-knob-ring-color-output: var(--knob-ring-color);
+  --node-knob-arc-active-output: var(--color-red-100);
+  --node-knob-marker-output: var(--color-red-120);
+
+  /* Bezier editor */
+  --node-bezier-curve-output: var(--color-red-90);
+  --node-bezier-control-output: var(--color-red-90);
+  --node-bezier-control-hover-output: var(--color-red-100);
+}
+
+.node.output {
+  /* CSS custom properties */
+  --node-body-shadow-color-mid: var(--node-body-shadow-color-mid-output);
+  --node-body-shadow-color-outer: var(--node-body-shadow-color-outer-output);
+  --node-header-name-color: var(--node-header-print-output);
+  --param-group-header-color: var(--param-group-header-color-output);
+  --knob-ring-color: var(--node-knob-ring-color-output);
+  --knob-ring-active-color-static: var(--node-knob-arc-active-output);
+  --knob-marker-color: var(--node-knob-marker-output);
+  --knob-value-bg: var(--node-knob-value-bg-output);
+  --knob-value-color: var(--node-knob-value-color-output);
+  --param-control-bg: var(--node-knob-value-bg-output);
+  --param-control-bg-hover: var(--color-red-50);
+  --param-control-bg-active: var(--color-red-60);
+  --param-control-value-color: var(--node-knob-value-color-output);
+
+  /* Node header (outermost) */
+  background: radial-gradient(
+    ellipse var(--node-header-bg-gradient-ellipse-width) var(--node-header-bg-gradient-ellipse-height) at var(--node-header-bg-gradient-ellipse-x) var(--node-header-bg-gradient-ellipse-y),
+    var(--node-header-bg-output),
+    var(--node-header-bg-end-output)
+  );
+
+  /* Node body */
+  .node-body {
+    background: radial-gradient(ellipse 120% 160% at 50% 25%, var(--color-red-50), var(--color-red-40));
+  }
+
+  /* Icon box */
+  .icon-box {
+    background: var(--node-icon-box-bg-output);
+
+    .header-icon {
+      color: var(--node-icon-box-color-output);
+    }
+  }
+
+  /* Node header */
+  .node-header {
+    .label-text,
+    .label-input,
+    .port .name-label {
+      color: var(--node-header-print-output);
+    }
+  }
+
+  /* Param cell */
+  .param-cell {
+    background: radial-gradient(ellipse 120% 160% at 50% 25%, var(--node-param-cell-bg-output), var(--node-param-cell-bg-end-output));
+
+    &.connected {
+      background: var(--param-cell-bg-connected);
+      border-color: var(--param-cell-border-connected);
+    }
+
+    .left-column .top .label {
+      color: var(--node-param-label-color-output);
+    }
+  }
+
+  /* Bezier editor */
+  .bezier-editor {
+    .curve {
+      stroke: var(--node-bezier-curve-output);
+    }
+
+    .control-point {
+      background: var(--node-bezier-control-output);
+
+      &:hover {
+        background: var(--node-bezier-control-hover-output);
+      }
+    }
+  }
+}
+

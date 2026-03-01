@@ -1,0 +1,310 @@
+/* =============================================================================
+   MATH â€” sub-groups: arithmetic (muted, default), functions (middle), advanced (prominent)
+   ============================================================================= */
+
+:root {
+  /* Arithmetic (default): orange-gray scale â€” muted */
+  /* Node body shadow (outermost) */
+  --node-body-shadow-color-mid-math: var(--color-leaf-gray-50);
+  --node-body-shadow-color-outer-math: var(--color-leaf-gray-30);
+
+  /* Node header */
+  --node-header-bg-math: var(--color-clean-gray-70);
+  --node-header-bg-end-math: var(--color-blue-gray-100);
+  --node-header-print-math: var(--color-clean-gray-40);
+
+  /* Icon box */
+  --node-icon-box-bg-math: transparent;
+  --node-icon-box-color-math: var(--color-leaf-120);
+
+  /* Param group header */
+  --param-group-header-color-math: var(--color-orange-gray-110);
+
+  /* Param cell */
+  --node-param-cell-bg-math: transparent;
+  --node-param-cell-bg-end-math: transparent;
+  --node-param-label-color-math: var(--color-clean-gray-100);
+
+  /* Knob */
+  --node-knob-value-bg-math: var(--color-leaf-gray-40);
+  --node-knob-value-color-math: var(--color-leaf-gray-120);
+  --node-knob-ring-color-math: var(--color-clean-gray-50);
+  --node-knob-arc-active-math: var(--color-leaf-120);
+  --node-knob-marker-math: var(--color-leaf-gray-120);
+
+  /* Bezier editor */
+  --node-bezier-curve-math: var(--color-leaf-gray-90);
+  --node-bezier-control-math: var(--color-leaf-gray-90);
+  --node-bezier-control-hover-math: var(--color-leaf-gray-100);
+
+  /* Functions sub-group: same header/body as arithmetic; orange-120 accent */
+  /* Node body shadow (outermost) â€” same as arithmetic */
+  --node-body-shadow-color-mid-math-functions: var(--color-leaf-gray-50);
+  --node-body-shadow-color-outer-math-functions: var(--color-leaf-gray-30);
+
+  /* Node header â€” same as arithmetic */
+  --node-header-bg-math-functions: var(--color-clean-gray-70);
+  --node-header-bg-end-math-functions: var(--color-blue-gray-100);
+  --node-header-print-math-functions: var(--color-clean-gray-40);
+
+  /* Icon box â€” orange-120 (same scale as default leaf-120) */
+  --node-icon-box-bg-math-functions: transparent;
+  --node-icon-box-color-math-functions: var(--color-orange-120);
+
+  /* Param group header */
+  --param-group-header-color-math-functions: var(--color-orange-110);
+
+  /* Param cell â€” same as arithmetic (transparent) */
+  --node-param-cell-bg-math-functions: transparent;
+  --node-param-cell-bg-end-math-functions: transparent;
+  --node-param-label-color-math-functions: var(--color-clean-gray-100);
+
+  /* Knob â€” orange-120 accent (same scale as default leaf-120) */
+  --node-knob-value-bg-math-functions: var(--color-leaf-gray-40);
+  --node-knob-value-color-math-functions: var(--color-orange-120);
+  --node-knob-arc-active-math-functions: var(--color-orange-120);
+  --node-knob-marker-math-functions: var(--color-orange-120);
+
+  /* Bezier editor */
+  --node-bezier-curve-math-functions: var(--color-leaf-gray-90);
+  --node-bezier-control-math-functions: var(--color-leaf-gray-90);
+  --node-bezier-control-hover-math-functions: var(--color-leaf-gray-100);
+
+  /* Advanced sub-group: same header/body as arithmetic; violet-120 accent */
+  /* Node body shadow (outermost) â€” same as arithmetic */
+  --node-body-shadow-color-mid-math-advanced: var(--color-leaf-gray-50);
+  --node-body-shadow-color-outer-math-advanced: var(--color-leaf-gray-30);
+
+  /* Node header â€” same as arithmetic */
+  --node-header-bg-math-advanced: var(--color-clean-gray-70);
+  --node-header-bg-end-math-advanced: var(--color-blue-gray-100);
+  --node-header-print-math-advanced: var(--color-clean-gray-40);
+
+  /* Icon box â€” violet-120 (same scale as default leaf-120) */
+  --node-icon-box-bg-math-advanced: transparent;
+  --node-icon-box-color-math-advanced: var(--color-violet-120);
+
+  /* Param group header */
+  --param-group-header-color-math-advanced: var(--color-violet-110);
+
+  /* Param cell â€” same as arithmetic (transparent) */
+  --node-param-cell-bg-math-advanced: transparent;
+  --node-param-cell-bg-end-math-advanced: transparent;
+  --node-param-label-color-math-advanced: var(--color-clean-gray-100);
+
+  /* Knob â€” violet-120 accent (same scale as default leaf-120) */
+  --node-knob-value-bg-math-advanced: var(--color-leaf-gray-40);
+  --node-knob-value-color-math-advanced: var(--color-violet-120);
+  --node-knob-arc-active-math-advanced: var(--color-violet-120);
+  --node-knob-marker-math-advanced: var(--color-violet-120);
+
+  /* Bezier editor */
+  --node-bezier-curve-math-advanced: var(--color-leaf-gray-90);
+  --node-bezier-control-math-advanced: var(--color-leaf-gray-90);
+  --node-bezier-control-hover-math-advanced: var(--color-leaf-gray-100);
+}
+
+.node.math {
+  /* CSS custom properties */
+  --node-body-shadow-color-mid: var(--node-body-shadow-color-mid-math);
+  --node-body-shadow-color-outer: var(--node-body-shadow-color-outer-math);
+  --node-header-name-color: var(--node-header-print-math);
+  --param-group-header-color: var(--param-group-header-color-math);
+  --knob-ring-color: var(--node-knob-ring-color-math);
+  --knob-ring-active-color-static: var(--node-knob-arc-active-math);
+  --knob-marker-color: var(--node-knob-marker-math);
+  --knob-value-bg: var(--node-knob-value-bg-math);
+  --knob-value-color: var(--node-knob-value-color-math);
+  --param-control-bg: var(--node-knob-value-bg-math);
+  --param-control-bg-hover: var(--color-orange-50);
+  --param-control-bg-active: var(--color-orange-60);
+  --param-control-value-color: var(--node-knob-value-color-math);
+
+  /* Node header (outermost) */
+  background: radial-gradient(
+    ellipse var(--node-header-bg-gradient-ellipse-width) var(--node-header-bg-gradient-ellipse-height) at var(--node-header-bg-gradient-ellipse-x) var(--node-header-bg-gradient-ellipse-y),
+    var(--node-header-bg-math),
+    var(--node-header-bg-end-math)
+  );
+
+  /* Node body */
+  .node-body {
+    background: radial-gradient(
+      ellipse 120% 160% at 50% 25%, 
+      var(--color-clean-gray-30), 
+      var(--color-clean-gray-50)
+    );
+  }
+
+  /* Icon box */
+  .icon-box {
+    background: var(--node-icon-box-bg-math);
+
+    .header-icon {
+      color: var(--node-icon-box-color-math);
+    }
+  }
+
+  /* Node header */
+  .node-header {
+    .label-text,
+    .label-input,
+    .port .name-label {
+      color: var(--node-header-print-math);
+    }
+  }
+
+  /* Param cell */
+  .param-cell {
+    background: radial-gradient(ellipse 120% 160% at 50% 25%, var(--node-param-cell-bg-math), var(--node-param-cell-bg-end-math));
+    border-radius: var(--radius-xl);
+
+    &.connected {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: var(--color-teal-110);
+    }
+
+    .left-column .top .label {
+      color: var(--node-param-label-color-math);
+    }
+  }
+
+  /* Bezier editor */
+  .bezier-editor {
+    .curve {
+      stroke: var(--node-bezier-curve-math);
+    }
+
+    .control-point {
+      background: var(--node-bezier-control-math);
+
+      &:hover {
+        background: var(--node-bezier-control-hover-math);
+      }
+    }
+  }
+}
+
+/* Sub-group: functions (power, sqrt, rounding, comparison, interpolation) â€” orange scale, middle prominence */
+.node.math.functions {
+  --node-header-bg-math: var(--node-header-bg-math-functions);
+  --node-header-bg-end-math: var(--node-header-bg-end-math-functions);
+  --node-header-name-color: var(--node-header-print-math-functions);
+  --node-icon-box-bg-math: var(--node-icon-box-bg-math-functions);
+  --node-icon-box-color-math: var(--node-icon-box-color-math-functions);
+  --param-group-header-color-math: var(--param-group-header-color-math-functions);
+  --node-param-cell-bg-math: var(--node-param-cell-bg-math-functions);
+  --node-param-cell-bg-end-math: var(--node-param-cell-bg-end-math-functions);
+  --node-param-label-color-math: var(--node-param-label-color-math-functions);
+  --node-knob-value-color-math: var(--node-knob-value-color-math-functions);
+  --node-knob-value-bg-math: var(--node-knob-value-bg-math-functions);
+  --node-knob-arc-active-math: var(--node-knob-arc-active-math-functions);
+  --node-knob-marker-math: var(--node-knob-marker-math-functions);
+  --node-bezier-curve-math: var(--node-bezier-curve-math-functions);
+  --node-bezier-control-math: var(--node-bezier-control-math-functions);
+  --node-bezier-control-hover-math: var(--node-bezier-control-hover-math-functions);
+  --node-body-shadow-color-mid-math: var(--node-body-shadow-color-mid-math-functions);
+  --node-body-shadow-color-outer-math: var(--node-body-shadow-color-outer-math-functions);
+
+  .node-body {
+    background: radial-gradient(
+      ellipse 120% 160% at 50% 25%,
+      var(--color-clean-gray-30),
+      var(--color-clean-gray-50)
+    );
+  }
+}
+
+.node.math.functions {
+  /* Icon box */
+  .icon-box .header-icon {
+    color: var(--node-icon-box-color-math);
+  }
+
+  /* Node header */
+  .node-header {
+    .label-text,
+    .label-input,
+    .port .name-label {
+      color: var(--node-header-print-math-functions);
+    }
+  }
+}
+
+.node.math.functions .param-cell .left-column .top .label {
+  color: var(--node-param-label-color-math-functions);
+}
+
+.node.math.functions {
+  --param-control-bg-hover: var(--color-orange-50);
+  --param-control-bg-active: var(--color-orange-60);
+}
+
+/* Sub-group: advanced (trigonometry, exponential, vector operations) â€” orange scale, more prominent */
+.node.math.advanced {
+  --node-header-bg-math: var(--node-header-bg-math-advanced);
+  --node-header-bg-end-math: var(--node-header-bg-end-math-advanced);
+  --node-header-name-color: var(--node-header-print-math-advanced);
+  --node-icon-box-bg-math: var(--node-icon-box-bg-math-advanced);
+  --node-icon-box-color-math: var(--node-icon-box-color-math-advanced);
+  --param-group-header-color-math: var(--param-group-header-color-math-advanced);
+  --node-param-cell-bg-math: var(--node-param-cell-bg-math-advanced);
+  --node-param-cell-bg-end-math: var(--node-param-cell-bg-end-math-advanced);
+  --node-param-label-color-math: var(--node-param-label-color-math-advanced);
+  --node-knob-value-color-math: var(--node-knob-value-color-math-advanced);
+  --node-knob-value-bg-math: var(--node-knob-value-bg-math-advanced);
+  --node-knob-arc-active-math: var(--node-knob-arc-active-math-advanced);
+  --node-knob-marker-math: var(--node-knob-marker-math-advanced);
+  --node-bezier-curve-math: var(--node-bezier-curve-math-advanced);
+  --node-bezier-control-math: var(--node-bezier-control-math-advanced);
+  --node-bezier-control-hover-math: var(--node-bezier-control-hover-math-advanced);
+  --node-body-shadow-color-mid-math: var(--node-body-shadow-color-mid-math-advanced);
+  --node-body-shadow-color-outer-math: var(--node-body-shadow-color-outer-math-advanced);
+
+  .node-body {
+    background: radial-gradient(
+      ellipse 120% 160% at 50% 25%,
+      var(--color-clean-gray-30),
+      var(--color-clean-gray-50)
+    );
+  }
+}
+
+.node.math.advanced {
+  /* Icon box */
+  .icon-box .header-icon {
+    color: var(--node-icon-box-color-math);
+  }
+
+  /* Node header */
+  .node-header {
+    .label-text,
+    .label-input,
+    .port .name-label {
+      color: var(--node-header-print-math-advanced);
+    }
+  }
+}
+
+.node.math.advanced .param-cell .left-column .top .label {
+  color: var(--node-param-label-color-math-advanced);
+}
+
+.node.math.advanced {
+  --param-control-bg-hover: var(--color-orange-60);
+  --param-control-bg-active: var(--color-orange-70);
+}
+
+/* Shiny: use header print color as ring accent */
+.node.math.shiny {
+  --node-shiny-ring-color: var(--node-header-print-math);
+}
+
+.node.math.functions.shiny {
+  --node-shiny-ring-color: var(--node-header-print-math-functions);
+}
+
+.node.math.advanced.shiny {
+  --node-shiny-ring-color: var(--node-header-print-math-advanced);
+}
+

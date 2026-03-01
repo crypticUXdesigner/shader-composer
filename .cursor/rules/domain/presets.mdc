@@ -1,0 +1,27 @@
+---
+description: Preset format (SerializedGraphFile), location, and naming when adding or editing presets.
+globs: "src/presets/**/*.json,src/utils/presetManager.ts"
+alwaysApply: false
+---
+
+# Presets
+
+Presets are JSON files in `src/presets/`. They must follow the **SerializedGraphFile** format so load/save and "Copy Preset" stay compatible.
+
+## Format
+
+- **Required**: `format: "shader-composer-node-graph"`, `formatVersion: "2.0"`, `graph` (id, name, version, nodes, connections, viewState).
+- **Optional**: `audioSetup` (files, bands, remappers). Omit for presets without audio; legacy presets without it are still supported.
+- Example shape: see `src/presets/README.md` or an existing preset in `src/presets/`.
+
+## Naming
+
+- Preset **filenames**: descriptive, **kebab-case** (e.g. `sphere-shader.json`, `colorful-noise.json`). The UI turns kebab-case into a display name (e.g. "Sphere Shader").
+
+## When adding or changing presets
+
+- Create or edit `.json` in `src/presets/`; no code change is needed for the preset to appear in the dropdown (presets are loaded from that directory).
+- If you change the **serialization format** (e.g. new top-level or graph fields), update `src/data-model/serialization.ts` and any migration logic; keep `SerializedGraphFile` and the README in sync.
+- **Preset load/save** must use the same path as data-model serialization. See `.cursor/rules/data-model/serialization.mdc` for the single serialization path and validation.
+
+Reference: `src/presets/README.md`.

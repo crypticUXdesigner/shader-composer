@@ -1,0 +1,61 @@
+{
+  "format": "shader-composer-node-graph",
+  "formatVersion": "2.0",
+  "graph": {
+    "id": "g1",
+    "name": "Test (idempotent)",
+    "version": "2.0",
+    "nodes": [
+      {
+        "id": "n1",
+        "type": "multiply",
+        "position": { "x": 0, "y": 0 },
+        "parameters": {}
+      }
+    ],
+    "connections": [
+      {
+        "id": "c1",
+        "sourceNodeId": "audio-signal:remap-band-node-1770318840638-0u4geobd0",
+        "sourcePort": "out",
+        "targetNodeId": "n1",
+        "targetPort": "a"
+      }
+    ]
+  },
+  "audioSetup": {
+    "files": [
+      {
+        "id": "f1",
+        "name": "File",
+        "autoPlay": false
+      }
+    ],
+    "bands": [
+      {
+        "id": "node-1770318840638-0u4geobd0",
+        "name": "Highs",
+        "sourceFileId": "f1",
+        "frequencyBands": [[2568, 20000]],
+        "smoothing": 0.03,
+        "fftSize": 4096,
+        "remapInMin": 0,
+        "remapInMax": 0.52,
+        "remapOutMin": 0.51,
+        "remapOutMax": 1
+      }
+    ],
+    "remappers": [
+      {
+        "id": "band-node-1770318840638-0u4geobd0",
+        "name": "Default",
+        "bandId": "node-1770318840638-0u4geobd0",
+        "inMin": 0,
+        "inMax": 0.52,
+        "outMin": 0.51,
+        "outMax": 1
+      }
+    ]
+  }
+}
+

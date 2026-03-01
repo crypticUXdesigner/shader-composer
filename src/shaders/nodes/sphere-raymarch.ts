@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const sphereRaymarchNodeSpec: NodeSpec = {
   id: 'sphere-raymarch',
@@ -9,13 +9,15 @@ export const sphereRaymarchNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'float'
+      type: 'float',
+      label: 'Glow'
     }
   ],
   parameters: {
@@ -168,6 +170,37 @@ export const sphereRaymarchNodeSpec: NodeSpec = {
       defaultCollapsed: true
     }
   ],
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['sphereRadius', 'sphereBrightness', 'sphereGlowIntensity'],
+        layout: { columns: 3 }
+      },
+      {
+        type: 'grid',
+        label: 'Vector Field',
+        parameters: [
+          'vectorFieldFrequencyX',
+          'vectorFieldFrequencyY',
+          'vectorFieldFrequencyZ',
+          'vectorFieldAmplitude',
+          'vectorFieldRadialStrength',
+          'vectorFieldHarmonicAmplitude',
+          'vectorFieldComplexity',
+          'vectorFieldDistanceContribution',
+          'raymarchSteps'
+        ],
+        layout: { columns: 3 }
+      },
+      {
+        type: 'grid',
+        label: 'Animation',
+        parameters: ['vectorFieldSpeed', 'animationSpeed'],
+        layout: { columns: 2 }
+      }
+    ]
+  },
   mainCode: `
   // Use app's coordinate system (p is normalized screen space from base shader)
   vec3 ro = vec3(0.0, 0.0, 3.0);

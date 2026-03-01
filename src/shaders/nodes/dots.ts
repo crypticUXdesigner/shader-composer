@@ -1,21 +1,23 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const dotsNodeSpec: NodeSpec = {
   id: 'dots',
   category: 'Patterns',
   displayName: 'Dots',
   description: 'Polka-dot grid pattern with configurable spacing, dot size, and falloff',
-  icon: 'grain',
+  icon: 'dots',
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'float'
+      type: 'float',
+      label: 'Value'
     }
   ],
   parameters: {
@@ -29,10 +31,10 @@ export const dotsNodeSpec: NodeSpec = {
     },
     dotsSize: {
       type: 'float',
-      default: 0.3,
-      min: 0.0,
+      default: 0.03,
+      min: 0.001,
       max: 1.0,
-      step: 0.01,
+      step: 0.001,
       label: 'Dot Size'
     },
     dotsFalloff: {
@@ -52,35 +54,13 @@ export const dotsNodeSpec: NodeSpec = {
       label: 'Intensity'
     }
   },
-  parameterGroups: [
-    {
-      id: 'dots-grid',
-      label: 'Grid',
-      parameters: ['dotsSpacing'],
-      collapsible: true,
-      defaultCollapsed: false
-    },
-    {
-      id: 'dots-shape',
-      label: 'Dots',
-      parameters: ['dotsSize', 'dotsFalloff'],
-      collapsible: true,
-      defaultCollapsed: false
-    },
-    {
-      id: 'dots-output',
-      label: 'Output',
-      parameters: ['dotsIntensity'],
-      collapsible: true,
-      defaultCollapsed: false
-    }
-  ],
   functions: `
-float dotsPattern(vec2 p, float spacing, float dotRadius, float falloff) {
+float dotsPattern(vec2 p, float spacing, float dotRadiusWorld, float falloff) {
   vec2 cell = fract(p / spacing);
   vec2 center = vec2(0.5, 0.5);
   float dist = length(cell - center);
-  float radius = dotRadius * 0.5;
+  // Dot radius in world units, converted to cell space so spacing only affects grid density
+  float radius = min(0.5, dotRadiusWorld / spacing);
   return 1.0 - smoothstep(radius, radius + falloff, dist);
 }
 `,

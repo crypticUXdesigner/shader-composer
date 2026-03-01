@@ -124,7 +124,7 @@ export function renderArrayParameter(
   height: number,
   paramName: string,
   paramSpec: ParameterSpec,
-  value: any
+  value: number[] | number[][]
 ): void {
   const padding = 8;
   const valueWidth = 50;
@@ -148,10 +148,10 @@ export function renderArrayParameter(
   
   if (Array.isArray(value) && value.length > 0) {
     // Format bands as "20-120, 120-300, ..." (compact, no "Hz" suffix to save space)
-    const bandsText = value.map((band: any, index: number) => {
+    const bandsText = value.map((band: number[] | number, index: number) => {
       if (Array.isArray(band) && band.length >= 2) {
-        const minHz = Math.round(band[0]);
-        const maxHz = Math.round(band[1]);
+        const minHz = Math.round(band[0] as number);
+        const maxHz = Math.round(band[1] as number);
         return `${minHz}-${maxHz}`;
       }
       return `B${index}`;

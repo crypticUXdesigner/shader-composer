@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 /**
  * Maps input (u,v) from unit square to a quadrilateral defined by 4 corners.
@@ -8,85 +8,111 @@ export const quadWarpNodeSpec: NodeSpec = {
   id: 'quad-warp',
   category: 'Distort',
   displayName: 'Quad Warp',
-  icon: 'box',
+  icon: 'perspective',
   description: 'Map unit square to a quadrilateral (4 corners) for perspective and screen effects',
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   parameters: {
     quadCorner0X: {
       type: 'float',
-      default: -0.5,
+      default: 0.0,
       min: -2.0,
       max: 2.0,
       step: 0.01,
-      label: 'BL X'
+      label: 'Bottom Left X'
     },
     quadCorner0Y: {
       type: 'float',
-      default: -0.5,
+      default: 0.0,
       min: -2.0,
       max: 2.0,
       step: 0.01,
-      label: 'BL Y'
+      label: 'Bottom Left Y'
     },
     quadCorner1X: {
       type: 'float',
-      default: 0.5,
+      default: 1.0,
       min: -2.0,
       max: 2.0,
       step: 0.01,
-      label: 'BR X'
+      label: 'Bottom Right X'
     },
     quadCorner1Y: {
       type: 'float',
-      default: -0.5,
+      default: 0.0,
       min: -2.0,
       max: 2.0,
       step: 0.01,
-      label: 'BR Y'
+      label: 'Bottom Right Y'
     },
     quadCorner2X: {
       type: 'float',
-      default: -0.5,
+      default: 0.0,
       min: -2.0,
       max: 2.0,
       step: 0.01,
-      label: 'TL X'
+      label: 'Top Left X'
     },
     quadCorner2Y: {
       type: 'float',
-      default: 0.5,
+      default: 1.0,
       min: -2.0,
       max: 2.0,
       step: 0.01,
-      label: 'TL Y'
+      label: 'Top Left Y'
     },
     quadCorner3X: {
       type: 'float',
-      default: 0.5,
+      default: 1.0,
       min: -2.0,
       max: 2.0,
       step: 0.01,
-      label: 'TR X'
+      label: 'Top Right X'
     },
     quadCorner3Y: {
       type: 'float',
-      default: 0.5,
+      default: 1.0,
       min: -2.0,
       max: 2.0,
       step: 0.01,
-      label: 'TR Y'
+      label: 'Top Right Y'
     }
+  },
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: [
+          'quadCorner0X', 'quadCorner0Y',
+          'quadCorner1X', 'quadCorner1Y',
+          'quadCorner2X', 'quadCorner2Y',
+          'quadCorner3X', 'quadCorner3Y'
+        ],
+        parameterUI: {
+          quadCorner0X: 'coords',
+          quadCorner0Y: 'coords',
+          quadCorner1X: 'coords',
+          quadCorner1Y: 'coords',
+          quadCorner2X: 'coords',
+          quadCorner2Y: 'coords',
+          quadCorner3X: 'coords',
+          quadCorner3Y: 'coords'
+        },
+        layout: { columns: 2, coordsSpan: 2, coordsOrigin: 'bottom-left' }
+      }
+    ]
   },
   functions: `
 vec2 quadWarpBilinear(vec2 uv, vec2 c00, vec2 c10, vec2 c01, vec2 c11) {

@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const glowBloomNodeSpec: NodeSpec = {
   id: 'glow-bloom',
@@ -9,13 +9,15 @@ export const glowBloomNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec4'
+      type: 'vec4',
+      label: 'Color'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec4'
+      type: 'vec4',
+      label: 'Color'
     }
   ],
   parameters: {

@@ -1,4 +1,6 @@
-import type { NodeGraph, NodeSpec } from '../../types';
+import type { NodeGraph } from '../../data-model/types';
+import type { NodeSpec } from '../../types/nodeSpec';
+import { getConnectionTargetKey } from '../../data-model/connectionUtils';
 
 /**
  * Validates graph structure
@@ -7,9 +9,16 @@ export class GraphValidator {
   constructor(private nodeSpecs: Map<string, NodeSpec>) {}
 
   /**
-   * Validate graph structure
+   * Validate graph structure.
+   * @param validSourceNodeIds - Optional set of valid source node IDs (e.g. virtual audio nodes from audioSetup).
+   *   Connections with sourceNodeId in this set are accepted even if not in graph.nodes.
    */
-  validateGraph(graph: NodeGraph, errors: string[], _warnings: string[]): void {
+  validateGraph(
+    graph: NodeGraph,
+    errors: string[],
+    _warnings: string[],
+    validSourceNodeIds?: Set<string>
+  ): void {
     // Check required fields
     if (!graph.id) errors.push('[ERROR] Graph missing id');
     if (!graph.name) errors.push('[ERROR] Graph missing name');
@@ -33,35 +42,42 @@ export class GraphValidator {
 
     // Check connection IDs are unique and reference valid nodes
     const connectionIds = new Set<string>();
-    // Track target ports to detect duplicate connections to same input
-    const targetPorts = new Map<string, string>(); // targetNodeId.targetPort -> connectionId
-    
+    const targetKeyToConnId = new Map<string, string>();
+
     for (const conn of graph.connections) {
       if (connectionIds.has(conn.id)) {
         errors.push(`[ERROR] Duplicate connection ID: ${conn.id}`);
       }
       connectionIds.add(conn.id);
 
-      if (!nodeIds.has(conn.sourceNodeId)) {
+      const sourceValid =
+        nodeIds.has(conn.sourceNodeId) ||
+        (validSourceNodeIds?.has(conn.sourceNodeId) ?? false);
+      if (!sourceValid) {
         errors.push(`[ERROR] Connection references non-existent source node: ${conn.sourceNodeId}`);
       }
       if (!nodeIds.has(conn.targetNodeId)) {
         errors.push(`[ERROR] Connection references non-existent target node: ${conn.targetNodeId}`);
       }
 
-      // Check for duplicate connections to same input port or parameter
-      const targetKey = conn.targetParameter 
-        ? `${conn.targetNodeId}.param:${conn.targetParameter}`
-        : `${conn.targetNodeId}.${conn.targetPort}`;
-      if (targetPorts.has(targetKey)) {
-        const existingConnId = targetPorts.get(targetKey);
-        const targetName = conn.targetParameter || conn.targetPort;
+      // Invariant: exactly one of targetPort or targetParameter
+      const hasPort = conn.targetPort != null && conn.targetPort !== '';
+      const hasParam = conn.targetParameter != null && conn.targetParameter !== '';
+      if (hasPort && hasParam) {
+        errors.push(`[ERROR] Connection ${conn.id}: exactly one of targetPort or targetParameter required (both set)`);
+      } else if (!hasPort && !hasParam) {
+        errors.push(`[ERROR] Connection ${conn.id}: exactly one of targetPort or targetParameter required (neither set)`);
+      }
+
+      const targetKey = getConnectionTargetKey(conn);
+      if (targetKey && targetKeyToConnId.has(targetKey)) {
+        const existingConnId = targetKeyToConnId.get(targetKey)!;
+        const targetName = conn.targetParameter ?? conn.targetPort ?? '?';
         errors.push(
-          `[ERROR] Duplicate Connection: ${conn.targetParameter ? 'Parameter' : 'Input port'} '${targetName}' on node '${conn.targetNodeId}' ` +
-          `already has a connection (${existingConnId}). Connection ${conn.id} conflicts.`
+          `[ERROR] Duplicate connection to '${targetName}' on node '${conn.targetNodeId}' (existing: ${existingConnId}, conflict: ${conn.id})`
         );
-      } else {
-        targetPorts.set(targetKey, conn.id);
+      } else if (targetKey) {
+        targetKeyToConnId.set(targetKey, conn.id);
       }
     }
   }

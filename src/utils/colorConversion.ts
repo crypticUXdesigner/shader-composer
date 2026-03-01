@@ -43,8 +43,12 @@ export function oklchToLinearRgb(l: number, c: number, h: number): { r: number; 
   };
 }
 
-function linearToSrgb(c: number): number {
+export function linearToSrgb(c: number): number {
   return c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
+}
+
+function srgbToLinear(c: number): number {
+  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
 }
 
 /** sRGB hex or rgb() string for CSS from OKLCH. */
@@ -72,10 +76,51 @@ export function linearRgbToHsv(r: number, g: number, b: number): HSV {
   return { h: h * 360, s, v };
 }
 
-/** OKLCH to HSV (for picker UI). */
+/** OKLCH to HSV via linear RGB (legacy). Prefer oklchToHsvForPicker for UI. */
 export function oklchToHsv(l: number, c: number, h: number): HSV {
   const rgb = oklchToLinearRgb(l, c, h);
   return linearRgbToHsv(rgb.r, rgb.g, rgb.b);
+}
+
+/** sRGB (0–1) to HSV. Picker canvas uses sRGB, so use this so pointer matches swatch. */
+export function srgbToHsv(r: number, g: number, b: number): HSV {
+  return linearRgbToHsv(r, g, b);
+}
+
+/** HSV to sRGB (0–1). Used when saving from picker so round-trip matches display. */
+export function hsvToSrgb(h: number, s: number, v: number): { r: number; g: number; b: number } {
+  const linear = hsvToLinearRgb(h, s, v);
+  return {
+    r: linearToSrgb(linear.r),
+    g: linearToSrgb(linear.g),
+    b: linearToSrgb(linear.b)
+  };
+}
+
+/** OKLCH → sRGB → HSV for picker open. Pointer position then matches canvas (sRGB). */
+export function oklchToHsvForPicker(l: number, c: number, h: number): HSV {
+  const linear = oklchToLinearRgb(l, c, h);
+  const sr = linearToSrgb(linear.r);
+  const sg = linearToSrgb(linear.g);
+  const sb = linearToSrgb(linear.b);
+  return srgbToHsv(sr, sg, sb);
+}
+
+/** HSV (from sRGB picker) → sRGB → linear → OKLCH for picker apply. Uses unclamped chroma so swatch matches. */
+export function hsvSrgbToOklch(h: number, s: number, v: number): OKLCH {
+  const srgb = hsvToSrgb(h, s, v);
+  const rl = srgbToLinear(srgb.r);
+  const gl = srgbToLinear(srgb.g);
+  const bl = srgbToLinear(srgb.b);
+  return linearRgbToOklchForPicker(rl, gl, bl);
+}
+
+/** sRGB (0–1) to CSS rgb() string. Use for picker swatch so it matches the canvas exactly. */
+export function srgbToCssRgb(r: number, g: number, b: number): string {
+  const R = Math.round(Math.max(0, Math.min(1, r)) * 255);
+  const G = Math.round(Math.max(0, Math.min(1, g)) * 255);
+  const B = Math.round(Math.max(0, Math.min(1, b)) * 255);
+  return `rgb(${R},${G},${B})`;
 }
 
 /** HSV to linear RGB (0–1). */
@@ -94,8 +139,22 @@ export function hsvToLinearRgb(h: number, s: number, v: number): { r: number; g:
   return { r: r + m, g: g + m, b: b + m };
 }
 
-/** Linear RGB to OKLCH. Inverse of oklchToLinearRgb (simplified: RGB → XYZ → Lab → LCH). */
+/** Linear RGB to OKLCH. Inverse of oklchToLinearRgb (simplified: RGB → XYZ → Lab → LCH). Chroma clamped to 0.4 for UI sliders. */
 export function linearRgbToOklch(r: number, g: number, b: number): OKLCH {
+  return linearRgbToOklchInternal(r, g, b, true);
+}
+
+/** Like linearRgbToOklch but does not clamp chroma. Use for picker so stored OKLCH matches picked sRGB. */
+function linearRgbToOklchForPicker(r: number, g: number, b: number): OKLCH {
+  return linearRgbToOklchInternal(r, g, b, false);
+}
+
+function linearRgbToOklchInternal(
+  r: number,
+  g: number,
+  b: number,
+  clampChroma: boolean
+): OKLCH {
   // Linear sRGB to XYZ (D65)
   const rl = Math.max(0, Math.min(1, r));
   const gl = Math.max(0, Math.min(1, g));
@@ -117,9 +176,10 @@ export function linearRgbToOklch(r: number, g: number, b: number): OKLCH {
   const C = Math.sqrt(a * a + b_ * b_);
   let H = (Math.atan2(b_, a) * 180) / Math.PI;
   if (H < 0) H += 360;
+  const chroma = clampChroma ? Math.max(0, Math.min(0.4, C)) : Math.max(0, C);
   return {
     l: Math.max(0, Math.min(1, L)),
-    c: Math.max(0, Math.min(0.4, C)),
+    c: chroma,
     h: H
   };
 }

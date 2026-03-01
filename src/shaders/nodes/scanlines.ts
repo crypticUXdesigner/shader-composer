@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const scanlinesNodeSpec: NodeSpec = {
   id: 'scanlines',
@@ -9,13 +9,15 @@ export const scanlinesNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec4'
+      type: 'vec4',
+      label: 'Color'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec4'
+      type: 'vec4',
+      label: 'Color'
     }
   ],
   parameters: {
@@ -76,6 +78,21 @@ export const scanlinesNodeSpec: NodeSpec = {
       defaultCollapsed: true
     }
   ],
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['scanlineFrequency', 'scanlineThickness', 'scanlineOpacity'],
+        layout: { columns: 'auto' }
+      },
+      {
+        type: 'grid',
+        label: 'Animation',
+        parameters: ['scanlineTimeSpeed', 'scanlineTimeOffset'],
+        layout: { columns: 'auto', parameterSpan: { scanlineTimeOffset: 2 } }
+      }
+    ]
+  },
   functions: `
 float scanlineEffect(float value, vec2 p, float frequency, float thickness, float opacity, float time) {
   // Calculate scanline position with optional scrolling

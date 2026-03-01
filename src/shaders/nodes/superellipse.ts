@@ -1,27 +1,29 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const superellipseNodeSpec: NodeSpec = {
   id: 'superellipse',
   category: 'Shapes',
-  displayName: 'Superellipse',
+  displayName: 'Super',
   description: 'Superellipse (squircle to rectangle) with power parameter; 2=ellipse, large=rect',
-  icon: 'square-rounded-corners',
+  icon: 'rectangle',
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'Position'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'float'
+      type: 'float',
+      label: 'Value'
     }
   ],
   parameters: {
     superCenterX: {
       type: 'float',
-      default: 0.5,
+      default: 0.0,
       min: -2.0,
       max: 2.0,
       step: 0.01,
@@ -29,7 +31,7 @@ export const superellipseNodeSpec: NodeSpec = {
     },
     superCenterY: {
       type: 'float',
-      default: 0.5,
+      default: 0.0,
       min: -2.0,
       max: 2.0,
       step: 0.01,
@@ -99,6 +101,34 @@ export const superellipseNodeSpec: NodeSpec = {
       defaultCollapsed: false
     }
   ],
+  parameterLayout: {
+    minColumns: 3,
+    elements: [
+      {
+        type: 'grid',
+        // Row 1: center (span 2) + power
+        // Row 2: radius X, radius Y, softness
+        // Row 3: intensity (span 3)
+        parameters: [
+          'superCenterX',
+          'superCenterY',
+          'superPower',
+          'superRadiusX',
+          'superRadiusY',
+          'superSoftness',
+          'superIntensity'
+        ],
+        parameterUI: { superCenterX: 'coords', superCenterY: 'coords' },
+        layout: {
+          columns: 3,
+          coordsSpan: 2,
+          parameterSpan: {
+            superIntensity: 3
+          }
+        }
+      }
+    ]
+  },
   functions: `
 float superellipseMask(vec2 p, float rx, float ry, float n) {
   vec2 q = abs(p) / vec2(rx, ry);

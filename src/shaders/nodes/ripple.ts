@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const rippleNodeSpec: NodeSpec = {
   id: 'ripple',
@@ -9,13 +9,15 @@ export const rippleNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   parameters: {
@@ -25,7 +27,8 @@ export const rippleNodeSpec: NodeSpec = {
       min: -2.0,
       max: 2.0,
       step: 0.1,
-      label: 'Center X'
+      label: 'Center X',
+      inputMode: 'add'
     },
     rippleCenterY: {
       type: 'float',
@@ -33,7 +36,8 @@ export const rippleNodeSpec: NodeSpec = {
       min: -2.0,
       max: 2.0,
       step: 0.1,
-      label: 'Center Y'
+      label: 'Center Y',
+      inputMode: 'add'
     },
     rippleMode: {
       type: 'int',
@@ -73,25 +77,49 @@ export const rippleNodeSpec: NodeSpec = {
       min: 0.0,
       max: 5.0,
       step: 0.01,
-      label: 'Time Speed'
+      label: 'Speed'
+    },
+    rippleTimeOffset: {
+      type: 'float',
+      default: 0.0,
+      min: -100.0,
+      max: 100.0,
+      step: 0.05,
+      label: 'Offset',
+      inputMode: 'add'
     }
   },
   parameterGroups: [
     {
       id: 'ripple-main',
       label: 'Ripple',
-      parameters: ['rippleCenterX', 'rippleCenterY', 'rippleMode', 'rippleFrequency', 'rippleAmplitude', 'ripplePhase'],
+      parameters: ['rippleMode', 'rippleCenterX', 'rippleCenterY', 'rippleFrequency', 'rippleAmplitude', 'ripplePhase'],
       collapsible: true,
       defaultCollapsed: false
     },
     {
       id: 'ripple-animation',
       label: 'Animation',
-      parameters: ['rippleTimeSpeed'],
+      parameters: ['rippleTimeSpeed', 'rippleTimeOffset'],
       collapsible: true,
       defaultCollapsed: true
     }
   ],
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['rippleMode', 'rippleCenterX', 'rippleCenterY', 'rippleFrequency', 'rippleAmplitude', 'ripplePhase'],
+        parameterUI: { rippleCenterX: 'coords', rippleCenterY: 'coords' },
+        layout: { columns: 3, coordsSpan: 2 }
+      },
+      {
+        type: 'grid',
+        label: 'Animation',
+        parameters: ['rippleTimeSpeed', 'rippleTimeOffset']
+      }
+    ]
+  },
   functions: `
 vec2 ripple(vec2 p, vec2 center, int mode, float freq, float amp, float phase, float time) {
   vec2 d = p - center;
@@ -111,7 +139,7 @@ vec2 ripple(vec2 p, vec2 center, int mode, float freq, float amp, float phase, f
 `,
   mainCode: `
   vec2 rippleCenter = vec2($param.rippleCenterX, $param.rippleCenterY);
-  float rippleTime = $time * $param.rippleTimeSpeed;
+  float rippleTime = $time * $param.rippleTimeSpeed + $param.rippleTimeOffset;
   $output.out = ripple($input.in, rippleCenter, $param.rippleMode, $param.rippleFrequency, $param.rippleAmplitude, $param.ripplePhase, rippleTime);
 `
 };

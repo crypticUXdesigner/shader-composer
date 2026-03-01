@@ -1,0 +1,157 @@
+/* =============================================================================
+   UTILITIES
+   ============================================================================= */
+
+:root {
+  /* Node body shadow (outermost) */
+  --node-body-shadow-color-mid-utilities: var(--color-yellow-gray-50);
+  --node-body-shadow-color-outer-utilities: var(--color-yellow-gray-30);
+
+  /* Node header */
+  --node-header-bg-utilities: var(--color-blue-gray-60);
+  --node-header-bg-end-utilities: var(--color-blue-gray-50);
+  --node-header-print-utilities: var(--color-blue-gray-100);
+
+  /* Icon box */
+  --node-icon-box-bg-utilities: var(--color-blue-gray-70);
+  --node-icon-box-color-utilities: var(--color-yellow-gray-120);
+
+  /* Param group header */
+  --param-group-header-color-utilities: var(--color-yellow-gray-110);
+
+  /* Param cell */
+  --node-param-cell-bg-utilities: var(--color-blue-gray-100);
+  --node-param-cell-bg-end-utilities: var(--color-blue-gray-110);
+  --node-param-label-color-utilities: var(--color-gray-60);
+
+  /* Knob */
+  --node-knob-value-bg-utilities: var(--color-yellow-gray-40);
+  --node-knob-value-color-utilities: var(--color-yellow-gray-120);
+  --node-knob-ring-color-utilities: var(--color-yellow-gray-100);
+  --node-knob-arc-active-utilities: var(--color-blue-80);
+  --node-knob-marker-utilities: var(--color-yellow-gray-120);
+  --knob-ring-bg-width-utilities: 10px;
+  --knob-ring-active-width-utilities: 10px;
+  --knob-marker-size-utilities: 6px;
+  --knob-marker-radius-offset-utilities: -18px;
+  --node-knob-center-bg-utilities: var(--color-blue-gray-80);
+  --node-knob-center-border-color-utilities: var(--color-yellow-gray-120);
+  --knob-center-filter-utilities: drop-shadow(0 2px 4px var(--color-blue-gray-80));
+  --knob-center-size-utilities: 56px;
+  --knob-center-border-width-utilities: 2px;
+
+  /* Param grid */
+  --node-param-grid-bg-utilities: var(--color-blue-gray-90);
+  --node-param-grid-border-utilities: var(--color-blue-gray-70);
+
+  /* Bezier editor */
+  --node-bezier-curve-utilities: var(--color-yellow-gray-90);
+  --node-bezier-control-utilities: var(--color-yellow-gray-90);
+  --node-bezier-control-hover-utilities: var(--color-yellow-gray-100);
+}
+
+.node.utilities {
+  /* CSS custom properties */
+  --node-body-shadow-color-mid: var(--node-body-shadow-color-mid-utilities);
+  --node-body-shadow-color-outer: var(--node-body-shadow-color-outer-utilities);
+  --node-header-name-color: var(--node-header-print-utilities);
+  --param-group-header-color: var(--param-group-header-color-utilities);
+  --knob-ring-color: var(--node-knob-ring-color-utilities);
+  --knob-ring-active-color-static: var(--node-knob-arc-active-utilities);
+  --knob-marker-color: var(--node-knob-marker-utilities);
+  --knob-value-bg: var(--node-knob-value-bg-utilities);
+  --knob-value-color: var(--node-knob-value-color-utilities);
+  --param-control-bg: var(--node-knob-value-bg-utilities);
+  --param-control-bg-hover: var(--color-yellow-50);
+  --param-control-bg-active: var(--color-yellow-60);
+  --param-control-value-color: var(--node-knob-value-color-utilities);
+  --node-param-grid-bg: var(--node-param-grid-bg-utilities);
+  --node-param-grid-border: var(--node-param-grid-border-utilities);
+
+  /* Knob: ring widths, marker, center */
+  --knob-ring-bg-width: var(--knob-ring-bg-width-utilities);
+  --knob-ring-active-width: var(--knob-ring-active-width-utilities);
+  --knob-marker-size: var(--knob-marker-size-utilities);
+  --knob-marker-radius-offset: var(--knob-marker-radius-offset-utilities);
+  --knob-center-size: var(--knob-center-size-utilities);
+  --knob-center-bg: var(--node-knob-center-bg-utilities);
+  --knob-center-border-width: var(--knob-center-border-width-utilities);
+  --knob-center-border-color: var(--node-knob-center-border-color-utilities);
+  --knob-center-filter: var(--knob-center-filter-utilities);
+
+  /* Node header (outermost) */
+  background: radial-gradient(
+    ellipse var(--node-header-bg-gradient-ellipse-width) var(--node-header-bg-gradient-ellipse-height) at var(--node-header-bg-gradient-ellipse-x) var(--node-header-bg-gradient-ellipse-y),
+    var(--node-header-bg-utilities),
+    var(--node-header-bg-end-utilities)
+  );
+
+  /* Node body */
+  .node-body {
+    background: radial-gradient(
+      ellipse 120% 160% at 50% 25%, 
+      var(--color-blue-gray-100), 
+      var(--color-blue-gray-120)
+    );
+    .param-grid {
+      background: transparent;
+      border: 3px solid var(--color-blue-gray-120);
+      border-radius: var(--radius-xl);
+    }
+  }
+
+  /* Icon box */
+  .icon-box {
+    background: var(--node-icon-box-bg-utilities);
+
+    .header-icon {
+      color: var(--node-icon-box-color-utilities);
+    }
+  }
+
+  /* Node header */
+  .node-header {
+    .label-text,
+    .label-input,
+    .port .name-label {
+      color: var(--node-header-print-utilities);
+    }
+  }
+
+  /* Param grid */
+  .param-grid {
+    background: var(--node-param-grid-bg);
+    padding: 0;
+    gap: 0 !important;
+  }
+
+  /* Param cell */
+  .param-cell {
+    background: radial-gradient(ellipse 120% 160% at 50% 25%, var(--node-param-cell-bg-utilities), var(--node-param-cell-bg-end-utilities));
+
+    &.connected {
+      background: var(--param-cell-bg-connected);
+      border-color: var(--param-cell-border-connected);
+    }
+
+    .left-column .top .label {
+      color: var(--node-param-label-color-utilities);
+    }
+  }
+
+  /* Bezier editor */
+  .bezier-editor {
+    .curve {
+      stroke: var(--node-bezier-curve-utilities);
+    }
+
+    .control-point {
+      background: var(--node-bezier-control-utilities);
+
+      &:hover {
+        background: var(--node-bezier-control-hover-utilities);
+      }
+    }
+  }
+}
+

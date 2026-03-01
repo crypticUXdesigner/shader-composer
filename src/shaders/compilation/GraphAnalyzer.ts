@@ -1,4 +1,4 @@
-import type { NodeGraph } from '../../types';
+import type { NodeGraph } from '../../data-model/types';
 
 /**
  * Analyzes graph structure and calculates execution order
@@ -86,41 +86,65 @@ export class GraphAnalyzer {
   }
 
   /**
-   * Topological sort using Kahn's algorithm
+   * Topological sort using Kahn's algorithm.
+   * Virtual nodes (e.g. audio-signal:band-xxx) are not in graph.nodes; dependencies on them
+   * are excluded from in-degree so nodes that only depend on virtual nodes can be processed.
+   * Isolated nodes (no connections in or out) are placed at the end of the order so that
+   * adding an unconnected node does not shift other nodes' indices and change parameter
+   * connection resolution (which source "wins" when multiple connect to the same parameter).
    */
   topologicalSort(graph: NodeGraph): string[] {
     const dependencies = this.buildDependencyGraph(graph);
     const inDegree = new Map<string, number>();
-    const queue: string[] = [];
     const result: string[] = [];
+    const nodeIds = new Set(graph.nodes.map((n) => n.id));
 
-    // Calculate in-degree for each node
+    // Node IDs that appear in any connection (source or target) - "connected" nodes
+    const connectedNodeIds = new Set<string>();
+    for (const conn of graph.connections) {
+      if (nodeIds.has(conn.sourceNodeId)) connectedNodeIds.add(conn.sourceNodeId);
+      if (nodeIds.has(conn.targetNodeId)) connectedNodeIds.add(conn.targetNodeId);
+    }
+
+    // Two queues: process connected nodes before isolated so isolated nodes end up at the end
+    const connectedQueue: string[] = [];
+    const isolatedQueue: string[] = [];
+
     for (const node of graph.nodes) {
-      const degree = dependencies.get(node.id)?.length || 0;
+      const deps = dependencies.get(node.id) || [];
+      const degree = deps.filter((id) => nodeIds.has(id)).length;
       inDegree.set(node.id, degree);
       if (degree === 0) {
-        queue.push(node.id);
+        if (connectedNodeIds.has(node.id)) {
+          connectedQueue.push(node.id);
+        } else {
+          isolatedQueue.push(node.id);
+        }
       }
     }
 
-    // Process nodes
-    while (queue.length > 0) {
-      const nodeId = queue.shift()!;
+    const takeNext = (): string | undefined =>
+      connectedQueue.shift() ?? isolatedQueue.shift();
+
+    let nodeId: string | undefined;
+    while ((nodeId = takeNext()) !== undefined) {
       result.push(nodeId);
 
-      // Find all nodes that depend on this node
       for (const conn of graph.connections) {
-        if (conn.sourceNodeId === nodeId) {
-          const targetInDegree = (inDegree.get(conn.targetNodeId) || 0) - 1;
-          inDegree.set(conn.targetNodeId, targetInDegree);
-          if (targetInDegree === 0) {
-            queue.push(conn.targetNodeId);
+        if (conn.sourceNodeId !== nodeId) continue;
+        const targetInDegree = (inDegree.get(conn.targetNodeId) || 0) - 1;
+        inDegree.set(conn.targetNodeId, targetInDegree);
+        if (targetInDegree === 0) {
+          const targetId = conn.targetNodeId;
+          if (connectedNodeIds.has(targetId)) {
+            connectedQueue.push(targetId);
+          } else {
+            isolatedQueue.push(targetId);
           }
         }
       }
     }
 
-    // Check for cycles
     if (result.length !== graph.nodes.length) {
       throw new Error('Graph contains cycles');
     }

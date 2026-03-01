@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const bulgePinchNodeSpec: NodeSpec = {
   id: 'bulge-pinch',
@@ -9,13 +9,15 @@ export const bulgePinchNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   parameters: {
@@ -59,6 +61,16 @@ export const bulgePinchNodeSpec: NodeSpec = {
       step: 0.1,
       label: 'Falloff'
     }
+  },
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['bulgeCenterX', 'bulgeCenterY', 'bulgeStrength', 'bulgeRadius', 'bulgeFalloff'],
+        parameterUI: { bulgeCenterX: 'coords', bulgeCenterY: 'coords' },
+        layout: { columns: 2, coordsSpan: 2, parameterSpan: { bulgeStrength: 2 } }
+      }
+    ]
   },
   functions: `
 vec2 bulgePinch(vec2 p, vec2 center, float strength, float radius, float falloff) {

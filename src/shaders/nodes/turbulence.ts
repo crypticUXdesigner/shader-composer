@@ -1,21 +1,23 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const turbulenceNodeSpec: NodeSpec = {
   id: 'turbulence',
   category: 'Distort',
   displayName: 'Turbulence',
-  icon: 'noise',
+  icon: 'dots-nine',
   description: 'Applies multi-stage coordinate warping for complex, organic distortions',
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'Displaced UV'
     }
   ],
   parameters: {
@@ -76,6 +78,21 @@ export const turbulenceNodeSpec: NodeSpec = {
       defaultCollapsed: true
     }
   ],
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['turbulenceScale', 'turbulenceStrength', 'turbulenceIterations'],
+        layout: { columns: 2, parameterSpan: { turbulenceIterations: 2 } }
+      },
+      {
+        type: 'grid',
+        label: 'Animation',
+        parameters: ['turbulenceTimeSpeed', 'turbulenceTimeOffset'],
+        layout: { columns: 2 }
+      }
+    ]
+  },
   functions: `
 // Simple noise for turbulence
 vec2 noise2D(vec2 p) {

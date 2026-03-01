@@ -30,16 +30,33 @@ export function getUniformName(nodeId: string, paramName: string): string {
 
 /**
  * Hash a graph structure to detect changes.
- * Simple hash function for graph structure comparison.
+ * Includes automation so that adding/editing lanes or curves triggers recompile (shader uses evalAutomation_*).
  */
 export function hashGraph(graph: import('../data-model/types').NodeGraph): string {
-  // Create a simple hash from node IDs, connection IDs, and their relationships
   const nodeIds = graph.nodes.map(n => n.id).sort().join(',');
   const connectionIds = graph.connections.map(c => c.id).sort().join(',');
   const connections = graph.connections
     .map(c => `${c.sourceNodeId}:${c.sourcePort}->${c.targetNodeId}:${c.targetPort ?? ''}:${c.targetParameter ?? ''}`)
     .sort()
     .join(',');
-  
-  return `${nodeIds}|${connectionIds}|${connections}`;
+  const automation =
+    graph.automation == null
+      ? ''
+      : JSON.stringify({
+          bpm: graph.automation.bpm,
+          durationSeconds: graph.automation.durationSeconds,
+          lanes: (graph.automation.lanes ?? []).map((l) => ({
+            id: l.id,
+            nodeId: l.nodeId,
+            paramName: l.paramName,
+            regions: (l.regions ?? []).map((r) => ({
+              id: r.id,
+              startTime: r.startTime,
+              duration: r.duration,
+              loop: r.loop,
+              curve: r.curve,
+            })),
+          })),
+        });
+  return `${nodeIds}|${connectionIds}|${connections}|${automation}`;
 }

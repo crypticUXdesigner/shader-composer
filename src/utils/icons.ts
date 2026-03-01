@@ -1,104 +1,29 @@
-// Icon utility helper
-// Provides a simple way to render Tabler icons as SVG elements
+// Icon utility helper — Phosphor Icons for DOM and canvas.
+// Path data from phosphor-icons-loader (public/phosphor-nodes-*.json).
 
 import { renderIconOnCanvas as renderIconOnCanvasFromCanvas, getIconDefinition } from './canvas-icons';
-import { getTablerNodesOutline, getTablerNodesFilled } from './tabler-icons-loader';
+import { getPhosphorNodesOutline, getPhosphorNodesFilled } from './phosphor-icons-loader';
+import { iconNameMap, type IconName } from './iconsUiRegistry';
+import type { NodeIconIdentifier } from './iconsNodeRegistry';
 
-// Load icons on first use (synchronous fallback for immediate use)
-function getTablerNodes(variant: 'line' | 'filled'): any {
-  if (variant === 'filled') {
-    return getTablerNodesFilled();
-  } else {
-    return getTablerNodesOutline();
-  }
+export type { IconName } from './iconsUiRegistry';
+export type { NodeIconIdentifier } from './iconsNodeRegistry';
+
+function getPhosphorNodes(variant: 'line' | 'filled'): Record<string, unknown> {
+  return variant === 'filled' ? getPhosphorNodesFilled() : getPhosphorNodesOutline();
 }
 
-// Icon name mapping from our internal names to Tabler icon names
-const iconNameMap: Record<IconName, string> = {
-  'grip-vertical': 'grip-vertical',
-  'x': 'x',
-  'rotate-cw': 'rotate-clockwise',
-  'plus': 'plus',
-  'sparkles': 'sparkles',
-  'eye': 'eye',
-  'eye-off': 'eye-off',
-  'power': 'power',
-  'chevron-down': 'chevron-down',
-  'chevron-right': 'chevron-right',
-  'chevron-left': 'chevron-left',
-  'maximize-2': 'maximize',
-  'minimize-2': 'minimize',
-  'play': 'player-play',
-  'pause': 'player-pause',
-  'mouse-pointer': 'pointer',
-  'hand': 'hand-stop',
-  'lasso': 'marquee-2',
-  'menu': 'menu-2',
-  'zoom-in': 'zoom-in',
-  'picture-in-picture': 'picture-in-picture',
-  'layout-sidebar-right': 'layout-sidebar-right',
-  'layout-grid': 'layout-grid',
-  'transition-left': 'transition-left',
-  'square-x': 'square-x',
-  'preset': 'wash-dry-shade',
-  'search': 'search',
-  'arrows-maximize': 'arrows-maximize',
-  'arrows-minimize': 'arrows-minimize',
-  'copy': 'copy',
-  'photo': 'photo',
-  'video': 'video',
-  'brand-youtube': 'brand-youtube',
-  'help-circle': 'help-circle',
-};
-
-export type IconName = 
-  | 'grip-vertical'
-  | 'x'
-  | 'rotate-cw'
-  | 'plus'
-  | 'sparkles'
-  | 'eye'
-  | 'eye-off'
-  | 'power'
-  | 'chevron-down'
-  | 'chevron-right'
-  | 'chevron-left'
-  | 'maximize-2'
-  | 'minimize-2'
-  | 'play'
-  | 'pause'
-  | 'mouse-pointer'
-  | 'hand'
-  | 'lasso'
-  | 'menu'
-  | 'zoom-in'
-  | 'picture-in-picture'
-  | 'layout-sidebar-right'
-  | 'layout-grid'
-  | 'transition-left'
-  | 'square-x'
-  | 'preset'
-  | 'search'
-  | 'arrows-maximize'
-  | 'arrows-minimize'
-  | 'copy'
-  | 'photo'
-  | 'video'
-  | 'brand-youtube'
-  | 'help-circle';
-
-// Helper to get icon path data from Tabler nodes
-function getIconPathData(iconName: string, variant: 'line' | 'filled'): Array<{ d: string }> {
-  const nodes = getTablerNodes(variant);
-  const iconData = nodes[iconName];
+// Helper to get icon path data from Phosphor nodes (same shape: [["path", {d}], ...])
+function getIconPathData(phosphorIconName: string, variant: 'line' | 'filled'): Array<{ d: string }> {
+  const nodes = getPhosphorNodes(variant);
+  const iconData = nodes[phosphorIconName];
   if (!iconData || !Array.isArray(iconData)) {
     return [];
   }
-  
-  // Extract path data from the node format: [["path", {d: "..."}], ...]
-  return iconData
-    .filter((node: any) => Array.isArray(node) && node[0] === 'path' && node[1]?.d)
-    .map((node: any) => ({ d: node[1].d }));
+  return (iconData as Array<['path', { d: string }]>)
+    .filter((node): node is ['path', { d: string }] =>
+      Array.isArray(node) && node[0] === 'path' && typeof node[1]?.d === 'string')
+    .map((node) => ({ d: node[1].d }));
 }
 
 /**
@@ -120,23 +45,19 @@ export function createIconElement(
   // Auto-select variant if not provided
   const selectedVariant = variant ?? getIconVariantForIconName(name);
   
-  const tablerIconName = iconNameMap[name];
-  if (!tablerIconName) {
+  const phosphorIconName = iconNameMap[name];
+  if (!phosphorIconName) {
     throw new Error(`Unknown icon: ${name}`);
   }
 
-  // Get path data from Tabler nodes
-  const paths = getIconPathData(tablerIconName, selectedVariant);
-  
-  // Create SVG element
+  const paths = getIconPathData(phosphorIconName, selectedVariant);
+
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  // Note: width and height are NOT set - size is controlled via CSS only
-  svg.setAttribute('viewBox', '0 0 24 24');
-  svg.setAttribute('fill', selectedVariant === 'filled' ? color : 'none');
-  svg.setAttribute('stroke', selectedVariant === 'filled' ? 'none' : color);
-  svg.setAttribute('stroke-width', '2');
-  svg.setAttribute('stroke-linecap', 'round');
-  svg.setAttribute('stroke-linejoin', 'round');
+  // Phosphor path data is 256×256; viewBox keeps aspect ratio, size via CSS.
+  // Phosphor icons are authored as filled paths in both regular and fill weights; we always fill.
+  svg.setAttribute('viewBox', '0 0 256 256');
+  svg.setAttribute('fill', color);
+  svg.setAttribute('stroke', 'none');
   
   if (className) {
     svg.setAttribute('class', className);
@@ -153,21 +74,15 @@ export function createIconElement(
     paths.forEach((pathData) => {
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       path.setAttribute('d', pathData.d);
-      if (selectedVariant === 'filled') {
-        path.setAttribute('fill', color);
-        path.setAttribute('stroke', 'none');
-      } else {
-        path.setAttribute('fill', 'none');
-        path.setAttribute('stroke', color);
-      }
+      path.setAttribute('fill', color);
+      path.setAttribute('stroke', 'none');
       svg.appendChild(path);
     });
   } else {
-    // Fallback: draw a simple circle if icon not found
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    path.setAttribute('cx', '12');
-    path.setAttribute('cy', '12');
-    path.setAttribute('r', '8');
+    path.setAttribute('cx', '128');
+    path.setAttribute('cy', '128');
+    path.setAttribute('r', '64');
     path.setAttribute('fill', selectedVariant === 'filled' ? color : 'none');
     path.setAttribute('stroke', selectedVariant === 'filled' ? 'none' : color);
     svg.appendChild(path);
@@ -177,106 +92,38 @@ export function createIconElement(
 }
 
 /**
- * Icon identifiers for node categories and node-specific icons
+ * Returns icon SVG as HTML string for use with {@html} in Svelte
  */
-export type NodeIconIdentifier = 
-  | 'audio-waveform'
-  | 'grid'
-  | 'circle'
-  | 'calculator'
-  | 'settings'
-  | 'move'
-  | 'layers'
-  | 'square'
-  | 'sparkles'
-  | 'monitor'
-  | 'time-clock'
-  | 'wave'
-  | 'ripple'
-  | 'sphere'
-  | 'cube'
-  | 'box'
-  | 'infinity'
-  | 'sparkles-2'
-  | 'grain'
-  | 'noise'
-  | 'hexagon'
-  | 'ring'
-  | 'rotate'
-  | 'blur-circle'
-  | 'glow'
-  | 'kaleidoscope'
-  | 'twist'
-  | 'particle'
-  | 'gradient'
-  | 'rgb-split'
-  | 'scanline'
-  | 'glitch-block'
-  | 'plus'
-  | 'minus'
-  | 'multiply-x'
-  | 'divide'
-  | 'power'
-  | 'sqrt'
-  | 'trig-wave'
-  | 'arrow-right'
-  | 'arrow-down'
-  | 'arrow-up'
-  | 'arrows-left-right'
-  | 'resize'
-  | 'ruler'
-  | 'vector-dot'
-  | 'vector-cross'
-  | 'normalize'
-  | 'reflect'
-  | 'refract'
-  | 'constant'
-  | 'hash'
-  | 'percentage'
-  | 'math-min'
-  | 'math-max'
-  | 'math-max-min'
-  | 'math-cos'
-  | 'math-tg'
-  | 'math-function-y'
-  | 'math-symbols'
-  | 'math-xy'
-  | 'math-function'
-  | 'wave-sine'
-  | 'bezier'
-  | 'color-palette'
-  | 'normal-map'
-  | 'light'
-  | 'dither'
-  | 'tone-curve'
-  | 'compare'
-  | 'select'
-  | 'color-wheel'
-  | 'color-picker'
-  | 'color-swatch'
-  | 'chart-scatter'
-  | 'chart-scatter-3d'
-  | 'brand-planetscale'
-  | 'screen-share'
-  | 'contrast-2'
-  | 'ease-in-out-control-points'
-  | 'spiral'
-  | 'ikosaedr'
-  | 'arrow-move-right'
-  | 'arrow-autofit-height'
-  | 'arrow-up-right'
-  | 'arrows-right-left'
-  | 'settings-2'
-  | 'layers-union'
-  | 'layers-difference'
-  | 'blend-mode'
-  | 'mask'
-  | 'transfer-out'
-  | 'adjustments'
-  | 'focus'
-  | 'glitch'
-  | 'displacement'
-  | 'brightness';
+export function getIconHtml(
+  name: IconName,
+  color: string = 'currentColor',
+  className?: string,
+  variant?: 'line' | 'filled'
+): string {
+  try {
+    const svg = createIconElement(name, 16, color, className ?? 'icon', variant);
+    return svg.outerHTML;
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Returns node icon SVG as HTML string for use with {@html} in Svelte
+ */
+export function getNodeIconHtml(
+  identifier: NodeIconIdentifier | string,
+  color: string = 'currentColor',
+  className?: string,
+  variant?: 'line' | 'filled'
+): string {
+  try {
+    const svg = createNodeIconElement(identifier, 24, color, className ?? 'item-icon', variant);
+    return svg.outerHTML;
+  } catch {
+    return '';
+  }
+}
 
 /**
  * Centralized icon variant selection
@@ -306,7 +153,7 @@ export function getIconVariantForIconName(iconName: IconName): 'line' | 'filled'
   const filledIcons = new Set<IconName>([
     'sparkles',
     'layout-grid',
-    'mouse-pointer',
+    'layout-sidebar-left-collapse',
   ]);
   
   if (filledIcons.has(iconName)) {
@@ -387,10 +234,8 @@ function getIconStyle(size: number) {
 }
 
 /**
- * Renders an icon on a canvas context
- * Uses Tabler Icons exclusively - all icons must be mapped in canvas-icons.ts
- * This function delegates to the centralized renderIconOnCanvas from canvas-icons.ts
- * which uses the iconRegistry to get both Tabler icon name and variant.
+ * Renders an icon on a canvas context.
+ * Delegates to canvas-icons (iconRegistry: phosphorIconName + variant).
  * 
  * @param ctx Canvas rendering context
  * @param iconName Icon identifier
@@ -435,41 +280,33 @@ export function createNodeIconElement(
   // Get icon definition from centralized registry
   const iconDef = getIconDefinition(iconIdentifier);
   
-  // Use provided variant or get from registry (registry is source of truth)
   const selectedVariant = variant ?? iconDef?.variant ?? 'line';
-  const tablerIconName = iconDef?.tablerIconName;
-  
-  if (!iconDef || !tablerIconName) {
-    // Fallback: draw a simple circle if icon not found
+  const phosphorIconName = iconDef?.phosphorIconName;
+
+  if (!iconDef || !phosphorIconName) {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    // Note: width and height are NOT set - size is controlled via CSS only
-    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('viewBox', '0 0 256 256');
     // Apply base icon class and any additional classes
     const classes = className ? `icon ${className}` : 'icon';
     svg.setAttribute('class', classes);
     
     const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    circle.setAttribute('cx', '12');
-    circle.setAttribute('cy', '12');
-    circle.setAttribute('r', '8');
+    circle.setAttribute('cx', '128');
+    circle.setAttribute('cy', '128');
+    circle.setAttribute('r', '64');
     circle.setAttribute('fill', selectedVariant === 'filled' ? color : 'none');
     circle.setAttribute('stroke', selectedVariant === 'filled' ? 'none' : color);
     svg.appendChild(circle);
     return svg;
   }
 
-  // Get path data from Tabler nodes using the variant from registry
-  const paths = getIconPathData(tablerIconName, selectedVariant);
-  
-  // Create SVG element
+  const paths = getIconPathData(phosphorIconName, selectedVariant);
+
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  // Note: width and height are NOT set - size is controlled via CSS only
-  svg.setAttribute('viewBox', '0 0 24 24');
-  svg.setAttribute('fill', selectedVariant === 'filled' ? color : 'none');
-  svg.setAttribute('stroke', selectedVariant === 'filled' ? 'none' : color);
-  svg.setAttribute('stroke-width', '2');
-  svg.setAttribute('stroke-linecap', 'round');
-  svg.setAttribute('stroke-linejoin', 'round');
+  svg.setAttribute('viewBox', '0 0 256 256');
+  // Phosphor icons are authored as filled paths in both regular and fill weights; we always fill.
+  svg.setAttribute('fill', color);
+  svg.setAttribute('stroke', 'none');
   
   // Apply base icon class and any additional classes
   const classes = className ? `icon ${className}` : 'icon';
@@ -480,21 +317,15 @@ export function createNodeIconElement(
     paths.forEach((pathData) => {
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
       path.setAttribute('d', pathData.d);
-      if (selectedVariant === 'filled') {
-        path.setAttribute('fill', color);
-        path.setAttribute('stroke', 'none');
-      } else {
-        path.setAttribute('fill', 'none');
-        path.setAttribute('stroke', color);
-      }
+      path.setAttribute('fill', color);
+      path.setAttribute('stroke', 'none');
       svg.appendChild(path);
     });
   } else {
-    // Fallback: draw a simple circle if icon not found
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    path.setAttribute('cx', '12');
-    path.setAttribute('cy', '12');
-    path.setAttribute('r', '8');
+    path.setAttribute('cx', '128');
+    path.setAttribute('cy', '128');
+    path.setAttribute('r', '64');
     path.setAttribute('fill', selectedVariant === 'filled' ? color : 'none');
     path.setAttribute('stroke', selectedVariant === 'filled' ? 'none' : color);
     svg.appendChild(path);

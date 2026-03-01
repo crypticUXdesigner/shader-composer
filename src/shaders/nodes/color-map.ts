@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 /**
  * Color Map Node
@@ -13,13 +13,15 @@ export const colorMapNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'float'
+      type: 'float',
+      label: 'Value'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec3'
+      type: 'vec3',
+      label: 'Color'
     }
   ],
   parameters: {},

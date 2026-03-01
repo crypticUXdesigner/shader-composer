@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 /**
  * Transform Nodes
@@ -14,13 +14,15 @@ export const translateNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   parameters: {
@@ -29,15 +31,27 @@ export const translateNodeSpec: NodeSpec = {
       default: 0.0,
       min: -10.0,
       max: 10.0,
-      step: 0.01
+      step: 0.01,
+      label: 'Offset X'
     },
     y: {
       type: 'float',
       default: 0.0,
       min: -10.0,
       max: 10.0,
-      step: 0.01
+      step: 0.01,
+      label: 'Offset Y'
     }
+  },
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['x', 'y'],
+        parameterUI: { x: 'coords', y: 'coords' },
+        layout: { columns: 2, coordsSpan: 2 }
+      }
+    ]
   },
   mainCode: `
     $output.out = $input.in + vec2($param.x, $param.y);
@@ -53,13 +67,15 @@ export const rotateNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   parameters: {
@@ -68,22 +84,35 @@ export const rotateNodeSpec: NodeSpec = {
       default: 0.0,
       min: -6.28,
       max: 6.28,
-      step: 0.05
+      step: 0.05,
+      label: 'Angle'
     },
     centerX: {
       type: 'float',
       default: 0.0,
       min: -10.0,
       max: 10.0,
-      step: 0.01
+      step: 0.01,
+      label: 'Center X'
     },
     centerY: {
       type: 'float',
       default: 0.0,
       min: -10.0,
       max: 10.0,
-      step: 0.01
+      step: 0.01,
+      label: 'Center Y'
     }
+  },
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['angle', 'centerX', 'centerY'],
+        parameterUI: { centerX: 'coords', centerY: 'coords' },
+        layout: { columns: 3, coordsSpan: 2 }
+      }
+    ]
   },
   mainCode: `
     vec2 center = vec2($param.centerX, $param.centerY);
@@ -103,13 +132,15 @@ export const scaleNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   parameters: {
@@ -119,7 +150,7 @@ export const scaleNodeSpec: NodeSpec = {
       min: 0.1,
       max: 10.0,
       step: 0.01,
-      label: 'X'
+      label: 'Scale X'
     },
     scaleY: {
       type: 'float',
@@ -127,7 +158,7 @@ export const scaleNodeSpec: NodeSpec = {
       min: 0.1,
       max: 10.0,
       step: 0.01,
-      label: 'Y'
+      label: 'Scale Y'
     },
     centerX: {
       type: 'float',
@@ -135,7 +166,7 @@ export const scaleNodeSpec: NodeSpec = {
       min: -10.0,
       max: 10.0,
       step: 0.01,
-      label: 'X'
+      label: 'Center X'
     },
     centerY: {
       type: 'float',
@@ -143,7 +174,7 @@ export const scaleNodeSpec: NodeSpec = {
       min: -10.0,
       max: 10.0,
       step: 0.01,
-      label: 'Y'
+      label: 'Center Y'
     }
   },
   parameterGroups: [
@@ -162,6 +193,16 @@ export const scaleNodeSpec: NodeSpec = {
       defaultCollapsed: false
     }
   ],
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['scaleX', 'scaleY', 'centerX', 'centerY'],
+        parameterUI: { centerX: 'coords', centerY: 'coords' },
+        layout: { columns: 2, coordsSpan: 2 }
+      }
+    ]
+  },
   mainCode: `
     vec2 center = vec2($param.centerX, $param.centerY);
     $output.out = center + ($input.in - center) * vec2($param.scaleX, $param.scaleY);

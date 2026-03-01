@@ -1,26 +1,28 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 /**
  * Flow Field Pattern
  * Curl-noise-based 2D flow pattern (vec2 in → float out).
- * Parameter groups: Flow (scale, curlScale, timeSpeed, octaves), Output (intensity).
+ * Parameter groups: Flow (scale, curlScale, octaves, gain), Output (intensity), Animation (timeSpeed, timeOffset).
  */
 export const flowFieldPatternNodeSpec: NodeSpec = {
   id: 'flow-field-pattern',
   category: 'Patterns',
   displayName: 'Flow Field',
   description: 'Curl-noise-based flow pattern producing organic streaks and flow lines',
-  icon: 'noise',
+  icon: 'curly-loop',
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'float'
+      type: 'float',
+      label: 'Value'
     }
   ],
   parameters: {
@@ -44,9 +46,17 @@ export const flowFieldPatternNodeSpec: NodeSpec = {
       type: 'float',
       default: 1.0,
       min: 0.0,
-      max: 5.0,
+      max: 20.0,
       step: 0.01,
       label: 'Time Speed'
+    },
+    flowTimeOffset: {
+      type: 'float',
+      default: 0.0,
+      min: -100.0,
+      max: 100.0,
+      step: 0.05,
+      label: 'Time Offset'
     },
     flowOctaves: {
       type: 'int',
@@ -55,6 +65,14 @@ export const flowFieldPatternNodeSpec: NodeSpec = {
       max: 6,
       step: 1,
       label: 'Octaves'
+    },
+    flowGain: {
+      type: 'float',
+      default: 0.5,
+      min: 0.1,
+      max: 1.0,
+      step: 0.01,
+      label: 'Gain'
     },
     flowIntensity: {
       type: 'float',
@@ -65,22 +83,22 @@ export const flowFieldPatternNodeSpec: NodeSpec = {
       label: 'Intensity'
     }
   },
-  parameterGroups: [
-    {
-      id: 'flow',
-      label: 'Flow',
-      parameters: ['flowScale', 'flowCurlScale', 'flowTimeSpeed', 'flowOctaves'],
-      collapsible: true,
-      defaultCollapsed: false
-    },
-    {
-      id: 'output',
-      label: 'Output',
-      parameters: ['flowIntensity'],
-      collapsible: false,
-      defaultCollapsed: false
-    }
-  ],
+  parameterLayout: {
+    minColumns: 2,
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['flowScale', 'flowCurlScale', 'flowOctaves', 'flowGain', 'flowIntensity'],
+        layout: { columns: 2, parameterSpan: { flowIntensity: 2 } }
+      },
+      {
+        type: 'grid',
+        label: 'Animation',
+        parameters: ['flowTimeSpeed', 'flowTimeOffset'],
+        layout: { columns: 2 }
+      }
+    ]
+  },
   functions: `
 // 1D hash
 float flowHash(float n) {
@@ -120,21 +138,20 @@ vec2 flowCurl(vec3 p, float eps) {
 }
 `,
   mainCode: `
-  float flowTime = $time * $param.flowTimeSpeed;
+  float flowTime = ($time + $param.flowTimeOffset) * $param.flowTimeSpeed;
   float eps = 0.02 * $param.flowCurlScale;
   vec2 uv = $input.in * $param.flowScale;
   vec2 curlSum = vec2(0.0, 0.0);
   float freq = 1.0;
   float amp = 1.0;
   float lacunarity = 2.0;
-  float gain = 0.5;
 
   for (int i = 0; i < 6; i++) {
     if (i >= $param.flowOctaves) break;
     vec3 p = vec3(uv * freq, flowTime * 0.1 + float(i) * 0.17);
     curlSum += flowCurl(p, eps / freq) * amp;
     freq *= lacunarity;
-    amp *= gain;
+    amp *= $param.flowGain;
   }
 
   float flowMag = length(curlSum);

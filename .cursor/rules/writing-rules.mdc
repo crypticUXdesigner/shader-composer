@@ -1,0 +1,84 @@
+---
+description: Creating or editing .mdc rules in .cursor/rules/ — format, size, and content guidelines.
+globs: "**/*.mdc"
+alwaysApply: false
+---
+
+# Writing Cursor Rules
+
+Use this when creating or editing project rules in `.cursor/rules/`. Good rules are **focused**, **actionable**, and **scoped**. Apply via glob match, `alwaysApply`, manual `@rule`, or relevance (description); use precise descriptions and globs. When creating a new rule from a non-.mdc file, @mention this rule or use prompts that clearly refer to “writing/adding a Cursor rule” (so this rule is included).
+
+**Priority**: specificity and brevity over completeness.
+
+## File Format
+
+- **Extension**: Use `.mdc` (markdown with frontmatter) for project rules. Cursor supports `.md` too, but `.mdc` gives control over when the rule applies.
+- **Location**: `.cursor/rules/`. You can use subfolders (e.g. `.cursor/rules/frontend/`) to group rules; Cursor still discovers them. Use **kebab-case** for filenames (e.g. `typescript-standards.mdc`). Version-control rules with the repo so the team shares them.
+- **How rules are applied**: (1) **Always** — `alwaysApply: true`; (2) **By file** — open/edited files match `globs`; (3) **By relevance** — agent uses `description`; (4) **Manually** — user @-mentions (e.g. `@writing-rules.mdc`).
+- **Frontmatter** (YAML at top of file): Use valid YAML; keys are camelCase (e.g. `alwaysApply`, not `always apply`).
+
+```yaml
+---
+description: One-line summary (shown in rule picker; used for relevance).
+globs: "**/*.ts"          # When to apply: files matching this path pattern. Multiple patterns: no spaces after commas (e.g. "**/*.ts,**/*.tsx").
+alwaysApply: false        # true = every session; false = by glob or relevance.
+---
+```
+
+- **Body**: Markdown. No second frontmatter block; the first `---`...`---` is the only one. Avoid raw `---` in body content; in examples use code fences or a different delimiter so the parser doesn't end frontmatter early.
+
+**Minimal good rule example:**
+
+```yaml
+---
+description: Use Prettier for TS/Svelte; run format before commit.
+globs: "**/*.ts,**/*.svelte"
+alwaysApply: false
+---
+
+# Formatting
+
+- Run `npm run format` before committing.
+- Don’t disable formatter for whole files; fix the line and add a short comment if needed.
+```
+
+## Rule Size
+
+- **Hard cap**: **Under 500 lines** per rule (Cursor docs). Longer rules dilute focus and consume context; shorter rules leave more context for code and improve relevance.
+- **Prefer short**: Aim for **under 100 lines** when possible. **Under 50 lines** is ideal for single-topic rules (e.g. “error handling in API code”).
+- **One concern per rule**: If a rule covers multiple unrelated topics, split it into separate files (e.g. `typescript-standards.mdc` and `svelte-standards.mdc` instead of one “frontend” rule).
+- **Reference, don’t copy**: Point to canonical files or other rules (`see @path/to/file.ts` or “follow `.cursor/rules/frontend/css-standards.mdc`”) instead of pasting long snippets. Referenced content stays up to date; copied content goes stale.
+
+## Content Guidelines
+
+- **Actionable**: Write like internal docs: clear “do this / avoid that” instructions, not vague philosophy.
+- **When/how, not what/why**: Describe *when* and *how* to do something in this project; skip long explanations of concepts (the model already has approximate knowledge).
+- **Concrete examples**: Include at least one concrete example so the model can match the pattern. Prefer **positive** examples (what to do); use ❌ BAD only when the agent *repeatedly* makes that mistake—negative examples can prime the model toward the wrong pattern. Short snippets beat long prose.
+- **Scoped**: Use `globs` so the rule applies only when relevant (e.g. `**/*.svelte` for Svelte-only guidance). Reserve `alwaysApply: true` for a small set of universal rules (e.g. one “project conventions” rule). Use at most one or two `alwaysApply: true` rules per project; each is loaded on every turn.
+- **Descriptions**: Make `description` specific and concise (one short sentence, e.g. under ~80 characters). “TypeScript style for this repo” is better than “Code style”. For rules with `alwaysApply: false` and no globs, the agent uses `description` alone to decide whether to include the rule—keep it task-oriented.
+- **Optional structure**: You can wrap examples in simple tags like `<example>`…`</example>` to help the model disambiguate sections; use sparingly, not as full XML.
+
+## What to Avoid
+
+- **Rules that never apply**: Avoid publishing a rule with no `globs`, `alwaysApply: false`, and a vague `description`—it may rarely or never be included.
+- **Pasting entire style guides**: Prefer pointing to a linter config or a short rule that references it. The model already knows common style conventions.
+- **Documenting every CLI command**: Don’t list every npm/git/pytest command; the model knows common tools. Document only project-specific scripts or workflows.
+- **Rare edge cases**: Focus on patterns that come up often. Skip one-off or rarely applicable instructions.
+- **Duplicating the codebase**: Don’t copy large blocks from the repo into a rule. Reference the file and, if needed, one small illustrative snippet.
+- **Long explanations**: Prefer bullets and short examples over paragraphs. Brevity improves compliance.
+
+## When to Add a Rule
+
+- Add a rule when the agent **repeatedly** makes the same mistake or ignores a project convention. Start small; add incrementally.
+- When the agent errs, edit (or add) the rule and commit. Optionally test with a weaker model or a few prompts. Review rules periodically; remove or shorten outdated ones and align with current architecture.
+- After large refactors or new subsystems, consider whether `.cursor/rules/` or `docs/` need updates and propose them.
+
+## Checklist (before committing a new/updated rule)
+
+- [ ] File is in `.cursor/rules/` with a `.mdc` extension.
+- [ ] Frontmatter has `description` and at least one of `globs` or `alwaysApply`.
+- [ ] `description` is specific and concise (e.g. one short sentence).
+- [ ] `globs` or `alwaysApply` is set so the rule is applied when intended.
+- [ ] Body is under 500 lines; ideally under 100 (or under 50 for a single concern).
+- [ ] At least one concrete example is included (prefer positive; use BAD only for recurrent mistakes).
+- [ ] No long pasted style guides or command catalogs; reference external docs or files where possible.

@@ -97,6 +97,301 @@ export function getCSSColor(propertyName: string, fallback: string = '#000000'):
   return parseCSSColor(value);
 }
 
+/** Node IDs that are system inputs (Frag Coords, UV Coords, Resolution, Time). Used for sub-group styling. */
+export const SYSTEM_INPUT_NODE_IDS = new Set([
+  'uv-coordinates',
+  'fragment-coordinates',
+  'resolution',
+  'time'
+]);
+
+/** Node IDs for structured patterns (rays, grids, gradients, waves — more prominent). Default = noise (muted). */
+export const STRUCTURED_PATTERN_NODE_IDS = new Set([
+  'rings',
+  'spiral',
+  'radial-rays',
+  'sunbeams',
+  'crepuscular-rays',
+  'volume-rays',
+  'streak',
+  'gradient',
+  'flow-field-pattern',
+  'hexagonal-grid',
+  'stripes',
+  'dots',
+  'triangle-grid',
+  'wave-patterns'
+]);
+
+/** Node IDs for derived shapes / scenes & surfaces (more prominent). Default = primitive (muted). */
+export const DERIVED_SHAPE_NODE_IDS = new Set([
+  'fractal',
+  'plane-grid',
+  'sky-dome',
+  'hex-voxel',
+  'bloom-sphere',
+  'bloom-sphere-effect',
+  'iridescent-tunnel',
+  'inflated-icosahedron',
+  'glass-shell'
+]);
+
+/** Node IDs for the generic raymarcher in the SDF category (used for SDF sub-section styling). */
+export const SDF_RAYMARCHER_NODE_IDS = new Set([
+  'generic-raymarcher',
+]);
+
+/** Node IDs that span 2 columns in the node panel grid. Kept empty so no panel items (including device/audio) ever span 2. */
+export const PANEL_GRID_SPAN_2_NODE_IDS = new Set<string>([]);
+
+/** Node IDs for warp distortions (bulge, fisheye, displace, etc. — more prominent). Default = transform (muted). */
+export const WARP_DISTORT_NODE_IDS = new Set([
+  'bulge-pinch',
+  'fisheye',
+  'spherize',
+  'ripple',
+  'quad-warp',
+  'twist-distortion',
+  'vortex',
+  'displace',
+  'directional-displace',
+  'vector-field',
+  'turbulence'
+]);
+
+/** Node IDs for math functions (power, sqrt, rounding, comparison, interpolation — middle prominence). Default = arithmetic (muted). */
+export const FUNCTIONS_MATH_NODE_IDS = new Set([
+  'power',
+  'square-root',
+  'absolute',
+  'floor',
+  'ceil',
+  'fract',
+  'modulo',
+  'min',
+  'max',
+  'clamp',
+  'mix',
+  'step',
+  'smoothstep'
+]);
+
+/** Node IDs for advanced math (trigonometry, exponential, vector operations — more prominent). Default = arithmetic (muted). */
+export const ADVANCED_MATH_NODE_IDS = new Set([
+  'sine',
+  'cosine',
+  'tangent',
+  'arc-sine',
+  'arc-cosine',
+  'arc-tangent',
+  'arc-tangent-2',
+  'exponential',
+  'natural-logarithm',
+  'length',
+  'distance',
+  'dot-product',
+  'cross-product',
+  'normalize',
+  'reflect',
+  'refract'
+]);
+
+/** Node IDs for effects stylize (chromatic aberration, RGB separation, scanlines, etc. — more prominent). Default = filter (muted). */
+export const STYLIZE_EFFECTS_NODE_IDS = new Set([
+  'chromatic-aberration',
+  'rgb-separation',
+  'scanlines',
+  'color-grading',
+  'bayer-dither',
+  'tone-mapping',
+  'blending-modes'
+]);
+
+/**
+ * Whether a node is marked as visually \"shiny\" (recommended / especially interesting).
+ * Category is included for future category-specific logic but is not required for the
+ * initial implementation — IDs are currently unique across categories.
+ */
+export function isShinyNode(nodeId: string, _category: string): boolean {
+  return SHINY_NODE_IDS.has(nodeId);
+}
+
+/**
+ * Node IDs marked as "shiny" — highly recommended or especially interesting to try.
+ * Shiny is a visual/discovery hint only; it does not affect behavior or data-model.
+ * Initial set is curated from existing prominent sub-groups (derived shapes, raymarcher, hero patterns/warps, etc.).
+ */
+export const SHINY_NODE_IDS = new Set<string>([
+  // Shapes / SDF scenes and surfaces
+  'fractal',
+  'sphere-raymarch',
+  'hex-voxel',
+  'bloom-sphere',
+  'bloom-sphere-effect',
+  'iridescent-tunnel',
+  'inflated-icosahedron',
+  'glass-shell',
+  // SDF raymarcher
+  'generic-raymarcher',
+  // Patterns
+  'flow-field-pattern',
+  'hexagonal-grid',
+  'wave-patterns',
+  // Distort / warp
+  'bulge-pinch',
+  'fisheye',
+  'displace',
+  'vector-field',
+]);
+
+/** Canonical list of node categories that have per-category tokens (lowercase token suffix). */
+const CATEGORY_TOKEN_SUFFIXES = new Set([
+  'inputs',
+  'patterns',
+  'sdf',
+  'shapes',
+  'math',
+  'utilities',
+  'distort',
+  'blend',
+  'mask',
+  'effects',
+  'output',
+  'audio'
+]);
+
+/**
+ * Get the token suffix for a category (e.g. "Inputs" -> "inputs"). Unknown categories become "default".
+ */
+export function getCategoryTokenSuffix(category: string): string {
+  const lower = (category ?? '').trim().toLowerCase();
+  return CATEGORY_TOKEN_SUFFIXES.has(lower) ? lower : 'default';
+}
+
+/** Alias for class names on .node.{slug} */
+export function getCategorySlug(category: string): string {
+  return getCategoryTokenSuffix(category);
+}
+
+/** Whether a node is a system input (UV Coords, Time, Resolution, Frag Coords) for sub-group styling. */
+export function isSystemInputNode(nodeId: string, category: string): boolean {
+  return getCategorySlug(category) === 'inputs' && SYSTEM_INPUT_NODE_IDS.has(nodeId);
+}
+
+/** Whether a pattern node is in the structured sub-group (rays, grids, gradients, waves). */
+export function isStructuredPatternNode(nodeId: string, category: string): boolean {
+  return getCategorySlug(category) === 'patterns' && STRUCTURED_PATTERN_NODE_IDS.has(nodeId);
+}
+
+/** Whether a shape node is in the derived sub-group (fractal, environment, surface). */
+export function isDerivedShapeNode(nodeId: string, category: string): boolean {
+  return getCategorySlug(category) === 'shapes' && DERIVED_SHAPE_NODE_IDS.has(nodeId);
+}
+
+/** Whether a distort node is in the warp sub-group (bulge, fisheye, displace, etc.). */
+export function isWarpDistortNode(nodeId: string, category: string): boolean {
+  return getCategorySlug(category) === 'distort' && WARP_DISTORT_NODE_IDS.has(nodeId);
+}
+
+/** Whether a math node is in the functions sub-group (power, sqrt, rounding, comparison, interpolation). */
+export function isFunctionsMathNode(nodeId: string, category: string): boolean {
+  return getCategorySlug(category) === 'math' && FUNCTIONS_MATH_NODE_IDS.has(nodeId);
+}
+
+/** Whether a math node is in the advanced sub-group (trigonometry, exponential, vector operations). */
+export function isAdvancedMathNode(nodeId: string, category: string): boolean {
+  return getCategorySlug(category) === 'math' && ADVANCED_MATH_NODE_IDS.has(nodeId);
+}
+
+/** Whether an effects node is in the stylize sub-group (chromatic aberration, RGB separation, scanlines, etc.). */
+export function isStylizeEffectsNode(nodeId: string, category: string): boolean {
+  return getCategorySlug(category) === 'effects' && STYLIZE_EFFECTS_NODE_IDS.has(nodeId);
+}
+
+/** Whether an SDF node is the generic raymarcher (used for SDF sub-group styling). */
+export function isSdfRaymarcherNode(nodeId: string, category: string): boolean {
+  return getCategorySlug(category) === 'sdf' && SDF_RAYMARCHER_NODE_IDS.has(nodeId);
+}
+
+/**
+ * Display order of subgroup slugs per category (category slug -> ordered subgroup slugs).
+ * Used for node panel section badges so order is stable. '' = default (no named subgroup).
+ */
+export const CATEGORY_SUBGROUP_ORDER: Record<string, string[]> = {
+  inputs: ['system-input', ''],
+  patterns: ['structured', ''],
+  sdf: ['raymarcher', ''],
+  shapes: ['derived', ''],
+  math: ['functions', 'advanced', ''],
+  distort: ['warp', ''],
+  effects: ['stylize', ''],
+};
+
+/** Human-readable labels for subgroup slugs. Used for node panel badge tooltips. */
+export const SUBGROUP_DISPLAY_LABELS: Record<string, string> = {
+  '': 'Default',
+  'system-input': 'System inputs',
+  structured: 'Structured',
+  'raymarcher': 'Raymarcher',
+  derived: 'Scenes & surfaces',
+  functions: 'Functions',
+  advanced: 'Advanced',
+  warp: 'Warp',
+  stylize: 'Stylize',
+};
+
+/**
+ * Get the sub-group slug for timeline/panel styling (e.g. 'system-input', 'structured', 'warp').
+ * Returns '' when the node has no sub-group. Used for data-subgroup and matching icon box colors.
+ */
+export function getSubGroupSlug(nodeId: string, category: string): string {
+  if (isSdfRaymarcherNode(nodeId, category)) return 'raymarcher';
+  if (isSystemInputNode(nodeId, category)) return 'system-input';
+  if (isStructuredPatternNode(nodeId, category)) return 'structured';
+  if (isDerivedShapeNode(nodeId, category)) return 'derived';
+  if (isWarpDistortNode(nodeId, category)) return 'warp';
+  if (isFunctionsMathNode(nodeId, category)) return 'functions';
+  if (isAdvancedMathNode(nodeId, category)) return 'advanced';
+  if (isStylizeEffectsNode(nodeId, category)) return 'stylize';
+  return '';
+}
+
+/**
+ * Get the per-category token name for a base token (e.g. "param-cell-bg", "Inputs" -> "param-cell-bg-inputs").
+ */
+export function getCategoryTokenName(baseTokenName: string, category: string): string {
+  const base = baseTokenName.startsWith('--') ? baseTokenName.slice(2) : baseTokenName;
+  const suffix = getCategoryTokenSuffix(category);
+  return `${base}-${suffix}`;
+}
+
+/**
+ * Get a color from a per-category token, falling back to the global token then to fallback.
+ */
+export function getCategoryColor(baseTokenName: string, category: string, fallback: string): string {
+  const tokenName = getCategoryTokenName(baseTokenName, category);
+  const globalFallback = getCSSColor(baseTokenName, fallback);
+  return getCSSColor(tokenName, globalFallback);
+}
+
+/**
+ * Get a numeric value from a per-category token, falling back to the global token then to fallback.
+ */
+export function getCategoryVariableAsNumber(baseTokenName: string, category: string, fallback: number): number {
+  const tokenName = getCategoryTokenName(baseTokenName, category);
+  const globalFallback = getCSSVariableAsNumber(baseTokenName, fallback);
+  return getCSSVariableAsNumber(tokenName, globalFallback);
+}
+
+/**
+ * Get a string value from a per-category token, falling back to the global token then to fallback.
+ */
+export function getCategoryVariable(baseTokenName: string, category: string, fallback: string): string {
+  const tokenName = getCategoryTokenName(baseTokenName, category);
+  const globalFallback = getCSSVariable(baseTokenName, fallback);
+  return getCSSVariable(tokenName, globalFallback);
+}
+
 /**
  * Parse rgba color from CSS variable
  * @param propertyName The CSS variable name

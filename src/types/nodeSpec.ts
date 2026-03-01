@@ -13,6 +13,11 @@ export interface PortSpec {
    * - Vec2 from two floats: "paramX,paramY" → use vec2(paramX, paramY).
    */
   fallbackParameter?: string;
+  /**
+   * When this input is unconnected, use this GLSL expression. May reference other inputs as $input.name.
+   * Takes precedence over fallbackParameter when set. Used when the default depends on other inputs (e.g. rd from in).
+   */
+  fallbackExpression?: string;
 }
 
 export interface NodeSpec {
@@ -48,6 +53,10 @@ export interface ParameterSpec {
   step?: number;
   label?: string;
   inputMode?: ParameterInputMode;  // How to combine input with config value (default: 'override')
+  /** Whether this parameter is intended to be driven by animation / automation (time-varying input). */
+  supportsAnimation?: boolean;
+  /** Whether this parameter is intended to be driven by audio (virtual audio node or similar signal). */
+  supportsAudio?: boolean;
 }
 
 export type ParameterValue = 
@@ -69,31 +78,75 @@ export interface ParameterGroup {
 // Defines how parameters are laid out in the node body (slot container)
 export interface ParameterLayout {
   elements: LayoutElement[];  // Ordered list of elements (rendered top to bottom)
-  /** Parameter names that have no connection port (e.g. clamp on audio-remap) */
+  /** Parameter names that have no connection port (e.g. purely local configuration parameters) */
   parametersWithoutPorts?: string[];
   /**
    * Extra columns of width to add to the node (e.g. 1 = one column wider).
    * Uses the same cell min-width and gap as the grid so the body gets dedicated width and the rest fills.
    */
   extraColumns?: number;
+  /**
+   * Minimum number of columns for node width (overrides calculated columns when set).
+   * Use for nodes that need a fixed wide layout (e.g. 3 columns).
+   */
+  minColumns?: number;
 }
 
 export type LayoutElement =
   | AutoGridElement
   | GridElement
   | RemapRangeElement
-  | AnalyzerBandRemapElement
   | FrequencyRangeElement
   | BezierEditorElement
+  | BezierEditorRowElement
   | ColorPickerElement
-  | AudioFileInputElement
+  | ColorPickerRowElement
+  | ColorPickerRowWithPortsElement
+  | ColorMapPreviewElement
+  | CoordPadElement
   | CustomElement;
+
+/** XY coord pad: draggable 2D pad + X/Y ValueInputs below (size sm). Combined cell with ports for X and Y. */
+export interface CoordPadElement {
+  type: 'coord-pad';
+  /** [paramX, paramY] - e.g. ['rippleCenterX', 'rippleCenterY'] or ['sizeX', 'sizeY'] */
+  parameters: [string, string];
+  /** 'center' (0,0 at center) or 'bottom-left' (0,0 at corner). Use bottom-left for size/scale. Default center. */
+  coordsOrigin?: 'center' | 'bottom-left';
+}
 
 /** OKLCH color picker: one row with swatch + picker button; parameters l, c, h. */
 export interface ColorPickerElement {
   type: 'color-picker';
-  /** Parameter names [l, c, h] */
-  parameters?: ['l', 'c', 'h'];
+  /** Parameter names [l, c, h] - defaults to ['l', 'c', 'h'] if not specified */
+  parameters?: [string, string, string];
+}
+
+/** Two OKLCH color pickers in one row, equal width. */
+export interface ColorPickerRowElement {
+  type: 'color-picker-row';
+  /** Optional group header label (e.g. "Colors") rendered above the row */
+  label?: string;
+  /** Two color picker configs: [start color params], [end color params] */
+  pickers: [[string, string, string], [string, string, string]];
+}
+
+/** Two OKLCH color pickers in one row with L/C/H parameter ports beneath each swatch. */
+export interface ColorPickerRowWithPortsElement {
+  type: 'color-picker-row-with-ports';
+  /** Two color picker configs: [start color params], [end color params] (each [L, C, H]) */
+  pickers: [[string, string, string], [string, string, string]];
+}
+
+/** Color map preview: row of color stops (stepped) or gradient bar (smooth). Spans full width. */
+export interface ColorMapPreviewElement {
+  type: 'color-map-preview';
+  /** Optional group header label (e.g. "Colors") rendered above the strip */
+  label?: string;
+  /** 'stepped': N discrete boxes (one per stop). 'smooth': one gradient bar. */
+  mode: 'stepped' | 'smooth';
+  /** Height of the strip in px; default from --color-map-preview-height token */
+  height?: number;
 }
 
 // Default: auto-generates grid from all parameters, respects parameterGroups
@@ -113,6 +166,12 @@ export interface GridElement {
     cellHeight?: number;  // Override default cell height
     cellMinWidth?: number;  // Override default min width
     respectMinWidth?: boolean;  // Whether to respect cellMinWidth (default: true)
+    /** Span for coords (CoordPadCell) in columns; default 2. Use 3 for 3-column grids. */
+    coordsSpan?: 2 | 3;
+    /** Origin for coord pad grid: 'center' (0,0 at center, default) or 'bottom-left' (0,0 at bottom-left). Use a record keyed by X param name to set origin per coord pad (e.g. { sizeX: 'bottom-left', centerX: 'center' }). */
+    coordsOrigin?: 'center' | 'bottom-left' | Record<string, 'center' | 'bottom-left'>;
+    /** Per-parameter column span (e.g. make a single param take full row). */
+    parameterSpan?: Record<string, 2 | 3>;
   };
   parameterUI?: Record<string, ParameterUISelection>;  // Override UI per param
 }
@@ -121,12 +180,6 @@ export interface GridElement {
 export interface RemapRangeElement {
   type: 'remap-range';
   // Height controlled by design system token: --remap-range-height
-}
-
-/** Optional per-band remap UI on audio-analyzer. Uses band{N}RemapInMin/InMax/OutMin/OutMax. */
-export interface AnalyzerBandRemapElement {
-  type: 'analyzer-band-remap';
-  bandIndex: number;
 }
 
 /**
@@ -163,24 +216,30 @@ export interface BezierEditorElement {
   parameters?: ['x1', 'y1', 'x2', 'y2'];  // Optional, defaults to these
 }
 
-/** Audio file input: single embed-slot body (height from CSS token). Center "Upload MP3" button, display text above, auto-play toggle bottom-right. */
-export interface AudioFileInputElement {
-  type: 'audio-file-input-slot';
+/** Three bezier editors in one row, equal width; no parameter ports. */
+export interface BezierEditorRowElement {
+  type: 'bezier-editor-row';
+  /** Optional group header label (e.g. "Curves") rendered above the row */
+  label?: string;
+  height?: number;
+  /** Three groups of 4 param names: [x1, y1, x2, y2] per editor (L, C, H curves). */
+  editors: [[string, string, string, string], [string, string, string, string], [string, string, string, string]];
 }
 
 // Custom element (for future extensibility)
 export interface CustomElement {
   type: 'custom';
   elementId: string;
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
 }
 
 // Parameter UI element selection
 export type ParameterUISelection = 
   | 'knob'      // Default for float/int
   | 'toggle'    // For int with min=0, max=1
-  | 'enum'      // For int with known enum mappings
+  | 'enum'     // For int with known enum mappings
   | 'bezier'    // For bezier curve parameters
   | 'range'     // For range editor parameters
   | 'input'     // Simple draggable input field (no knob)
+  | 'coords'    // XY pad + inputs (combines two float params)
   | 'custom';   // Custom renderer

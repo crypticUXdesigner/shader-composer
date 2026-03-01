@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const vectorFieldNodeSpec: NodeSpec = {
   id: 'vector-field',
@@ -9,13 +9,15 @@ export const vectorFieldNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'Displaced UV'
     }
   ],
   parameters: {
@@ -98,19 +100,28 @@ export const vectorFieldNodeSpec: NodeSpec = {
       min: 0.0,
       max: 2.0,
       step: 0.1,
-      label: 'Speed'
+      label: 'Time Scale'
     }
   },
   parameterGroups: [
     {
-      id: 'vector-field',
-      label: 'Vector Field',
+      id: 'frequency',
+      label: 'Frequency',
+      parameters: ['vectorFieldFrequencyX', 'vectorFieldFrequencyY', 'vectorFieldFrequencyZ'],
+      collapsible: true,
+      defaultCollapsed: false
+    },
+    {
+      id: 'distortion',
+      label: 'Distortion',
+      parameters: ['vectorFieldAmplitude', 'vectorFieldRadialStrength'],
+      collapsible: true,
+      defaultCollapsed: false
+    },
+    {
+      id: 'detail',
+      label: 'Detail',
       parameters: [
-        'vectorFieldFrequencyX',
-        'vectorFieldFrequencyY',
-        'vectorFieldFrequencyZ',
-        'vectorFieldAmplitude',
-        'vectorFieldRadialStrength',
         'vectorFieldHarmonicAmplitude',
         'vectorFieldComplexity',
         'vectorFieldDistanceContribution'
@@ -126,6 +137,38 @@ export const vectorFieldNodeSpec: NodeSpec = {
       defaultCollapsed: true
     }
   ],
+  parameterLayout: {
+    minColumns: 3,
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['vectorFieldFrequencyX', 'vectorFieldFrequencyY', 'vectorFieldFrequencyZ'],
+        layout: { columns: 3 }
+      },
+      {
+        type: 'grid',
+        label: 'Distortion',
+        parameters: ['vectorFieldAmplitude', 'vectorFieldRadialStrength'],
+        layout: { columns: 2 }
+      },
+      {
+        type: 'grid',
+        label: 'Detail',
+        parameters: [
+          'vectorFieldHarmonicAmplitude',
+          'vectorFieldComplexity',
+          'vectorFieldDistanceContribution'
+        ],
+        layout: { columns: 3 }
+      },
+      {
+        type: 'grid',
+        label: 'Animation',
+        parameters: ['vectorFieldSpeed', 'animationSpeed'],
+        layout: { columns: 2 }
+      }
+    ]
+  },
   functions: `
 vec2 vectorField(vec2 p) {
   // Vector field speed

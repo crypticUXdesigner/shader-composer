@@ -29,9 +29,16 @@ Presets must follow the `SerializedGraphFile` format:
       "panY": 0,
       "selectedNodeIds": []
     }
+  },
+  "audioSetup": {
+    "files": [...],
+    "bands": [...],
+    "remappers": [...]
   }
 }
 ```
+
+The `audioSetup` field is optional. When present, it stores the audio configuration (files, bands, remappers). Copy Preset includes it automatically. Add an audio file via the bottom bar Upload button.
 
 ## Naming
 

@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const skyDomeNodeSpec: NodeSpec = {
   id: 'sky-dome',
@@ -9,13 +9,15 @@ export const skyDomeNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec4'
+      type: 'vec4',
+      label: 'Color'
     }
   ],
   parameters: {
@@ -81,7 +83,7 @@ export const skyDomeNodeSpec: NodeSpec = {
       min: -1.0,
       max: 1.0,
       step: 0.05,
-      label: 'Sun X'
+      label: 'X'
     },
     sunDirY: {
       type: 'float',
@@ -89,7 +91,7 @@ export const skyDomeNodeSpec: NodeSpec = {
       min: -1.0,
       max: 1.0,
       step: 0.05,
-      label: 'Sun Y'
+      label: 'Y'
     },
     sunDirZ: {
       type: 'float',
@@ -97,7 +99,7 @@ export const skyDomeNodeSpec: NodeSpec = {
       min: -1.0,
       max: 1.0,
       step: 0.05,
-      label: 'Sun Z'
+      label: 'Z'
     },
     sunRadius: {
       type: 'float',
@@ -105,7 +107,7 @@ export const skyDomeNodeSpec: NodeSpec = {
       min: 0.001,
       max: 0.5,
       step: 0.001,
-      label: 'Sun Size'
+      label: 'Size'
     },
     sunIntensity: {
       type: 'float',
@@ -113,7 +115,7 @@ export const skyDomeNodeSpec: NodeSpec = {
       min: 0.0,
       max: 5.0,
       step: 0.1,
-      label: 'Sun Strength'
+      label: 'Strength'
     }
   },
   parameterGroups: [
@@ -132,6 +134,22 @@ export const skyDomeNodeSpec: NodeSpec = {
       defaultCollapsed: false
     }
   ],
+  parameterLayout: {
+    minColumns: 3,
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['zenithR', 'zenithG', 'zenithB', 'horizonR', 'horizonG', 'horizonB', 'horizonSharpness'],
+        layout: { columns: 3, parameterSpan: { horizonSharpness: 3 } }
+      },
+      {
+        type: 'grid',
+        label: 'Sun',
+        parameters: ['sunDirX', 'sunDirY', 'sunDirZ', 'sunRadius', 'sunIntensity'],
+        layout: { columns: 3, parameterSpan: { sunIntensity: 2 } }
+      }
+    ]
+  },
   mainCode: `
   // Ray direction from UV (orthographic, same convention as sphere-raymarch)
   vec2 uv = $input.in;

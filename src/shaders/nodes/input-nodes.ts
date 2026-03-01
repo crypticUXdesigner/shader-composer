@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 /**
  * Input Nodes - provide basic inputs like UV coordinates, time, resolution, and constants
@@ -14,7 +14,8 @@ export const uvCoordinatesNodeSpec: NodeSpec = {
   outputs: [
     {
       name: 'out',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   parameters: {},
@@ -34,7 +35,8 @@ export const timeNodeSpec: NodeSpec = {
   outputs: [
     {
       name: 'out',
-      type: 'float'
+      type: 'float',
+      label: 'Time'
     }
   ],
   parameters: {},
@@ -54,7 +56,8 @@ export const resolutionNodeSpec: NodeSpec = {
   outputs: [
     {
       name: 'out',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'Resolution'
     }
   ],
   parameters: {},
@@ -74,7 +77,8 @@ export const fragmentCoordinatesNodeSpec: NodeSpec = {
   outputs: [
     {
       name: 'out',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'Frag coords'
     }
   ],
   parameters: {},
@@ -94,7 +98,8 @@ export const constantFloatNodeSpec: NodeSpec = {
   outputs: [
     {
       name: 'out',
-      type: 'float'
+      type: 'float',
+      label: 'Value'
     }
   ],
   parameters: {
@@ -103,8 +108,14 @@ export const constantFloatNodeSpec: NodeSpec = {
       default: 0.5,
       min: -1000.0,
       max: 1000.0,
-      step: 0.01
+      step: 0.01,
+      label: 'Value'
     }
+  },
+  parameterLayout: {
+    elements: [
+      { type: 'grid', parameters: ['value'], parameterUI: { value: 'input' } }
+    ]
   },
   mainCode: `
     // Output constant float value
@@ -117,12 +128,13 @@ export const constantVec2NodeSpec: NodeSpec = {
   category: 'Inputs',
   displayName: 'Vec2',
   description: 'Outputs a constant vec2 value',
-  icon: 'chart-scatter',
+  icon: 'vector-two',
   inputs: [],
   outputs: [
     {
       name: 'out',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   parameters: {
@@ -131,15 +143,23 @@ export const constantVec2NodeSpec: NodeSpec = {
       default: 0.0,
       min: -1000.0,
       max: 1000.0,
-      step: 0.01
+      step: 0.01,
+      label: 'X'
     },
     y: {
       type: 'float',
       default: 0.0,
       min: -1000.0,
       max: 1000.0,
-      step: 0.01
+      step: 0.01,
+      label: 'Y'
     }
+  },
+  parameterLayout: {
+    minColumns: 1,
+    elements: [
+      { type: 'grid', parameters: ['x', 'y'], parameterUI: { x: 'input', y: 'input' }, layout: { columns: 1 } }
+    ]
   },
   mainCode: `
     // Output constant vec2 value
@@ -152,12 +172,13 @@ export const constantVec3NodeSpec: NodeSpec = {
   category: 'Inputs',
   displayName: 'Vec3',
   description: 'Outputs a constant vec3 value',
-  icon: 'chart-scatter-3d',
+  icon: 'vector-three',
   inputs: [],
   outputs: [
     {
       name: 'out',
-      type: 'vec3'
+      type: 'vec3',
+      label: 'Color'
     }
   ],
   parameters: {
@@ -166,22 +187,31 @@ export const constantVec3NodeSpec: NodeSpec = {
       default: 0.0,
       min: -1000.0,
       max: 1000.0,
-      step: 0.01
+      step: 0.01,
+      label: 'X'
     },
     y: {
       type: 'float',
       default: 0.0,
       min: -1000.0,
       max: 1000.0,
-      step: 0.01
+      step: 0.01,
+      label: 'Y'
     },
     z: {
       type: 'float',
       default: 0.0,
       min: -1000.0,
       max: 1000.0,
-      step: 0.01
+      step: 0.01,
+      label: 'Z'
     }
+  },
+  parameterLayout: {
+    minColumns: 1,
+    elements: [
+      { type: 'grid', parameters: ['x', 'y', 'z'], parameterUI: { x: 'input', y: 'input', z: 'input' }, layout: { columns: 1 } }
+    ]
   },
   mainCode: `
     // Output constant vec3 value
@@ -199,7 +229,8 @@ export const constantVec4NodeSpec: NodeSpec = {
   outputs: [
     {
       name: 'out',
-      type: 'vec4'
+      type: 'vec4',
+      label: 'Color'
     }
   ],
   parameters: {
@@ -208,29 +239,39 @@ export const constantVec4NodeSpec: NodeSpec = {
       default: 0.0,
       min: -1000.0,
       max: 1000.0,
-      step: 0.01
+      step: 0.01,
+      label: 'X'
     },
     y: {
       type: 'float',
       default: 0.0,
       min: -1000.0,
       max: 1000.0,
-      step: 0.01
+      step: 0.01,
+      label: 'Y'
     },
     z: {
       type: 'float',
       default: 0.0,
       min: -1000.0,
       max: 1000.0,
-      step: 0.01
+      step: 0.01,
+      label: 'Z'
     },
     w: {
       type: 'float',
       default: 1.0,
       min: -1000.0,
       max: 1000.0,
-      step: 0.01
+      step: 0.01,
+      label: 'W'
     }
+  },
+  parameterLayout: {
+    minColumns: 1,
+    elements: [
+      { type: 'grid', parameters: ['x', 'y', 'z', 'w'], parameterUI: { x: 'input', y: 'input', z: 'input', w: 'input' }, layout: { columns: 1 } }
+    ]
   },
   mainCode: `
     // Output constant vec4 value

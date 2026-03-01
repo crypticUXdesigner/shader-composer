@@ -12,6 +12,7 @@
  * @param keyFn Optional function to generate cache keys from arguments
  * @returns Memoized function
  */
+// Intentional any: generic memoize helper must accept arbitrary function types for inference.
 export function memoize<T extends (...args: any[]) => any>(
   fn: T,
   keyFn?: (...args: Parameters<T>) => string
@@ -38,6 +39,7 @@ export function memoize<T extends (...args: any[]) => any>(
  * @param keyFn Function to generate cache keys from arguments
  * @returns Memoized function with cache management methods
  */
+// Intentional any: generic memoize helper must accept arbitrary function types for inference.
 export function memoizeWithCache<T extends (...args: any[]) => any>(
   fn: T,
   keyFn: (...args: Parameters<T>) => string

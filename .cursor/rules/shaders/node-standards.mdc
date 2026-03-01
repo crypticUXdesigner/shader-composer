@@ -1,0 +1,28 @@
+---
+description: Checklist when adding or changing shader nodes — spec, docs, index, build.
+globs: "src/shaders/nodes/**/*.ts"
+alwaysApply: false
+---
+
+# Shader Node Standards
+
+When adding a new node or changing the public shape of an existing node in `src/shaders/nodes/`, ensure the following so the app and help system stay in sync.
+
+## Checklist
+
+1. **Node spec**: Follow existing `NodeSpec` shape (id, name, category, inputs, outputs, glsl, etc.). Match patterns in other files in this folder.
+2. **Documentation**: Add or update the entry for this node in `src/data/node-documentation.json`. Include `title`, `titleType: "node"`, `category`, `icon`, `tagline`, `description`, `inputs`, `outputs` (with `name`, `type`, `description`, `suggestedTargets`), and `relatedItems` as needed.
+3. **Export**: Export the node spec from `src/shaders/nodes/index.ts` (import and add to the registry/export list).
+4. **Build**: Run `npm run build` and fix any type or compile errors.
+5. **Requirements**: If `docs/user-goals/` or other docs describe node behavior, keep the implementation aligned.
+
+## Example (documentation key)
+
+In `src/data/node-documentation.json`, the key for a node is `"node:<node-id>"` (e.g. `"node:noise"`). Add an entry under `helpItems` with the same shape as existing nodes.
+
+## References
+
+- Existing node files in `src/shaders/nodes/` for spec shape and GLSL patterns
+- `src/types/nodeSpec.ts` for `NodeSpec` and related types
+- `src/data/node-documentation.json` for help entry format
+- `docs/user-goals/04-nodes-and-parameters.md` for node/parameter requirements

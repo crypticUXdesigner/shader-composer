@@ -1,0 +1,49 @@
+{
+  "format": "shader-composer-node-graph",
+  "formatVersion": "2.0",
+  "graph": {
+    "id": "graph-quadwarp-param",
+    "name": "Quad-warp param chain",
+    "version": "2.0",
+    "nodes": [
+      { "id": "n-uv", "type": "uv-coordinates", "position": { "x": 0, "y": 0 }, "parameters": {} },
+      { "id": "n-time", "type": "time", "position": { "x": 0, "y": 0 }, "parameters": {} },
+      {
+        "id": "n-intensity",
+        "type": "multiply",
+        "position": { "x": 0, "y": 0 },
+        "parameters": { "b": 0.1 },
+        "label": "Intensity"
+      },
+      {
+        "id": "n-quadwarp",
+        "type": "quad-warp",
+        "position": { "x": 0, "y": 0 },
+        "parameters": {
+          "quadCorner0X": -0.09,
+          "quadCorner0Y": -0.19,
+          "quadCorner1X": 0.57,
+          "quadCorner1Y": -0.05,
+          "quadCorner2X": 0.32,
+          "quadCorner2Y": 0.46,
+          "quadCorner3X": -0.57,
+          "quadCorner3Y": -0.46
+        },
+        "parameterInputModes": {}
+      },
+      { "id": "n-output", "type": "final-output", "position": { "x": 0, "y": 0 }, "parameters": {} }
+    ],
+    "connections": [
+      { "id": "c1", "sourceNodeId": "n-uv", "sourcePort": "out", "targetNodeId": "n-quadwarp", "targetPort": "in" },
+      { "id": "c2", "sourceNodeId": "n-time", "sourcePort": "out", "targetNodeId": "n-intensity", "targetPort": "a" },
+      {
+        "id": "c3",
+        "sourceNodeId": "n-intensity",
+        "sourcePort": "out",
+        "targetNodeId": "n-quadwarp",
+        "targetParameter": "quadCorner0X"
+      },
+      { "id": "c4", "sourceNodeId": "n-quadwarp", "sourcePort": "out", "targetNodeId": "n-output", "targetPort": "in" }
+    ]
+  }
+}

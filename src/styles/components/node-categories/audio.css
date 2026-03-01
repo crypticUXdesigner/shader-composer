@@ -1,0 +1,115 @@
+/* =============================================================================
+   AUDIO
+   ============================================================================= */
+
+:root {
+  /* Node body shadow (outermost) */
+  --node-body-shadow-color-mid-audio: var(--color-cyan-50);
+  --node-body-shadow-color-outer-audio: var(--color-cyan-30);
+
+  /* Node header */
+  --node-header-bg-audio: var(--color-cyan-70);
+  --node-header-bg-end-audio: var(--color-cyan-50);
+  --node-header-print-audio: var(--color-gray-130);
+
+  /* Icon box */
+  --node-icon-box-bg-audio: var(--color-cyan-50);
+  --node-icon-box-color-audio: var(--color-cyan-120);
+
+  /* Param group header */
+  --param-group-header-color-audio: var(--color-cyan-110);
+
+  /* Param cell */
+  --node-param-cell-bg-audio: var(--color-cyan-50);
+  --node-param-cell-bg-end-audio: var(--color-cyan-40);
+  --node-param-label-color-audio: var(--color-cyan-110);
+
+  /* Knob */
+  --node-knob-value-bg-audio: var(--color-cyan-40);
+  --node-knob-value-color-audio: var(--color-cyan-120);
+  --node-knob-ring-color-audio: var(--knob-ring-color);
+  --node-knob-arc-active-audio: var(--color-cyan-100);
+  --node-knob-marker-audio: var(--color-cyan-120);
+
+  /* Bezier editor */
+  --node-bezier-curve-audio: var(--color-cyan-90);
+  --node-bezier-control-audio: var(--color-cyan-90);
+  --node-bezier-control-hover-audio: var(--color-cyan-100);
+}
+
+.node.audio {
+  /* CSS custom properties */
+  --node-body-shadow-color-mid: var(--node-body-shadow-color-mid-audio);
+  --node-body-shadow-color-outer: var(--node-body-shadow-color-outer-audio);
+  --node-header-name-color: var(--node-header-print-audio);
+  --param-group-header-color: var(--param-group-header-color-audio);
+  --knob-ring-color: var(--node-knob-ring-color-audio);
+  --knob-ring-active-color-static: var(--node-knob-arc-active-audio);
+  --knob-marker-color: var(--node-knob-marker-audio);
+  --knob-value-bg: var(--node-knob-value-bg-audio);
+  --knob-value-color: var(--node-knob-value-color-audio);
+  --param-control-bg: var(--node-knob-value-bg-audio);
+  --param-control-bg-hover: var(--color-cyan-50);
+  --param-control-bg-active: var(--color-cyan-60);
+  --param-control-value-color: var(--node-knob-value-color-audio);
+
+  /* Node header (outermost) */
+  background: radial-gradient(
+    ellipse var(--node-header-bg-gradient-ellipse-width) var(--node-header-bg-gradient-ellipse-height) at var(--node-header-bg-gradient-ellipse-x) var(--node-header-bg-gradient-ellipse-y),
+    var(--node-header-bg-audio),
+    var(--node-header-bg-end-audio)
+  );
+
+  /* Node body */
+  .node-body {
+    background: radial-gradient(ellipse 120% 160% at 50% 25%, var(--color-cyan-50), var(--color-cyan-40));
+  }
+
+  /* Icon box */
+  .icon-box {
+    background: var(--node-icon-box-bg-audio);
+
+    .header-icon {
+      color: var(--node-icon-box-color-audio);
+    }
+  }
+
+  /* Node header */
+  .node-header {
+    .label-text,
+    .label-input,
+    .port .name-label {
+      color: var(--node-header-print-audio);
+    }
+  }
+
+  /* Param cell */
+  .param-cell {
+    background: radial-gradient(ellipse 120% 160% at 50% 25%, var(--node-param-cell-bg-audio), var(--node-param-cell-bg-end-audio));
+
+    &.connected {
+      background: var(--param-cell-bg-connected);
+      border-color: var(--param-cell-border-connected);
+    }
+
+    .left-column .top .label {
+      color: var(--node-param-label-color-audio);
+    }
+  }
+
+  /* Bezier editor */
+  .bezier-editor {
+    .curve {
+      stroke: var(--node-bezier-curve-audio);
+    }
+
+    .control-point {
+      background: var(--node-bezier-control-audio);
+
+      &:hover {
+        background: var(--node-bezier-control-hover-audio);
+      }
+    }
+  }
+}
+

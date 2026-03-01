@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const spherizeNodeSpec: NodeSpec = {
   id: 'spherize',
@@ -9,13 +9,15 @@ export const spherizeNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   parameters: {
@@ -51,6 +53,16 @@ export const spherizeNodeSpec: NodeSpec = {
       step: 0.01,
       label: 'Strength'
     }
+  },
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['spherizeCenterX', 'spherizeCenterY', 'spherizeRadius', 'spherizeStrength'],
+        parameterUI: { spherizeCenterX: 'coords', spherizeCenterY: 'coords' },
+        layout: { columns: 2, coordsSpan: 2 }
+      }
+    ]
   },
   functions: `
 vec2 spherize(vec2 p, vec2 center, float radius, float strength) {

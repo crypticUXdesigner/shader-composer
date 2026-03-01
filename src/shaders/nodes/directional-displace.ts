@@ -1,15 +1,16 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const directionalDisplaceNodeSpec: NodeSpec = {
   id: 'directional-displace',
   category: 'Distort',
-  displayName: 'Directional Displace',
+  displayName: 'Dir. Displace',
   icon: 'arrow-right',
   description: 'Displace coordinates along a fixed direction by a scalar amount',
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     },
     {
       name: 'amount',
@@ -21,7 +22,8 @@ export const directionalDisplaceNodeSpec: NodeSpec = {
   outputs: [
     {
       name: 'out',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   parameters: {
@@ -42,6 +44,15 @@ export const directionalDisplaceNodeSpec: NodeSpec = {
       label: 'Scale'
     },
     amount: { type: 'float', default: 1.0, min: -10.0, max: 10.0, step: 0.01, label: 'Amount' }
+  },
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['directionalDisplaceAngle', 'directionalDisplaceScale', 'amount'],
+        layout: { columns: 1 }
+      }
+    ]
   },
   mainCode: `
   vec2 dir = vec2(cos($param.directionalDisplaceAngle), sin($param.directionalDisplaceAngle));

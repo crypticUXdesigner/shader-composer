@@ -1,37 +1,37 @@
-import type { Connection } from '../../data-model/types';
+import type { Connection, ParameterValue } from '../../data-model/types';
 
 /**
  * Compare two parameter objects efficiently
  * Returns true if parameters are equal (deep comparison)
  */
 export function parametersEqual(
-  oldParams: Record<string, any>,
-  newParams: Record<string, any>
+  oldParams: Record<string, ParameterValue | unknown>,
+  newParams: Record<string, ParameterValue | unknown>
 ): boolean {
   const oldKeys = Object.keys(oldParams);
   const newKeys = Object.keys(newParams);
-  
+
   if (oldKeys.length !== newKeys.length) return false;
-  
+
   for (const key of oldKeys) {
-    if (!newParams.hasOwnProperty(key)) return false;
-    
+    if (!Object.prototype.hasOwnProperty.call(newParams, key)) return false;
+
     const oldVal = oldParams[key];
     const newVal = newParams[key];
-    
+
     if (!valuesEqual(oldVal, newVal)) return false;
   }
-  
+
   return true;
 }
 
 /**
  * Compare two values (handles primitives, arrays, objects)
  */
-function valuesEqual(oldVal: any, newVal: any): boolean {
+function valuesEqual(oldVal: unknown, newVal: unknown): boolean {
   // Primitive comparison
   if (oldVal === newVal) return true;
-  
+
   // Array comparison
   if (Array.isArray(oldVal) && Array.isArray(newVal)) {
     if (oldVal.length !== newVal.length) return false;
@@ -40,13 +40,17 @@ function valuesEqual(oldVal: any, newVal: any): boolean {
     }
     return true;
   }
-  
+
   // Object comparison (for nested objects)
-  if (typeof oldVal === 'object' && typeof newVal === 'object' && 
-      oldVal !== null && newVal !== null) {
-    return parametersEqual(oldVal, newVal);
+  if (typeof oldVal === 'object' && typeof newVal === 'object' &&
+      oldVal !== null && newVal !== null &&
+      !Array.isArray(oldVal) && !Array.isArray(newVal)) {
+    return parametersEqual(
+      oldVal as Record<string, ParameterValue | unknown>,
+      newVal as Record<string, ParameterValue | unknown>
+    );
   }
-  
+
   return false;
 }
 

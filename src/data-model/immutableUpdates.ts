@@ -15,8 +15,14 @@ import type {
   Connection,
   GraphViewState,
   ParameterValue,
+  AutomationState,
+  AutomationLane,
+  AutomationRegion,
 } from './types';
 import type { ParameterInputMode } from '../types/nodeSpec';
+import type { NodeSpecification } from './validationTypes';
+import { validateConnection } from './validationConnection';
+import { getConnectionTargetKey } from './connectionUtils';
 
 /**
  * Creates a deep copy of a node instance.
@@ -50,6 +56,17 @@ export function deepCopyGraph(graph: NodeGraph): NodeGraph {
     connections: graph.connections.map(copyConnection),
     metadata: graph.metadata ? { ...graph.metadata } : undefined,
     viewState: graph.viewState ? { ...graph.viewState } : undefined,
+    automation: graph.automation ? copyAutomationState(graph.automation) : undefined,
+  };
+}
+
+function copyAutomationState(a: AutomationState): AutomationState {
+  return {
+    ...a,
+    lanes: a.lanes.map((lane: AutomationLane) => ({
+      ...lane,
+      regions: lane.regions.map((r: AutomationRegion) => ({ ...r, curve: { ...r.curve, keyframes: [...r.curve.keyframes] } })),
+    })),
   };
 }
 
@@ -307,3 +324,80 @@ export function addConnections(graph: NodeGraph, connections: Connection[]): Nod
     connections: [...graph.connections, ...connections.map(copyConnection)],
   };
 }
+
+export interface AddConnectionWithValidationResult {
+  graph: NodeGraph;
+  errors: string[];
+  warnings: string[];
+  /**
+   * If an existing connection to the same target (port or parameter) was replaced,
+   * this is the ID of the removed connection.
+   */
+  replacedConnectionId?: string;
+}
+
+export interface AddConnectionWithValidationOptions {
+  /**
+   * When true (default), an existing connection to the same target port/parameter
+   * is removed before adding the new one, so the one-connection-per-target invariant
+   * holds. When false, no replacement is performed and the helper only validates;
+   * callers are responsible for ensuring no duplicates.
+   */
+  replaceExisting?: boolean;
+}
+
+/**
+ * Adds a connection with data-model–level validation and optional duplicate replacement.
+ *
+ * - Enforces connection invariants via `validateConnection` (IDs, node/port/param existence, types).
+ * - When `replaceExisting` is true (default), removes any existing connection to the same target
+ *   port or parameter before adding the new one.
+ *
+ * Returns the new graph plus any validation errors/warnings. If errors are present, the
+ * returned graph will be the original input graph.
+ */
+export function addConnectionWithValidation(
+  graph: NodeGraph,
+  connection: Connection,
+  nodeSpecs: NodeSpecification[],
+  options: AddConnectionWithValidationOptions = {}
+): AddConnectionWithValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  // Validate the candidate connection against the current graph and node specs.
+  validateConnection(connection, graph, nodeSpecs, errors, warnings);
+  if (errors.length > 0) {
+    return { graph, errors, warnings };
+  }
+
+  const replaceExisting = options.replaceExisting ?? true;
+  let workingGraph = graph;
+  let replacedConnectionId: string | undefined;
+
+  if (replaceExisting) {
+    const targetKey = getConnectionTargetKey(connection);
+    if (targetKey) {
+      const existing = workingGraph.connections.find(
+        (c) => getConnectionTargetKey(c) === targetKey
+      );
+      if (existing) {
+        replacedConnectionId = existing.id;
+        workingGraph = removeConnections(workingGraph, (c) => c.id === existing.id);
+      }
+    }
+  }
+
+  const updatedGraph = addConnection(workingGraph, connection);
+  return { graph: updatedGraph, errors, warnings, replacedConnectionId };
+}
+
+export {
+  addAutomationLane,
+  addAutomationRegion,
+  updateAutomationRegion,
+  removeAutomationRegion,
+  removeAutomationLane,
+  setAutomationBpm,
+  setAutomationDuration,
+} from './immutableUpdatesAutomation';

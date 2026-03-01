@@ -1,0 +1,123 @@
+{
+  "format": "shader-composer-node-graph",
+  "formatVersion": "2.0",
+  "graph": {
+    "id": "graph-sdf-raymarcher-ether-audio",
+    "name": "SDF Raymarcher Ether Audio",
+    "version": "2.0",
+    "nodes": [
+      {
+        "id": "node-uv-ether-audio",
+        "type": "uv-coordinates",
+        "position": { "x": -200, "y": -200 },
+        "parameters": {}
+      },
+      {
+        "id": "node-ether-audio",
+        "type": "ether-sdf",
+        "position": { "x": 200, "y": -220 },
+        "parameters": {
+          "rotSpeedXZ": 0.4,
+          "rotSpeedXY": 0.3,
+          "scale": 2.0,
+          "timeSpeed": 1.0,
+          "timeOffset": 0.0,
+          "wobbleSpeed": 0.7,
+          "sineAmp": 5.5,
+          "breatheAmount": 0.5,
+          "breatheSpeed": 0.7,
+          "positionX": 0.0,
+          "positionY": 0.0,
+          "positionZ": 0.0
+        }
+      },
+      {
+        "id": "node-ray-ether-audio",
+        "type": "generic-raymarcher",
+        "position": { "x": 800, "y": -260 },
+        "parameters": {
+          "raymarchSteps": 96,
+          "glowIntensity": 0.4,
+          "brightness": 1.2,
+          "cameraRoX": 0.0,
+          "cameraRoY": 0.0,
+          "cameraRoZ": 3.0
+        }
+      },
+      {
+        "id": "node-out-ether-audio",
+        "type": "final-output",
+        "position": { "x": 1400, "y": -240 },
+        "parameters": {}
+      }
+    ],
+    "connections": [
+      {
+        "id": "conn-uv-to-ray-ether-audio",
+        "sourceNodeId": "node-uv-ether-audio",
+        "sourcePort": "out",
+        "targetNodeId": "node-ray-ether-audio",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-ether-to-ray-sdf-ether-audio",
+        "sourceNodeId": "node-ether-audio",
+        "sourcePort": "out",
+        "targetNodeId": "node-ray-ether-audio",
+        "targetPort": "sdf"
+      },
+      {
+        "id": "conn-ray-color-to-out-ether-audio",
+        "sourceNodeId": "node-ray-ether-audio",
+        "sourcePort": "color",
+        "targetNodeId": "node-out-ether-audio",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-audio-to-ether-timeOffset",
+        "sourceNodeId": "audio-signal:remap-ether-audio-remap",
+        "sourcePort": "out",
+        "targetNodeId": "node-ether-audio",
+        "targetParameter": "timeOffset"
+      }
+    ],
+    "viewState": {
+      "zoom": 0.6,
+      "panX": 0.0,
+      "panY": 0.0,
+      "selectedNodeIds": []
+    }
+  },
+  "audioSetup": {
+    "files": [
+      {
+        "id": "file-ether-audio",
+        "name": "Ether Audio",
+        "filePath": "classic-billie.mp3",
+        "autoPlay": true
+      }
+    ],
+    "bands": [
+      {
+        "id": "band-ether",
+        "name": "Ether Band",
+        "sourceFileId": "file-ether-audio",
+        "frequencyBands": [[20, 20000]],
+        "smoothing": 0.8,
+        "fftSize": 4096
+      }
+    ],
+    "remappers": [
+      {
+        "id": "ether-audio-remap",
+        "name": "Ether Remap",
+        "bandId": "band-ether",
+        "inMin": 0.0,
+        "inMax": 1.0,
+        "outMin": -3.0,
+        "outMax": 3.0
+      }
+    ]
+  }
+}
+

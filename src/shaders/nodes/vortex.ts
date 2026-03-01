@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const vortexNodeSpec: NodeSpec = {
   id: 'vortex',
@@ -9,13 +9,15 @@ export const vortexNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   parameters: {
@@ -84,6 +86,16 @@ export const vortexNodeSpec: NodeSpec = {
       defaultCollapsed: true
     }
   ],
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['vortexCenterX', 'vortexCenterY', 'vortexStrength', 'vortexRadius', 'vortexFalloff', 'vortexTimeSpeed'],
+        parameterUI: { vortexCenterX: 'coords', vortexCenterY: 'coords' },
+        layout: { columns: 3, coordsSpan: 2 }
+      }
+    ]
+  },
   functions: `
 vec2 vortex(vec2 p, vec2 center, float strength, float radius, float falloff, float time) {
   vec2 d = p - center;

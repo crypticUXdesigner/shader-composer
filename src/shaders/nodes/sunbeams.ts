@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const sunbeamsNodeSpec: NodeSpec = {
   id: 'sunbeams',
@@ -9,13 +9,15 @@ export const sunbeamsNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'float'
+      type: 'float',
+      label: 'Beams'
     }
   ],
   parameters: {
@@ -55,7 +57,7 @@ export const sunbeamsNodeSpec: NodeSpec = {
       type: 'float',
       default: 0.05,
       min: 0.0,
-      max: 0.5,
+      max: 2.0,
       step: 0.01,
       label: 'Softness'
     },
@@ -68,22 +70,16 @@ export const sunbeamsNodeSpec: NodeSpec = {
       label: 'Intensity'
     }
   },
-  parameterGroups: [
-    {
-      id: 'sunbeams-beams',
-      label: 'Beams',
-      parameters: ['angle', 'spread', 'beamCount', 'width'],
-      collapsible: true,
-      defaultCollapsed: false
-    },
-    {
-      id: 'sunbeams-appearance',
-      label: 'Appearance',
-      parameters: ['softness', 'intensity'],
-      collapsible: true,
-      defaultCollapsed: false
-    }
-  ],
+  parameterLayout: {
+    minColumns: 2,
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['angle', 'spread', 'beamCount', 'width', 'softness', 'intensity'],
+        layout: { columns: 2 }
+      }
+    ]
+  },
   functions: `
 float sunbeams(vec2 p, float angleDeg, float spread, int beamCount, float width, float softness) {
   float angleRad = angleDeg * 0.017453292519943295;

@@ -134,12 +134,14 @@ export class FrequencyAnalyzer extends BaseDisposable {
   /**
    * Update frequency analysis for all analyzer nodes.
    * Returns updates for uniforms that changed.
+   * @param forcePushAll - When true, always add every band to updates (for a new shader instance).
    */
   updateFrequencyAnalysis(
     audioNodeStates: Map<string, AudioNodeState>,
     graph?: { connections: Array<{ sourceNodeId: string; targetNodeId: string; targetPort?: string }> } | null,
     previousUniformValues?: Map<string, number>,
-    valueChangeThreshold: number = 0.001
+    valueChangeThreshold: number = 0.001,
+    forcePushAll: boolean = false
   ): Array<{ nodeId: string, paramName: string, value: number }> {
     this.ensureNotDestroyed();
     
@@ -223,7 +225,7 @@ export class FrequencyAnalyzer extends BaseDisposable {
         if (previousUniformValues) {
           const prev = previousUniformValues.get(bandKey);
           const isFirst = prev === undefined;
-          if (isFirst || Math.abs(smoothed - prev!) > valueChangeThreshold) {
+          if (forcePushAll || isFirst || Math.abs(smoothed - prev!) > valueChangeThreshold) {
             updates.push({ nodeId, paramName: bandParamName, value: smoothed });
             previousUniformValues.set(bandKey, smoothed);
           }

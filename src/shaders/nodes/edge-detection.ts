@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const edgeDetectionNodeSpec: NodeSpec = {
   id: 'edge-detection',
@@ -9,13 +9,15 @@ export const edgeDetectionNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec4'
+      type: 'vec4',
+      label: 'Color'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec4'
+      type: 'vec4',
+      label: 'Edges'
     }
   ],
   parameters: {
@@ -61,6 +63,15 @@ export const edgeDetectionNodeSpec: NodeSpec = {
       defaultCollapsed: false
     }
   ],
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['edgeThreshold', 'edgeWidth', 'edgeIntensity', 'edgeStrength'],
+        layout: { columns: 'auto' }
+      }
+    ]
+  },
   functions: `
 // Simplified edge detection using threshold-based approach
 float edgeEffect(float value, float threshold, float width) {

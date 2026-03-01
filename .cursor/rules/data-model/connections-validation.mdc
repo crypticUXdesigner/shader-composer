@@ -1,0 +1,19 @@
+---
+description: Connection rules — one per port, exactly one target (port or parameter), validate before add.
+globs: "src/data-model/**/*.ts,src/shaders/compilation/**/*.ts,src/ui/**/*.ts"
+alwaysApply: false
+---
+
+# Connections and Validation
+
+When changing connection creation, removal, or validation, enforce: one connection per port; exactly one of `targetPort` or `targetParameter`; type-compatible targets.
+
+## Do
+
+- **Before add**: Check target port/parameter for existing connection; remove or replace it, then add (e.g. via `immutableUpdates`). Validate type compatibility and target shape in data-model validation.
+- Example: to add a connection to a port that may already have one, call remove-connection for that target, then add the new connection; use validation so no connection has both or neither target field.
+
+## Reference
+
+- `src/data-model/validation.ts`, `src/data-model/immutableUpdates.ts`
+- `docs/user-goals/05-connections.md`, `docs/projects/core-architecture/_OVERVIEW.md` (03B)

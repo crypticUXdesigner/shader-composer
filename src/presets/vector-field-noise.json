@@ -1,0 +1,556 @@
+{
+  "format": "shader-composer-node-graph",
+  "formatVersion": "2.0",
+  "graph": {
+    "id": "graph-1772315686039-l1uva1gmd",
+    "name": "New",
+    "version": "2.0",
+    "nodes": [
+      {
+        "id": "node-1772315686039-x7yvvfrpt",
+        "type": "uv-coordinates",
+        "position": {
+          "x": -1857,
+          "y": -227
+        },
+        "parameters": {}
+      },
+      {
+        "id": "node-1772315686039-ccwcxd97k",
+        "type": "final-output",
+        "position": {
+          "x": 4964,
+          "y": -248
+        },
+        "parameters": {}
+      },
+      {
+        "id": "node-1772315686039-kmrygwmpa",
+        "type": "vector-field",
+        "position": {
+          "x": 1046,
+          "y": -173
+        },
+        "parameters": {
+          "vectorFieldFrequencyX": 17.7,
+          "vectorFieldFrequencyY": 17.2,
+          "vectorFieldFrequencyZ": 16,
+          "vectorFieldAmplitude": 3.5,
+          "vectorFieldRadialStrength": 20,
+          "vectorFieldHarmonicAmplitude": 2.9000000000000004,
+          "vectorFieldComplexity": 15,
+          "vectorFieldDistanceContribution": 0.2,
+          "vectorFieldSpeed": 2,
+          "animationSpeed": 0.3
+        },
+        "parameterInputModes": {
+          "vectorFieldAmplitude": "multiply",
+          "vectorFieldRadialStrength": "multiply",
+          "vectorFieldFrequencyX": "multiply",
+          "vectorFieldFrequencyY": "multiply",
+          "vectorFieldFrequencyZ": "multiply",
+          "vectorFieldHarmonicAmplitude": "multiply"
+        }
+      },
+      {
+        "id": "node-1772315686039-p2cxozyso",
+        "type": "scale",
+        "position": {
+          "x": -1367,
+          "y": -225
+        },
+        "parameters": {
+          "scaleX": 0.67,
+          "scaleY": 0.74,
+          "centerX": 0,
+          "centerY": 0
+        }
+      },
+      {
+        "id": "node-1772315686039-qibcbnglr",
+        "type": "noise",
+        "position": {
+          "x": 2227,
+          "y": -238
+        },
+        "parameters": {
+          "noiseMode": 2,
+          "noiseScale": 1.34,
+          "noiseOctaves": 6,
+          "noiseLacunarity": 1.26,
+          "noiseGain": 0.84,
+          "noiseTimeSpeed": 0.3,
+          "noiseTimeOffset": 2.8000000000000114,
+          "noiseIntensity": 1.32
+        },
+        "parameterInputModes": {
+          "noiseIntensity": "multiply",
+          "noiseTimeOffset": "multiply",
+          "noiseGain": "multiply"
+        }
+      },
+      {
+        "id": "node-1772315686039-tg3wy4ksb",
+        "type": "fisheye",
+        "position": {
+          "x": -542,
+          "y": -140
+        },
+        "parameters": {
+          "fisheyeCenterX": 0,
+          "fisheyeCenterY": 0,
+          "fisheyeStrength": -1,
+          "fisheyeAspect": 1
+        },
+        "parameterInputModes": {
+          "fisheyeStrength": "multiply"
+        }
+      },
+      {
+        "id": "node-1772315686039-aagwd6mdk",
+        "type": "fisheye",
+        "position": {
+          "x": 262,
+          "y": -150
+        },
+        "parameters": {
+          "fisheyeCenterX": 0,
+          "fisheyeCenterY": 0,
+          "fisheyeStrength": -0.56,
+          "fisheyeAspect": 1
+        },
+        "parameterInputModes": {
+          "fisheyeStrength": "multiply"
+        }
+      },
+      {
+        "id": "node-1772315686039-jzm055dtb",
+        "type": "oklch-color-map-threshold",
+        "position": {
+          "x": 3673,
+          "y": -236
+        },
+        "parameters": {
+          "stops": 20,
+          "transitionWidth": 0.005,
+          "ditherStrength": 1.2,
+          "pixelSize": 2,
+          "startColorL": 0.28,
+          "startColorC": 0.11548643581773421,
+          "startColorH": 2.1147471020765916,
+          "endColorL": 1,
+          "endColorC": 0.1,
+          "endColorH": 180,
+          "lCurveX1": 0,
+          "lCurveY1": 0,
+          "lCurveX2": 1,
+          "lCurveY2": 1,
+          "cCurveX1": 0,
+          "cCurveY1": 0,
+          "cCurveX2": 1,
+          "cCurveY2": 1,
+          "hCurveX1": 0,
+          "hCurveY1": 0,
+          "hCurveX2": 1,
+          "hCurveY2": 1,
+          "reverseHue": 1
+        },
+        "parameterInputModes": {
+          "endColorL": "multiply",
+          "ditherStrength": "multiply"
+        }
+      },
+      {
+        "id": "node-1772315686039-3eugbs0vz",
+        "type": "fragment-coordinates",
+        "position": {
+          "x": 2668,
+          "y": 730
+        },
+        "parameters": {}
+      },
+      {
+        "id": "node-1772315686039-hr7yz6gqa",
+        "type": "resolution",
+        "position": {
+          "x": 2630.127171189152,
+          "y": 955.7170641171299
+        },
+        "parameters": {}
+      }
+    ],
+    "connections": [
+      {
+        "id": "conn-1772315686039-pms3lbk86",
+        "sourceNodeId": "node-1772315686039-x7yvvfrpt",
+        "sourcePort": "out",
+        "targetNodeId": "node-1772315686039-p2cxozyso",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1772315686039-51jzfim1h",
+        "sourceNodeId": "node-1772315686039-kmrygwmpa",
+        "sourcePort": "out",
+        "targetNodeId": "node-1772315686039-qibcbnglr",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1772315686039-g4y8leyal",
+        "sourceNodeId": "audio-signal:remap-remap-5efd6ca9-d013-4d21-a567-9037ce4cf7a2",
+        "sourcePort": "out",
+        "targetNodeId": "node-1772315686039-kmrygwmpa",
+        "targetParameter": "vectorFieldAmplitude"
+      },
+      {
+        "id": "conn-1772315686039-828n0tizr",
+        "sourceNodeId": "audio-signal:remap-remap-5efd6ca9-d013-4d21-a567-9037ce4cf7a2",
+        "sourcePort": "out",
+        "targetNodeId": "node-1772315686039-kmrygwmpa",
+        "targetParameter": "vectorFieldFrequencyX"
+      },
+      {
+        "id": "conn-1772315686039-9neuivep6",
+        "sourceNodeId": "audio-signal:remap-remap-5efd6ca9-d013-4d21-a567-9037ce4cf7a2",
+        "sourcePort": "out",
+        "targetNodeId": "node-1772315686039-kmrygwmpa",
+        "targetParameter": "vectorFieldFrequencyY"
+      },
+      {
+        "id": "conn-1772315686039-x0jbxxzur",
+        "sourceNodeId": "audio-signal:remap-remap-5efd6ca9-d013-4d21-a567-9037ce4cf7a2",
+        "sourcePort": "out",
+        "targetNodeId": "node-1772315686039-kmrygwmpa",
+        "targetParameter": "vectorFieldFrequencyZ"
+      },
+      {
+        "id": "conn-1772315686039-wivt2bigz",
+        "sourceNodeId": "audio-signal:remap-remap-86a4f117-584d-4780-a45c-25122934a0a3",
+        "sourcePort": "out",
+        "targetNodeId": "node-1772315686039-qibcbnglr",
+        "targetParameter": "noiseIntensity"
+      },
+      {
+        "id": "conn-1772315686039-so2gtf7ff",
+        "sourceNodeId": "audio-signal:remap-remap-ced06e78-ae9d-49a8-bbce-bc3c9a0d88b3",
+        "sourcePort": "out",
+        "targetNodeId": "node-1772315686039-kmrygwmpa",
+        "targetParameter": "vectorFieldHarmonicAmplitude"
+      },
+      {
+        "id": "conn-1772315686039-3f3vsgpwb",
+        "sourceNodeId": "node-1772315686039-p2cxozyso",
+        "sourcePort": "out",
+        "targetNodeId": "node-1772315686039-tg3wy4ksb",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1772315686039-cgj525cj6",
+        "sourceNodeId": "node-1772315686039-tg3wy4ksb",
+        "sourcePort": "out",
+        "targetNodeId": "node-1772315686039-aagwd6mdk",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1772315686039-qu5o5dloi",
+        "sourceNodeId": "node-1772315686039-aagwd6mdk",
+        "sourcePort": "out",
+        "targetNodeId": "node-1772315686039-kmrygwmpa",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1772315686039-e8tl04zdw",
+        "sourceNodeId": "audio-signal:remap-remap-ced06e78-ae9d-49a8-bbce-bc3c9a0d88b3",
+        "sourcePort": "out",
+        "targetNodeId": "node-1772315686039-tg3wy4ksb",
+        "targetParameter": "fisheyeStrength"
+      },
+      {
+        "id": "conn-1772315686039-r3mxqvczj",
+        "sourceNodeId": "audio-signal:remap-remap-d2390386-ecb0-42a0-9dbe-1ef61172fdcc",
+        "sourcePort": "out",
+        "targetNodeId": "node-1772315686039-aagwd6mdk",
+        "targetParameter": "fisheyeStrength"
+      },
+      {
+        "id": "conn-1772315686039-ns1nqymue",
+        "sourceNodeId": "node-1772315686039-qibcbnglr",
+        "sourcePort": "out",
+        "targetNodeId": "node-1772315686039-jzm055dtb",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1772315686039-ltppqku06",
+        "sourceNodeId": "node-1772315686039-jzm055dtb",
+        "sourcePort": "out",
+        "targetNodeId": "node-1772315686039-ccwcxd97k",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1772315686039-pj64ellre",
+        "sourceNodeId": "audio-signal:remap-remap-5efd6ca9-d013-4d21-a567-9037ce4cf7a2",
+        "sourcePort": "out",
+        "targetNodeId": "node-1772315686039-jzm055dtb",
+        "targetParameter": "endColorL"
+      },
+      {
+        "id": "conn-1772315686039-lnwppnkh1",
+        "sourceNodeId": "node-1772315686039-3eugbs0vz",
+        "sourcePort": "out",
+        "targetNodeId": "node-1772315686039-jzm055dtb",
+        "targetPort": "fragCoord"
+      },
+      {
+        "id": "conn-1772315686039-83529aynt",
+        "sourceNodeId": "node-1772315686039-hr7yz6gqa",
+        "sourcePort": "out",
+        "targetNodeId": "node-1772315686039-jzm055dtb",
+        "targetPort": "resolution"
+      },
+      {
+        "id": "conn-1772315686039-vt4jx7skt",
+        "sourceNodeId": "audio-signal:remap-remap-be75da62-ab3b-49d7-a0cc-17641daacf2e",
+        "sourcePort": "out",
+        "targetNodeId": "node-1772315686039-jzm055dtb",
+        "targetParameter": "ditherStrength"
+      },
+      {
+        "id": "conn-1772315686039-m9p32l30r",
+        "sourceNodeId": "audio-signal:band-band-44970617-8fb0-44b5-ae22-f21d3dbad09a-raw",
+        "sourcePort": "out",
+        "targetNodeId": "node-1772315686039-qibcbnglr",
+        "targetParameter": "noiseTimeOffset"
+      },
+      {
+        "id": "conn-1772315834387-pgc91kq8u",
+        "sourceNodeId": "audio-signal:remap-band-band-af5512c8-480e-43e1-af5a-74005ec40728",
+        "sourcePort": "out",
+        "targetNodeId": "node-1772315686039-qibcbnglr",
+        "targetParameter": "noiseGain"
+      }
+    ],
+    "viewState": {
+      "zoom": 0.29833049209893236,
+      "panX": -46.72877084824586,
+      "panY": 212.88227135645195,
+      "selectedNodeIds": []
+    },
+    "automation": {
+      "bpm": 120,
+      "durationSeconds": 30,
+      "lanes": []
+    }
+  },
+  "audioSetup": {
+    "files": [
+      {
+        "id": "file-new-billie",
+        "name": "seb - music xcx",
+        "filePath": "seb - music xcx.mp3",
+        "autoPlay": true
+      }
+    ],
+    "bands": [
+      {
+        "id": "band-af5512c8-480e-43e1-af5a-74005ec40728",
+        "name": "Band 2",
+        "sourceFileId": "tracks/frdqyw9b3",
+        "frequencyBands": [
+          [
+            223,
+            317
+          ]
+        ],
+        "smoothing": 0.5,
+        "fftSize": 2048
+      },
+      {
+        "id": "band-44970617-8fb0-44b5-ae22-f21d3dbad09a",
+        "name": "Vol",
+        "sourceFileId": "tracks/frdqyw9b3",
+        "frequencyBands": [
+          [
+            84,
+            3013
+          ]
+        ],
+        "smoothing": 0.5,
+        "fftSize": 2048
+      }
+    ],
+    "remappers": [
+      {
+        "id": "remap-5efd6ca9-d013-4d21-a567-9037ce4cf7a2",
+        "name": "subtle",
+        "bandId": "band-44970617-8fb0-44b5-ae22-f21d3dbad09a",
+        "inMin": 0,
+        "inMax": 1,
+        "outMin": 0.66,
+        "outMax": 1
+      },
+      {
+        "id": "remap-86a4f117-584d-4780-a45c-25122934a0a3",
+        "name": "light",
+        "bandId": "band-44970617-8fb0-44b5-ae22-f21d3dbad09a",
+        "inMin": 0,
+        "inMax": 1,
+        "outMin": 0.51,
+        "outMax": 1
+      },
+      {
+        "id": "remap-ced06e78-ae9d-49a8-bbce-bc3c9a0d88b3",
+        "name": "Remap 1",
+        "bandId": "band-af5512c8-480e-43e1-af5a-74005ec40728",
+        "inMin": 0.6,
+        "inMax": 1,
+        "outMin": 1,
+        "outMax": 0.32
+      },
+      {
+        "id": "remap-d2390386-ecb0-42a0-9dbe-1ef61172fdcc",
+        "name": "Remap 2",
+        "bandId": "band-af5512c8-480e-43e1-af5a-74005ec40728",
+        "inMin": 0.55,
+        "inMax": 1,
+        "outMin": 0,
+        "outMax": 1
+      },
+      {
+        "id": "remap-be75da62-ab3b-49d7-a0cc-17641daacf2e",
+        "name": "Remap 3",
+        "bandId": "band-af5512c8-480e-43e1-af5a-74005ec40728",
+        "inMin": 0.56,
+        "inMax": 1,
+        "outMin": 1,
+        "outMax": 0
+      },
+      {
+        "id": "band-band-af5512c8-480e-43e1-af5a-74005ec40728",
+        "name": "Default",
+        "bandId": "band-af5512c8-480e-43e1-af5a-74005ec40728",
+        "inMin": 0,
+        "inMax": 1,
+        "outMin": 0.45,
+        "outMax": 1
+      },
+      {
+        "id": "band-band-44970617-8fb0-44b5-ae22-f21d3dbad09a",
+        "name": "Default",
+        "bandId": "band-44970617-8fb0-44b5-ae22-f21d3dbad09a",
+        "inMin": 0,
+        "inMax": 1,
+        "outMin": 0,
+        "outMax": 1
+      }
+    ],
+    "playlistState": {
+      "order": [
+        "tracks/5j5bp9a4kk9v",
+        "tracks/n2b4opfakc",
+        "tracks/4qsm954kom",
+        "tracks/pmw5vfgk0h",
+        "tracks/ke5ptx0po",
+        "tracks/1zgcuf11xs",
+        "tracks/k5o082zh20",
+        "tracks/60tciwin",
+        "tracks/7xipg0fm",
+        "tracks/vgnwo0jxk3",
+        "tracks/a6yjbh5qku",
+        "tracks/lpl325iz2lob",
+        "tracks/ljxzeymjbpo",
+        "tracks/jlv6xanghsvt",
+        "tracks/sxvcfuu54i",
+        "tracks/mmv7zp2dt3o",
+        "tracks/1tcrfgrunk",
+        "tracks/n7cui25f",
+        "tracks/nvz3c13uxt",
+        "tracks/498vy4810a",
+        "tracks/49jeoh0rhp",
+        "tracks/4g9l9eyjk",
+        "tracks/2r7664s10",
+        "tracks/v2bb6pq8b0p8",
+        "tracks/ct0ljdzdbf",
+        "tracks/859u42roj",
+        "tracks/0ny2gzxi",
+        "tracks/33hk728pinb",
+        "tracks/3dglxy0oj3e",
+        "tracks/d7t3riij7",
+        "tracks/0prrh95q",
+        "tracks/apfn3p7evg8w",
+        "tracks/tmw689snu",
+        "tracks/gwn6q88ml",
+        "tracks/ii022sgv",
+        "tracks/wl3fgz1pk",
+        "tracks/aulzk5mt9j",
+        "tracks/eedqngfc",
+        "tracks/2hpqvq5u4lc",
+        "tracks/opu5hcxzvr",
+        "tracks/0lg2fmnji",
+        "tracks/6udqj1rmsfba",
+        "tracks/uc878q6o9",
+        "tracks/e80i7yq0udyr",
+        "tracks/rhvati4uxqxh",
+        "tracks/ybouq91p4u8",
+        "tracks/mwriefhj6x",
+        "tracks/vldg9vtde4",
+        "tracks/ldh77lfjk",
+        "tracks/1627nxqv3",
+        "tracks/0banjok8ae4k",
+        "tracks/y5mih0r9cwik",
+        "tracks/nmv03pprlbb",
+        "tracks/x30b2wbv0g1",
+        "tracks/4xxaknyyf8c",
+        "tracks/z3dysnnp",
+        "tracks/kamxlv2v8of",
+        "tracks/9jxp6mbf",
+        "tracks/frdqyw9b3",
+        "tracks/qf5q0a5wecd3",
+        "tracks/emrcwwwnan",
+        "tracks/lcmbddqjw2",
+        "tracks/9ho763iw3k",
+        "tracks/y27lqj9e",
+        "tracks/v4c5p7rk0",
+        "tracks/hgq0xn1g01",
+        "tracks/qqzqnt4csmat",
+        "tracks/eq4m91kpiddc",
+        "tracks/6gxhj2sv1bx",
+        "tracks/kuq2z0jyr",
+        "tracks/0k3o9jwm9",
+        "tracks/mb6oqwc1",
+        "tracks/gc0xta86be",
+        "tracks/nc49fqfybra",
+        "tracks/ss8zuqay9wy",
+        "tracks/da0tkheo0f",
+        "tracks/cu9ecwvqq",
+        "tracks/ahntfhcz35",
+        "tracks/ua7qf7z7q",
+        "tracks/fe0ggkv485n3",
+        "tracks/fctb85n63qw",
+        "tracks/uz9xig56bvhb",
+        "tracks/2v5fdhyfw",
+        "tracks/k50x9qxd2s",
+        "tracks/5yotqjmqt",
+        "tracks/xctl53ponq7x",
+        "tracks/k2lzshmci6s",
+        "tracks/qg49x1b1",
+        "tracks/lr9t5akeo44",
+        "tracks/oxb34vh9xhr",
+        "tracks/md9p6cbso0j",
+        "tracks/2xusbeg5",
+        "tracks/b7f57fkgqyxb",
+        "tracks/6qkd6kysz",
+        "tracks/ov3argzlaj",
+        "tracks/nvh3b3kdlqee",
+        "tracks/j7osdf7t8hb",
+        "tracks/7geaa5vruw",
+        "tracks/v8w6juocl8"
+      ],
+      "currentIndex": 58,
+      "loopCurrentTrack": true
+    },
+    "primarySource": {
+      "type": "playlist",
+      "trackId": "tracks/frdqyw9b3"
+    }
+  },
+  "startingTrackId": "tracks/frdqyw9b3"
+}

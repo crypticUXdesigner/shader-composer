@@ -17,7 +17,8 @@ import type { HandlerContext } from '../HandlerContext';
 import { getCSSVariableAsNumber } from '../../../utils/cssTokens';
 import { Throttler } from '../../../utils/Throttler';
 import { snapParameterValue } from '../../../utils/parameterValueCalculator';
-import { getParameterUIRegistry } from '../../components/rendering/ParameterUIRegistry';
+import { getParameterUIRegistry } from '../../editor/rendering/ParameterUIRegistry';
+import { isEnumParameter } from '../../../utils/parameterEnumMappings';
 
 export class ParameterDragHandler implements InteractionHandler {
   priority = 40; // High priority - parameter dragging is specific interaction
@@ -29,11 +30,11 @@ export class ParameterDragHandler implements InteractionHandler {
   private dragParamStartValue: number = 0;
   
   // Phase 3.4: Throttle parameter updates for smooth performance
-  private parameterThrottler: Throttler;
+  private parameterThrottler: Throttler<number>;
   
   constructor(private context: HandlerContext) {
     // Throttle at ~60fps (16ms) for smooth updates
-    this.parameterThrottler = new Throttler(16);
+    this.parameterThrottler = new Throttler<number>(16);
   }
   
   canHandle(event: InteractionEvent): boolean {
@@ -76,7 +77,7 @@ export class ParameterDragHandler implements InteractionHandler {
     
     const parameterRegistry = getParameterUIRegistry();
     const renderer = parameterRegistry.getRenderer(spec, paramHit.paramName);
-    const uiType = renderer.getUIType();
+    const uiType = isEnumParameter(spec.id, paramHit.paramName) ? 'enum' : renderer.getUIType();
 
     if (uiType === 'enum') {
       // Don't allow dragging enum parameters - they're only selectable via dropdown

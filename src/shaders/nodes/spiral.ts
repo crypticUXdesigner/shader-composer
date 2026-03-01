@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const spiralNodeSpec: NodeSpec = {
   id: 'spiral',
@@ -9,19 +9,21 @@ export const spiralNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'Position'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'float'
+      type: 'float',
+      label: 'Value'
     }
   ],
   parameters: {
     spiralCenterX: {
       type: 'float',
-      default: 0.5,
+      default: 0.0,
       min: -2.0,
       max: 2.0,
       step: 0.01,
@@ -29,7 +31,7 @@ export const spiralNodeSpec: NodeSpec = {
     },
     spiralCenterY: {
       type: 'float',
-      default: 0.5,
+      default: 0.0,
       min: -2.0,
       max: 2.0,
       step: 0.01,
@@ -100,6 +102,16 @@ export const spiralNodeSpec: NodeSpec = {
       defaultCollapsed: false
     }
   ],
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['spiralCenterX', 'spiralCenterY', 'spiralDensity', 'spiralRotation', 'spiralArms', 'spiralThickness', 'spiralTimePhase', 'spiralIntensity'],
+        parameterUI: { spiralCenterX: 'coords', spiralCenterY: 'coords' },
+        layout: { columns: 3, coordsSpan: 2, parameterSpan: { spiralIntensity: 2 } }
+      }
+    ]
+  },
   functions: `
 float spiralPattern(vec2 p, vec2 center, float density, float rotation, float arms, float thickness) {
   vec2 offset = p - center;

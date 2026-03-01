@@ -77,6 +77,7 @@ export class PortConnectHandler implements InteractionHandler {
       connectionStartPort: portHit.port,
       connectionStartParameter: portHit.parameter || null,
       connectionStartIsOutput: portHit.isOutput,
+      connectionStartSnapPosition: portHit.parameter && portHit.snapPosition ? portHit.snapPosition : undefined,
       connectionMouseX: event.screenPosition.x,
       connectionMouseY: event.screenPosition.y,
       hoveredPort: null
@@ -95,12 +96,13 @@ export class PortConnectHandler implements InteractionHandler {
     this.connectionMouseX = event.screenPosition.x;
     this.connectionMouseY = event.screenPosition.y;
     
-    // Check if hovering over a valid input port (only if dragging from output)
-    if (this.connectionStartIsOutput) {
-      const portHit = this.context.hitTestPort?.(event.screenPosition.x, event.screenPosition.y);
-      // Only highlight input ports (not outputs) and not the same node
-      if (portHit && !portHit.isOutput && portHit.nodeId !== this.connectionStartNodeId) {
-        this.hoveredPort = portHit;
+    // Check if hovering over a valid target port (for snap highlight and for release fallback)
+    const portHit = this.context.hitTestPort?.(event.screenPosition.x, event.screenPosition.y);
+    if (portHit && portHit.nodeId !== this.connectionStartNodeId) {
+      if (this.connectionStartIsOutput && !portHit.isOutput) {
+        this.hoveredPort = portHit; // output → input or param
+      } else if (!this.connectionStartIsOutput && portHit.isOutput) {
+        this.hoveredPort = portHit; // input → output
       } else {
         this.hoveredPort = null;
       }
@@ -127,80 +129,13 @@ export class PortConnectHandler implements InteractionHandler {
     this.context.requestRender();
   }
   
-  onEnd(event: InteractionEvent): void {
+  onEnd(_event: InteractionEvent): void {
     if (!this.isConnecting) return;
-    
-    // Stop edge scrolling
+
+    // Connection is completed in completeConnectionOnMouseUp (runs before endAllInteractionsAndClearGuides)
+    // so it can use canvas state hoveredPort and last cursor position. Here we only clean up.
     this.stopEdgeScrolling();
-    
-    // Check if released on a valid port
-    const portHit = this.context.hitTestPort?.(event.screenPosition.x, event.screenPosition.y);
-    if (portHit && portHit.nodeId !== this.connectionStartNodeId) {
-      // Valid connection
-      if (this.connectionStartIsOutput && !portHit.isOutput) {
-        // Output to input or parameter
-        if (portHit.parameter) {
-          // Connecting to parameter input
-          // connectionStartPort should be set (output ports always have a name)
-          if (this.connectionStartNodeId && this.connectionStartPort) {
-            this.context.onConnectionCreated?.(
-              this.connectionStartNodeId,
-              this.connectionStartPort,
-              portHit.nodeId,
-              undefined,
-              portHit.parameter
-            );
-          } else {
-            console.warn('[PortConnectHandler] Missing connection data for parameter connection:', {
-              connectionStartNodeId: this.connectionStartNodeId,
-              connectionStartPort: this.connectionStartPort
-            });
-          }
-        } else {
-          // Output to input port
-          // connectionStartPort should be set (output ports always have a name)
-          // portHit.port should be set for regular input ports
-          if (this.connectionStartNodeId && this.connectionStartPort && portHit.port) {
-            this.context.onConnectionCreated?.(
-              this.connectionStartNodeId,
-              this.connectionStartPort,
-              portHit.nodeId,
-              portHit.port
-            );
-          } else {
-            console.warn('[PortConnectHandler] Missing connection data for port connection:', {
-              connectionStartNodeId: this.connectionStartNodeId,
-              connectionStartPort: this.connectionStartPort,
-              portHitPort: portHit.port
-            });
-          }
-        }
-      } else if (!this.connectionStartIsOutput && portHit.isOutput) {
-        // Input to output (reverse) - not applicable for parameter inputs
-        // connectionStartPort might be empty for parameter inputs, but we're connecting from input to output
-        // so connectionStartPort should be set (regular input ports have names)
-        if (this.connectionStartNodeId && this.connectionStartPort && portHit.port) {
-          this.context.onConnectionCreated?.(
-            portHit.nodeId,
-            portHit.port,
-            this.connectionStartNodeId,
-            this.connectionStartPort
-          );
-        } else {
-          console.warn('[PortConnectHandler] Missing connection data for reverse port connection:', {
-            connectionStartNodeId: this.connectionStartNodeId,
-            connectionStartPort: this.connectionStartPort,
-            portHitPort: portHit.port
-          });
-        }
-      } else {
-        console.warn('[PortConnectHandler] Invalid connection direction:', {
-          connectionStartIsOutput: this.connectionStartIsOutput,
-          portHitIsOutput: portHit.isOutput
-        });
-      }
-    }
-    
+
     // Clean up
     this.isConnecting = false;
     this.connectionStartNodeId = null;
@@ -215,6 +150,7 @@ export class PortConnectHandler implements InteractionHandler {
       connectionStartPort: null,
       connectionStartParameter: null,
       connectionStartIsOutput: false,
+      connectionStartSnapPosition: undefined,
       connectionMouseX: 0,
       connectionMouseY: 0,
       hoveredPort: null

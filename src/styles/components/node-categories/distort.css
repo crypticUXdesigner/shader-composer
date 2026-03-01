@@ -1,0 +1,339 @@
+/* =============================================================================
+   DISTORT â€” sub-groups: transform (muted, default), warp (prominent)
+   ============================================================================= */
+
+:root {
+  /* Transform (default): slightly muted clean-gray scale */
+  /* Node body shadow (outermost) */
+  --node-body-shadow-color-mid-distort: var(--color-blue-gray-90);
+  --node-body-shadow-color-outer-distort: var(--color-clean-gray-60);
+
+  /* Node header */
+  --node-header-bg-distort: var(--color-clean-gray-120);
+  --node-header-bg-end-distort: var(--color-clean-gray-100);
+  --node-header-print-distort: var(--color-clean-gray-20);
+
+  /* Icon box */
+  --node-icon-box-bg-distort: var(--color-red-orange-gray-80);
+  --node-icon-box-color-distort: var(--color-clean-gray-120);
+
+  /* Param group header */
+  --param-group-header-color-distort: var(--color-clean-gray-20);
+
+  /* Param grid */
+  --node-param-grid-border-distort: var(--color-clean-gray-40);
+
+  /* Param cell */
+  --node-param-label-color-distort: var(--color-clean-gray-10);
+  --node-param-value-color-connected-distort: var(--color-teal-110);
+
+  /* Knob */
+  --node-knob-value-bg-distort: var(--color-clean-gray-60);
+  --node-knob-value-color-distort: var(--color-clean-gray-110);
+  --node-knob-ring-color-distort: var(--color-clean-gray-120);
+  --node-knob-arc-active-distort: var(--color-clean-gray-70);
+  --node-knob-marker-distort: var(--color-clean-gray-70);
+  --node-knob-center-bg-distort: var(--color-clean-gray-80);
+  --node-knob-center-border-color-distort: var(--color-clean-gray-100);
+  --knob-ring-bg-width-distort: 6px;
+  --knob-ring-active-width-distort: 6px;
+  --knob-marker-radius-offset-distort: -18px;
+  --knob-marker-size-distort: 6px;
+  --knob-center-size-distort: 50px;
+  --knob-center-border-width-distort: 1px;
+
+  /* Bezier editor */
+  --node-bezier-curve-distort: var(--color-clean-gray-90);
+  --node-bezier-control-distort: var(--color-clean-gray-90);
+  --node-bezier-control-hover-distort: var(--color-clean-gray-100);
+
+  /* Warp sub-group: clean-gray scale â€” more prominent (original strong style) */
+  /* Node body shadow (outermost) */
+  --node-body-shadow-color-mid-distort-warp: var(--color-red-orange-gray-90);
+  --node-body-shadow-color-outer-distort-warp: var(--color-red-orange-gray-70);
+
+  /* Node header */
+  --node-header-bg-distort-warp: var(--color-clean-gray-120);
+  --node-header-bg-end-distort-warp: var(--color-clean-gray-100);
+  --node-header-print-distort-warp: var(--color-clean-gray-60);
+
+  /* Icon box */
+  --node-icon-box-bg-distort-warp: var(--color-clean-gray-70);
+  --node-icon-box-color-distort-warp: var(--color-red-orange-100);
+
+  /* Param group header */
+  --param-group-header-color-distort-warp: var(--color-clean-gray-20);
+
+  /* Param grid */
+  --node-param-grid-border-distort-warp: var(--color-clean-gray-80);
+
+  /* Param cell */
+  --node-param-label-color-distort-warp: var(--color-clean-gray-10);
+  --node-param-value-color-connected-distort-warp: var(--color-teal-110);
+
+  /* Knob */
+  --node-knob-value-bg-distort-warp: var(--color-clean-gray-60);
+  --node-knob-value-color-distort-warp: var(--color-clean-gray-120);
+  --node-knob-ring-color-distort-warp: var(--color-clean-gray-120);
+  --node-knob-arc-active-distort-warp: var(--color-clean-gray-60);
+  --node-knob-marker-distort-warp: var(--color-clean-gray-60);
+  --node-knob-center-bg-distort-warp: var(--color-clean-gray-80);
+  --node-knob-center-border-color-distort-warp: var(--color-clean-gray-100);
+  --knob-ring-bg-width-distort-warp: 6px;
+  --knob-ring-active-width-distort-warp: 6px;
+  --knob-marker-radius-offset-distort-warp: -18px;
+  --knob-marker-size-distort-warp: 6px;
+  --knob-center-size-distort-warp: 50px;
+  --knob-center-border-width-distort-warp: 1px;
+
+  /* Bezier editor */
+  --node-bezier-curve-distort-warp: var(--color-clean-gray-90);
+  --node-bezier-control-distort-warp: var(--color-clean-gray-90);
+  --node-bezier-control-hover-distort-warp: var(--color-clean-gray-100);
+}
+
+.node.distort {
+  /* CSS custom properties */
+  --node-body-shadow-color-mid: var(--node-body-shadow-color-mid-distort);
+  --node-body-shadow-color-outer: var(--node-body-shadow-color-outer-distort);
+  --node-header-name-color: var(--node-header-print-distort);
+  --param-group-header-color: var(--param-group-header-color-distort);
+  --knob-ring-color: var(--node-knob-ring-color-distort);
+  --knob-ring-active-color-static: var(--node-knob-arc-active-distort);
+  --knob-marker-color: var(--node-knob-marker-distort);
+  --knob-value-bg: var(--node-knob-value-bg-distort);
+  --knob-value-color: var(--node-knob-value-color-distort);
+  --param-control-bg: var(--node-knob-value-bg-distort);
+  --param-control-bg-hover: var(--color-clean-gray-70);
+  --param-control-bg-active: var(--color-clean-gray-80);
+  --param-control-value-color: var(--node-knob-value-color-distort);
+
+  /* Knob: marker inside arc, optional center circle, marker size */
+  --knob-ring-bg-width: var(--knob-ring-bg-width-distort);
+  --knob-ring-active-width: var(--knob-ring-active-width-distort);
+  --knob-marker-radius-offset: var(--knob-marker-radius-offset-distort);
+  --knob-marker-size: var(--knob-marker-size-distort);
+  --knob-center-size: var(--knob-center-size-distort);
+  --knob-center-bg: transparent;
+  --knob-center-border-width: var(--knob-center-border-width-distort);
+  --knob-center-border-color: var(--color-clean-gray-60);
+
+  /* Node header (outermost) */
+  background: radial-gradient(
+    ellipse var(--node-header-bg-gradient-ellipse-width) var(--node-header-bg-gradient-ellipse-height) at var(--node-header-bg-gradient-ellipse-x) var(--node-header-bg-gradient-ellipse-y),
+    var(--node-header-bg-distort),
+    var(--node-header-bg-end-distort)
+  );
+
+  /* Node body */
+  .node-body {
+    background: radial-gradient(
+      ellipse 120% 160% at 50% 25%,
+      var(--color-clean-gray-100),
+      var(--color-clean-gray-90)
+    );
+
+    .content {
+      padding: var(--node-body-padding);
+    }
+  }
+
+  /* Icon box */
+  .icon-box {
+    background: var(--node-icon-box-bg-distort);
+    border-radius: 0;
+
+    .header-icon {
+      color: var(--node-icon-box-color-distort);
+    }
+  }
+
+  /* Node header */
+  .node-header {
+    .label-text,
+    .label-input,
+    .port .name-label {
+      color: var(--node-header-print-distort);
+    }
+  }
+
+  /* Param grid */
+  /* Outer border + radius. Cells draw right+bottom; remove from last-in-row and last-row. */
+  .param-grid {
+    gap: 0 !important;
+    padding: 0;
+    border: 1px solid var(--node-param-grid-border-distort);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+
+    /* Remove right from last cell in each row (avoids double border with container) */
+    &[data-cols="1"] .param-cell {
+      border-right: none;
+
+      &:last-child {
+        border-bottom: none;
+      }
+    }
+
+    &[data-cols="2"][data-first-row-cols="1"] .param-cell:nth-child(2n-1) {
+      border-right: none;
+    }
+
+    &[data-cols="2"]:not([data-first-row-cols="1"]) .param-cell:nth-child(2n),
+    &[data-cols="2"]:not([data-first-row-cols="1"]) .param-cell:last-child {
+      border-right: none;
+    }
+
+    &[data-cols="2"][data-last-row-cols="1"] .param-cell:nth-last-child(-n+1) {
+      border-bottom: none;
+    }
+
+    &[data-cols="2"][data-last-row-cols="2"] .param-cell:nth-last-child(-n+2) {
+      border-bottom: none;
+    }
+
+    &[data-cols="3"][data-first-row-cols="1"] .param-cell:nth-child(3n-2) {
+      border-right: none;
+    }
+
+    &[data-cols="3"][data-first-row-cols="2"] .param-cell:nth-child(3n-1),
+    &[data-cols="3"][data-first-row-cols="2"] .param-cell:last-child {
+      border-right: none;
+    }
+
+    &[data-cols="3"][data-first-row-cols="3"] .param-cell:nth-child(3n) {
+      border-right: none;
+    }
+
+    &[data-cols="3"][data-last-row-cols="1"] .param-cell:nth-last-child(-n+1) {
+      border-bottom: none;
+    }
+
+    &[data-cols="3"][data-last-row-cols="2"] .param-cell:nth-last-child(-n+2) {
+      border-bottom: none;
+    }
+
+    &[data-cols="3"][data-last-row-cols="3"] .param-cell:nth-last-child(-n+3) {
+      border-bottom: none;
+    }
+
+    &[data-cols="4"][data-first-row-cols="1"] .param-cell:nth-child(4n-3) {
+      border-right: none;
+    }
+
+    &[data-cols="4"]:not([data-first-row-cols="1"]) .param-cell:nth-child(4n),
+    &[data-cols="4"]:not([data-first-row-cols="1"]) .param-cell:last-child {
+      border-right: none;
+    }
+
+    &[data-cols="4"][data-last-row-cols="1"] .param-cell:nth-last-child(-n+1) {
+      border-bottom: none;
+    }
+
+    &[data-cols="4"][data-last-row-cols="2"] .param-cell:nth-last-child(-n+2) {
+      border-bottom: none;
+    }
+
+    &[data-cols="4"][data-last-row-cols="3"] .param-cell:nth-last-child(-n+3) {
+      border-bottom: none;
+    }
+
+    &[data-cols="4"][data-last-row-cols="4"] .param-cell:nth-last-child(-n+4) {
+      border-bottom: none;
+    }
+  }
+
+  /* Param cell */
+  .param-cell {
+    background: transparent;
+    border: none;
+    border-right: 1px solid var(--node-param-grid-border-distort);
+    border-bottom: 1px solid var(--node-param-grid-border-distort);
+    border-radius: 0;
+    padding: var(--pd-lg);
+
+    &.connected {
+      background: var(--color-red-orange-120);
+
+      .control-slot.param-controls {
+        --param-control-value-color: var(--node-param-value-color-connected-distort);
+        --knob-value-color: var(--node-param-value-color-connected-distort);
+        --secondary-print: var(--node-param-value-color-connected-distort);
+        --secondary-print-hover: var(--node-param-value-color-connected-distort);
+        --secondary-print-active: var(--node-param-value-color-connected-distort);
+      }
+    }
+
+    .left-column .top .label {
+      color: var(--node-param-label-color-distort);
+    }
+  }
+
+  /* Bezier editor */
+  .bezier-editor {
+    .curve {
+      stroke: var(--node-bezier-curve-distort);
+    }
+
+    .control-point {
+      background: var(--node-bezier-control-distort);
+
+      &:hover {
+        background: var(--node-bezier-control-hover-distort);
+      }
+    }
+  }
+}
+
+/* Sub-group: warp (bulge, fisheye, displace, etc.) â€” clean-gray scale, more prominent */
+.node.distort.warp {
+  --node-header-bg-distort: var(--node-header-bg-distort-warp);
+  --node-header-bg-end-distort: var(--node-header-bg-end-distort-warp);
+  --node-header-name-color: var(--node-header-print-distort-warp);
+  --node-icon-box-bg-distort: var(--node-icon-box-bg-distort-warp);
+  --node-icon-box-color-distort: var(--node-icon-box-color-distort-warp);
+  --param-group-header-color-distort: var(--param-group-header-color-distort-warp);
+  --node-param-label-color-distort: var(--node-param-label-color-distort-warp);
+  --node-param-grid-border-distort: var(--node-param-grid-border-distort-warp);
+  --node-knob-value-color-distort: var(--node-knob-value-color-distort-warp);
+  --node-knob-value-bg-distort: var(--node-knob-value-bg-distort-warp);
+  --node-knob-ring-color-distort: var(--node-knob-ring-color-distort-warp);
+  --node-knob-arc-active-distort: var(--node-knob-arc-active-distort-warp);
+  --node-knob-marker-distort: var(--node-knob-marker-distort-warp);
+  --node-knob-center-bg-distort: var(--node-knob-center-bg-distort-warp);
+  --node-knob-center-border-color-distort: var(--node-knob-center-border-color-distort-warp);
+  --node-bezier-curve-distort: var(--node-bezier-curve-distort-warp);
+  --node-bezier-control-distort: var(--node-bezier-control-distort-warp);
+  --node-bezier-control-hover-distort: var(--node-bezier-control-hover-distort-warp);
+  --node-body-shadow-color-mid-distort: var(--node-body-shadow-color-mid-distort-warp);
+  --node-body-shadow-color-outer-distort: var(--node-body-shadow-color-outer-distort-warp);
+
+  .node-body {
+    background: radial-gradient(
+      ellipse 120% 160% at 50% 25%,
+      var(--color-clean-gray-110),
+      var(--color-clean-gray-100)
+    );
+  }
+}
+
+.node.distort.warp {
+  /* Icon box */
+  .icon-box .header-icon {
+    color: var(--node-icon-box-color-distort);
+  }
+
+  /* Node header */
+  .node-header {
+    .label-text,
+    .label-input,
+    .port .name-label {
+      color: var(--node-header-print-distort-warp);
+    }
+  }
+}
+
+.node.distort.warp .param-cell .left-column .top .label {
+  color: var(--node-param-label-color-distort-warp);
+}
+

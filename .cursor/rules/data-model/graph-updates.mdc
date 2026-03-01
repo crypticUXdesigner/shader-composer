@@ -1,0 +1,27 @@
+---
+description: Update the node graph only via immutable helpers or store; never mutate in place.
+globs: "src/data-model/**/*.ts,src/lib/stores/graphStore.svelte.ts,src/runtime/**/*.ts"
+alwaysApply: false
+---
+
+# Graph Updates — Immutability
+
+The node graph is the single source of truth. Change detection and undo/redo rely on **immutable** updates: every change must produce a **new** graph reference; never mutate an existing `NodeGraph` (or its `nodes`, `connections`, `viewState`, etc.) in place.
+
+## Do
+
+- **Update the graph** using functions from `src/data-model/immutableUpdates.ts` (or the data-model index), e.g. `updateNodeParameter`, `addNode`, `addConnection`, `updateViewState`.
+- **In the UI / app**: Use the **store** (`graphStore`) actions (e.g. `graphStore.updateNodeParameter`, `graphStore.addNode`). The store uses the immutable helpers internally.
+- **When passing the graph to the runtime**: Pass the **updated** graph from the store after applying the change. The runtime must not mutate that object.
+
+Example: to change a parameter, call `graphStore.updateNodeParameter(nodeId, paramName, value)` (or `updateNodeParameter(graph, ...)` and then assign the returned graph). Do not do `graph.nodes.find(...).parameters[name] = value`.
+
+## Avoid
+
+- **In-place mutation** of `graph`, `graph.nodes`, `graph.connections`, `node.parameters`, `graph.viewState`, or `graph.automation`. Even if the runtime or a helper "holds" the graph, it must not mutate it; the store is the source of truth.
+- **Bypassing the store** in the app when the user changes something (e.g. slider, add node): always update via the store so the graph reference changes and reactivity/undo work.
+
+## Reference
+
+- `src/data-model/immutableUpdates.ts` — all pure update functions.
+- `docs/core-architecture-review.md` — section 1 (Graph Ownership & Mutability) for rationale and current pitfalls.

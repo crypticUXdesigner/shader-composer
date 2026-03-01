@@ -1,4 +1,8 @@
-import type { NodeGraph, NodeSpec, CompilationResult } from '../types';
+import type { NodeGraph } from '../data-model/types';
+import type { NodeSpec } from '../types/nodeSpec';
+import type { CompilationResult } from '../runtime/types';
+import type { AudioSetup } from '../data-model/audioSetupTypes';
+import { getVirtualNodeIdsFromAudioSetup } from '../utils/virtualNodes';
 import { GraphValidator } from './compilation/GraphValidator';
 import { TypeValidator } from './compilation/TypeValidator';
 import { GraphAnalyzer } from './compilation/GraphAnalyzer';
@@ -6,6 +10,15 @@ import { VariableNameGenerator } from './compilation/VariableNameGenerator';
 import { UniformGenerator } from './compilation/UniformGenerator';
 import { FunctionGenerator } from './compilation/FunctionGenerator';
 import { MainCodeGenerator } from './compilation/MainCodeGenerator';
+import {
+  audioNodesFirst as audioNodesFirstHelper,
+  isAudioNode as isAudioNodeHelper,
+  getParameterDefaultValue as getParameterDefaultValueHelper,
+  escapeRegex as escapeRegexHelper,
+  normalizeSwizzlePattern as normalizeSwizzlePatternHelper,
+  generateParameterCombination as generateParameterCombinationHelper,
+  generateSwizzleCode as generateSwizzleCodeHelper
+} from './compilation/NodeShaderCompilerHelpers';
 
 /**
  * Node-based shader compiler
@@ -38,22 +51,22 @@ export class NodeShaderCompiler {
     this.variableNameGenerator = new VariableNameGenerator(nodeSpecs);
     this.uniformGenerator = new UniformGenerator(
       nodeSpecs,
-      (spec) => this.isAudioNode(spec),
-      (paramSpec, paramName) => this.getParameterDefaultValue(paramSpec, paramName)
+      (spec) => isAudioNodeHelper(spec),
+      (paramSpec, paramName) => getParameterDefaultValueHelper(paramSpec, paramName)
     );
     this.functionGenerator = new FunctionGenerator(
       nodeSpecs,
-      (str) => this.escapeRegex(str),
-      (configValue, inputValue, mode, paramType) => this.generateParameterCombination(configValue, inputValue, mode, paramType)
+      (str) => escapeRegexHelper(str),
+      (configValue, inputValue, mode, paramType) => generateParameterCombinationHelper(configValue, inputValue, mode, paramType)
     );
     this.mainCodeGenerator = new MainCodeGenerator(
       nodeSpecs,
-      (spec) => this.isAudioNode(spec),
+      (spec) => isAudioNodeHelper(spec),
       (nodeId, paramName) => this.variableNameGenerator.generateArrayVariableName(nodeId, paramName),
-      (str) => this.escapeRegex(str),
-      (configValue, inputValue, mode, paramType) => this.generateParameterCombination(configValue, inputValue, mode, paramType),
-      (code, swizzleValue, inputVars, outputVars) => this.generateSwizzleCode(code, swizzleValue, inputVars, outputVars),
-      (pattern) => this.normalizeSwizzlePattern(pattern)
+      (str) => escapeRegexHelper(str),
+      (configValue, inputValue, mode, paramType) => generateParameterCombinationHelper(configValue, inputValue, mode, paramType),
+      (code, swizzleValue, inputVars, outputVars) => generateSwizzleCodeHelper(code, swizzleValue, inputVars, outputVars, escapeRegexHelper, normalizeSwizzlePatternHelper),
+      (pattern) => normalizeSwizzlePatternHelper(pattern)
     );
   }
 
@@ -70,7 +83,8 @@ export class NodeShaderCompiler {
   compileIncremental(
     graph: NodeGraph,
     previousResult: CompilationResult | null,
-    affectedNodeIds: Set<string>
+    affectedNodeIds: Set<string>,
+    audioSetup?: AudioSetup | null
   ): CompilationResult | null {
     if (!previousResult) {
       // No previous result - must do full compilation
@@ -93,7 +107,10 @@ export class NodeShaderCompiler {
       // Step 1: Validate graph structure (quick check)
       const errors: string[] = [];
       const warnings: string[] = [];
-      this.graphValidator.validateGraph(graph, errors, warnings);
+      const incrValidSourceNodeIds = audioSetup
+        ? new Set(getVirtualNodeIdsFromAudioSetup(audioSetup))
+        : undefined;
+      this.graphValidator.validateGraph(graph, errors, warnings, incrValidSourceNodeIds);
       if (errors.length > 0) {
         // Validation errors - fall back to full compilation
         return null;
@@ -104,7 +121,7 @@ export class NodeShaderCompiler {
       let executionOrder: string[];
       try {
         executionOrder = this.graphAnalyzer.topologicalSort(graph);
-        executionOrder = this.audioNodesFirst(executionOrder, graph);
+        executionOrder = audioNodesFirstHelper(executionOrder, graph);
       } catch (error) {
         // Circular dependency or other error - fall back to full compilation
         return null;
@@ -162,14 +179,17 @@ export class NodeShaderCompiler {
       // Generate variable names
       const variableNames = this.variableNameGenerator.generateVariableNames(graph);
       
-      // Generate uniform names
-      const uniformNames = this.uniformGenerator.generateUniformNameMapping(graph);
+      // Generate uniform names (incl. panel audio)
+      const uniformNames = this.uniformGenerator.generateUniformNameMapping(graph, audioSetup ?? null);
       
       // Collect functions
-      const { functions, functionNameMap } = this.functionGenerator.collectAndDeduplicateFunctions(graph, uniformNames, variableNames);
+      let { functions, functionNameMap } = this.functionGenerator.collectAndDeduplicateFunctions(graph, uniformNames, variableNames);
       
-      // Generate main code
-      const { variableDeclarations, mainCode } = this.mainCodeGenerator.generateMainCode(graph, executionOrder, variableNames, uniformNames, functionNameMap);
+      // Generate main code (includes generic-raymarcher SDF function code)
+      const { variableDeclarations, mainCode, genericRaymarcherSdfFunctions } = this.mainCodeGenerator.generateMainCode(graph, executionOrder, variableNames, uniformNames, functionNameMap);
+      if (genericRaymarcherSdfFunctions) {
+        functions = functions ? `${functions}\n\n${genericRaymarcherSdfFunctions}` : genericRaymarcherSdfFunctions;
+      }
       
       // Find final output node
       const finalOutputNode = this.mainCodeGenerator.findFinalOutputNode(graph, executionOrder);
@@ -180,8 +200,8 @@ export class NodeShaderCompiler {
       // Track which uniforms are actually used
       const usedUniforms = this.uniformGenerator.findUsedUniforms(mainCode + '\n' + variableDeclarations, functions, uniformNames);
       
-      // Generate uniform metadata
-      const uniforms = this.uniformGenerator.generateUniformMetadata(graph, uniformNames, usedUniforms);
+      // Generate uniform metadata (incl. panel audio)
+      const uniforms = this.uniformGenerator.generateUniformMetadata(graph, uniformNames, usedUniforms, audioSetup ?? null);
       
       // Check for disconnected nodes (warnings)
       const connectedNodes = new Set<string>();
@@ -195,8 +215,9 @@ export class NodeShaderCompiler {
         }
       }
       
-      // Assemble shader
-      const shaderCode = this.mainCodeGenerator.assembleShader(functions, uniforms, variableDeclarations, mainCode, finalColorVar);
+      // Assemble shader (include automation eval functions when graph has automation; WP 03)
+      const automationFunctions = this.mainCodeGenerator.generateAutomationFunctions(graph, executionOrder);
+      const shaderCode = this.mainCodeGenerator.assembleShader(functions, uniforms, variableDeclarations, mainCode, finalColorVar, automationFunctions);
       
       return {
         shaderCode,
@@ -218,8 +239,9 @@ export class NodeShaderCompiler {
 
   /**
    * Compile a node graph into GLSL shader code
+   * @param audioSetup - Optional panel audio setup for uniforms from bands (WP 09)
    */
-  compile(graph: NodeGraph): CompilationResult {
+  compile(graph: NodeGraph, audioSetup?: AudioSetup | null): CompilationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
     const executionOrder: string[] = [];
@@ -247,7 +269,10 @@ export class NodeShaderCompiler {
     }
 
     // Step 1: Validate graph structure
-    this.graphValidator.validateGraph(graph, errors, warnings);
+    const validSourceNodeIds = audioSetup
+      ? new Set(getVirtualNodeIdsFromAudioSetup(audioSetup))
+      : undefined;
+    this.graphValidator.validateGraph(graph, errors, warnings, validSourceNodeIds);
     if (errors.length > 0) {
       return {
         shaderCode: '',
@@ -264,10 +289,7 @@ export class NodeShaderCompiler {
     // Step 2: Graph traversal - topological sort
     try {
       let sorted = this.graphAnalyzer.topologicalSort(graph);
-      // Ensure audio nodes (audio-file-input, audio-analyzer) run first so band/output
-      // variables are assigned from uniforms before any node (e.g. audio-remap, one-minus,
-      // hexagon) reads them. Otherwise the chain analyzer->remap->one-minus->param shows 0.
-      sorted = this.audioNodesFirst(sorted, graph);
+      sorted = audioNodesFirstHelper(sorted, graph);
       executionOrder.push(...sorted);
     } catch (error) {
       errors.push(`[ERROR] Circular Dependency: ${error instanceof Error ? error.message : 'Graph contains cycles'}`);
@@ -302,14 +324,17 @@ export class NodeShaderCompiler {
     // Step 4: Generate variable names
     const variableNames = this.variableNameGenerator.generateVariableNames(graph);
 
-    // Step 5: Generate uniform names
-    const uniformNames = this.uniformGenerator.generateUniformNameMapping(graph);
+    // Step 5: Generate uniform names (incl. panel audio bands from audioSetup)
+    const uniformNames = this.uniformGenerator.generateUniformNameMapping(graph, audioSetup ?? null);
 
     // Step 6: Collect functions (with uniform placeholders replaced)
-    const { functions, functionNameMap } = this.functionGenerator.collectAndDeduplicateFunctions(graph, uniformNames, variableNames);
+    let { functions, functionNameMap } = this.functionGenerator.collectAndDeduplicateFunctions(graph, uniformNames, variableNames);
 
-    // Step 7: Generate main code (returns both variable declarations and main code)
-    const { variableDeclarations, mainCode } = this.mainCodeGenerator.generateMainCode(graph, executionOrder, variableNames, uniformNames, functionNameMap);
+    // Step 7: Generate main code (returns variable declarations, main code, and generic-raymarcher SDF functions)
+    const { variableDeclarations, mainCode, genericRaymarcherSdfFunctions } = this.mainCodeGenerator.generateMainCode(graph, executionOrder, variableNames, uniformNames, functionNameMap);
+    if (genericRaymarcherSdfFunctions) {
+      functions = functions ? `${functions}\n\n${genericRaymarcherSdfFunctions}` : genericRaymarcherSdfFunctions;
+    }
 
     // Step 8: Find final output node
     const finalOutputNode = this.mainCodeGenerator.findFinalOutputNode(graph, executionOrder);
@@ -320,8 +345,8 @@ export class NodeShaderCompiler {
     // Step 10: Track which uniforms are actually used in the shader code
     const usedUniforms = this.uniformGenerator.findUsedUniforms(mainCode + '\n' + variableDeclarations, functions, uniformNames);
 
-    // Step 11: Generate uniform metadata (only for used uniforms)
-    const uniforms = this.uniformGenerator.generateUniformMetadata(graph, uniformNames, usedUniforms);
+    // Step 11: Generate uniform metadata (only for used uniforms; incl. panel audio)
+    const uniforms = this.uniformGenerator.generateUniformMetadata(graph, uniformNames, usedUniforms, audioSetup ?? null);
 
     // Step 12: Check for disconnected nodes (warnings)
     const connectedNodes = new Set<string>();
@@ -335,8 +360,9 @@ export class NodeShaderCompiler {
       }
     }
 
-    // Step 13: Assemble shader
-    const shaderCode = this.mainCodeGenerator.assembleShader(functions, uniforms, variableDeclarations, mainCode, finalColorVar);
+    // Step 13: Assemble shader (include automation eval functions when graph has automation; WP 03)
+    const automationFunctions = this.mainCodeGenerator.generateAutomationFunctions(graph, executionOrder);
+    const shaderCode = this.mainCodeGenerator.assembleShader(functions, uniforms, variableDeclarations, mainCode, finalColorVar, automationFunctions);
 
     return {
       shaderCode,
@@ -350,186 +376,4 @@ export class NodeShaderCompiler {
     };
   }
 
-  // Helper methods used by components
-
-  /**
-   * Reorder execution order so audio-file-input and audio-analyzer nodes run first.
-   * Their blocks assign band/output variables from uniforms; any node that reads
-   * those (e.g. audio-remap, one-minus, hexagon with param connection) must run after.
-   */
-  private audioNodesFirst(sorted: string[], graph: NodeGraph): string[] {
-    const audioProviderTypes = new Set(['audio-file-input', 'audio-analyzer']);
-    const audioIds: string[] = [];
-    const rest: string[] = [];
-    for (const nodeId of sorted) {
-      const node = graph.nodes.find(n => n.id === nodeId);
-      if (node && audioProviderTypes.has(node.type)) {
-        audioIds.push(nodeId);
-      } else {
-        rest.push(nodeId);
-      }
-    }
-    return audioIds.length === 0 ? sorted : [...audioIds, ...rest];
-  }
-
-  /**
-   * Check if a node is an audio node
-   */
-  private isAudioNode(nodeSpec: NodeSpec): boolean {
-    return nodeSpec.category === 'Audio';
-  }
-
-  /**
-   * Get default value for a parameter
-   */
-  private getParameterDefaultValue(
-    paramSpec: { type: string; default?: any },
-    _paramName: string
-  ): number | [number, number] | [number, number, number] | [number, number, number, number] {
-    if (paramSpec.default !== undefined) {
-      if (typeof paramSpec.default === 'number') {
-        return paramSpec.default;
-      }
-      if (Array.isArray(paramSpec.default)) {
-        // Handle vec2, vec3, vec4 arrays
-        if (paramSpec.default.length === 2) {
-          return [paramSpec.default[0], paramSpec.default[1]] as [number, number];
-        } else if (paramSpec.default.length === 3) {
-          return [paramSpec.default[0], paramSpec.default[1], paramSpec.default[2]] as [number, number, number];
-        } else if (paramSpec.default.length === 4) {
-          return paramSpec.default as [number, number, number, number];
-        }
-        return paramSpec.default as any;
-      }
-    }
-
-    // Type-appropriate defaults
-    if (paramSpec.type === 'int') return 0;
-    if (paramSpec.type === 'vec2') return [0, 0];
-    if (paramSpec.type === 'vec3') return [0, 0, 0];
-    if (paramSpec.type === 'vec4') return [0, 0, 0, 0];
-    return 0.0;
-  }
-
-  /**
-   * Generate swizzle code directly based on parameter value
-   * Replaces the conditional block with direct swizzle operation
-   * Note: This is called after input/output placeholders are replaced
-   */
-  private generateSwizzleCode(
-    code: string,
-    swizzleValue: string,
-    inputVars: Map<string, string>,
-    outputVars: Map<string, string>
-  ): string {
-    const inputVar = inputVars.get('in') || 'vec4(0.0)';
-    const outputVar = outputVars.get('out') || 'vec4(0.0)';
-    
-    // Escape the output variable name for use in regex
-    const escapedOutputVar = this.escapeRegex(outputVar);
-    
-    // Validate and normalize swizzle pattern
-    const normalized = this.normalizeSwizzlePattern(swizzleValue);
-    if (!normalized) {
-      // Invalid pattern, use pass-through
-      // Match the entire conditional block - the output var has already been replaced
-      const passThroughRegex = new RegExp(`vec4\\s+v\\s*=\\s*[^;]+;[\\s\\S]*?if\\s*\\([^)]+\\)[\\s\\S]*?else\\s*\\{[\\s\\S]*?${escapedOutputVar}\\s*=\\s*v;[\\s\\S]*?\\}`);
-      return code.replace(passThroughRegex, `${outputVar} = ${inputVar};`);
-    }
-    
-    // Generate swizzle expression
-    let swizzleExpr: string;
-    const pattern = normalized.toLowerCase();
-    
-    if (pattern.length === 2) {
-      // 2-component swizzle (e.g., "xy", "yx")
-      swizzleExpr = `vec4(${inputVar}.${pattern}, 0.0, 1.0)`;
-    } else if (pattern.length === 3) {
-      // 3-component swizzle (e.g., "xyz", "zyx")
-      swizzleExpr = `vec4(${inputVar}.${pattern}, 1.0)`;
-    } else if (pattern.length === 4) {
-      // 4-component swizzle (e.g., "xyzw", "wzyx")
-      swizzleExpr = `${inputVar}.${pattern}`;
-    } else {
-      // Invalid length, pass through
-      swizzleExpr = inputVar;
-    }
-    
-    // Replace the entire conditional block
-    // Match from "vec4 v = ..." through all the if/else if statements to the final else block
-    // The output variable has already been replaced, so use the actual variable name
-    // Match: vec4 v = ...; [anything] if (...) { ... } [else if (...) { ... }]* else { ... output = v; ... }
-    // Use [\s\S] to match across newlines
-    const swizzleBlockRegex = new RegExp(
-      `vec4\\s+v\\s*=\\s*[^;]+;[\\s\\S]*?if\\s*\\([^)]+\\)[\\s\\S]*?(?:else\\s+if\\s*\\([^)]+\\)[\\s\\S]*?)*else\\s*\\{[\\s\\S]*?${escapedOutputVar}\\s*=\\s*v;[\\s\\S]*?\\}`
-    );
-    const replacement = `${outputVar} = ${swizzleExpr};`;
-    
-    const result = code.replace(swizzleBlockRegex, replacement);
-    
-    // If the replacement didn't work (regex didn't match), try a simpler approach
-    // Just replace the parameter references and let the shader compile (it will fail but give better error)
-    if (result === code) {
-      // Fallback: remove all $param.swizzle references
-      return code.replace(/\$param\.swizzle/g, '""');
-    }
-    
-    return result;
-  }
-  
-  /**
-   * Normalize swizzle pattern to valid GLSL swizzle
-   * Converts rgba/abgr to xyzw, validates characters
-   */
-  private normalizeSwizzlePattern(pattern: string): string | null {
-    if (!pattern || typeof pattern !== 'string') return null;
-    
-    // Convert rgba notation to xyzw
-    let normalized = pattern.toLowerCase();
-    normalized = normalized.replace(/r/g, 'x');
-    normalized = normalized.replace(/g/g, 'y');
-    normalized = normalized.replace(/b/g, 'z');
-    normalized = normalized.replace(/a/g, 'w');
-    
-    // Validate: only x, y, z, w allowed, length 1-4
-    if (!/^[xyzw]{1,4}$/.test(normalized)) {
-      return null;
-    }
-    
-    return normalized;
-  }
-
-  /**
-   * Generate parameter combination expression based on input mode
-   */
-  private generateParameterCombination(
-    configValue: string,
-    inputValue: string,
-    mode: 'override' | 'add' | 'subtract' | 'multiply',
-    _paramType: 'float' | 'int' = 'float'
-  ): string {
-    // For override mode, just return the input value
-    if (mode === 'override') {
-      return inputValue;
-    }
-    
-    // For arithmetic operations, both values are already float-compatible
-    switch (mode) {
-      case 'add':
-        return `(${configValue} + ${inputValue})`;
-      case 'subtract':
-        return `(${configValue} - ${inputValue})`;
-      case 'multiply':
-        return `(${configValue} * ${inputValue})`;
-      default:
-        return inputValue;
-    }
-  }
-
-  /**
-   * Escape regex special characters
-   */
-  private escapeRegex(str: string): string {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  }
 }

@@ -242,7 +242,8 @@ export class WebCodecsVideoExporter implements WebCodecsVideoExporterInterface {
             limitValue: MAX_EXPORT_BUFFER_BYTES,
             actualValue: byteLength,
             hint: 'Shorten duration, lower resolution, or lower bitrate.',
-          })
+          }),
+          { cause: err }
         );
       }
       throw err;

@@ -1,21 +1,23 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const fractalNodeSpec: NodeSpec = {
   id: 'fractal',
-  category: 'Shapes',
+  category: 'Patterns',
   displayName: 'Fractal',
   description: 'Fractal iteration that deforms distance fields, creating complex geometric structures',
   icon: 'sparkles-2',
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'float'
+      type: 'float',
+      label: 'UV'
     }
   ],
   parameters: {
@@ -92,6 +94,21 @@ export const fractalNodeSpec: NodeSpec = {
       defaultCollapsed: false
     }
   ],
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['fractalIntensity', 'fractalLayers', 'fractalIterations'],
+        layout: { columns: 2, parameterSpan: { fractalIterations: 2 } }
+      },
+      {
+        type: 'grid',
+        label: 'Animation',
+        parameters: ['fractalAnimationSpeed', 'fractalRotationSpeed', 'fractalLayerPhase', 'fractalTimeOffset'],
+        layout: { columns: 2 }
+      }
+    ]
+  },
   functions: `
 float fractalDeform(vec2 p) {
   vec2 z = p;

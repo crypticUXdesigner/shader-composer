@@ -1,32 +1,26 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const cubicCurlNoiseNodeSpec: NodeSpec = {
   id: 'cubic-curl-noise',
   category: 'Patterns',
-  displayName: 'Cubic / Curl Noise',
-  description: 'Cubic interpolation value noise (smooth) or curl noise (flow magnitude). Alternative to fBm/Simplex for smoother or flow-like patterns.',
-  icon: 'noise',
+  displayName: 'Curl Noise',
+  description: 'Curl noise (flow magnitude) from a cubic-interpolation potential. Produces flow-like, organic patterns for displacement or masking.',
+  icon: 'curly-loop',
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'float'
+      type: 'float',
+      label: 'Noise'
     }
   ],
   parameters: {
-    cubicCurlNoiseType: {
-      type: 'int',
-      default: 0,
-      min: 0,
-      max: 1,
-      step: 1,
-      label: 'Type'
-    },
     cubicCurlScale: {
       type: 'float',
       default: 2.0,
@@ -35,30 +29,6 @@ export const cubicCurlNoiseNodeSpec: NodeSpec = {
       step: 0.01,
       label: 'Scale'
     },
-    cubicCurlOctaves: {
-      type: 'float',
-      default: 4.0,
-      min: 1.0,
-      max: 10.0,
-      step: 1.0,
-      label: 'Octaves'
-    },
-    cubicCurlLacunarity: {
-      type: 'float',
-      default: 2.0,
-      min: 1.0,
-      max: 4.0,
-      step: 0.01,
-      label: 'Lacunarity'
-    },
-    cubicCurlGain: {
-      type: 'float',
-      default: 0.5,
-      min: 0.1,
-      max: 1.0,
-      step: 0.01,
-      label: 'Gain'
-    },
     cubicCurlTimeSpeed: {
       type: 'float',
       default: 1.0,
@@ -66,6 +36,14 @@ export const cubicCurlNoiseNodeSpec: NodeSpec = {
       max: 5.0,
       step: 0.01,
       label: 'Time Speed'
+    },
+    cubicCurlTimeOffset: {
+      type: 'float',
+      default: 0.0,
+      min: -100.0,
+      max: 100.0,
+      step: 0.05,
+      label: 'Time Offset'
     },
     cubicCurlIntensity: {
       type: 'float',
@@ -79,26 +57,35 @@ export const cubicCurlNoiseNodeSpec: NodeSpec = {
   parameterGroups: [
     {
       id: 'cubic-curl-noise',
-      label: 'Noise',
-      parameters: ['cubicCurlNoiseType', 'cubicCurlScale', 'cubicCurlOctaves', 'cubicCurlLacunarity', 'cubicCurlGain'],
+      label: 'Curl',
+      parameters: ['cubicCurlScale', 'cubicCurlIntensity'],
       collapsible: true,
       defaultCollapsed: false
     },
     {
       id: 'cubic-curl-animation',
       label: 'Animation',
-      parameters: ['cubicCurlTimeSpeed'],
+      parameters: ['cubicCurlTimeSpeed', 'cubicCurlTimeOffset'],
       collapsible: true,
       defaultCollapsed: true
     },
-    {
-      id: 'cubic-curl-output',
-      label: 'Output',
-      parameters: ['cubicCurlIntensity'],
-      collapsible: true,
-      defaultCollapsed: false
-    }
   ],
+  parameterLayout: {
+    minColumns: 2,
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['cubicCurlScale', 'cubicCurlIntensity'],
+        layout: { columns: 2 }
+      },
+      {
+        type: 'grid',
+        label: 'Animation',
+        parameters: ['cubicCurlTimeSpeed', 'cubicCurlTimeOffset'],
+        layout: { columns: 2 }
+      }
+    ]
+  },
   functions: `
 // 1-D hash
 float cubicCurlHash11(float n) {
@@ -134,21 +121,6 @@ float cubicCurlVnoise3(vec3 p) {
   return mix(y0, y1, w.z) * 2.0 - 1.0;
 }
 
-// Cubic FBM: multiple octaves of cubic value noise, output [0,1]
-float cubicCurlFbm(vec2 uv, float t, float scale, int octaves, float lacunarity, float gain) {
-  vec3 p = vec3(uv * scale, t);
-  float amp = 1.0;
-  float freq = 1.0;
-  float sum = 0.0;
-  for (int i = 0; i < 10; ++i) {
-    if (i >= octaves) break;
-    sum += amp * cubicCurlVnoise3(p * freq);
-    freq *= lacunarity;
-    amp *= gain;
-  }
-  return sum * 0.5 + 0.5;
-}
-
 // 3D potential for curl (same cubic value noise)
 float cubicCurlPotential(vec3 p) {
   return cubicCurlVnoise3(p) + 0.5 * cubicCurlVnoise3(p * 2.0);
@@ -171,16 +143,9 @@ float cubicCurlCurlMagnitude(vec2 uv, float t, float scale) {
   mainCode: `
   float aspectRatio = $resolution.x / $resolution.y;
   vec2 uv = ($input.in - 0.5) * vec2(aspectRatio, 1.0);
-  float cubicCurlTime = $time * $param.cubicCurlTimeSpeed;
-  int octaves = int($param.cubicCurlOctaves);
-
-  float result;
-  if ($param.cubicCurlNoiseType == 0) {
-    result = cubicCurlFbm(uv, cubicCurlTime, $param.cubicCurlScale, octaves, $param.cubicCurlLacunarity, $param.cubicCurlGain);
-  } else {
-    result = cubicCurlCurlMagnitude(uv, cubicCurlTime, $param.cubicCurlScale);
-    result = result * 0.5 + 0.5;
-  }
+  float cubicCurlTime = ($time + $param.cubicCurlTimeOffset) * $param.cubicCurlTimeSpeed;
+  float result = cubicCurlCurlMagnitude(uv, cubicCurlTime, $param.cubicCurlScale);
+  result = result * 0.5 + 0.5;
   $output.out += result * $param.cubicCurlIntensity;
 `
 };

@@ -138,7 +138,7 @@ export async function exportImage(
     exportGl.deleteShader(fragmentShader);
     exportGl.deleteBuffer(quadBuffer);
   } catch (error) {
-    throw new Error(`Export failed: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`Export failed: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
   }
 }
 

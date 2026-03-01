@@ -1,27 +1,29 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const crepuscularRaysNodeSpec: NodeSpec = {
   id: 'crepuscular-rays',
   category: 'Patterns',
   displayName: 'Crepuscular Rays',
   description: 'Atmospheric rays from a source point with distance falloff',
-  icon: 'glow',
+  icon: 'sunrise',
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'float'
+      type: 'float',
+      label: 'Rays'
     }
   ],
   parameters: {
     sourceX: {
       type: 'float',
-      default: 0.5,
+      default: 0.0,
       min: -2.0,
       max: 2.0,
       step: 0.01,
@@ -29,7 +31,7 @@ export const crepuscularRaysNodeSpec: NodeSpec = {
     },
     sourceY: {
       type: 'float',
-      default: 0.5,
+      default: 0.0,
       min: -2.0,
       max: 2.0,
       step: 0.01,
@@ -115,6 +117,26 @@ export const crepuscularRaysNodeSpec: NodeSpec = {
       defaultCollapsed: false
     }
   ],
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: [
+          'sourceX',
+          'sourceY',
+          'distanceFalloff',
+          'rayCount',
+          'spread',
+          'width',
+          'intensity',
+          'rotationSpeed',
+          'rotationOffset'
+        ],
+        parameterUI: { sourceX: 'coords', sourceY: 'coords' },
+        layout: { columns: 3, coordsSpan: 2 }
+      }
+    ]
+  },
   functions: `
 float crepuscularRays(vec2 p, vec2 source, int rayCount, float spreadDeg, float width, float distanceFalloff, float angleOffset) {
   vec2 d = p - source;

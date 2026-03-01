@@ -21,8 +21,10 @@ export class ConnectionSelectHandler implements InteractionHandler {
       return true;
     }
     
-    // Check if clicking on a connection
-    const connHit = this.context.hitTestConnection?.(event.screenPosition.x, event.screenPosition.y);
+    // Check if clicking on a connection (event.target may be connId when forwarded from DOM layer)
+    const connHit = typeof event.target === 'string'
+      ? event.target
+      : this.context.hitTestConnection?.(event.screenPosition.x, event.screenPosition.y);
     if (connHit) {
       return true;
     }
@@ -31,7 +33,9 @@ export class ConnectionSelectHandler implements InteractionHandler {
   }
   
   onStart(event: InteractionEvent): void {
-    const connHit = this.context.hitTestConnection?.(event.screenPosition.x, event.screenPosition.y);
+    const connHit = typeof event.target === 'string'
+      ? event.target
+      : this.context.hitTestConnection?.(event.screenPosition.x, event.screenPosition.y);
     if (!connHit) return;
     
     const state = this.context.getState();

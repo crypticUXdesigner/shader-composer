@@ -4,8 +4,6 @@
  * Types and interfaces for unified graph change detection system.
  */
 
-// import type { NodeGraph } from '../../data-model/types'; // Unused but kept for potential future use
-
 /**
  * Types of changes that can occur in a graph
  */

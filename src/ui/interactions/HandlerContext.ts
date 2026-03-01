@@ -6,12 +6,12 @@
  * having access to necessary functionality.
  */
 
-import type { CanvasState } from '../components/NodeEditorCanvas';
-import type { NodeGraph, NodeInstance } from '../../types/nodeGraph';
+import type { CanvasState } from '../editor/NodeEditorCanvas';
+import type { NodeGraph, NodeInstance } from '../../data-model/types';
 import type { NodeSpec } from '../../types/nodeSpec';
-import type { NodeRenderMetrics } from '../components/NodeRenderer';
-import { RenderLayer } from '../components/rendering/RenderState';
-import type { ToolType } from '../components/BottomBar';
+import type { NodeRenderMetrics } from '../editor/NodeRenderer';
+import { RenderLayer } from '../editor/rendering/RenderState';
+import type { ToolType } from '../../types/editor';
 
 export interface HandlerContext {
   // State access
@@ -35,7 +35,7 @@ export interface HandlerContext {
   onNodeMoved?: (nodeId: string, x: number, y: number) => void;
   onNodeSelected?: (nodeId: string | null, multiSelect: boolean) => void;
   onConnectionCreated?: (sourceNodeId: string, sourcePort: string, targetNodeId: string, targetPort?: string, targetParameter?: string) => void;
-  onParameterChanged?: (nodeId: string, paramName: string, value: number | number[][]) => void;
+  onParameterChanged?: (nodeId: string, paramName: string, value: import('../../data-model/types').ParameterValue) => void;
   onParameterInputModeChanged?: (nodeId: string, paramName: string, mode: import('../../types/nodeSpec').ParameterInputMode) => void;
   
   // Keyboard state
@@ -72,6 +72,7 @@ export interface HandlerContext {
     port: string;
     isOutput: boolean;
     parameter?: string;
+    snapPosition?: { x: number; y: number };
   } | null;
   hitTestParameter?(screenX: number, screenY: number): {
     nodeId: string;
@@ -83,6 +84,7 @@ export interface HandlerContext {
   } | null;
   hitTestBezierControlPoint?(screenX: number, screenY: number): {
     nodeId: string;
+    paramNames: [string, string, string, string];
     controlIndex: number;
   } | null;
   hitTestConnection?(screenX: number, screenY: number): string | null;
@@ -97,6 +99,7 @@ export interface HandlerContext {
     connectionStartPort: string | null;
     connectionStartParameter: string | null;
     connectionStartIsOutput: boolean;
+    connectionStartSnapPosition?: { x: number; y: number };
     connectionMouseX: number;
     connectionMouseY: number;
     hoveredPort: {

@@ -1,4 +1,4 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const colorGradingNodeSpec: NodeSpec = {
   id: 'color-grading',
@@ -9,13 +9,15 @@ export const colorGradingNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec4'
+      type: 'vec4',
+      label: 'Color'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'vec4'
+      type: 'vec4',
+      label: 'Color'
     }
   ],
   parameters: {
@@ -97,7 +99,7 @@ export const colorGradingNodeSpec: NodeSpec = {
       min: 0.0,
       max: 1.0,
       step: 0.01,
-      label: 'Input Black Point'
+      label: 'In Black'
     },
     levelsInMax: {
       type: 'float',
@@ -105,7 +107,7 @@ export const colorGradingNodeSpec: NodeSpec = {
       min: 0.0,
       max: 1.0,
       step: 0.01,
-      label: 'Input White Point'
+      label: 'In White'
     },
     levelsOutMin: {
       type: 'float',
@@ -113,7 +115,7 @@ export const colorGradingNodeSpec: NodeSpec = {
       min: 0.0,
       max: 1.0,
       step: 0.01,
-      label: 'Output Black Point'
+      label: 'Out Black'
     },
     levelsOutMax: {
       type: 'float',
@@ -121,7 +123,7 @@ export const colorGradingNodeSpec: NodeSpec = {
       min: 0.0,
       max: 1.0,
       step: 0.01,
-      label: 'Output White Point'
+      label: 'Out White'
     },
     levelsGamma: {
       type: 'float',
@@ -132,7 +134,44 @@ export const colorGradingNodeSpec: NodeSpec = {
       label: 'Gamma'
     }
   },
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['levelsInMax', 'levelsOutMax', 'levelsInMin', 'levelsOutMin', 'levelsGamma'],
+        layout: {
+          columns: 3,
+          parameterSpan: { levelsOutMax: 2, levelsOutMin: 2, levelsGamma: 3 }
+        }
+      },
+      {
+        type: 'grid',
+        label: 'Shadows',
+        parameters: ['colorShadowsR', 'colorShadowsG', 'colorShadowsB'],
+        layout: { columns: 'auto' }
+      },
+      {
+        type: 'grid',
+        label: 'Midtones',
+        parameters: ['colorMidtonesR', 'colorMidtonesG', 'colorMidtonesB'],
+        layout: { columns: 'auto' }
+      },
+      {
+        type: 'grid',
+        label: 'Highlights',
+        parameters: ['colorHighlightsR', 'colorHighlightsG', 'colorHighlightsB'],
+        layout: { columns: 'auto' }
+      }
+    ]
+  },
   parameterGroups: [
+    {
+      id: 'color-levels',
+      label: '',
+      parameters: ['levelsInMin', 'levelsInMax', 'levelsOutMin', 'levelsOutMax', 'levelsGamma'],
+      collapsible: true,
+      defaultCollapsed: false
+    },
     {
       id: 'color-shadows',
       label: 'Shadows',
@@ -151,13 +190,6 @@ export const colorGradingNodeSpec: NodeSpec = {
       id: 'color-highlights',
       label: 'Highlights',
       parameters: ['colorHighlightsR', 'colorHighlightsG', 'colorHighlightsB'],
-      collapsible: true,
-      defaultCollapsed: false
-    },
-    {
-      id: 'color-levels',
-      label: 'Levels',
-      parameters: ['levelsInMin', 'levelsInMax', 'levelsOutMin', 'levelsOutMax', 'levelsGamma'],
       collapsible: true,
       defaultCollapsed: false
     }

@@ -1,0 +1,39 @@
+---
+description: Naming, structure, and progress updates when editing project task files in docs/projects/.
+globs: "docs/projects/**/*.md"
+alwaysApply: false
+---
+
+# Work Package Hygiene
+
+When creating or editing project task files under `docs/projects/`, follow these so all agents stay aligned.
+
+## Naming
+
+- **Format**: `[project-name]-[number][parallel-suffix]-[task-name].md`
+- **Examples**:
+  - `layout-system-01-flexbox-engine.md` — sequential, must complete first
+  - `layout-system-02A-grid-system.md` — parallel with 02B, both depend on 01
+  - `layout-system-02B-header-body.md` — parallel with 02A
+  - `layout-system-03-migration.md` — depends on 01, 02A, 02B
+- **Rules**: Numbers = sequence (01 before 02). Letter suffixes (A, B, C) = parallel workstreams that share the same prerequisite. **Parallel workstreams use the next number after their prerequisite** (e.g. depend on 01 → name them 02A, 02B, not 01A, 01B).
+
+## Structure
+
+- **Single-file project**: One file in `docs/projects/`, e.g. `docs/projects/project-name-01-task.md`
+- **Multi-file project**: Folder `docs/projects/[project-name]/` with `_OVERVIEW.md` plus task files
+- **Structure**: _OVERVIEW.md and task file structure are defined in `.cursor/skills/define-project/SKILL.md` and `.cursor/skills/define-tasks/SKILL.md` (sections and length guidance).
+- **No dependency graph in overview**: Do not add a "Dependency Graph" section or ASCII-art dependency diagram to `_OVERVIEW.md`. Dependencies are already clear from each work package's **Dependencies** field in the Work Packages section.
+
+## Completion and progress
+
+- **One completion definition**: State once when to mark ✅ COMPLETE (all tasks + all acceptance criteria + Final Steps done). Do not duplicate in "Definition of Done", "When You're Done", and "Final Steps".
+- **When completing work**: Update `_OVERVIEW.md` progress (status, completion %, notes). Keep the review summary in _OVERVIEW short (date, result, 2–3 bullets); put full reports elsewhere if needed.
+- **When implementing**: Only update `_OVERVIEW.md` progress (status, completion %, notes) and the work package status. Do not add documentation work (README, rules, new doc sections) unless the work package explicitly requires it.
+
+## Scope and dependencies
+
+- In each work package: state **In Scope**, **Out of Scope**, **Prerequisites**, **Provides**, **Blocks**.
+- For parallel workstreams: note which files/code each touches and how to coordinate if they share code.
+
+Full procedures live in `.cursor/commands/` and `.cursor/skills/` (define-project, define-tasks, implement-task, review-project). See `.cursor/rules/workflow/project-workflow.mdc` for when to use which.

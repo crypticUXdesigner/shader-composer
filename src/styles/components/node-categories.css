@@ -1,0 +1,19 @@
+/*
+ * Node Categories — entry point.
+ * All category-specific node styling is split into node-categories/*.css.
+ * Edit one category file at a time; this file only imports parts.
+ */
+@import './node-categories/base.css';
+@import './node-categories/inputs.css';
+@import './node-categories/patterns.css';
+@import './node-categories/sdf.css';
+@import './node-categories/shapes.css';
+@import './node-categories/math.css';
+@import './node-categories/utilities.css';
+@import './node-categories/distort.css';
+@import './node-categories/blend.css';
+@import './node-categories/mask.css';
+@import './node-categories/effects.css';
+@import './node-categories/output.css';
+@import './node-categories/audio.css';
+@import './node-categories/default.css';

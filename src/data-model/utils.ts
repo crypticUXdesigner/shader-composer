@@ -10,6 +10,7 @@ import type {
   NodeInstance,
   Connection,
   ParameterValue,
+  GraphViewState,
 } from './types';
 import type { NodeSpecification } from './validation';
 
@@ -306,7 +307,7 @@ export function createEmptyGraph(name: string, id?: string): NodeGraph {
  * 
  * @returns Default view state
  */
-export function createDefaultViewState() {
+export function createDefaultViewState(): GraphViewState {
   return {
     zoom: 1.0,
     panX: 0,

@@ -6,6 +6,7 @@
  */
 
 import type { ParameterInputMode } from '../types/nodeSpec';
+import type { AudioSetup } from './audioSetupTypes';
 
 /**
  * Parameter value types that can be stored in a node instance.
@@ -48,6 +49,10 @@ export interface NodeInstance {
 
 /**
  * A connection links a node output to a node input.
+ *
+ * **Invariant**: Exactly one of `targetPort` or `targetParameter` must be set; `sourcePort` is always set.
+ * - Port connection: targets a node input port → use `targetPort`.
+ * - Parameter connection: targets a node parameter (e.g. for live values) → use `targetParameter`.
  */
 export interface Connection {
   id: string;                     // Unique connection ID (UUID recommended)
@@ -58,8 +63,53 @@ export interface Connection {
   
   // Target (input)
   targetNodeId: string;           // Target node ID
-  targetPort?: string;            // Target port name (from Node Specification) - optional if targetParameter is set
-  targetParameter?: string;       // Target parameter name (for parameter input connections)
+  targetPort?: string;            // Target port name (from Node Specification) — set only for port connections
+  targetParameter?: string;       // Target parameter name — set only for parameter connections
+}
+
+/**
+ * Timeline automation: curve within a region (normalized time 0–1).
+ */
+export type AutomationCurveInterpolation = 'linear' | 'stepped' | 'bezier';
+
+export interface AutomationKeyframe {
+  time: number;   // Normalized in [0, 1]
+  value: number;
+}
+
+export interface AutomationCurve {
+  keyframes: AutomationKeyframe[];
+  interpolation: AutomationCurveInterpolation;
+}
+
+/**
+ * Timeline automation: one region on a lane (start, duration, loop, curve).
+ */
+export interface AutomationRegion {
+  id: string;
+  startTime: number;   // Seconds, >= 0
+  duration: number;   // Seconds, >= 0
+  loop: boolean;
+  curve: AutomationCurve;
+}
+
+/**
+ * Timeline automation: one lane (node param); holds non-overlapping regions.
+ */
+export interface AutomationLane {
+  id: string;
+  nodeId: string;
+  paramName: string;
+  regions: AutomationRegion[];
+}
+
+/**
+ * Timeline automation state at graph level (optional).
+ */
+export interface AutomationState {
+  bpm: number;
+  durationSeconds: number;
+  lanes: AutomationLane[];
 }
 
 /**
@@ -101,15 +151,23 @@ export interface NodeGraph {
   
   // View state (UI state, not part of graph logic)
   viewState?: GraphViewState;
+  
+  // Timeline automation (optional; lanes/regions/curves)
+  automation?: AutomationState;
 }
 
 /**
  * Serialized graph file format wrapper.
+ * Optional audioSetup: panel audio configuration (files, bands, remappers, primarySource, playlistState).
+ * startingTrackId: optional track id for preset/copy so paste restores current track.
  */
 export interface SerializedGraphFile {
   format: 'shader-composer-node-graph';
   formatVersion: '2.0';
   graph: NodeGraph;
+  audioSetup?: AudioSetup;
+  /** Optional starting track id for preset/copy (playlist); used to set current track on load. */
+  startingTrackId?: string;
 }
 
 /**

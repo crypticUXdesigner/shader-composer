@@ -1,21 +1,23 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const streakNodeSpec: NodeSpec = {
   id: 'streak',
   category: 'Patterns',
   displayName: 'Streak',
   description: 'Directional streak or anamorphic overlay with angle, stretch, and intensity',
-  icon: 'brightness',
+  icon: 'streak',
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'float'
+      type: 'float',
+      label: 'Value'
     }
   ],
   parameters: {

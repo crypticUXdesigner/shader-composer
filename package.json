@@ -1,41 +1,59 @@
 {
-  "name": "shader-composer",
-  "version": "1.0.0",
-  "type": "module",
-  "description": "A web-based tool for generating abstract art images using composable WebGL shader visual elements",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/crypticUXdesigner/shader-composer.git"
-  },
-  "homepage": "https://crypticUXdesigner.github.io/shader-composer/",
-  "keywords": [
-    "shader",
-    "webgl",
-    "glsl",
-    "procedural",
-    "art",
-    "generator",
-    "visual",
-    "composer"
-  ],
-  "license": "UNLICENSED",
-  "scripts": {
-    "dev": "vite",
-    "type-check": "tsc --noEmit",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
-    "migrate": "tsx scripts/migrate.ts",
-    "migrate-audio-analyzer-presets": "tsx scripts/migrate-audio-analyzer-presets.ts",
-    "migrate-audio-analyzer-single-band": "tsx scripts/migrate-audio-analyzer-to-single-band.ts"
-  },
-  "devDependencies": {
-    "@types/node": "^20.10.0",
-    "tsx": "^4.7.0",
-    "typescript": "^5.3.3",
-    "vite": "^7.3.1"
-  },
-  "dependencies": {
-    "@tabler/icons": "^3.36.1",
-    "mediabunny": "^1.31.0"
-  }
+    "name": "shader-composer",
+    "version": "1.0.0",
+    "type": "module",
+    "description": "A web-based tool for generating abstract art images using composable WebGL shader visual elements",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/crypticUXdesigner/shader-composer.git"
+    },
+    "homepage": "https://crypticUXdesigner.github.io/shader-composer/",
+    "keywords": [
+        "shader",
+        "webgl",
+        "glsl",
+        "procedural",
+        "art",
+        "generator",
+        "visual",
+        "composer"
+    ],
+    "license": "UNLICENSED",
+    "scripts": {
+        "dev": "vite",
+        "type-check": "tsc --noEmit",
+        "build": "tsc && vite build",
+        "test": "vitest run",
+        "check": "npm run type-check && npm test && npm run lint",
+        "preview": "vite preview",
+        "migrate": "tsx scripts/migrate.ts",
+        "build-phosphor-icons": "tsx scripts/build-phosphor-icons.ts",
+        "build-favicons": "tsx scripts/build-favicons.ts",
+        "lint": "eslint \"src/**/*.{ts,svelte}\" \"scripts/**/*.ts\"",
+        "a11y": "tsx scripts/a11y.ts"
+    },
+    "devDependencies": {
+        "@axe-core/playwright": "^4.11.1",
+        "@types/node": "^20.10.0",
+        "@typescript-eslint/eslint-plugin": "^8.56.1",
+        "@typescript-eslint/parser": "^8.56.1",
+        "eslint": "^10.0.2",
+        "eslint-plugin-svelte": "^3.15.0",
+        "playwright": "^1.58.2",
+        "sharp": "^0.33.5",
+        "svelte-eslint-parser": "^1.5.1",
+        "tsx": "^4.7.0",
+        "typescript": "^5.3.3",
+        "typescript-eslint": "^8.56.1",
+        "vite": "^7.3.1",
+        "vitest": "^4.0.18",
+        "wait-on": "^9.0.4"
+    },
+    "dependencies": {
+        "@phosphor-icons/core": "^2.1.1",
+        "@sveltejs/vite-plugin-svelte": "^6.2.4",
+        "mediabunny": "^1.31.0",
+        "svelte": "^5.50.0",
+        "web-vitals": "^5.1.0"
+    }
 }

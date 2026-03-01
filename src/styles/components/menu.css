@@ -1,0 +1,101 @@
+/* Dropdown menu list (portaled via Popover; class .dropdown-menu on Popover content) */
+
+.dropdown-menu {
+  /* Layout */
+  flex-direction: column;
+
+  /* Box model */
+  padding: 0;
+  min-width: var(--menu-min-width);
+  width: 260px; /* one-off */
+  max-width: var(--menu-max-width);
+  max-height: var(--menu-max-height);
+  overflow-x: hidden;
+  overflow-y: auto;
+
+  .menu-item {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Track-selector variant: structural selectors (first-child, nth-child, last-child) */
+  &.track-selector-menu {
+    width: 420px;
+    overflow: hidden !important;
+    max-height: 360px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+
+    &::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+      display: none;
+    }
+
+    .menu-wrapper-inner {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    .menu-wrapper-inner > :first-child {
+      flex-shrink: 0;
+      border-bottom: var(--frame-border);
+      background: var(--color-gray-60);
+      padding: var(--pd-xs);
+      border-radius: 0 0 var(--radius-md) var(--radius-md);
+      
+      :global(.input) {
+        border-radius: calc(var(--radius-md) - var(--pd-xs));
+      }
+    }
+
+    .menu-wrapper-inner > :nth-child(2) {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+
+      &::-webkit-scrollbar {
+        width: 0;
+        height: 0;
+        display: none;
+      }
+    }
+
+    .menu-wrapper-inner > :last-child {
+      flex-shrink: 0;
+      border-top: var(--frame-border);
+      background: var(--frame-bg);
+    }
+
+
+    .list {
+      padding: var(--pd-xs);
+    }
+    .list-option {
+      display: contents;
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+
+    .footer {
+      padding: var(--pd-xs);
+    }
+    .footer .upload-button {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .menu-wrapper-inner .error,
+    .menu-wrapper-inner .loading,
+    .menu-wrapper-inner .no-results {
+      padding: var(--pd-md) var(--pd-lg);
+      color: var(--text-muted);
+      font-size: var(--text-sm);
+    }
+  }
+}

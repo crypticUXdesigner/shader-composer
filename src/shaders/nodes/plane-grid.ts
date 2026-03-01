@@ -1,21 +1,23 @@
-import type { NodeSpec } from '../../types';
+import type { NodeSpec } from '../../types/nodeSpec';
 
 export const planeGridNodeSpec: NodeSpec = {
   id: 'plane-grid',
-  category: 'Shapes',
+  category: 'Patterns',
   displayName: 'Grid',
   icon: 'grid',
   description: 'Creates infinite plane or grid patterns for structured geometric backgrounds',
   inputs: [
     {
       name: 'in',
-      type: 'vec2'
+      type: 'vec2',
+      label: 'UV'
     }
   ],
   outputs: [
     {
       name: 'out',
-      type: 'float'
+      type: 'float',
+      label: 'Grid'
     }
   ],
   parameters: {
@@ -96,7 +98,7 @@ export const planeGridNodeSpec: NodeSpec = {
     {
       id: 'plane-main',
       label: 'Grid',
-      parameters: ['planeType', 'planeScale', 'planeSpacing', 'planeIntensity', 'planeRotation'],
+      parameters: ['planeType', 'planeScale', 'planeSpacing', 'planeRotation', 'planeIntensity'],
       collapsible: true,
       defaultCollapsed: false
     },
@@ -108,6 +110,21 @@ export const planeGridNodeSpec: NodeSpec = {
       defaultCollapsed: true
     }
   ],
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['planeType', 'planeScale', 'planeSpacing', 'planeRotation', 'planeIntensity'],
+        layout: { columns: 2, parameterSpan: { planeType: 2 } }
+      },
+      {
+        type: 'grid',
+        label: 'Raymarched',
+        parameters: ['planeNormalX', 'planeNormalY', 'planeNormalZ', 'planeHeight'],
+        layout: { columns: 2 }
+      }
+    ]
+  },
   functions: `
 // Infinite plane SDF
 float sdPlane(vec3 p, vec3 n, float h) {

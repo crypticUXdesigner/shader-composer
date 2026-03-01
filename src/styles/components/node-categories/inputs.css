@@ -1,0 +1,147 @@
+/* =============================================================================
+   INPUTS â€” sub-groups: normal (gray), system (blue-gray)
+   ============================================================================= */
+
+:root {
+  /* Normal inputs: bezier, oklch, float, vec2, vec3, vec4 â€” gray scale */
+  /* Node body shadow (outermost) */
+  --node-body-shadow-color-mid-inputs: var(--color-blue-gray-90);
+  --node-body-shadow-color-outer-inputs: var(--color-blue-gray-60);
+
+  /* Node header */
+  --node-header-bg-inputs: var(--color-gray-90);
+  --node-header-bg-end-inputs: var(--color-gray-80);
+  --node-header-print-inputs: var(--color-gray-20);
+
+  /* Icon box */
+  --node-icon-box-bg-inputs: var(--color-gray-80);
+  --node-icon-box-color-inputs: var(--color-gray-110);
+
+  /* Param group header */
+  --param-group-header-color-inputs: var(--color-gray-10);
+
+  /* Param cell */
+  --node-param-cell-bg-inputs: transparent;
+  --node-param-cell-bg-end-inputs: transparent;
+  --node-param-label-color-inputs: var(--color-gray-110);
+
+  /* Knob */
+  --node-knob-value-bg-inputs: var(--color-gray-50);
+  --node-knob-value-color-inputs: var(--color-gray-120);
+  --node-knob-ring-color-inputs: var(--color-gray-50);
+  --node-knob-arc-active-inputs: var(--color-blue-gray-100);
+  --node-knob-marker-inputs: var(--color-blue-gray-90);
+
+  /* Bezier editor */
+  --node-bezier-curve-inputs: var(--color-gray-90);
+  --node-bezier-control-inputs: var(--color-gray-90);
+  --node-bezier-control-hover-inputs: var(--color-gray-100);
+
+  /* System inputs: UV Coords, Time, Resolution, Frag Coords (used by node panel + .node.inputs.system-input) */
+  /* Node header */
+  --node-header-bg-inputs-system: var(--color-blue-gray-80);
+  --node-header-bg-end-inputs-system: var(--color-blue-gray-70);
+  --node-header-print-inputs-system: var(--color-blue-gray-110);
+
+  /* Icon box */
+  --node-icon-box-bg-inputs-system: var(--color-blue-gray-70);
+  --node-icon-box-color-inputs-system: var(--color-blue-gray-110);
+}
+
+.node.inputs {
+  /* CSS custom properties */
+  --node-body-shadow-color-mid: var(--node-body-shadow-color-mid-inputs);
+  --node-body-shadow-color-outer: var(--node-body-shadow-color-outer-inputs);
+  --node-header-name-color: var(--node-header-print-inputs);
+  --param-group-header-color: var(--param-group-header-color-inputs);
+  --param-cell-border-radius: var(--radius-md);
+  --knob-ring-color: var(--node-knob-ring-color-inputs);
+  --knob-ring-active-color-static: var(--node-knob-arc-active-inputs);
+  --knob-marker-color: var(--node-knob-marker-inputs);
+  --knob-value-bg: var(--node-knob-value-bg-inputs);
+  --knob-value-color: var(--node-knob-value-color-inputs);
+  --param-control-bg: var(--node-knob-value-bg-inputs);
+  --param-control-bg-hover: var(--color-gray-70);
+  --param-control-bg-active: var(--color-gray-80);
+  --param-control-value-color: var(--node-knob-value-color-inputs);
+
+  /* Node header (outermost) */
+  background: radial-gradient(
+    ellipse var(--node-header-bg-gradient-ellipse-width) var(--node-header-bg-gradient-ellipse-height) at var(--node-header-bg-gradient-ellipse-x) var(--node-header-bg-gradient-ellipse-y),
+    var(--node-header-bg-inputs),
+    var(--node-header-bg-end-inputs)
+  );
+
+  /* Node body */
+  .node-body {
+    background: radial-gradient(ellipse 120% 160% at 50% 25%, var(--color-clean-gray-70), var(--color-gray-60));
+  }
+
+  /* Icon box */
+  .icon-box {
+    background: var(--node-icon-box-bg-inputs);
+
+    .header-icon {
+      color: var(--node-icon-box-color-inputs);
+    }
+  }
+
+  /* Node header */
+  .node-header {
+    .label-text,
+    .label-input,
+    .port .name-label {
+      color: var(--node-header-print-inputs);
+    }
+  }
+
+  /* Param cell */
+  .param-cell {
+    background: radial-gradient(ellipse 120% 160% at 50% 25%, var(--node-param-cell-bg-inputs), var(--node-param-cell-bg-end-inputs));
+
+    &.connected {
+      background: var(--param-cell-bg-connected);
+      border-color: var(--param-cell-border-connected);
+    }
+
+    .left-column .top .label {
+      color: var(--node-param-label-color-inputs);
+    }
+  }
+
+  /* Bezier editor */
+  .bezier-editor {
+    .curve {
+      stroke: var(--node-bezier-curve-inputs);
+    }
+
+    .control-point {
+      background: var(--node-bezier-control-inputs);
+
+      &:hover {
+        background: var(--node-bezier-control-hover-inputs);
+      }
+    }
+  }
+}
+
+/* Sub-group: system inputs (UV Coords, Time, Resolution, Frag Coords) â€” blue-gray scale. Header-only, no body. */
+.node.inputs.system-input {
+  --node-header-bg-inputs: var(--node-header-bg-inputs-system);
+  --node-header-bg-end-inputs: var(--node-header-bg-end-inputs-system);
+  --node-header-name-color: var(--node-header-print-inputs-system);
+  --node-icon-box-bg-inputs: var(--node-icon-box-bg-inputs-system);
+  --node-icon-box-color-inputs: var(--node-icon-box-color-inputs-system);
+  --node-header-print-inputs: var(--node-header-print-inputs-system);
+  --param-group-header-color-inputs: var(--node-header-print-inputs-system);
+}
+
+/* Shiny: use header print color as ring accent */
+.node.inputs.shiny {
+  --node-shiny-ring-color: var(--node-header-print-inputs);
+}
+
+.node.inputs.system-input.shiny {
+  --node-shiny-ring-color: var(--node-header-print-inputs-system);
+}
+

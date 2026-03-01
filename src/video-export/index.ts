@@ -29,6 +29,7 @@ export {
   runVideoExportFlow,
   type VideoExportOrchestratorOptions,
   type VideoExportDialogConfig,
+  type VideoExportResolvedConfig,
 } from './videoExportOrchestrator';
 
 import { WebCodecsVideoExporter } from './WebCodecsVideoExporter';
