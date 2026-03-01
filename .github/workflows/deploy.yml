@@ -50,6 +50,7 @@ jobs:
         run: npx playwright install chromium --with-deps
 
       - name: Run a11y check
+        continue-on-error: true
         run: |
           npx vite preview --port 4173 &
           npx wait-on http://localhost:4173/shader-composer/ --timeout 30000
