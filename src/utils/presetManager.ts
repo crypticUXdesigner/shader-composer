@@ -31,9 +31,9 @@ export async function listPresets(): Promise<PresetInfo[]> {
   
   const presets: PresetInfo[] = [];
   
-  for (const path in presetModules) {
-    // Extract filename from path (e.g., "/src/presets/sphere.json" -> "sphere")
-    const match = path.match(/\/([^/]+)\.json$/);
+  for (const modulePath of Object.keys(presetModules)) {
+    // Extract filename from path (e.g. "/src/presets/sphere.json" or "src/presets/sphere.json" -> "sphere")
+    const match = modulePath.match(/([^/]+)\.json$/);
     if (match) {
       const name = match[1];
       presets.push({
@@ -83,13 +83,15 @@ export async function loadPreset(
 
   try {
     const presetModules = import.meta.glob('/src/presets/*.json', { eager: false });
-    const presetPath = `/src/presets/${presetName}.json`;
+    // Vite glob keys may be with or without leading slash depending on env; match by suffix
+    const presetPath = Object.keys(presetModules).find((k) => k.endsWith(`/${presetName}.json`));
 
-    if (!(presetPath in presetModules)) {
+    if (!presetPath) {
       return emptyResult([`Preset not found: ${presetName}`]);
     }
 
-    const module = await presetModules[presetPath]();
+    const loader = presetModules[presetPath];
+    const module = typeof loader === 'function' ? await loader() : (loader as { default: unknown });
     const data = (module as { default: unknown }).default as Record<string, unknown>;
 
     let graph: NodeGraph;
