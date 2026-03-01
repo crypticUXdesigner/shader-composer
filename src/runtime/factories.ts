@@ -116,8 +116,11 @@ export function createRuntimeManager(
   }
 
   return (async (): Promise<RuntimeManager> => {
-    const workerUrl = new URL('./compilation/compilationWorker.ts', import.meta.url);
-    const worker = new Worker(workerUrl, { type: 'module' });
+    // Use Vite's ?worker import so the worker is bundled with correct MIME type and base path (avoids video/mp2t in production)
+    const { default: WorkerConstructor } = await import(
+      './compilation/compilationWorker.ts?worker'
+    );
+    const worker = new WorkerConstructor();
     const nodeSpecsObj =
       nodeSpecsForWorker instanceof Map ? Object.fromEntries(nodeSpecsForWorker) : nodeSpecsForWorker;
     worker.postMessage({ type: 'init', nodeSpecs: nodeSpecsObj });
