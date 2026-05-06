@@ -9,17 +9,21 @@ const SDF_NODE_IDS = [
   'repeated-hex-prism-sdf',
   'radial-repeat-sdf',
   'kifs-sdf',
+  'mandelbox-sdf',
+  'menger-sponge-sdf',
+  'sierpinski-tetra-sdf',
   'ether-sdf',
+  'julia-slab-sdf',
+  'mandelbulb-sdf',
   'generic-raymarcher',
 ];
 
-const SHAPES_2D_MASK_NODE_IDS = ['shapes-2d', 'star-2d', 'star-shape-2d', 'superellipse'];
+const SHAPES_2D_MASK_NODE_IDS = ['shapes-2d', 'star-shape-2d'];
 
 const NON_SDF_SHAPES_NODE_IDS = [
   'sphere-raymarch',
   'spherical-fibonacci',
   'bloom-sphere',
-  'bloom-sphere-effect',
   'hex-voxel',
   'metaballs',
   'cylinder-cone',

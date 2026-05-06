@@ -1,5 +1,5 @@
 /**
- * Timeline bar-grid snap (WP 06A).
+ * Timeline bar-grid snap.
  * Pure function: snap a time (seconds) to the nearest grid line.
  * Grid step in seconds = (gridBars * 60) / bpm (e.g. 4 bars at 120 bpm = 2s).
  */

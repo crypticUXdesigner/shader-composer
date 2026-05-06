@@ -1,0 +1,221 @@
+{
+  "format": "shadernoice-node-graph",
+  "formatVersion": "2.0",
+  "graph": {
+    "id": "graph-preset-pixelize-uv-snap",
+    "name": "Pixelize UV Snap",
+    "version": "2.0",
+    "nodes": [
+      {
+        "id": "node-uv",
+        "type": "uv-coordinates",
+        "position": { "x": -1800, "y": 0 },
+        "parameters": {}
+      },
+      {
+        "id": "node-split",
+        "type": "split-vector",
+        "position": { "x": -1400, "y": 0 },
+        "parameters": {}
+      },
+      {
+        "id": "node-pixel-scale",
+        "type": "constant-float",
+        "position": { "x": -1400, "y": 360 },
+        "parameters": { "value": 80 }
+      },
+
+      {
+        "id": "node-mul-x",
+        "type": "multiply",
+        "position": { "x": -1020, "y": -160 },
+        "parameters": { "b": 1 }
+      },
+      {
+        "id": "node-floor-x",
+        "type": "floor",
+        "position": { "x": -700, "y": -160 },
+        "parameters": {}
+      },
+      {
+        "id": "node-div-x",
+        "type": "divide",
+        "position": { "x": -380, "y": -160 },
+        "parameters": { "b": 1 }
+      },
+
+      {
+        "id": "node-mul-y",
+        "type": "multiply",
+        "position": { "x": -1020, "y": 160 },
+        "parameters": { "b": 1 }
+      },
+      {
+        "id": "node-floor-y",
+        "type": "floor",
+        "position": { "x": -700, "y": 160 },
+        "parameters": {}
+      },
+      {
+        "id": "node-div-y",
+        "type": "divide",
+        "position": { "x": -380, "y": 160 },
+        "parameters": { "b": 1 }
+      },
+
+      {
+        "id": "node-combine",
+        "type": "combine-vector",
+        "position": { "x": 0, "y": 0 },
+        "parameters": { "outputType": 2, "z": 0, "w": 1 }
+      },
+      {
+        "id": "node-noise",
+        "type": "noise",
+        "position": { "x": 520, "y": 0 },
+        "parameters": {}
+      },
+      {
+        "id": "node-color-map",
+        "type": "color-map",
+        "position": { "x": 1040, "y": 0 },
+        "parameters": {}
+      },
+      {
+        "id": "node-output",
+        "type": "final-output",
+        "position": { "x": 1560, "y": 0 },
+        "parameters": {}
+      }
+    ],
+    "connections": [
+      {
+        "id": "conn-uv-split",
+        "sourceNodeId": "node-uv",
+        "sourcePort": "out",
+        "targetNodeId": "node-split",
+        "targetPort": "in"
+      },
+
+      {
+        "id": "conn-splitx-mulx",
+        "sourceNodeId": "node-split",
+        "sourcePort": "x",
+        "targetNodeId": "node-mul-x",
+        "targetPort": "a"
+      },
+      {
+        "id": "conn-scale-mulx",
+        "sourceNodeId": "node-pixel-scale",
+        "sourcePort": "out",
+        "targetNodeId": "node-mul-x",
+        "targetPort": "b"
+      },
+      {
+        "id": "conn-mulx-floorx",
+        "sourceNodeId": "node-mul-x",
+        "sourcePort": "out",
+        "targetNodeId": "node-floor-x",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-floorx-divx",
+        "sourceNodeId": "node-floor-x",
+        "sourcePort": "out",
+        "targetNodeId": "node-div-x",
+        "targetPort": "a"
+      },
+      {
+        "id": "conn-scale-divx",
+        "sourceNodeId": "node-pixel-scale",
+        "sourcePort": "out",
+        "targetNodeId": "node-div-x",
+        "targetPort": "b"
+      },
+
+      {
+        "id": "conn-splity-muly",
+        "sourceNodeId": "node-split",
+        "sourcePort": "y",
+        "targetNodeId": "node-mul-y",
+        "targetPort": "a"
+      },
+      {
+        "id": "conn-scale-muly",
+        "sourceNodeId": "node-pixel-scale",
+        "sourcePort": "out",
+        "targetNodeId": "node-mul-y",
+        "targetPort": "b"
+      },
+      {
+        "id": "conn-muly-floory",
+        "sourceNodeId": "node-mul-y",
+        "sourcePort": "out",
+        "targetNodeId": "node-floor-y",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-floory-divy",
+        "sourceNodeId": "node-floor-y",
+        "sourcePort": "out",
+        "targetNodeId": "node-div-y",
+        "targetPort": "a"
+      },
+      {
+        "id": "conn-scale-divy",
+        "sourceNodeId": "node-pixel-scale",
+        "sourcePort": "out",
+        "targetNodeId": "node-div-y",
+        "targetPort": "b"
+      },
+
+      {
+        "id": "conn-divx-combine-x",
+        "sourceNodeId": "node-div-x",
+        "sourcePort": "out",
+        "targetNodeId": "node-combine",
+        "targetPort": "x"
+      },
+      {
+        "id": "conn-divy-combine-y",
+        "sourceNodeId": "node-div-y",
+        "sourcePort": "out",
+        "targetNodeId": "node-combine",
+        "targetPort": "y"
+      },
+
+      {
+        "id": "conn-combine-noise",
+        "sourceNodeId": "node-combine",
+        "sourcePort": "out",
+        "targetNodeId": "node-noise",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-noise-color",
+        "sourceNodeId": "node-noise",
+        "sourcePort": "out",
+        "targetNodeId": "node-color-map",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-color-out",
+        "sourceNodeId": "node-color-map",
+        "sourcePort": "out",
+        "targetNodeId": "node-output",
+        "targetPort": "in"
+      }
+    ],
+    "viewState": {
+      "zoom": 0.7,
+      "panX": 250,
+      "panY": 170,
+      "selectedNodeIds": []
+    },
+    "automation": {
+      "bpm": 120,
+      "durationSeconds": 30,
+      "lanes": []
+    }
+  }
+}

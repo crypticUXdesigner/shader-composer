@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * Node - Canvas DOM Migration WP 14A
+   * Node
    * Root container for DOM node. Position via transform, selection state, drag handle.
    */
 
@@ -36,7 +36,7 @@
     audioSetup: AudioSetup;
     nodeSpecs: Map<string, NodeSpec>;
     getAudioManager?: () => IAudioManager | undefined;
-    /** WP 03: Current timeline time for automation-driven parameter display. */
+    /** Current timeline time for automation-driven parameter display. */
     getTimelineCurrentTime?: () => number;
     overlayBridge?: import('../../../types/editor').CanvasOverlayBridge | null;
     onPortPointerDownForConnection?: (screenX: number, screenY: number, pointerId?: number) => void;

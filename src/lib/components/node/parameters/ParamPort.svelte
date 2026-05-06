@@ -10,6 +10,8 @@
     paramName?: string;
     state?: ParamPortState;
     signalName?: string;
+    /** When true, indicate the parameter is driven by timeline automation (not a connection). */
+    timelineDriven?: boolean;
     /** When false, hide signal name in port (parent may show it elsewhere, e.g. bottom row) */
     showSignalName?: boolean;
     /** Start connection drag from port */
@@ -27,12 +29,41 @@
     paramName = '',
     state = 'default',
     signalName = '',
+    timelineDriven = false,
     showSignalName = true,
     onPointerDown,
     onDoubleClick,
     disabled = false,
     class: className = ''
   }: Props = $props();
+
+  function getA11yText(opts: { includeInstructions: boolean }) {
+    const parts: string[] = [];
+
+    if (timelineDriven) parts.push('Timeline automation.');
+
+    if (state === 'default') {
+      parts.push('Port not connected.');
+    } else if (state === 'graph-connected') {
+      parts.push('Port connected to graph.');
+    } else if (state === 'audio-connected') {
+      parts.push(signalName ? `Port connected to audio: ${signalName}.` : 'Port connected to audio.');
+    }
+
+    if (opts.includeInstructions) {
+      parts.push('Drag to connect. Double-click to change connection.');
+    }
+
+    return parts.join(' ');
+  }
+
+  function getAriaLabel() {
+    return getA11yText({ includeInstructions: true });
+  }
+
+  function getTooltipText() {
+    return getA11yText({ includeInstructions: false });
+  }
 
   function handlePointerDown(e: PointerEvent) {
     if (disabled) return;
@@ -49,6 +80,7 @@
   type="button"
   class="param-port {state} type-{portType} {className}"
   class:disabled
+  class:timeline-driven={timelineDriven}
   data-port-id={portId}
   data-port-type={portType}
   data-node-id={nodeId}
@@ -56,10 +88,9 @@
   data-state={state}
   onpointerdown={handlePointerDown}
   ondblclick={handleDoubleClick}
-  aria-label="{state === 'audio-connected' && signalName
-    ? `Port connected to ${signalName}. Drag to connect, double-click to change.`
-    : `Parameter port. Drag to connect, double-click to open connection menu.`}"
+  aria-label={getAriaLabel()}
   aria-disabled={disabled}
+  title={getTooltipText()}
 >
   <span class="port-circle" aria-hidden="true">
     {#if state === 'audio-connected'}
@@ -107,6 +138,7 @@
     .port-circle {
       --port-color: var(--port-color-float);
       --shadow-color: var(--port-color-float);
+      --timeline-driven-color: var(--color-teal-120, var(--port-color));
       position: relative;
       display: inline-flex;
       align-items: center;
@@ -132,6 +164,38 @@
       :global(.port-audio-icon svg),
       :global(.port-audio-icon svg *) {
         stroke-width: 3;
+      }
+    }
+
+    &.timeline-driven .port-circle::before {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: 999px;
+      box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--timeline-driven-color) 65%, transparent 35%),
+        0 0 12px color-mix(in srgb, var(--timeline-driven-color) 35%, transparent 65%);
+      opacity: 0.75;
+      transform: scale(1);
+      transition:
+        opacity var(--motion-effects-fast-duration) var(--motion-effects-fast-easing),
+        transform var(--motion-effects-fast-duration) var(--motion-effects-fast-easing);
+      animation: param-port-timeline-driven-pulse 1.35s ease-in-out infinite;
+      pointer-events: none;
+    }
+
+    @keyframes param-port-timeline-driven-pulse {
+      0% {
+        opacity: 0.55;
+        transform: scale(0.98);
+      }
+      55% {
+        opacity: 0.9;
+        transform: scale(1.05);
+      }
+      100% {
+        opacity: 0.55;
+        transform: scale(0.98);
       }
     }
 

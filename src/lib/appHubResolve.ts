@@ -140,22 +140,48 @@ export async function createUserProjectFromValidatedJson(
   applyStartingTrack: ApplyStartingTrackFn,
   json: string
 ): Promise<{ projectId: string; graph: NodeGraph; audioSetup: AudioSetup }> {
+  return await createUserProjectFromValidatedJsonWithMeta(nodeSpecs, remapGraphIds, applyStartingTrack, json, {});
+}
+
+export async function createUserProjectFromValidatedJsonWithMeta(
+  nodeSpecs: NodeSpecification[],
+  remapGraphIds: RemapGraphIdsFn,
+  applyStartingTrack: ApplyStartingTrackFn,
+  json: string,
+  meta: Partial<{
+    displayName: string;
+    createdAtISO: string;
+    lastModifiedISO: string;
+    presetForkedFrom: string | null;
+    avatarNodeIcon: string;
+    avatarBgToken: string;
+    avatarIconColorToken: string;
+    setLastOpened: boolean;
+  }>
+): Promise<{ projectId: string; graph: NodeGraph; audioSetup: AudioSetup }> {
   const parsed = await loadPresetFromJson(json, nodeSpecs);
   const { graph, audioSetup } = await applyLoadResult(parsed, remapGraphIds, applyStartingTrack);
+
   const id = generateUUID();
   const iso = new Date().toISOString();
+  const createdAtISO = meta.createdAtISO ?? iso;
+  const lastModifiedISO = meta.lastModifiedISO ?? iso;
+
   const serialized = serializeGraph(graph, true, audioSetup, { startingTrackId: startingTrackOption(audioSetup) });
   const ap = pickRandomProjectAvatarPreset();
+
   await createProjectAtomic({
     projectId: id,
     json: serialized,
-    displayName: graph.name.trim() || 'Imported',
-    createdAtISO: iso,
-    lastModifiedISO: iso,
-    avatarNodeIcon: ap.avatarNodeIcon,
-    avatarBgToken: ap.avatarBgToken,
-    avatarIconColorToken: ap.avatarIconColorToken,
-    setLastOpened: true,
+    displayName: (meta.displayName ?? graph.name).trim() || 'Imported',
+    createdAtISO,
+    lastModifiedISO,
+    ...(meta.presetForkedFrom !== undefined ? { presetForkedFrom: meta.presetForkedFrom } : {}),
+    avatarNodeIcon: meta.avatarNodeIcon ?? ap.avatarNodeIcon,
+    avatarBgToken: meta.avatarBgToken ?? ap.avatarBgToken,
+    avatarIconColorToken: meta.avatarIconColorToken ?? ap.avatarIconColorToken,
+    setLastOpened: meta.setLastOpened ?? true,
   });
+
   return { projectId: id, graph, audioSetup };
 }

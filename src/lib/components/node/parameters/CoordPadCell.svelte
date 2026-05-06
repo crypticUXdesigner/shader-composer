@@ -2,7 +2,7 @@
   /**
    * CoordPadCell - Wraps CoordPadWithPorts with graph/audio connection resolution.
    * Resolves connection state and polls live values for X and Y params.
-   * WP 03: When a param has evaluable timeline automation, shows automation-driven value for the whole timeline.
+   * When a param has evaluable timeline automation, shows automation-driven value for the whole timeline.
    */
   import CoordPadWithPorts from './CoordPadWithPorts.svelte';
   import { getParamPortConnectionState } from '../../../../utils/paramPortAudioState';
@@ -41,7 +41,7 @@
     audioSetup: AudioSetup;
     nodeSpecs: Map<string, NodeSpec>;
     getAudioManager?: () => IAudioManager | null;
-    /** WP 03: Current timeline time for automation-driven parameter display. */
+    /** Current timeline time for automation-driven parameter display. */
     getTimelineCurrentTime?: () => number;
     onPortPointerDownForConnection?: (screenX: number, screenY: number, pointerId?: number) => void;
     onPortDoubleClick?: (e: MouseEvent, paramName: string) => void;
@@ -89,7 +89,7 @@
     }
   }
 
-  /* Single tick: peak meters (audio only) + effective values. WP 03: also run when either param has automation lane. */
+  /* Single tick: peak meters (audio only) + effective values. Also run when either param has an active automation lane. */
   $effect(() => {
     const g = graph;
     const n = node;

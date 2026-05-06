@@ -294,7 +294,12 @@
 --timeline-panel-min-width: 280px;
 --timeline-panel-max-width: 1000px;
 --timeline-panel-height: 200px;
---timeline-panel-height-with-editor: 483px;
+/* Band above lanes when curve editor is open (BottomBar `.curve-slot` height). */
+--timeline-curve-editor-slot-height: 240px;
+/* Minimum total panel height when editor is open: lanes floor + curve band. */
+--timeline-panel-height-with-editor: calc(
+  var(--timeline-panel-height) + var(--timeline-curve-editor-slot-height)
+);
 --timeline-panel-bg: var(--layout-bg);
 --timeline-panel-border: 1px solid var(--layout-divider-bg);
 --timeline-panel-z-index: 501;

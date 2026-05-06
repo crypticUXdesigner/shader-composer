@@ -1,5 +1,5 @@
 /**
- * Reactive Graph Store - Svelte 5 Migration WP 02B
+ * Reactive Graph Store
  *
  * Single source of truth for node graph and related UI state.
  * Uses Svelte 5 runes ($state, $derived) for reactivity.

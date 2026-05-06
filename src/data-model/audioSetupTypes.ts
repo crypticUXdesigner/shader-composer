@@ -13,11 +13,21 @@ export interface AudioFileEntry {
   autoPlay: boolean;
 }
 
+export type AudioBandMode =
+  | 'mean'
+  | 'max'
+  | 'rms';
+
 export interface AudioBandEntry {
   id: string;
   name: string;
   sourceFileId: string;
   frequencyBands: [[number, number]];
+  /**
+   * How the FFT range is reduced to a single value.
+   * Persisted on disk; keep string values stable.
+   */
+  bandMode?: AudioBandMode;
   /**
    * Time-based symmetric smoothing half-life (seconds): after this duration, half of the previous value remains.
    * 0 means immediate response. Infinity means frozen.

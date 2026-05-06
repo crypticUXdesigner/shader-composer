@@ -1,8 +1,8 @@
 <script lang="ts">
   /**
-   * NodeHeader - Canvas DOM Migration WP 14A
+   * NodeHeader
    * Icon, label (double-click to edit). Drag handle for node drag.
-   * WP 14C: Output ports for connection layer alignment.
+   * Output ports are positioned to align with the connection layer.
    * Input ports: port -> type -> name. Output ports: name -> type -> port.
    */
 

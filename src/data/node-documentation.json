@@ -12,7 +12,7 @@
           "type": "vec2",
           "description": "Position on screen (0–1 in x and y). Connect to Noise, Translate, Scale, or any node that takes vec2 coordinates.",
           "suggestedTargets": [
-            "node:translate",
+            "node:displace",
             "node:scale",
             "node:rotate",
             "node:multiply",
@@ -137,7 +137,7 @@
             "node:add",
             "node:mix",
             "node:color-map",
-            "node:translate",
+            "node:displace",
             "node:rotate"
           ]
         }
@@ -271,7 +271,7 @@
       "setupExampleGraph": {
         "nodes": [
           { "id": "a", "type": "resolution" },
-          { "id": "b", "type": "translate" },
+          { "id": "b", "type": "displace" },
           { "id": "c", "type": "noise" },
           { "id": "d", "type": "color-map" },
           { "id": "e", "type": "final-output" }
@@ -303,7 +303,7 @@
           "description": "Fragment coordinates in pixel units (x, y). Connect to Divide (a) with Resolution (b) for normalized coords, or to pixel-based effects like Bayer Dither.",
           "suggestedTargets": [
             "node:divide",
-            "node:translate",
+            "node:displace",
             "node:bayer-dither",
             "node:polar-coordinates"
           ]
@@ -317,7 +317,7 @@
       "setupExampleGraph": {
         "nodes": [
           { "id": "a", "type": "fragment-coordinates" },
-          { "id": "b", "type": "translate" },
+          { "id": "b", "type": "displace" },
           { "id": "c", "type": "noise" },
           { "id": "d", "type": "color-map" },
           { "id": "e", "type": "final-output" }
@@ -697,7 +697,7 @@
             "node:mix",
             "node:sine",
             "node:clamp",
-            "node:translate",
+            "node:displace",
             "node:scale"
           ]
         }
@@ -745,7 +745,7 @@
           "type": "vec2",
           "description": "The constant vec2 value with (x, y) components. Connect to Translate, Scale, Distance, or any vec2 input.",
           "suggestedTargets": [
-            "node:translate",
+            "node:displace",
             "node:scale",
             "node:rotate",
             "node:uv-coordinates",
@@ -763,7 +763,7 @@
       "setupExampleGraph": {
         "nodes": [
           { "id": "a", "type": "constant-vec2" },
-          { "id": "b", "type": "translate" },
+          { "id": "b", "type": "displace" },
           { "id": "c", "type": "uv-coordinates" },
           { "id": "d", "type": "noise" },
           { "id": "e", "type": "color-map" },
@@ -993,7 +993,7 @@
           "suggestedTargets": [
             "node:multiply",
             "node:mix",
-            "node:translate",
+            "node:displace",
             "node:final-output",
             "node:clamp"
           ]
@@ -1145,7 +1145,7 @@
           "suggestedTargets": [
             "node:add",
             "node:mix",
-            "node:translate",
+            "node:displace",
             "node:final-output",
             "node:color-map"
           ]
@@ -1925,7 +1925,7 @@
             "node:final-output",
             "node:color-map",
             "node:blend-mode",
-            "node:translate",
+            "node:displace",
             "node:scale"
           ]
         }
@@ -2076,7 +2076,7 @@
             "node:color-map",
             "node:gradient-mask",
             "node:twist-distortion",
-            "node:translate"
+            "node:displace"
           ]
         }
       ],
@@ -2133,7 +2133,7 @@
             "node:multiply",
             "node:mix",
             "node:wave-patterns",
-            "node:translate",
+            "node:displace",
             "node:rotate"
           ]
         }
@@ -2606,7 +2606,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:polar-coordinates",
             "node:constant-vec2"
           ]
@@ -2659,7 +2659,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:constant-vec2"
           ]
         },
@@ -2671,7 +2671,7 @@
             "type:vec2",
             "node:uv-coordinates",
             "node:constant-vec2",
-            "node:translate"
+            "node:displace"
           ]
         }
       ],
@@ -2848,7 +2848,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:polar-coordinates",
             "node:distance"
           ]
@@ -3550,7 +3550,7 @@
       "title": "Color Grading",
       "titleType": "node",
       "tagline": "Ideal for fine control over color curves and levels for professional color adjustment",
-      "description": "Provides comprehensive color grading controls for final color adjustment, including separate adjustments for shadows, midtones, and highlights. The node applies color curve adjustments to different luminance ranges, allowing you to warm up shadows, adjust midtone saturation, or cool down highlights independently. Additionally, it includes a levels adjustment system with input/output black/white points and gamma correction for precise contrast and brightness control. This is essential for achieving professional color grading and matching specific color aesthetics.",
+      "description": "Provides comprehensive color grading controls for final color adjustment, including separate RGB adjustments for shadows, midtones, and highlights. The node uses luminance masks to target different brightness ranges, letting you warm/cool shadows, shift midtones, and tint highlights independently. It also includes a levels system (input/output black/white + gamma) applied per channel for precise contrast and brightness control.",
       "inputs": [
         {
           "name": "in",
@@ -3587,7 +3587,7 @@
         "nodes": [
           { "id": "a", "type": "uv-coordinates" },
           { "id": "b", "type": "noise" },
-          { "id": "c", "type": "color-map" },
+          { "id": "c", "type": "oklch-color-map-threshold" },
           { "id": "d", "type": "color-grading" },
           { "id": "e", "type": "final-output" }
         ],
@@ -3900,77 +3900,6 @@
         "Use with Normal Mapping: feed lit result back into Normal Mapping or Mix for layered shading."
       ]
     },
-    "node:translate": {
-      "title": "Translate",
-      "titleType": "node",
-      "tagline": "Shifts 2D coordinates (e.g. UV) by an X and Y offset. Use it to pan or slide a pattern across the screen.",
-      "description": "Translate takes a vec2 (e.g. from UV Coords) and adds an offset so the pattern that uses those coordinates appears moved. Positive Offset X moves the pattern right, positive Offset Y moves it up. Connect UV Coords → Translate → Noise to slide the noise; adjust the parameters to see the pattern move.",
-      "inputs": [
-        {
-          "name": "in",
-          "type": "vec2",
-          "description": "2D coordinates to shift. Usually connect UV Coords, or the output of Scale/Rotate.",
-          "suggestedSources": [
-            "type:vec2",
-            "node:uv-coordinates",
-            "node:scale",
-            "node:rotate",
-            "node:polar-coordinates"
-          ]
-        }
-      ],
-      "outputs": [
-        {
-          "name": "out",
-          "type": "vec2",
-          "description": "Coordinates after adding the offset. Connect to Noise, Scale, or other nodes that take vec2.",
-          "suggestedTargets": [
-            "node:scale",
-            "node:rotate",
-            "node:noise",
-            "node:hexagonal-grid",
-            "node:distance"
-          ]
-        }
-      ],
-      "parameters": [
-        {
-          "name": "Offset X",
-          "description": "How much to move the coordinates horizontally. Positive values shift the pattern right on screen; negative shifts left."
-        },
-        {
-          "name": "Offset Y",
-          "description": "How much to move the coordinates vertically. Positive values shift the pattern up on screen; negative shifts down."
-        }
-      ],
-      "relatedItems": [
-        "node:rotate",
-        "node:scale",
-        "type:vec2",
-        "node:uv-coordinates"
-      ],
-      "setupExampleGraph": {
-        "nodes": [
-          { "id": "a", "type": "uv-coordinates" },
-          { "id": "b", "type": "translate" },
-          { "id": "c", "type": "noise" },
-          { "id": "d", "type": "color-map" },
-          { "id": "e", "type": "final-output" }
-        ],
-        "connections": [
-          { "from": "a", "fromPort": "out", "to": "b", "toPort": "in" },
-          { "from": "b", "fromPort": "out", "to": "c", "toPort": "in" },
-          { "from": "c", "fromPort": "out", "to": "d", "toPort": "in" },
-          { "from": "d", "fromPort": "out", "to": "e", "toPort": "in" }
-        ]
-      },
-      "examples": [
-        "Connect UV → Translate → Noise → Color Map to slide the noise; drive Offset X/Y with Time for panning.",
-        "Use with Scale and Rotate to position a pattern before feeding into Rings or Hexagonal Grid.",
-        "Animate offset with Sine(Time) for smooth looping motion."
-      ],
-      "advanced": "Translate adds to coordinates; use before pattern nodes. For tiling, combine with Domain Repetition or Scale so the pattern repeats."
-    },
     "node:rotate": {
       "title": "Rotate",
       "titleType": "node",
@@ -3984,7 +3913,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:scale",
             "node:polar-coordinates"
           ]
@@ -3996,7 +3925,7 @@
           "type": "vec2",
           "description": "The rotated coordinates around the specified center point",
           "suggestedTargets": [
-            "node:translate",
+            "node:displace",
             "node:scale",
             "node:noise",
             "node:kaleidoscope",
@@ -4005,7 +3934,7 @@
         }
       ],
       "relatedItems": [
-        "node:translate",
+        "node:displace",
         "node:scale",
         "type:vec2",
         "node:sine",
@@ -4028,7 +3957,7 @@
       },
       "examples": [
         "Feed UV into Rotate then Noise and Color Map for a rotated pattern; drive angle with Time for spinning.",
-        "Use with Polar Coords and Kaleidoscope for radial symmetry, or with Translate to place the center.",
+        "Use with Polar Coords and Kaleidoscope for radial symmetry, or with Displace to place the center.",
         "Connect Sine(Time) to a center or angle for animated rotation."
       ],
       "advanced": "Angle is in radians; use Sine/Cosine of Time for smooth rotation. Rotate before pattern nodes so the whole pattern turns around the center."
@@ -4046,7 +3975,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:rotate",
             "node:polar-coordinates"
           ]
@@ -4058,7 +3987,7 @@
           "type": "vec2",
           "description": "Scaled coordinates. Connect to Noise, Translate, or other vec2 inputs.",
           "suggestedTargets": [
-            "node:translate",
+            "node:displace",
             "node:rotate",
             "node:noise",
             "node:hexagonal-grid",
@@ -4085,7 +4014,7 @@
         }
       ],
       "relatedItems": [
-        "node:translate",
+        "node:displace",
         "node:rotate",
         "type:vec2",
         "node:multiply"
@@ -4106,60 +4035,7 @@
         ]
       }
     },
-    "node:domain-repetition": {
-      "title": "Domain Repetition",
-      "titleType": "node",
-      "tagline": "Tile UVs so any upstream pattern repeats; output is in 0–1 per tile plus optional offset",
-      "description": "Transforms 2D coordinates so that downstream patterns tile seamlessly. Uses fract(uv * scale) plus an optional offset, so the output stays in 0–1 per cell. Connect UV (or other vec2) into Domain Repetition, then feed its output into any pattern node (e.g. fBm Noise, Rings) to get a repeating tiled result. Scale X/Y control how many tiles; offset shifts the tile phase.",
-      "inputs": [
-        {
-          "name": "in",
-          "type": "vec2",
-          "description": "Input coordinates (e.g. UV) to tile",
-          "suggestedSources": [
-            "type:vec2",
-            "node:uv-coordinates",
-            "node:translate",
-            "node:scale",
-            "node:rotate"
-          ]
-        }
-      ],
-      "outputs": [
-        {
-          "name": "out",
-          "type": "vec2",
-          "description": "Tiled coordinates in 0–1 per cell plus offset",
-          "suggestedTargets": [
-            "node:noise",
-            "node:rings",
-            "node:wave-patterns",
-            "node:hexagonal-grid",
-            "node:flow-field-pattern"
-          ]
-        }
-      ],
-      "relatedItems": [
-        "node:translate",
-        "node:scale",
-        "node:fract"
-      ],
-      "setupExampleGraph": {
-        "nodes": [
-          { "id": "a", "type": "uv-coordinates" },
-          { "id": "b", "type": "domain-repetition" },
-          { "id": "c", "type": "noise" },
-          { "id": "d", "type": "color-map" },
-          { "id": "e", "type": "final-output" }
-        ],
-        "connections": [
-          { "from": "a", "fromPort": "out", "to": "b", "toPort": "in" },
-          { "from": "b", "fromPort": "out", "to": "c", "toPort": "in" },
-          { "from": "c", "fromPort": "out", "to": "d", "toPort": "in" },
-          { "from": "d", "fromPort": "out", "to": "e", "toPort": "in" }
-        ]
-      }
-    },
+    
     "node:polar-coordinates": {
       "title": "Polar Coords",
       "titleType": "node",
@@ -4173,7 +4049,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:scale",
             "node:rotate"
           ]
@@ -4225,8 +4101,8 @@
     "node:kaleidoscope": {
       "title": "Kaleidoscope",
       "titleType": "node",
-      "tagline": "Ideal for creating symmetric patterns by mirroring and reflecting sections of the image",
-      "description": "Creates kaleidoscope effects by dividing the coordinate space into segments and mirroring each segment to create symmetric patterns. The node calculates the angle and radius from the center point, determines which segment the coordinate falls into, and mirrors coordinates in the second half of each segment to the first half. This creates beautiful radial symmetry patterns. You can control the number of segments (2-32), the center point, and rotation offset.",
+      "tagline": "Symmetric mirrors around a center; optional smooth edge softens folds",
+      "description": "Creates kaleidoscope effects by dividing the coordinate space into segments and folding each segment for radial symmetry. At Smooth Edge 0 the fold is a hard mirror (classic kaleidoscope); raise Smooth Edge to blend across segment midlines for softer symmetry like the old Kaleidoscope Smooth node. Control segment count (2–32), center, rotation, and smooth edge width.",
       "inputs": [
         {
           "name": "in",
@@ -4237,7 +4113,7 @@
             "node:uv-coordinates",
             "node:polar-coordinates",
             "node:rotate",
-            "node:translate"
+            "node:displace"
           ]
         }
       ],
@@ -4251,6 +4127,12 @@
             "node:hexagonal-grid",
             "node:color-map"
           ]
+        }
+      ],
+      "parameters": [
+        {
+          "name": "Smooth Edge",
+          "description": "0 = sharp mirror fold between segments. Larger values blend the reflection across the fold line for softer symmetry."
         }
       ],
       "relatedItems": [
@@ -4279,7 +4161,7 @@
         "Increase segments for more mirrors (e.g. 6 for hex symmetry); rotate for animated kaleidoscope.",
         "Combine with Rings or Radial Rays for mandala-style effects."
       ],
-      "advanced": "Segments divide the circle; each segment is mirrored. Use with Polar Coords for clean radial symmetry; odd segment counts can produce different symmetry than even."
+      "advanced": "Segments divide the circle; each segment is folded. Smooth Edge uses smoothstep around the mid-segment angle; use 0 for identical behavior to the legacy hard-fold kaleidoscope."
     },
     "node:twist-distortion": {
       "title": "Twist",
@@ -4296,7 +4178,7 @@
             "node:uv-coordinates",
             "node:polar-coordinates",
             "node:rotate",
-            "node:translate"
+            "node:displace"
           ]
         }
       ],
@@ -4354,7 +4236,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:noise",
             "node:vector-field"
           ]
@@ -4368,7 +4250,7 @@
           "suggestedTargets": [
             "node:noise",
             "node:color-map",
-            "node:translate"
+            "node:displace"
           ]
         }
       ],
@@ -4413,7 +4295,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:turbulence",
             "node:normalize"
           ]
@@ -4427,14 +4309,14 @@
           "suggestedTargets": [
             "node:turbulence",
             "node:noise",
-            "node:translate",
+            "node:displace",
             "node:color-map"
           ]
         }
       ],
       "relatedItems": [
         "node:turbulence",
-        "node:translate",
+        "node:displace",
         "type:vec2",
         "node:dot-product",
         "node:cosine",
@@ -4475,7 +4357,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate"
+            "node:displace"
           ]
         }
       ],
@@ -4575,7 +4457,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate"
+            "node:displace"
           ]
         }
       ],
@@ -4669,26 +4551,38 @@
     "node:displace": {
       "title": "Displace",
       "titleType": "node",
-      "tagline": "Offset coordinates by a vector from noise or gradient",
-      "description": "Adds an offset vector to the input coordinates. Connect a vec2 from noise, gradient, or flow to drive the distortion. Scale multiplies the offset.",
+      "tagline": "Pan or warp UVs: vector offset (replaces Translate + Displace) or directional scalar smear",
+      "description": "Mode Vector (0): adds a vec2 offset times Scale—use Offset X/Y when the offset port is unconnected (same as the old Translate node), or connect noise/gradient to the offset port. Mode Directional (1): moves along Angle by Amount × Scale (same as the old Directional Displace). One node covers simple panning, driven 2D warp, and directional smear.",
       "inputs": [
         {
           "name": "in",
           "type": "vec2",
-          "description": "Input coordinates",
+          "description": "Input coordinates (e.g. UV).",
           "suggestedSources": [
             "type:vec2",
-            "node:uv-coordinates"
+            "node:uv-coordinates",
+            "node:rotate",
+            "node:scale"
           ]
         },
         {
           "name": "offset",
           "type": "vec2",
-          "description": "Displacement vector",
+          "description": "Displacement vector (Vector mode only). When disconnected, Offset X/Y parameters are used.",
           "suggestedSources": [
             "node:noise",
             "node:cubic-curl-noise",
             "node:combine-vector"
+          ]
+        },
+        {
+          "name": "amount",
+          "type": "float",
+          "description": "Scalar displacement (Directional mode). Connect Time, Noise, or bands.",
+          "suggestedSources": [
+            "node:noise",
+            "node:time",
+            "node:constant-float"
           ]
         }
       ],
@@ -4699,14 +4593,39 @@
           "description": "Displaced coordinates",
           "suggestedTargets": [
             "node:noise",
-            "node:color-map"
+            "node:color-map",
+            "node:brick-tiling"
           ]
+        }
+      ],
+      "parameters": [
+        {
+          "name": "Mode",
+          "description": "0 = Vector: in + offset × Scale. 1 = Directional: in + (cos Angle, sin Angle) × Amount × Scale."
+        },
+        {
+          "name": "Scale",
+          "description": "Multiplies the displacement in both modes."
+        },
+        {
+          "name": "Offset X / Y",
+          "description": "Used in Vector mode when the offset port is not connected (fixed pan)."
+        },
+        {
+          "name": "Angle",
+          "description": "Direction of displacement in Directional mode (radians)."
+        },
+        {
+          "name": "Amount",
+          "description": "Default scalar distance in Directional mode when the amount port is not connected."
         }
       ],
       "relatedItems": [
         "node:vector-field",
         "node:turbulence",
-        "node:combine-vector"
+        "node:combine-vector",
+        "node:rotate",
+        "node:scale"
       ],
       "setupExampleGraph": {
         "nodes": [
@@ -4725,11 +4644,11 @@
         ]
       },
       "examples": [
-        "Connect UV to in, and a vec2 (Noise via Combine Vector, or Cubic Curl Noise) to offset for displacement.",
-        "Scale the offset to control strength; feed displaced coords into another Noise or pattern.",
-        "Use with Vector Field or Warp Terrain for directional or organic displacement."
+        "Vector mode: UV → Displace → Noise; leave offset disconnected and drag Offset X/Y to pan (old Translate workflow).",
+        "Vector mode: connect Cubic Curl Noise or Combine Vector to offset for classic displacement.",
+        "Directional mode: set Mode to 1, set Angle, connect a float to Amount for directional smear."
       ],
-      "advanced": "Adds offset vector to coordinates. Use Cubic Curl Noise or Combine Vector for vec2; single-channel noise won't work. Scale multiplies the offset strength."
+      "advanced": "Vector mode formula: out = in + offset * Scale. Directional: out = in + dir(angle) * (amount * Scale). Legacy graphs load via migration from translate / directional-displace."
     },
     "node:vortex": {
       "title": "Vortex",
@@ -4893,73 +4812,11 @@
       ],
       "advanced": "Bilinear map from unit square to quadrilateral. Use for perspective correction, TV screens, or any four-corner warp."
     },
-    "node:directional-displace": {
-      "title": "Directional Displace",
-      "titleType": "node",
-      "tagline": "Displace along a fixed direction by a scalar amount",
-      "description": "Offsets coordinates along a single direction (angle). Connect a float for the amount (e.g. from noise or gradient) and set the angle. Scale multiplies the displacement.",
-      "inputs": [
-        {
-          "name": "in",
-          "type": "vec2",
-          "description": "Input coordinates",
-          "suggestedSources": [
-            "type:vec2",
-            "node:uv-coordinates"
-          ]
-        },
-        {
-          "name": "amount",
-          "type": "float",
-          "description": "Displacement amount",
-          "suggestedSources": [
-            "node:noise",
-            "node:time"
-          ]
-        }
-      ],
-      "outputs": [
-        {
-          "name": "out",
-          "type": "vec2",
-          "description": "Displaced coordinates",
-          "suggestedTargets": [
-            "node:displace",
-            "node:color-map"
-          ]
-        }
-      ],
-      "relatedItems": [
-        "node:displace",
-        "node:vector-field"
-      ],
-      "setupExampleGraph": {
-        "nodes": [
-          { "id": "a", "type": "uv-coordinates" },
-          { "id": "b", "type": "directional-displace" },
-          { "id": "c", "type": "length" },
-          { "id": "d", "type": "color-map" },
-          { "id": "e", "type": "final-output" }
-        ],
-        "connections": [
-          { "from": "a", "fromPort": "out", "to": "b", "toPort": "in" },
-          { "from": "b", "fromPort": "out", "to": "c", "toPort": "in" },
-          { "from": "c", "fromPort": "out", "to": "d", "toPort": "in" },
-          { "from": "d", "fromPort": "out", "to": "e", "toPort": "in" }
-        ]
-      },
-      "examples": [
-        "Connect UV to in and a float (Noise, Time) to amount; set angle for displacement direction.",
-        "Use for directional smear or stretch; scale the amount to control strength.",
-        "Chain with Displace for combined vector + directional offset."
-      ],
-      "advanced": "Displaces along one angle only; use when you need directional smear. For 2D offset use Displace with a vec2."
-    },
     "node:brick-tiling": {
-      "title": "Brick Tiling",
+      "title": "Tiling",
       "titleType": "node",
-      "tagline": "Tiled coords with row offset for brick and staggered patterns",
-      "description": "Tiles coordinates with an optional horizontal offset on alternating rows (brick/staggered layout). Scale X/Y and row offset X control the tiling.",
+      "tagline": "Tile UVs for seamless repeats (optional brick stagger)",
+      "description": "Tiles 2D coordinates so downstream patterns repeat seamlessly. Scale X/Y control the tile count; Offset X/Y shift the tile phase. For brick/staggered tiling, turn up Brick Amount and set Brick Offset X (try ~0.5 for classic brick).",
       "inputs": [
         {
           "name": "in",
@@ -4968,7 +4825,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:domain-repetition"
+            "node:scale"
           ]
         }
       ],
@@ -4976,7 +4833,7 @@
         {
           "name": "out",
           "type": "vec2",
-          "description": "Brick-tiled coordinates",
+          "description": "Tiled coordinates (0–1 per tile)",
           "suggestedTargets": [
             "node:noise",
             "node:dots",
@@ -4985,8 +4842,14 @@
         }
       ],
       "relatedItems": [
-        "node:domain-repetition",
+        "node:scale",
         "node:hexagonal-grid"
+      ],
+      "parameters": [
+        { "name": "Scale X / Y", "description": "How many tiles you get across X and Y." },
+        { "name": "Offset X / Y", "description": "Shifts the tiling phase (still wraps per tile)." },
+        { "name": "Brick Amount", "description": "0 = plain tiling. 1 = full brick stagger." },
+        { "name": "Brick Offset X", "description": "Horizontal offset applied to every other row when Brick Amount > 0. Try ~0.5 for classic brick." }
       ],
       "setupExampleGraph": {
         "nodes": [
@@ -5033,62 +4896,13 @@
         }
       ],
       "relatedItems": [
-        "node:domain-repetition",
+        "node:brick-tiling",
         "node:scale"
       ],
       "setupExampleGraph": {
         "nodes": [
           { "id": "a", "type": "uv-coordinates" },
           { "id": "b", "type": "infinite-zoom" },
-          { "id": "c", "type": "length" },
-          { "id": "d", "type": "color-map" },
-          { "id": "e", "type": "final-output" }
-        ],
-        "connections": [
-          { "from": "a", "fromPort": "out", "to": "b", "toPort": "in" },
-          { "from": "b", "fromPort": "out", "to": "c", "toPort": "in" },
-          { "from": "c", "fromPort": "out", "to": "d", "toPort": "in" },
-          { "from": "d", "fromPort": "out", "to": "e", "toPort": "in" }
-        ]
-      }
-    },
-    "node:kaleidoscope-smooth": {
-      "title": "Kaleidoscope Smooth",
-      "titleType": "node",
-      "tagline": "Kaleidoscope with smooth folding at segment edges",
-      "description": "Like Kaleidoscope but uses smooth folding at segment boundaries for softer, more continuous symmetry. Segments, rotation and smooth edge width are configurable.",
-      "inputs": [
-        {
-          "name": "in",
-          "type": "vec2",
-          "description": "Input coordinates",
-          "suggestedSources": [
-            "type:vec2",
-            "node:uv-coordinates",
-            "node:polar-coordinates"
-          ]
-        }
-      ],
-      "outputs": [
-        {
-          "name": "out",
-          "type": "vec2",
-          "description": "Smooth kaleidoscope coordinates",
-          "suggestedTargets": [
-            "node:noise",
-            "node:color-map",
-            "node:kaleidoscope"
-          ]
-        }
-      ],
-      "relatedItems": [
-        "node:kaleidoscope",
-        "node:polar-coordinates"
-      ],
-      "setupExampleGraph": {
-        "nodes": [
-          { "id": "a", "type": "uv-coordinates" },
-          { "id": "b", "type": "kaleidoscope-smooth" },
           { "id": "c", "type": "length" },
           { "id": "d", "type": "color-map" },
           { "id": "e", "type": "final-output" }
@@ -5114,7 +4928,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:scale",
             "node:polar-coordinates"
           ]
@@ -5130,7 +4944,7 @@
             "node:mix",
             "node:smoothstep",
             "node:gradient-mask",
-            "node:translate"
+            "node:displace"
           ]
         }
       ],
@@ -5234,7 +5048,7 @@
             "type:vec2",
             "node:uv-coordinates",
             "node:fragment-coordinates",
-            "node:translate"
+            "node:displace"
           ]
         }
       ],
@@ -5283,7 +5097,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:scale",
             "node:polar-coordinates"
           ]
@@ -5342,7 +5156,7 @@
             "type:vec2",
             "node:uv-coordinates",
             "node:polar-coordinates",
-            "node:translate",
+            "node:displace",
             "node:distance"
           ]
         }
@@ -5399,7 +5213,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:scale"
           ]
         }
@@ -5455,7 +5269,7 @@
             "type:vec2",
             "node:uv-coordinates",
             "node:polar-coordinates",
-            "node:translate"
+            "node:displace"
           ]
         }
       ],
@@ -5640,7 +5454,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:scale"
           ]
         }
@@ -5684,56 +5498,6 @@
       ],
       "advanced": "Uses the same spherical Fibonacci lattice as the Spherical Fibonacci node for spot placement; analytic ray-sphere intersection keeps it single-pass. For modular reuse of the lattice elsewhere, use Spherical Fibonacci + Bloom Sphere."
     },
-    "node:bloom-sphere-effect": {
-      "title": "Bloom Sphere (Effect)",
-      "titleType": "node",
-      "tagline": "Sphere with spherical Fibonacci spots, time wave, and blue/red glow (modular path)",
-      "description": "Renders a sphere with evenly distributed soft spots using the same spherical Fibonacci lattice as the Spherical Fibonacci node (self-contained). Implements analytic ray-sphere intersection, soft spot masks, a time-based radius wave, and blue outer / reddish inner glow to replicate the Shadertoy Xljcz1 look. Connect UV (e.g. from UV Coords). Parameters: spot count (lattice size), radius, wave speed, spot sharpness, and outer/inner glow colors. Uses embedded lattice math; the Spherical Fibonacci node can be used elsewhere in the graph for other effects.",
-      "inputs": [
-        {
-          "name": "in",
-          "type": "vec2",
-          "description": "UV coordinates (e.g. from UV Coords)",
-          "suggestedSources": [
-            "type:vec2",
-            "node:uv-coordinates",
-            "node:translate",
-            "node:scale"
-          ]
-        }
-      ],
-      "outputs": [
-        {
-          "name": "out",
-          "type": "vec4",
-          "description": "RGBA color; connect to Final Output or blend with other nodes",
-          "suggestedTargets": [
-            "node:final-output",
-            "node:mix",
-            "node:blend-mode"
-          ]
-        }
-      ],
-      "setupExampleGraph": {
-        "nodes": [
-          { "id": "a", "type": "uv-coordinates" },
-          { "id": "b", "type": "bloom-sphere-effect" },
-          { "id": "c", "type": "final-output" }
-        ],
-        "connections": [
-          { "from": "a", "fromPort": "out", "to": "b", "toPort": "in" },
-          { "from": "b", "fromPort": "out", "to": "c", "toPort": "in" }
-        ]
-      },
-      "relatedItems": [
-        "node:spherical-fibonacci",
-        "node:bloom-sphere",
-        "node:sphere-raymarch",
-        "node:uv-coordinates",
-        "type:vec2",
-        "type:vec4"
-      ]
-    },
     "node:hex-voxel": {
       "title": "Hex Voxel",
       "titleType": "node",
@@ -5747,7 +5511,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:scale"
           ]
         }
@@ -5804,7 +5568,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:scale"
           ]
         }
@@ -5861,7 +5625,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:scale"
           ]
         }
@@ -5909,7 +5673,7 @@
       "title": "Shapes",
       "titleType": "node",
       "tagline": "Circle (or ellipse) and square (or rounded box) as SDF mask; aspect from size",
-      "description": "Outputs a 2D shape as a float mask: choose Circle or Square. Size is width and height; unequal width/height gives an ellipse or rectangle. Roundness only affects Square (rounded corners). Use center to position, softness for edge blur, and intensity to scale the output. Ideal for vignettes, panels, and composite shapes with mix or color-map.",
+      "description": "Outputs a 2D shape as a float mask. Shape modes: Circle/Ellipse, Square/Rounded Box, Superellipse, Regular Polygon, Capsule. Size is width and height; unequal width/height stretches shapes. Roundness only affects Square/Rounded Box. Polygon uses Sides; Rotation rotates the shape. Use center to position, softness for edge blur, and intensity to scale the output. Ideal for vignettes, panels, and composite shapes with mix or color-map.",
       "inputs": [
         {
           "name": "in",
@@ -5918,7 +5682,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:scale"
           ]
         }
@@ -5958,71 +5722,21 @@
       "examples": [
         "Connect UV to in; feed output to Color Map or Mix for circles, ellipses, or rounded squares as masks or panels.",
         "Use unequal width/height for ellipses or rectangles; roundness (Square mode) for soft corners on panels.",
-        "Combine with other masks (e.g. Starburst, Star) via Mix or Multiply for composite shapes and vignettes."
+        "Combine with other masks (e.g. Star with Style=Starburst) via Mix or Multiply for composite shapes and vignettes."
       ],
       "advanced": "SDF (signed distance function) gives a smooth mask: positive inside, negative outside. Circle vs Square and size control aspect; softness blurs the edge."
-    },
-    "node:star-2d": {
-      "title": "Starburst",
-      "titleType": "node",
-      "tagline": "N-point star shape with inner/outer radius and optional rounded corners",
-      "description": "Outputs a 2D star as a float mask using an SDF. You control the number of points, inner and outer radius (for pointed or stubby stars), and optional roundness for softer corners. Softness and intensity adjust the edge and strength. Ideal for badges, decorative shapes, and masks when combined with color map or mix.",
-      "inputs": [
-        {
-          "name": "in",
-          "type": "vec2",
-          "description": "Input 2D coordinates (e.g. UV)",
-          "suggestedSources": [
-            "type:vec2",
-            "node:uv-coordinates",
-            "node:translate",
-            "node:scale"
-          ]
-        }
-      ],
-      "outputs": [
-        {
-          "name": "out",
-          "type": "float",
-          "description": "Mask value: 1.0 inside star, 0.0 outside, soft transition at edge",
-          "suggestedTargets": [
-            "node:mix",
-            "node:smoothstep",
-            "node:color-map",
-            "node:multiply"
-          ]
-        }
-      ],
-      "setupExampleGraph": {
-        "nodes": [
-          { "id": "a", "type": "uv-coordinates" },
-          { "id": "b", "type": "star-2d" },
-          { "id": "c", "type": "color-map" },
-          { "id": "d", "type": "final-output" }
-        ],
-        "connections": [
-          { "from": "a", "fromPort": "out", "to": "b", "toPort": "in" },
-          { "from": "b", "fromPort": "out", "to": "c", "toPort": "in" },
-          { "from": "c", "fromPort": "out", "to": "d", "toPort": "in" }
-        ]
-      },
-      "relatedItems": [
-        "node:shapes-2d",
-        "node:superellipse",
-        "type:vec2"
-      ]
     },
     "node:star-shape-2d": {
       "title": "Star",
       "titleType": "node",
       "tagline": "N-point star shape with inner/outer radius, rotation, and softness for masks and patterns.",
-      "description": "Outputs a 2D star as a float using an SDF. You control the number of points, inner and outer radius, roundness, rotation, and softness. Connect UV (or translated coordinates) to the input; use the output with Color Map or Mix for badges, decorative shapes, or masks. Parameters: Center X/Y, Points, Inner/Outer Radius, Roundness, Rotation, Softness, Intensity.",
+      "description": "Outputs a 2D star as a float using an SDF. Style toggles between Star (radial profile) and Starburst (segment-like rays). You control the number of points, inner and outer radius, roundness, rotation (Star style), and softness. Connect UV (or translated coordinates) to the input; use the output with Color Map or Mix for badges, decorative shapes, or masks.",
       "inputs": [
         {
           "name": "in",
           "type": "vec2",
           "description": "Position to sample (e.g. UV coordinates)",
-          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:translate", "node:scale"]
+          "suggestedSources": ["type:vec2", "node:uv-coordinates", "node:displace", "node:scale"]
         }
       ],
       "outputs": [
@@ -6057,57 +5771,7 @@
           { "from": "c", "fromPort": "out", "to": "d", "toPort": "in" }
         ]
       },
-      "relatedItems": ["node:shapes-2d", "node:star-2d", "node:superellipse", "type:vec2"]
-    },
-    "node:superellipse": {
-      "title": "Super",
-      "titleType": "node",
-      "tagline": "Squircle to rectangle: power parameter controls shape from ellipse to rounded rect",
-      "description": "Outputs a superellipse as a float mask. The power parameter (n) controls the shape: 2 gives an ellipse, higher values approach a rectangle with rounded corners (squircle). Radius X and Y set the half-axes. Use softness and intensity for edge and strength. Ideal for modern UI-style shapes and masks.",
-      "inputs": [
-        {
-          "name": "in",
-          "type": "vec2",
-          "description": "Input 2D coordinates (e.g. UV)",
-          "suggestedSources": [
-            "type:vec2",
-            "node:uv-coordinates",
-            "node:translate",
-            "node:scale"
-          ]
-        }
-      ],
-      "outputs": [
-        {
-          "name": "out",
-          "type": "float",
-          "description": "Mask value: 1.0 inside superellipse, 0.0 outside, soft transition at edge",
-          "suggestedTargets": [
-            "node:mix",
-            "node:smoothstep",
-            "node:color-map",
-            "node:multiply"
-          ]
-        }
-      ],
-      "setupExampleGraph": {
-        "nodes": [
-          { "id": "a", "type": "uv-coordinates" },
-          { "id": "b", "type": "superellipse" },
-          { "id": "c", "type": "color-map" },
-          { "id": "d", "type": "final-output" }
-        ],
-        "connections": [
-          { "from": "a", "fromPort": "out", "to": "b", "toPort": "in" },
-          { "from": "b", "fromPort": "out", "to": "c", "toPort": "in" },
-          { "from": "c", "fromPort": "out", "to": "d", "toPort": "in" }
-        ]
-      },
-      "relatedItems": [
-        "node:shapes-2d",
-        "node:star-2d",
-        "type:vec2"
-      ]
+      "relatedItems": ["node:shapes-2d", "type:vec2"]
     },
     "node:fractal": {
       "title": "Fractal",
@@ -6259,7 +5923,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:scale",
             "node:time"
           ]
@@ -6274,7 +5938,7 @@
             "node:color-map",
             "node:mix",
             "node:smoothstep",
-            "node:translate",
+            "node:displace",
             "node:blending-modes"
           ]
         }
@@ -6318,9 +5982,9 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:scale",
-            "node:domain-repetition"
+            "node:brick-tiling"
           ]
         }
       ],
@@ -6375,7 +6039,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:scale",
             "node:rotate"
           ]
@@ -6433,7 +6097,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:scale"
           ]
         }
@@ -6490,7 +6154,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:scale"
           ]
         }
@@ -6546,7 +6210,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:scale",
             "node:rotate"
           ]
@@ -6604,7 +6268,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:scale",
             "node:floor",
             "node:fragment-coordinates"
@@ -6655,7 +6319,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:scale"
           ]
         }
@@ -6711,7 +6375,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:scale",
             "node:rotate"
           ]
@@ -6770,7 +6434,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:scale"
           ]
         }
@@ -6828,7 +6492,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:scale"
           ]
         }
@@ -6924,7 +6588,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:scale",
             "node:rotate"
           ]
@@ -7251,7 +6915,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:scale"
           ]
         },
@@ -7421,6 +7085,290 @@
         "type:vec3"
       ]
     },
+    "node:mandelbox-sdf": {
+      "title": "Mandelbox SDF",
+      "titleType": "node",
+      "tagline": "Classic Mandelbox fold–scale–translate distance for raymarching",
+      "description": "Signed distance to a Mandelbox-style fractal: box fold, sphere fold, then scale and offset each iteration. Conservative DE with a tunable DE multiplier (deFudge); values below 1 can overstep and punch through surfaces—defaults are slightly conservative. Distance fields from iterated folds are estimates: lower raymarch step counts or raise DE multiplier if banding or leaks appear. Folding limit drives both box extent (±limit) and sphere-fold strength; min radius floors the sphere fold. Try ~64–256 raymarch steps for detail; combine with Displacement 3D or Repeated Hex Prism SDF for layered scenes.",
+      "inputs": [
+        {
+          "name": "position",
+          "type": "vec3",
+          "description": "3D sample position (from Generic SDF Raymarcher when connected as SDF)",
+          "suggestedSources": [
+            "type:vec3",
+            "node:constant-vec3"
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "float",
+          "description": "Signed distance estimate to the Mandelbox surface",
+          "suggestedTargets": [
+            "node:generic-raymarcher",
+            "node:mix",
+            "node:smoothstep",
+            "node:color-map"
+          ]
+        }
+      ],
+      "setupExampleGraph": {
+        "nodes": [
+          { "id": "a", "type": "uv-coordinates" },
+          { "id": "b", "type": "orbit-camera" },
+          { "id": "c", "type": "mandelbox-sdf" },
+          { "id": "d", "type": "generic-raymarcher" },
+          { "id": "e", "type": "color-map" },
+          { "id": "f", "type": "final-output" }
+        ],
+        "connections": [
+          { "from": "a", "fromPort": "out", "to": "b", "toPort": "in" },
+          { "from": "b", "fromPort": "ro", "to": "d", "toPort": "ro" },
+          { "from": "b", "fromPort": "rd", "to": "d", "toPort": "rd" },
+          { "from": "a", "fromPort": "out", "to": "d", "toPort": "in" },
+          { "from": "c", "fromPort": "out", "to": "d", "toPort": "sdf" },
+          { "from": "d", "fromPort": "out", "to": "e", "toPort": "in" },
+          { "from": "e", "fromPort": "out", "to": "f", "toPort": "in" }
+        ]
+      },
+      "relatedItems": [
+        "node:generic-raymarcher",
+        "node:displacement-3d",
+        "node:repeated-hex-prism-sdf",
+        "node:kifs-sdf",
+        "type:vec3"
+      ]
+    },
+    "node:menger-sponge-sdf": {
+      "title": "Menger Sponge SDF",
+      "titleType": "node",
+      "tagline": "Classic Menger-style 3D fractal SDF for the generic raymarcher",
+      "description": "Signed distance to a Menger sponge–style fractal (recursive 3×3×3 void cuts in a cube). Connect the position input implicitly via the Generic SDF Raymarcher: wire this node’s float output to the raymarcher’s sdf port; the raymarcher supplies sample positions. Parameters: iterations (1–5), domain scale, wall thickness, 3D offset, axis–angle rotation, DE scale (advanced, lowers distance for safer sphere tracing). Float parameters support timeline automation and audio bands per project rules; iterations is fixed at compile time like KIFS.",
+      "inputs": [
+        {
+          "name": "position",
+          "type": "vec3",
+          "description": "3D position to evaluate the SDF (from raymarcher when connected; otherwise Pos X/Y/Z)",
+          "suggestedSources": [
+            "type:vec3",
+            "node:constant-vec3"
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "float",
+          "description": "Signed distance to the sponge surface",
+          "suggestedTargets": [
+            "node:generic-raymarcher",
+            "node:mix",
+            "node:smoothstep",
+            "node:color-map"
+          ]
+        }
+      ],
+      "setupExampleGraph": {
+        "nodes": [
+          { "id": "a", "type": "uv-coordinates" },
+          { "id": "b", "type": "orbit-camera" },
+          { "id": "c", "type": "menger-sponge-sdf" },
+          { "id": "d", "type": "generic-raymarcher" },
+          { "id": "e", "type": "color-map" },
+          { "id": "f", "type": "final-output" }
+        ],
+        "connections": [
+          { "from": "a", "fromPort": "out", "to": "b", "toPort": "in" },
+          { "from": "b", "fromPort": "ro", "to": "d", "toPort": "ro" },
+          { "from": "b", "fromPort": "rd", "to": "d", "toPort": "rd" },
+          { "from": "a", "fromPort": "out", "to": "d", "toPort": "in" },
+          { "from": "c", "fromPort": "out", "to": "d", "toPort": "sdf" },
+          { "from": "d", "fromPort": "out", "to": "e", "toPort": "in" },
+          { "from": "e", "fromPort": "out", "to": "f", "toPort": "in" }
+        ]
+      },
+      "relatedItems": [
+        "node:generic-raymarcher",
+        "node:kifs-sdf",
+        "node:orbit-camera",
+        "type:vec3"
+      ]
+    },
+    "node:sierpinski-tetra-sdf": {
+      "title": "Sierpinski Tetra SDF",
+      "titleType": "node",
+      "tagline": "Tetrahedral IFS SDF with triangular lacunarity for the generic raymarcher",
+      "description": "Signed distance field for a **Sierpinski tetrahedron–style** IFS: **tetrahedral symmetry folds** (Knighty / Klems wedge) then **scale** and **offset** each iteration, with optional **axis–angle pre-rotation**. The inner primitive is a **scaled sphere** in iterated space (KIFS-style), **not** a full `sdTetrahedron` shell—tune **Core radius** and **DE bias** under Advanced. Connect **out** to the Generic SDF Raymarcher **sdf** port. **Float** parameters (scale, offset, rotation, core radius, DE bias, position overrides) support timeline automation and audio; **Iterations** is a capped int (no audio), same policy as KIFS / Menger.",
+      "inputs": [
+        {
+          "name": "position",
+          "type": "vec3",
+          "description": "3D position to evaluate the SDF (from raymarcher when connected; otherwise Pos X/Y/Z)",
+          "suggestedSources": [
+            "type:vec3",
+            "node:constant-vec3"
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "float",
+          "description": "Signed distance to the fractal surface (sphere-core DE)",
+          "suggestedTargets": [
+            "node:generic-raymarcher",
+            "node:mix",
+            "node:smoothstep",
+            "node:color-map"
+          ]
+        }
+      ],
+      "setupExampleGraph": {
+        "nodes": [
+          { "id": "a", "type": "uv-coordinates" },
+          { "id": "b", "type": "orbit-camera" },
+          { "id": "c", "type": "sierpinski-tetra-sdf" },
+          { "id": "d", "type": "generic-raymarcher" },
+          { "id": "e", "type": "color-map" },
+          { "id": "f", "type": "final-output" }
+        ],
+        "connections": [
+          { "from": "a", "fromPort": "out", "to": "b", "toPort": "in" },
+          { "from": "b", "fromPort": "ro", "to": "d", "toPort": "ro" },
+          { "from": "b", "fromPort": "rd", "to": "d", "toPort": "rd" },
+          { "from": "a", "fromPort": "out", "to": "d", "toPort": "in" },
+          { "from": "c", "fromPort": "out", "to": "d", "toPort": "sdf" },
+          { "from": "d", "fromPort": "out", "to": "e", "toPort": "in" },
+          { "from": "e", "fromPort": "out", "to": "f", "toPort": "in" }
+        ]
+      },
+      "relatedItems": [
+        "node:generic-raymarcher",
+        "node:kifs-sdf",
+        "node:menger-sponge-sdf",
+        "node:julia-slab-sdf",
+        "node:orbit-camera",
+        "type:vec3"
+      ]
+    },
+    "node:julia-slab-sdf": {
+      "title": "Julia slab SDF",
+      "titleType": "node",
+      "tagline": "2D Julia escape field in a thin 3D slab (not Mandelbulb topology)",
+      "description": "Outputs a signed distance field from a **2D quadratic Julia** iteration **z ← z² + c** on **XY** (scaled), using an **exterior distance estimate** when |z| exceeds the escape radius: **0.5·log(max(|z|,ε))·|z| / |dz/dz0|**, then combines with a **slab** around **z = 0** via **max(|z₃| − halfThickness, d_fractal)** so the visible surface is a thin band with fractal boundary detail. **Not** a 3D Mandelbulb or orbital Julia in vec4. Connect **position** to the Generic SDF Raymarcher path and wire **out** to the raymarcher **sdf** port. Float parameters (**Julia c.x / c.y**, **XY scale**, **slab half-thickness**, **escape radius**) support timeline automation and audio where marked; **max iterations** is an int (no audio) to keep preview cost predictable—raise it only when needed.",
+      "inputs": [
+        {
+          "name": "position",
+          "type": "vec3",
+          "description": "3D position to evaluate the SDF at (e.g. raymarch sample point)",
+          "suggestedSources": [
+            "type:vec3",
+            "node:constant-vec3"
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "float",
+          "description": "Signed distance (slab ∩ 2D Julia exterior estimate in XY)",
+          "suggestedTargets": [
+            "node:generic-raymarcher",
+            "node:mix",
+            "node:smoothstep",
+            "node:color-map"
+          ]
+        }
+      ],
+      "setupExampleGraph": {
+        "nodes": [
+          { "id": "a", "type": "uv-coordinates" },
+          { "id": "b", "type": "orbit-camera" },
+          { "id": "c", "type": "julia-slab-sdf" },
+          { "id": "d", "type": "generic-raymarcher" },
+          { "id": "e", "type": "color-map" },
+          { "id": "f", "type": "final-output" }
+        ],
+        "connections": [
+          { "from": "a", "fromPort": "out", "to": "b", "toPort": "in" },
+          { "from": "b", "fromPort": "ro", "to": "d", "toPort": "ro" },
+          { "from": "b", "fromPort": "rd", "to": "d", "toPort": "rd" },
+          { "from": "a", "fromPort": "out", "to": "d", "toPort": "in" },
+          { "from": "c", "fromPort": "out", "to": "d", "toPort": "sdf" },
+          { "from": "d", "fromPort": "out", "to": "e", "toPort": "in" },
+          { "from": "e", "fromPort": "out", "to": "f", "toPort": "in" }
+        ]
+      },
+      "relatedItems": [
+        "node:generic-raymarcher",
+        "node:kifs-sdf",
+        "node:menger-sponge-sdf",
+        "node:sierpinski-tetra-sdf",
+        "node:ether-sdf",
+        "node:displacement-3d",
+        "type:vec3"
+      ]
+    },
+    "node:mandelbulb-sdf": {
+      "title": "Mandelbulb SDF",
+      "titleType": "node",
+      "tagline": "Classic Mandelbulb distance field for the generic SDF raymarcher",
+      "description": "Triplex (spherical-coordinate) Mandelbulb iteration with a clamped distance-estimation step. Connect the distance output to the Generic Raymarcher SDF port; the raymarcher supplies world position at each step. Parameters: Power and Iterations shape the fractal (higher iterations cost more per step—raise Raymarcher Steps if you raise iterations). Bailout and DE fudge live under Advanced: they change the DE scale; animating them quickly often causes flicker or shimmering. Hybrid mix blends the DE estimate with a simple outer sphere for stability when dialed up. Power is an integer (no audio/animation by default) to avoid stepped pops when automating.",
+      "inputs": [
+        {
+          "name": "position",
+          "type": "vec3",
+          "description": "Sample position (from raymarcher evaluation point p when wired through the SDF chain)",
+          "suggestedSources": [
+            "type:vec3",
+            "node:constant-vec3"
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "float",
+          "description": "Distance estimate toward the Mandelbulb surface",
+          "suggestedTargets": [
+            "node:generic-raymarcher",
+            "node:mix",
+            "node:smoothstep",
+            "node:color-map"
+          ]
+        }
+      ],
+      "setupExampleGraph": {
+        "nodes": [
+          { "id": "a", "type": "uv-coordinates" },
+          { "id": "b", "type": "orbit-camera" },
+          { "id": "c", "type": "mandelbulb-sdf" },
+          { "id": "d", "type": "generic-raymarcher" },
+          { "id": "e", "type": "color-map" },
+          { "id": "f", "type": "final-output" }
+        ],
+        "connections": [
+          { "from": "a", "fromPort": "out", "to": "b", "toPort": "in" },
+          { "from": "b", "fromPort": "ro", "to": "d", "toPort": "ro" },
+          { "from": "b", "fromPort": "rd", "to": "d", "toPort": "rd" },
+          { "from": "a", "fromPort": "out", "to": "d", "toPort": "in" },
+          { "from": "c", "fromPort": "out", "to": "d", "toPort": "sdf" },
+          { "from": "d", "fromPort": "out", "to": "e", "toPort": "in" },
+          { "from": "e", "fromPort": "out", "to": "f", "toPort": "in" }
+        ]
+      },
+      "relatedItems": [
+        "node:generic-raymarcher",
+        "node:julia-slab-sdf",
+        "node:kifs-sdf",
+        "node:menger-sponge-sdf",
+        "node:orbit-camera",
+        "type:vec3"
+      ],
+      "advanced": "Strong warning: fast automation or audio on Bailout or DE fudge tends to flicker because the DE field is not Lipschitz-continuous under those moves. Prefer slow sweeps or small ranges. If the preview noise increases, lower Iterations first, then increase Raymarcher Steps on the raymarcher node."
+    },
     "node:ether-sdf": {
       "title": "Ether SDF",
       "titleType": "node",
@@ -7556,6 +7504,10 @@
             "node:repeated-hex-prism-sdf",
             "node:radial-repeat-sdf",
             "node:kifs-sdf",
+            "node:mandelbox-sdf",
+            "node:menger-sponge-sdf",
+            "node:sierpinski-tetra-sdf",
+            "node:julia-slab-sdf",
             "node:ether-sdf"
           ]
         },
@@ -7697,7 +7649,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:scale"
           ]
         }
@@ -7816,7 +7768,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:scale"
           ]
         }
@@ -7866,7 +7818,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:scale"
           ]
         }
@@ -7923,7 +7875,7 @@
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
-            "node:translate",
+            "node:displace",
             "node:scale"
           ]
         }
@@ -8119,7 +8071,7 @@
         },
         {
           "name": "trueValue",
-          "type": "float",
+          "type": "any",
           "description": "The value returned when condition is true",
           "suggestedSources": [
             "type:float",
@@ -8130,7 +8082,7 @@
         },
         {
           "name": "falseValue",
-          "type": "float",
+          "type": "any",
           "description": "The value returned when condition is false",
           "suggestedSources": [
             "type:float",
@@ -8143,7 +8095,7 @@
       "outputs": [
         {
           "name": "out",
-          "type": "float",
+          "type": "any",
           "description": "The selected value based on the condition",
           "suggestedTargets": [
             "node:mix",
@@ -8678,7 +8630,7 @@
             "node:final-output",
             "node:color-map",
             "node:blend-mode",
-            "node:translate"
+            "node:displace"
           ]
         }
       ],
@@ -8888,7 +8840,7 @@
           "type": "vec4",
           "description": "The combined vector (type promoted/demoted by compiler as needed)",
           "suggestedTargets": [
-            "node:translate",
+            "node:displace",
             "node:uv-coordinates",
             "node:mix",
             "node:split-vector"

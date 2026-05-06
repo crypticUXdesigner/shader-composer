@@ -1,8 +1,8 @@
 <script lang="ts">
   /**
-   * DomNodeLayer - Canvas DOM Migration WP 14A
+   * DomNodeLayer
    * Renders DOM nodes on top of canvas. Same pan/zoom transform as canvas.
-   * WP 15A: All nodes are DOM (audio nodes removed from catalog and migrated).
+   * All nodes render as DOM in this layer.
    */
 
   import Node from '../node/Node.svelte';
@@ -20,7 +20,7 @@
     nodeSpecs: NodeSpec[];
     audioSetup?: AudioSetup;
     getAudioManager?: () => IAudioManager | undefined;
-    /** WP 03: Current timeline time for automation-driven parameter display. */
+    /** Current timeline time for automation-driven parameter display. */
     getTimelineCurrentTime?: () => number;
     viewState: { zoom: number; panX: number; panY: number; selectedNodeIds: string[] };
     canvasApi: NodeEditorCanvasWrapperAPI | null;
@@ -148,14 +148,11 @@
     const primaryNode = graph.nodes.find((n) => n.id === draggingNodeId);
     if (!primaryNode) return;
 
-    const result = canvasApi.calculateSmartGuides(primaryNode, pos.x, pos.y);
-    canvasApi.setSmartGuides(result.guides);
-
     const initial = selectedNodesInitialPositions.get(draggingNodeId);
     const baseX = initial?.x ?? primaryNode.position.x;
     const baseY = initial?.y ?? primaryNode.position.y;
-    const deltaX = result.snappedX - baseX;
-    const deltaY = result.snappedY - baseY;
+    const deltaX = pos.x - baseX;
+    const deltaY = pos.y - baseY;
 
     for (const [nid, initialPos] of selectedNodesInitialPositions) {
       const newX = Math.round(initialPos.x + deltaX);
@@ -166,10 +163,7 @@
   }
 
   function handlePointerUp() {
-    if (draggingNodeId && canvasApi) {
-      canvasApi.clearSmartGuides();
-      canvasApi.requestRender();
-    }
+    if (draggingNodeId && canvasApi) canvasApi.requestRender();
     draggingNodeId = null;
     potentialDragNodeId = null;
   }

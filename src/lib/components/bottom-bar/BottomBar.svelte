@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * BottomBar - Svelte 5 Migration WP 04B
+   * BottomBar
    * Composes BottomBarPlaybackControls, BottomBarScrubber, BottomBarToolSelector; hosts timeline panel and keyboard shortcuts.
    */
   import { graphStore } from '../../stores';
@@ -12,6 +12,7 @@
   import BottomBarPlaybackControls from './BottomBarPlaybackControls.svelte';
   import BottomBarScrubber from './BottomBarScrubber.svelte';
   import BottomBarToolSelector from './BottomBarToolSelector.svelte';
+  import { pollOnAnimationFrame } from '../../utils/pollOnAnimationFrame';
 
   interface PlaybackState {
     isPlaying: boolean;
@@ -97,17 +98,16 @@
     return `${base}|${playbackWaveformToken}`;
   });
 
-  // Poll play state for BottomBarPlaybackControls + waveform reload token when MP3 decodes
+  // Transport tick for BottomBarPlaybackControls + waveform reload token when MP3 decodes
   $effect(() => {
     if (!getState) return;
-    const interval = setInterval(() => {
+    return pollOnAnimationFrame(() => {
       const state = getState();
       isPlaying = state?.isPlaying ?? false;
       const has = state?.hasAudio === true;
       const dur = state?.duration ?? 0;
       playbackWaveformToken = `${has ? 1 : 0}:${dur.toFixed(3)}`;
-    }, 100);
-    return () => clearInterval(interval);
+    });
   });
 
   function handleToolClick(tool: ToolType) {
@@ -374,16 +374,18 @@
       min-height: var(--timeline-panel-height);
     }
 
+    /* Total height = same lane stack as when closed + curve band (do not steal lane height). */
     &:has(.curve-slot:not(:empty)) {
+      height: calc(min(30vh, 360px) + var(--timeline-curve-editor-slot-height));
       min-height: var(--timeline-panel-height-with-editor);
-      max-height: 80vh;
+      max-height: min(80vh, calc(520px + var(--timeline-curve-editor-slot-height)));
     }
 
     /* With curve editor open: curve-slot has fixed height so graph stays within bounds, timeline below */
     &:has(.curve-slot:not(:empty)) .curve-slot {
       flex-shrink: 0;
-      height: 240px; /* One-off - curve editor band; graph must fit inside */
-      max-height: 240px;
+      height: var(--timeline-curve-editor-slot-height);
+      max-height: var(--timeline-curve-editor-slot-height);
       min-height: 0;
       overflow: hidden;
       display: flex;

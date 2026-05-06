@@ -6,7 +6,7 @@ export interface ParamCellProps {
   connected?: boolean;
   /** Extra class(es) for the root (e.g. span-2-cols, coord-pad-with-ports). */
   class?: string;
-  /** Optional data attributes for tests / automation (WP 13). */
+  /** Optional feature flags (tests/automation and UI affordances). */
   supportsAudio?: boolean;
   supportsAnimation?: boolean;
   /** Label text in the left column top row. Ignored when `inlineControl` is true. */

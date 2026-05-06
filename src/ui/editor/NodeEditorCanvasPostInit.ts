@@ -1,25 +1,21 @@
 /**
- * NodeEditorCanvasPostInit - Post-constructor setup (smart guides calculator, handlers, listeners, initial fit).
+ * NodeEditorCanvasPostInit - Post-constructor setup (handlers, listeners, initial fit).
  * Extracted from NodeEditorCanvas (03A further refactor) to reduce its size.
  */
 
 import type { NodeGraph } from '../../data-model/types';
-import { createSmartGuidesCalculator } from './SmartGuidesCalculator';
 import type { createCanvasStateSync } from './CanvasStateSync';
-import type { SmartGuidesManager } from './canvas';
 import type { NodeRenderer, NodeRenderMetrics } from './NodeRenderer';
 
 /** Canvas instance after initializeCanvas; used by post-init. */
 export type NodeEditorCanvasPostInitTarget = {
   graph: NodeGraph;
   viewStateManager: { getState: () => { panX: number; panY: number; zoom: number } };
-  smartGuidesManager: SmartGuidesManager;
   nodeSpecs: Map<string, import('../../types/nodeSpec').NodeSpec>;
   nodeMetrics: Map<string, NodeRenderMetrics>;
   nodeRenderer: NodeRenderer;
   stateSync: ReturnType<typeof createCanvasStateSync>;
   interactionState: import('./CanvasInteractionState').CanvasInteractionState;
-  overlayAndGuides: { setCurrentGuides: (g: { vertical: unknown[]; horizontal: unknown[] }) => void };
   metricsManager: { updateNodeMetrics: () => void };
   renderingOrchestrator: { markFullRedraw: () => void };
   resizeLifecycle: { startObserving: () => void; resize: () => void };
@@ -56,7 +52,6 @@ export type NodeEditorCanvasPostInitTarget = {
   getHeaderOutputPortPositionsFromDOM?: () => Map<string, { x: number; y: number }>;
   getCanvasRectForConnections?: () => DOMRect;
   renderSelectionRectangle?: (ctx?: CanvasRenderingContext2D) => void;
-  renderSmartGuides?: (ctx?: CanvasRenderingContext2D) => void;
   getConnectionState?: () => unknown;
   setConnectionState?: (state: unknown) => void;
   getPanState?: () => unknown;
@@ -78,7 +73,6 @@ export type NodeEditorCanvasPostInitTarget = {
   connectionStateManager?: unknown;
   getSelectionState?: () => { selectedNodeIds: Set<string>; selectedConnectionIds: Set<string> };
   canvasToScreen?: (canvasX: number, canvasY: number) => { x: number; y: number };
-  setSmartGuides?: (guides: unknown) => void;
   setDraggedNodeIds?: (nodeIds: string[]) => void;
   setPanStateInternal?: (state: unknown) => void;
   setSelectionRectangleInternal?: (rect: unknown) => void;
@@ -103,7 +97,6 @@ export function satisfyCanvasRefsForInitializer(c: NodeEditorCanvasPostInitTarge
     c.getHeaderOutputPortPositionsFromDOM,
     c.getCanvasRectForConnections,
     c.renderSelectionRectangle,
-    c.renderSmartGuides,
     c.getConnectionState,
     c.setConnectionState,
     c.getPanState,
@@ -133,7 +126,6 @@ export function satisfyCanvasRefsForInitializer(c: NodeEditorCanvasPostInitTarge
     c.connectionStateManager,
     c.getSelectionState,
     c.canvasToScreen,
-    c.setSmartGuides,
     c.setDraggedNodeIds,
     c.setPanStateInternal,
     c.setSelectionRectangleInternal,
@@ -143,21 +135,10 @@ export function satisfyCanvasRefsForInitializer(c: NodeEditorCanvasPostInitTarge
 }
 
 /**
- * Run post-constructor initialization: state bridge, smart guides calculator, getter refs,
- * manager contexts, interaction handlers, metrics, event handlers/listeners, resize, initial fit.
+ * Run post-constructor initialization: state bridge, getter refs, manager contexts, interaction handlers,
+ * metrics, event handlers/listeners, resize, initial fit.
  */
 export function runNodeEditorCanvasPostInit(c: NodeEditorCanvasPostInitTarget): void {
-  const calculateSmartGuidesFn = createSmartGuidesCalculator({
-    viewStateManager: c.viewStateManager,
-    smartGuidesManager: c.smartGuidesManager,
-    graph: c.graph,
-    nodeSpecs: c.nodeSpecs,
-    nodeMetrics: c.nodeMetrics,
-    nodeRenderer: c.nodeRenderer,
-    setCurrentGuides: (g) => c.overlayAndGuides.setCurrentGuides(g)
-  });
-  (c as unknown as { calculateSmartGuidesFn: typeof calculateSmartGuidesFn }).calculateSmartGuidesFn = calculateSmartGuidesFn;
-
   (c as unknown as { getOnNodeDeleted: () => typeof c.onNodeDeleted }).getOnNodeDeleted = () => c.onNodeDeleted;
   (c as unknown as { getOnConnectionDeleted: () => typeof c.onConnectionDeleted }).getOnConnectionDeleted = () => c.onConnectionDeleted;
   (c as unknown as { getOnCopySelected: () => typeof c.onCopySelected }).getOnCopySelected = () => c.onCopySelected;

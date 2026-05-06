@@ -3,9 +3,9 @@ import type { NodeSpec } from '../../types/nodeSpec';
 export const brickTilingNodeSpec: NodeSpec = {
   id: 'brick-tiling',
   category: 'Distort',
-  displayName: 'Brick Tiling',
+  displayName: 'Tiling',
   icon: 'grid',
-  description: 'Tiled coordinates with row/column offset for brick and staggered patterns',
+  description: 'Tiles coordinates (optionally with brick-style alternating row offset)',
   inputs: [
     {
       name: 'in',
@@ -37,44 +37,71 @@ export const brickTilingNodeSpec: NodeSpec = {
       step: 0.1,
       label: 'Scale Y'
     },
-    brickOffsetX: {
+    offsetX: {
+      type: 'float',
+      default: 0.0,
+      min: -1.0,
+      max: 1.0,
+      step: 0.01,
+      label: 'Offset X',
+      knobPolarity: 'two-sided'
+    },
+    brickAmount: {
       type: 'float',
       default: 0.0,
       min: 0.0,
       max: 1.0,
       step: 0.01,
-      label: 'Row Offset X'
+      label: 'Brick Amount'
+    },
+    brickOffsetX: {
+      type: 'float',
+      default: 0.0,
+      min: -1.0,
+      max: 1.0,
+      step: 0.01,
+      label: 'Brick Offset X',
+      knobPolarity: 'two-sided'
     },
     brickOffsetY: {
       type: 'float',
       default: 0.0,
-      min: 0.0,
+      min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Offset Y'
+      label: 'Offset Y',
+      knobPolarity: 'two-sided'
     }
   },
   parameterLayout: {
     elements: [
       {
         type: 'grid',
-        parameters: ['brickScaleX', 'brickScaleY', 'brickOffsetX', 'brickOffsetY'],
-        parameterUI: { brickOffsetX: 'coords', brickOffsetY: 'coords' },
+        parameters: [
+          'brickScaleX',
+          'brickScaleY',
+          'offsetX',
+          'brickOffsetY',
+          'brickAmount',
+          'brickOffsetX',
+        ],
+        parameterUI: { offsetX: 'coords', brickOffsetY: 'coords', brickOffsetX: 'coords' },
         layout: { columns: 2, coordsSpan: 2, coordsOrigin: 'bottom-left' }
       }
     ]
   },
   functions: `
-vec2 brickTiling(vec2 p, vec2 scale, float rowOffsetX, float offsetY) {
-  vec2 scaled = p * scale;
-  float row = floor(scaled.y);
-  float off = fract(row + 0.001) * rowOffsetX;
-  vec2 uv = vec2(scaled.x + off, scaled.y);
-  return fract(uv) + vec2(0.0, offsetY);
+vec2 brickTiling(vec2 p, vec2 scale, vec2 offset, float brickAmount, float brickOffsetX) {
+  vec2 q = p * scale + offset;
+  float row = floor(q.y);
+  float parity = mod(row, 2.0); // 0 on even rows, 1 on odd rows
+  q.x += parity * brickOffsetX * brickAmount;
+  return fract(q);
 }
 `,
   mainCode: `
   vec2 brickScale = vec2($param.brickScaleX, $param.brickScaleY);
-  $output.out = brickTiling($input.in, brickScale, $param.brickOffsetX, $param.brickOffsetY);
+  vec2 offset = vec2($param.offsetX, $param.brickOffsetY);
+  $output.out = brickTiling($input.in, brickScale, offset, $param.brickAmount, $param.brickOffsetX);
 `
 };

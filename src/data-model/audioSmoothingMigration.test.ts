@@ -1,6 +1,6 @@
 import { describe, it } from 'vitest';
 import { deserializeGraph } from './serialization';
-import { ensureBandSmoothingHalfLife } from './audioSmoothingMigration';
+import { ensureBandAttackReleaseHalfLives } from './audioSmoothingMigration';
 import type { AudioSetup } from './audioSetupTypes';
 
 function assert(condition: boolean, message: string): void {
@@ -16,7 +16,7 @@ function assertEqual<T>(actual: T, expected: T, message?: string): void {
 }
 
 describe('audio smoothing migration', () => {
-  it('deserializeGraph ensures smoothingHalfLifeSeconds exists for bands', () => {
+  it('deserializeGraph ensures attack/release half-life exists for bands', () => {
     const json = `{
       "format": "shadernoice-node-graph",
       "formatVersion": "2.0",
@@ -34,11 +34,13 @@ describe('audio smoothing migration', () => {
     assert(result.errors.length === 0, 'deserializeGraph should not error');
     assert(result.audioSetup != null, 'audioSetup should exist');
     const band = result.audioSetup!.bands[0]!;
-    assert(band.smoothingHalfLifeSeconds != null, 'smoothingHalfLifeSeconds should be added');
-    assert(Number.isFinite(band.smoothingHalfLifeSeconds!), 'smoothingHalfLifeSeconds should be finite');
+    assert(band.attackHalfLifeSeconds != null, 'attackHalfLifeSeconds should be added');
+    assert(band.releaseHalfLifeSeconds != null, 'releaseHalfLifeSeconds should be added');
+    assert(Number.isFinite(band.attackHalfLifeSeconds!), 'attackHalfLifeSeconds should be finite');
+    assert(Number.isFinite(band.releaseHalfLifeSeconds!), 'releaseHalfLifeSeconds should be finite');
   });
 
-  it('ensureBandSmoothingHalfLife sets a stable default', () => {
+  it('ensureBandAttackReleaseHalfLives sets a stable default', () => {
     const base: AudioSetup = {
       files: [{ id: 'f1', name: 'File', autoPlay: false }],
       bands: [
@@ -48,26 +50,43 @@ describe('audio smoothing migration', () => {
       remappers: [],
     };
 
-    const migrated = ensureBandSmoothingHalfLife(base);
+    const migrated = ensureBandAttackReleaseHalfLives(base);
     assertEqual(migrated.bands.length, 2, 'band count should be unchanged');
 
-    const half0 = migrated.bands[0]!.smoothingHalfLifeSeconds!;
-    const half1 = migrated.bands[1]!.smoothingHalfLifeSeconds!;
+    const atk0 = migrated.bands[0]!.attackHalfLifeSeconds!;
+    const rel0 = migrated.bands[0]!.releaseHalfLifeSeconds!;
+    const atk1 = migrated.bands[1]!.attackHalfLifeSeconds!;
+    const rel1 = migrated.bands[1]!.releaseHalfLifeSeconds!;
 
-    assertEqual(half0, 1 / 120, 'default half-life should be 1/120s');
-    assertEqual(half1, 1 / 120, 'default half-life should be 1/120s');
+    assertEqual(atk0, 1 / 120, 'default attack half-life should be 1/120s');
+    assertEqual(rel0, 1 / 120, 'default release half-life should be 1/120s');
+    assertEqual(atk1, 1 / 120, 'default attack half-life should be 1/120s');
+    assertEqual(rel1, 1 / 120, 'default release half-life should be 1/120s');
   });
 
-  it('ensureBandSmoothingHalfLife is idempotent', () => {
+  it('ensureBandAttackReleaseHalfLives is idempotent', () => {
     const setup: AudioSetup = {
       files: [{ id: 'f1', name: 'File', autoPlay: false }],
       bands: [
-        { id: 'b', name: 'B', sourceFileId: 'f1', frequencyBands: [[20, 20000]], smoothingHalfLifeSeconds: 0.123, fftSize: 2048 },
+        { id: 'b', name: 'B', sourceFileId: 'f1', frequencyBands: [[20, 20000]], attackHalfLifeSeconds: 0.123, releaseHalfLifeSeconds: 0.456, fftSize: 2048 },
       ],
       remappers: [],
     };
-    const migrated = ensureBandSmoothingHalfLife(setup);
-    assertEqual(migrated, setup, 'should be noop when half-life already set');
+    const migrated = ensureBandAttackReleaseHalfLives(setup);
+    assertEqual(migrated, setup, 'should be noop when attack/release already set');
+  });
+
+  it('ensureBandAttackReleaseHalfLives maps legacy smoothingHalfLifeSeconds', () => {
+    const setup: AudioSetup = {
+      files: [{ id: 'f1', name: 'File', autoPlay: false }],
+      bands: [
+        { id: 'b', name: 'B', sourceFileId: 'f1', frequencyBands: [[20, 20000]], smoothingHalfLifeSeconds: 0.25, fftSize: 2048 },
+      ],
+      remappers: [],
+    };
+    const migrated = ensureBandAttackReleaseHalfLives(setup);
+    assertEqual(migrated.bands[0]!.attackHalfLifeSeconds!, 0.25, 'attack should match legacy smoothing');
+    assertEqual(migrated.bands[0]!.releaseHalfLifeSeconds!, 0.25, 'release should match legacy smoothing');
   });
 });
 

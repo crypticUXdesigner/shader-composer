@@ -19,14 +19,12 @@ export class GraphValidator {
     _warnings: string[],
     validSourceNodeIds?: Set<string>
   ): void {
-    // Check required fields
     if (!graph.id) errors.push('[ERROR] Graph missing id');
     if (!graph.name) errors.push('[ERROR] Graph missing name');
     if (graph.version !== '2.0') {
       errors.push(`[ERROR] Invalid version: ${graph.version} (expected 2.0)`);
     }
 
-    // Check node IDs are unique
     const nodeIds = new Set<string>();
     for (const node of graph.nodes) {
       if (nodeIds.has(node.id)) {
@@ -34,13 +32,11 @@ export class GraphValidator {
       }
       nodeIds.add(node.id);
 
-      // Check node type exists
       if (!this.nodeSpecs.has(node.type)) {
         errors.push(`[ERROR] Unknown node type: ${node.type} (node ${node.id})`);
       }
     }
 
-    // Check connection IDs are unique and reference valid nodes
     const connectionIds = new Set<string>();
     const targetKeyToConnId = new Map<string, string>();
 

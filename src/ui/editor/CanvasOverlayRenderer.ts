@@ -16,10 +16,7 @@ export interface CanvasOverlayRendererDeps {
   renderParameterConnectionLayer: (ctx: CanvasRenderingContext2D) => void;
   getIsConnecting: () => boolean;
   renderTemporaryConnection: (ctx: CanvasRenderingContext2D) => void;
-  renderSmartGuides: (ctx?: CanvasRenderingContext2D) => void;
   renderSelectionRectangle: (ctx?: CanvasRenderingContext2D) => void;
-  getCurrentSmartGuides: () => { vertical: unknown[]; horizontal: unknown[] };
-  getIsDraggingNode: () => boolean;
   getSelectionRectangle: () => { x: number; y: number; width: number; height: number } | null;
 }
 
@@ -121,13 +118,6 @@ export class CanvasOverlayRenderer {
     ctx.scale(viewState.zoom, viewState.zoom);
     if (this.deps.getIsConnecting()) {
       this.deps.renderTemporaryConnection(ctx);
-    }
-    if (
-      this.deps.getCurrentSmartGuides().vertical.length > 0 ||
-      this.deps.getCurrentSmartGuides().horizontal.length > 0 ||
-      this.deps.getIsDraggingNode()
-    ) {
-      this.deps.renderSmartGuides(ctx);
     }
     if (this.deps.getSelectionRectangle()) {
       this.deps.renderSelectionRectangle(ctx);

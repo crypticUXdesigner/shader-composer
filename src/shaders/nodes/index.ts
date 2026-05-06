@@ -17,12 +17,7 @@ import { mixedWaveSignalNodeSpec } from './mixed-wave-signal';
 import { oscillator2dNodeSpec } from './oscillator-2d';
 import { orbitCameraNodeSpec } from './orbit-camera';
 import { lookAtCameraNodeSpec } from './look-at-camera';
-import {
-  translateNodeSpec,
-  rotateNodeSpec,
-  scaleNodeSpec
-} from './transform-nodes';
-import { domainRepetitionNodeSpec } from './domain-repetition';
+import { rotateNodeSpec, scaleNodeSpec } from './transform-nodes';
 import { polarCoordinatesNodeSpec } from './polar-coordinates';
 import { vectorFieldNodeSpec } from './vector-field';
 import { turbulenceNodeSpec } from './turbulence';
@@ -36,10 +31,8 @@ import { displaceNodeSpec } from './displace';
 import { vortexNodeSpec } from './vortex';
 import { spherizeNodeSpec } from './spherize';
 import { quadWarpNodeSpec } from './quad-warp';
-import { directionalDisplaceNodeSpec } from './directional-displace';
 import { brickTilingNodeSpec } from './brick-tiling';
 import { infiniteZoomNodeSpec } from './infinite-zoom';
-import { kaleidoscopeSmoothNodeSpec } from './kaleidoscope-smooth';
 import { noiseNodeSpec } from './noise';
 import { warpTerrainNodeSpec } from './warp-terrain';
 import { voronoiNoiseNodeSpec } from './voronoi-noise';
@@ -64,7 +57,6 @@ import { particleSystemNodeSpec } from './particle-system';
 import { sphereRaymarchNodeSpec } from './sphere-raymarch';
 import { sphericalFibonacciNodeSpec } from './spherical-fibonacci';
 import { bloomSphereNodeSpec } from './bloom-sphere';
-import { bloomSphereEffectNodeSpec } from './bloom-sphere-effect';
 import { boxTorusSdfNodeSpec } from './box-torus-sdf';
 import { glassShellNodeSpec } from './glass-shell';
 import { hexPrismSdfNodeSpec } from './hex-prism-sdf';
@@ -72,7 +64,12 @@ import { hexVoxelNodeSpec } from './hex-voxel';
 import { radialRepeatSdfNodeSpec } from './radial-repeat-sdf';
 import { repeatedHexPrismSdfNodeSpec } from './repeated-hex-prism-sdf';
 import { kifsSdfNodeSpec } from './kifs-sdf';
+import { mandelboxSdfNodeSpec } from './mandelbox-sdf';
+import { mengerSpongeSdfNodeSpec } from './menger-sponge-sdf';
+import { sierpinskiTetraSdfNodeSpec } from './sierpinski-tetra-sdf';
 import { etherSdfNodeSpec } from './ether-sdf';
+import { juliaSlabSdfNodeSpec } from './julia-slab-sdf';
+import { mandelbulbSdfNodeSpec } from './mandelbulb-sdf';
 import { displacement3dNodeSpec } from './displacement-3d';
 import { genericRaymarcherNodeSpec } from './generic-raymarcher';
 import { cylinderConeNodeSpec } from './cylinder-cone';
@@ -81,8 +78,6 @@ import { inflatedIcosahedronNodeSpec } from './inflated-icosahedron';
 import { shapes2dNodeSpec } from './shapes-2d';
 import { starShape2dNodeSpec } from './star-shape-2d';
 import { metaballsNodeSpec } from './metaballs';
-import { star2dNodeSpec } from './star-2d';
-import { superellipseNodeSpec } from './superellipse';
 import { flowFieldPatternNodeSpec } from './flow-field-pattern';
 import { fractalNodeSpec } from './fractal';
 import { iteratedInversionNodeSpec } from './iterated-inversion';
@@ -186,10 +181,8 @@ export const nodeSystemSpecs: NodeSpec[] = [
   bezierCurveNodeSpec,
   
   // Transform nodes
-  translateNodeSpec,
   rotateNodeSpec,
   scaleNodeSpec,
-  domainRepetitionNodeSpec,
 
   // Distort/Transform nodes
   polarCoordinatesNodeSpec,
@@ -205,10 +198,8 @@ export const nodeSystemSpecs: NodeSpec[] = [
   vortexNodeSpec,
   spherizeNodeSpec,
   quadWarpNodeSpec,
-  directionalDisplaceNodeSpec,
   brickTilingNodeSpec,
   infiniteZoomNodeSpec,
-  kaleidoscopeSmoothNodeSpec,
 
   // Pattern/Noise nodes
   noiseNodeSpec,
@@ -239,7 +230,6 @@ export const nodeSystemSpecs: NodeSpec[] = [
   sphereRaymarchNodeSpec,
   sphericalFibonacciNodeSpec,
   bloomSphereNodeSpec,
-  bloomSphereEffectNodeSpec,
   boxTorusSdfNodeSpec,
   glassShellNodeSpec,
   hexPrismSdfNodeSpec,
@@ -247,7 +237,12 @@ export const nodeSystemSpecs: NodeSpec[] = [
   radialRepeatSdfNodeSpec,
   repeatedHexPrismSdfNodeSpec,
   kifsSdfNodeSpec,
+  mandelboxSdfNodeSpec,
+  mengerSpongeSdfNodeSpec,
+  sierpinskiTetraSdfNodeSpec,
   etherSdfNodeSpec,
+  juliaSlabSdfNodeSpec,
+  mandelbulbSdfNodeSpec,
   displacement3dNodeSpec,
   genericRaymarcherNodeSpec,
   cylinderConeNodeSpec,
@@ -256,8 +251,6 @@ export const nodeSystemSpecs: NodeSpec[] = [
   shapes2dNodeSpec,
   starShape2dNodeSpec,
   _metaballs,
-  star2dNodeSpec,
-  superellipseNodeSpec,
   fractalNodeSpec,
   iteratedInversionNodeSpec,
   planeGridNodeSpec,

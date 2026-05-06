@@ -2,7 +2,7 @@
   /**
    * Top bar left section: panel toggle, preset selector, download preset JSON, image/video export.
    */
-  import { Button, ButtonGroup, IconSvg } from '../ui';
+  import { Button, ButtonGroup, DropdownMenu, IconSvg, MenuItem } from '../ui';
 
   interface Props {
     presetLabel: string;
@@ -39,57 +39,104 @@
     onExport,
     onVideoExport,
   }: Props = $props();
+
+  let exportMenuOpen = $state(false);
+  let exportMenuAnchorEl = $state<HTMLDivElement | null>(null);
 </script>
 
 <div class="top-bar-preset-and-export">
   <ButtonGroup role="group" ariaLabel="Panel, preset, graph history, and export">
-    {#if graphHistoryControls}
-      <Button
-        variant="ghost"
-        size="sm"
-        mode="icon-only"
-        title="Undo (Ctrl+Z)"
-        disabled={!canUndoGraph}
-        onclick={() => onGraphUndo?.()}
-      >
-        <IconSvg name="graph-undo" variant="line" />
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        mode="icon-only"
-        title="Redo (Ctrl/Cmd+Shift+Z or Ctrl+Y / Cmd+Y)"
-        disabled={!canRedoGraph}
-        onclick={() => onGraphRedo?.()}
-      >
-        <IconSvg name="graph-redo" variant="line" />
-      </Button>
-    {/if}
     {#if !isPanelVisible}
       <Button variant="ghost" size="sm" mode="icon-only" title="Open node panel" onclick={() => onPanelToggle?.()}>
         <IconSvg name="layout-grid" variant="filled" />
       </Button>
     {/if}
+    {#if graphHistoryControls}
+      <span class="top-bar-graph-history">
+        <Button
+          class="top-bar-graph-history-btn"
+          variant="ghost"
+          size="sm"
+          mode="icon-only"
+          title="Undo (Ctrl+Z)"
+          disabled={!canUndoGraph}
+          onclick={() => onGraphUndo?.()}
+        >
+          <IconSvg name="graph-undo" variant="line" />
+        </Button>
+        <Button
+          class="top-bar-graph-history-btn"
+          variant="ghost"
+          size="sm"
+          mode="icon-only"
+          title="Redo (Ctrl/Cmd+Shift+Z or Ctrl+Y / Cmd+Y)"
+          disabled={!canRedoGraph}
+          onclick={() => onGraphRedo?.()}
+        >
+          <IconSvg name="graph-redo" variant="line" />
+        </Button>
+      </span>
+    {/if}
     <Button variant="ghost" size="sm" mode="both" title={presetLoading ? 'Loading preset…' : 'Load project'} disabled={presetLoading} onclick={onPresetClick}>
       <IconSvg name="folder-open" variant="filled" />
       <span class="top-bar-preset-button-label">{presetLoading ? 'Loading…' : presetLabel}</span>
     </Button>
-    <Button variant="ghost" size="sm" mode="icon-only" title="Download graph as JSON" onclick={onDownloadPreset}>
-      <IconSvg name="download-simple" variant="line" />
-    </Button>
-    <Button variant="ghost" size="sm" mode="icon-only" title="Save Image" onclick={onExport}>
-      <IconSvg name="image-square" variant="line" />
-    </Button>
-    <Button
-      variant="ghost"
-      size="sm"
-      mode="icon-only"
-      title={isVideoExportSupported ? 'Save Video' : 'Video export requires WebCodecs (VideoEncoder/AudioEncoder)'}
-      disabled={!isVideoExportSupported}
-      onclick={onVideoExport}
+    <div bind:this={exportMenuAnchorEl} class="top-bar-export-menu-anchor">
+      <Button
+        variant="ghost"
+        size="sm"
+        mode="icon-only"
+        title="Export…"
+        onclick={() => (exportMenuOpen = !exportMenuOpen)}
+      >
+        <IconSvg name="download-simple" variant="line" />
+      </Button>
+    </div>
+    <DropdownMenu
+      open={exportMenuOpen}
+      anchor={exportMenuAnchorEl}
+      offsetX={-11}
+      onClose={() => (exportMenuOpen = false)}
+      class="topbar-export-menu"
     >
-      <IconSvg name="video" variant="line" />
-    </Button>
+      {#snippet children()}
+        <MenuItem
+          label="Export JSON"
+          onclick={() => {
+            onDownloadPreset?.();
+            exportMenuOpen = false;
+          }}
+        >
+          {#snippet icon()}
+            <IconSvg name="download-simple" variant="line" />
+          {/snippet}
+        </MenuItem>
+        <MenuItem
+          label="Export Image"
+          onclick={() => {
+            void onExport?.();
+            exportMenuOpen = false;
+          }}
+        >
+          {#snippet icon()}
+            <IconSvg name="image-square" variant="line" />
+          {/snippet}
+        </MenuItem>
+        <MenuItem
+          label="Export Video"
+          disabled={!isVideoExportSupported}
+          desc={isVideoExportSupported ? '' : 'Requires WebCodecs (VideoEncoder/AudioEncoder)'}
+          onclick={() => {
+            void onVideoExport?.();
+            exportMenuOpen = false;
+          }}
+        >
+          {#snippet icon()}
+            <IconSvg name="video" variant="line" />
+          {/snippet}
+        </MenuItem>
+      {/snippet}
+    </DropdownMenu>
   </ButtonGroup>
 </div>
 
@@ -102,5 +149,20 @@
 
   .top-bar-preset-button-label {
     white-space: nowrap;
+  }
+
+  .top-bar-graph-history {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--pd-2xs);
+  }
+
+  .top-bar-graph-history :global(.top-bar-graph-history-btn.button.sm.icon-only) {
+    width: var(--scale-6);
+    min-width: var(--scale-6);
+  }
+
+  .top-bar-export-menu-anchor {
+    display: inline-flex;
   }
 </style>

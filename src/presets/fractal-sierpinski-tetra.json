@@ -1,0 +1,104 @@
+{
+  "format": "shadernoice-node-graph",
+  "formatVersion": "2.0",
+  "graph": {
+    "id": "graph-fractal-sierpinski-tetra",
+    "name": "Fractal — Sierpinski Tetra",
+    "version": "2.0",
+    "nodes": [
+      {
+        "id": "node-uv",
+        "type": "uv-coordinates",
+        "position": { "x": -200, "y": 200 },
+        "parameters": {}
+      },
+      {
+        "id": "node-camera",
+        "type": "orbit-camera",
+        "position": { "x": 200, "y": 100 },
+        "parameters": {
+          "orbitRadius": 3.4,
+          "orbitSpeed": 0.22,
+          "inclination": 0.4,
+          "fovScale": 1.05,
+          "targetX": 0,
+          "targetY": 0.1,
+          "targetZ": 0
+        }
+      },
+      {
+        "id": "node-fractal",
+        "type": "sierpinski-tetra-sdf",
+        "position": { "x": 250, "y": 520 },
+        "parameters": {}
+      },
+      {
+        "id": "node-raymarch",
+        "type": "generic-raymarcher",
+        "position": { "x": 1200, "y": 240 },
+        "parameters": {
+          "raymarchSteps": 96,
+          "glowIntensity": 0.35,
+          "brightness": 1.25
+        }
+      },
+      {
+        "id": "node-output",
+        "type": "final-output",
+        "position": { "x": 2100, "y": 240 },
+        "parameters": {}
+      }
+    ],
+    "connections": [
+      {
+        "id": "conn-uv-to-camera",
+        "sourceNodeId": "node-uv",
+        "sourcePort": "out",
+        "targetNodeId": "node-camera",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-uv-to-raymarch",
+        "sourceNodeId": "node-uv",
+        "sourcePort": "out",
+        "targetNodeId": "node-raymarch",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-fractal-to-raymarch",
+        "sourceNodeId": "node-fractal",
+        "sourcePort": "out",
+        "targetNodeId": "node-raymarch",
+        "targetPort": "sdf"
+      },
+      {
+        "id": "conn-camera-ro",
+        "sourceNodeId": "node-camera",
+        "sourcePort": "ro",
+        "targetNodeId": "node-raymarch",
+        "targetPort": "ro"
+      },
+      {
+        "id": "conn-camera-rd",
+        "sourceNodeId": "node-camera",
+        "sourcePort": "rd",
+        "targetNodeId": "node-raymarch",
+        "targetPort": "rd"
+      },
+      {
+        "id": "conn-raymarch-to-output",
+        "sourceNodeId": "node-raymarch",
+        "sourcePort": "color",
+        "targetNodeId": "node-output",
+        "targetPort": "in"
+      }
+    ],
+    "viewState": {
+      "zoom": 0.4,
+      "panX": 80,
+      "panY": 220,
+      "selectedNodeIds": []
+    }
+  },
+  "audioSetup": { "files": [], "bands": [], "remappers": [] }
+}

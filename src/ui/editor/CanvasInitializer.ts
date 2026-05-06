@@ -3,7 +3,7 @@
  * Extracted from NodeEditorCanvas constructor to reduce its size.
  */
 
-import { ViewStateManager, SelectionManager, SmartGuidesManager, EdgeScrollManager, KeyboardShortcutHandler, UIElementManager, HitTestManager, ConnectionStateManager, MetricsManager, OverlayManager } from './canvas';
+import { ViewStateManager, SelectionManager, EdgeScrollManager, KeyboardShortcutHandler, UIElementManager, HitTestManager, ConnectionStateManager, MetricsManager, OverlayManager } from './canvas';
 import { CanvasResizeLifecycle } from './CanvasResizeLifecycle';
 import { createCanvasStateSync } from './CanvasStateSync';
 import { createNodeEditorCanvasStateBridge } from './NodeEditorCanvasStateBridge';
@@ -23,7 +23,6 @@ export function initializeCanvas(
   const state = c.state as { zoom: number; panX: number; panY: number };
   c.viewStateManager = new ViewStateManager({ zoom: state.zoom, panX: state.panX, panY: state.panY });
   c.selectionManager = new SelectionManager(graph.viewState?.selectedNodeIds);
-  c.smartGuidesManager = new SmartGuidesManager();
   c.edgeScrollManager = new EdgeScrollManager();
   c.keyboardShortcutHandler = new KeyboardShortcutHandler();
   c.uiElementManager = new UIElementManager(overlayBridge);
@@ -106,9 +105,8 @@ export function initializeCanvas(
         }
       }
     },
-    getIsDraggingNode: () => (c.interactionManager ? ((c.getCurrentSmartGuides as () => { vertical: unknown[]; horizontal: unknown[] })().vertical.length > 0 || (c.getCurrentSmartGuides as () => { vertical: unknown[]; horizontal: unknown[] })().horizontal.length > 0 || (c.interactionState as { getInteractionState: () => { isDraggingNode: boolean } }).getInteractionState().isDraggingNode) : (c.interactionState as { getInteractionState: () => { isDraggingNode: boolean } }).getInteractionState().isDraggingNode),
+    getIsDraggingNode: () => (c.interactionState as { getInteractionState: () => { isDraggingNode: boolean } }).getInteractionState().isDraggingNode,
     getSelectionRectangle: () => (c.getSelectionRectangle as () => { x: number; y: number; width: number; height: number } | null)(),
-    renderSmartGuides: () => (c.renderSmartGuides as (ctx?: CanvasRenderingContext2D) => void)(),
     renderSelectionRectangle: () => (c.renderSelectionRectangle as (ctx?: CanvasRenderingContext2D) => void)(),
     getParamPortPositionsFromDOM: () => (c.getParamPortPositionsFromDOM as () => Map<string, { x: number; y: number }>)(),
     getHeaderOutputPortPositionsFromDOM: () => (c.getHeaderOutputPortPositionsFromDOM as () => Map<string, { x: number; y: number }>)(),
@@ -126,10 +124,7 @@ export function initializeCanvas(
     renderParameterConnectionLayer: (ctx: CanvasRenderingContext2D) => (c.parameterConnectionLayerRenderer as { render: (ctx: CanvasRenderingContext2D, state: unknown) => void })?.render(ctx, c.renderState),
     getIsConnecting: () => (c.connectionStateManager as ConnectionStateManager).getIsConnecting(),
     renderTemporaryConnection: (ctx: CanvasRenderingContext2D) => (c.connectionStateManager as ConnectionStateManager).renderTemporaryConnection(ctx),
-    renderSmartGuides: (ctx?: CanvasRenderingContext2D) => (c.renderSmartGuides as (ctx?: CanvasRenderingContext2D) => void)(ctx),
     renderSelectionRectangle: (ctx?: CanvasRenderingContext2D) => (c.renderSelectionRectangle as (ctx?: CanvasRenderingContext2D) => void)(ctx),
-    getCurrentSmartGuides: () => (c.getCurrentSmartGuides as () => { vertical: Array<{ x: number; startY: number; endY: number }>; horizontal: Array<{ y: number; startX: number; endX: number }> })(),
-    getIsDraggingNode: () => (c.interactionState as { getInteractionState: () => { isDraggingNode: boolean } }).getInteractionState().isDraggingNode,
     getSelectionRectangle: () => (c.getSelectionRectangle as () => { x: number; y: number; width: number; height: number } | null)()
   });
 
@@ -159,9 +154,7 @@ export function initializeCanvas(
     getViewStateInternal: () => (c.getViewStateInternal as () => { panX: number; panY: number; zoom: number })(),
     getSelectionState: () => (c.getSelectionState as () => { selectedNodeIds: Set<string>; selectedConnectionIds: Set<string> })(),
     getCachedViewportDimensions: () => (c.resizeLifecycle as CanvasResizeLifecycle).getCachedViewportDimensions(),
-    renderSmartGuides: () => (c.renderSmartGuides as () => void)(),
     renderSelectionRectangle: () => (c.renderSelectionRectangle as () => void)(),
-    getCurrentSmartGuides: () => (c.getCurrentSmartGuides as () => { vertical: Array<{ x: number; startY: number; endY: number }>; horizontal: Array<{ y: number; startX: number; endX: number }> })(),
     getIsDraggingNode: () => (c.interactionState as { getInteractionState: () => { isDraggingNode: boolean } }).getInteractionState().isDraggingNode,
     getDraggingNodeId: () => (c.interactionState as { getInteractionState: () => { draggingNodeId: string | null } }).getInteractionState().draggingNodeId,
     getSelectionRectangle: () => (c.getSelectionRectangle as () => { x: number; y: number; width: number; height: number } | null)(),

@@ -51,14 +51,14 @@ export interface CompilationResult {
     errors: string[];
     executionOrder: string[];  // Node IDs in execution order
     finalOutputNodeId: string | null;  // ID of final output node
-    /** Present on successful compiles (WP 02B); omitted when compile failed early. */
+    /** Present on successful compiles; omitted when compilation failed early. */
     previewDependencies?: PreviewDependencyMask;
   };
 }
 
 /**
  * Shader compiler interface that the runtime expects.
- * @param audioSetup - Optional panel audio setup for uniforms from bands/files (WP 09).
+ * @param audioSetup - Optional panel audio setup for audio-derived uniforms (bands/remappers/files).
  */
 export interface ShaderCompiler {
   compile(
@@ -131,7 +131,7 @@ export interface IRenderer {
 
 /**
  * Single source of truth for timeline: current time, duration, BPM, and whether time comes from audio.
- * Used by BottomBar, timeline panel, and (in WP 03) uTimelineTime uniform.
+ * Used by BottomBar, timeline panel, and uTimelineTime uniform.
  */
 export interface TimelineState {
   currentTime: number;
@@ -290,7 +290,7 @@ export interface IAudioManager {
 
   /**
    * Get live value for a virtual node (audio signal).
-   * WP 11: Used when param is connected to virtual node.
+   * Used when a parameter is connected to a virtual node.
    */
   getVirtualNodeLiveValue?(virtualNodeId: string): number | null;
 }
@@ -306,7 +306,7 @@ export interface ICompilationManager {
   setGraph(graph: import('../data-model/types').NodeGraph): void;
 
   /**
-   * Set audio setup from panel (for uniform generation from bands; WP 09).
+   * Set audio setup from panel (for uniform generation from audio-derived signals).
    */
   setAudioSetup?(audioSetup: import('../data-model/audioSetupTypes').AudioSetup | null): void;
   
@@ -348,7 +348,7 @@ export interface ICompilationManager {
   setOnBeforeFirstRender(callback: (instance: import('./ShaderInstance').ShaderInstance) => void): void;
 
   /**
-   * Last successful compile's preview dependency snapshot (WP 02B); null if never compiled or failed.
+   * Last successful compile's preview dependency snapshot; null if never compiled or failed.
    */
   getPreviewDependencyMask(): PreviewDependencyMask | null;
 }

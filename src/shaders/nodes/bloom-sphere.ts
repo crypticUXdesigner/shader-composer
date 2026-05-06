@@ -9,7 +9,7 @@ export const bloomSphereNodeSpec: NodeSpec = {
   category: 'Shapes',
   displayName: 'Bloom Sphere',
   description:
-    'Sphere with spherical-Fibonacci lattice spots that pulse in a wave, blue outer glow and reddish inner glow. Wave phase, pattern scale, lattice spin, and optional detuned sine for richer motion. Single composite effect (no temporal buffer).',
+    'Sphere with spherical-Fibonacci lattice spots that pulse in a wave, blue outer glow and reddish inner glow. Wave phase, pattern scale, lattice spin, and optional detuned sine for richer motion. Includes a Classic mode for legacy Bloom Sphere (Effect) graphs. Single composite effect (no temporal buffer).',
   icon: 'glow',
   inputs: [
     {
@@ -26,6 +26,14 @@ export const bloomSphereNodeSpec: NodeSpec = {
     }
   ],
   parameters: {
+    mode: {
+      type: 'int',
+      default: 0,
+      min: 0,
+      max: 1,
+      step: 1,
+      label: 'Mode'
+    },
     bloomCenterX: {
       type: 'float',
       default: 0.0,
@@ -55,7 +63,7 @@ export const bloomSphereNodeSpec: NodeSpec = {
       type: 'int',
       default: 128,
       min: 16,
-      max: 256,
+      max: 4096,
       step: 1,
       label: 'Spot count'
     },
@@ -187,13 +195,27 @@ export const bloomSphereNodeSpec: NodeSpec = {
       max: 3.0,
       step: 0.1,
       label: 'Brightness'
-    }
+    },
+    classicSpotSharpness: {
+      type: 'float',
+      default: 12.0,
+      min: 1.0,
+      max: 40.0,
+      step: 0.5,
+      label: 'Classic sharp'
+    },
+    classicOuterGlowR: { type: 'float', default: 0.2, min: 0, max: 1, step: 0.01, label: 'Classic outer R' },
+    classicOuterGlowG: { type: 'float', default: 0.4, min: 0, max: 1, step: 0.01, label: 'Classic outer G' },
+    classicOuterGlowB: { type: 'float', default: 0.9, min: 0, max: 1, step: 0.01, label: 'Classic outer B' },
+    classicInnerGlowR: { type: 'float', default: 0.9, min: 0, max: 1, step: 0.01, label: 'Classic inner R' },
+    classicInnerGlowG: { type: 'float', default: 0.2, min: 0, max: 1, step: 0.01, label: 'Classic inner G' },
+    classicInnerGlowB: { type: 'float', default: 0.2, min: 0, max: 1, step: 0.01, label: 'Classic inner B' },
   },
   parameterGroups: [
     {
       id: 'sphere',
       label: 'Sphere',
-      parameters: ['bloomCenterX', 'bloomCenterY', 'sphereRadius', 'brightness'],
+      parameters: ['mode', 'bloomCenterX', 'bloomCenterY', 'sphereRadius', 'brightness'],
       collapsible: true,
       defaultCollapsed: false
     },
@@ -221,15 +243,30 @@ export const bloomSphereNodeSpec: NodeSpec = {
       parameters: ['outerL', 'outerC', 'outerH', 'innerL', 'innerC', 'innerH'],
       collapsible: true,
       defaultCollapsed: false
+    },
+    {
+      id: 'classic',
+      label: 'Classic (legacy)',
+      parameters: [
+        'classicSpotSharpness',
+        'classicOuterGlowR',
+        'classicOuterGlowG',
+        'classicOuterGlowB',
+        'classicInnerGlowR',
+        'classicInnerGlowG',
+        'classicInnerGlowB'
+      ],
+      collapsible: true,
+      defaultCollapsed: true
     }
   ],
   parameterLayout: {
     elements: [
       {
         type: 'grid',
-        parameters: ['bloomCenterX', 'bloomCenterY', 'sphereRadius', 'brightness'],
+        parameters: ['mode', 'bloomCenterX', 'bloomCenterY', 'sphereRadius', 'brightness'],
         parameterUI: { bloomCenterX: 'coords', bloomCenterY: 'coords' },
-        layout: { columns: 2, coordsSpan: 2 }
+        layout: { columns: 2, coordsSpan: 2, parameterSpan: { mode: 2 } }
       },
       {
         type: 'grid',
@@ -255,6 +292,20 @@ export const bloomSphereNodeSpec: NodeSpec = {
           ['outerL', 'outerC', 'outerH'],
           ['innerL', 'innerC', 'innerH']
         ]
+      },
+      {
+        type: 'grid',
+        label: 'Classic (legacy)',
+        parameters: [
+          'classicSpotSharpness',
+          'classicOuterGlowR',
+          'classicOuterGlowG',
+          'classicOuterGlowB',
+          'classicInnerGlowR',
+          'classicInnerGlowG',
+          'classicInnerGlowB'
+        ],
+        layout: { columns: 3, parameterSpan: { classicSpotSharpness: 3 } }
       }
     ]
   },
@@ -294,6 +345,30 @@ vec3 bloomSphereId2Sf(float i, float n) {
   float r = sqrt(max(0.0, 1.0 - z * z));
   return vec3(r * cos(phi), r * sin(phi), z);
 }
+
+// Direction (unit) to nearest lattice index (sf2id). Returns float index in [0, n-1].
+// Fixed loop bound for WebGL2; check up to 5 candidates around the continuous estimate.
+float bloomSphereSf2Id(vec3 dir, float n) {
+  float nf = max(n, 2.0);
+  vec3 d = length(dir) > 0.001 ? normalize(dir) : vec3(0.0, 0.0, 1.0);
+  float z = clamp(d.z, -1.0, 1.0);
+  float iCont = (1.0 - z) * nf * 0.5 - 0.5;
+  int iCenter = int(round(iCont));
+  float bestDot = -2.0;
+  float bestI = 0.0;
+  for (int o = -2; o <= 2; o++) {
+    int k = iCenter + o;
+    if (k < 0) continue;
+    float ik = float(k);
+    if (ik >= nf) break;
+    float dotK = dot(d, bloomSphereId2Sf(ik, nf));
+    if (dotK > bestDot) {
+      bestDot = dotK;
+      bestI = ik;
+    }
+  }
+  return bestI;
+}
 `,
   mainCode: `
   // in: p-space like UV Coords (aspect-corrected NDC), not raw 0–1 UV
@@ -316,43 +391,65 @@ vec3 bloomSphereId2Sf(float i, float n) {
     vec3 N = P / R;
     float nDotV = dot(N, -rd);
 
-    float nSpots = clamp(float($param.spotCount), 16.0, 256.0);
-    float baseAngle = $param.baseSpotAngle;
-    float waveAmp = $param.waveAmplitude;
-    float waveSpeed = $param.waveSpeed;
-    float soft = $param.spotSoftness;
-    float T = $time * waveSpeed;
-    float wPhase = $param.wavePhase;
-    float idxScale = $param.indexPhaseScale;
-    float detuneF = $param.waveDetuneFreq;
-    float detuneA = $param.waveDetuneAmp;
-    float spinAngle = $time * $param.latticeSpinSpeed;
-    float spinC = cos(spinAngle);
-    float spinS = sin(spinAngle);
+    if ($param.mode == 1) {
+      float nClassic = clamp(float($param.spotCount), 2.0, 4096.0);
+      float idx = bloomSphereSf2Id(N, nClassic);
+      vec3 nearestDir = bloomSphereId2Sf(round(idx), nClassic);
+      float dotN = dot(N, nearestDir);
 
-    vec3 outerColor = bloomSphereOklchToRgb(vec3($param.outerL, $param.outerC, $param.outerH));
-    vec3 innerColor = bloomSphereOklchToRgb(vec3($param.innerL, $param.innerC, $param.innerH));
+      float spotPhase = idx * 0.1 + $time * $param.waveSpeed;
+      float wave = sin(spotPhase) * 0.5 + 0.5;
 
-    vec3 acc = vec3(0.0);
-    for (float i = 0.0; i < 256.0; i++) {
-      if (i >= nSpots) break;
-      vec3 spotDir = bloomSphereId2Sf(i, nSpots);
-      spotDir = vec3(spinC * spotDir.x + spinS * spotDir.z, spotDir.y, -spinS * spotDir.x + spinC * spotDir.z);
-      float iphase = i * idxScale;
-      float wave = sin(T + iphase + wPhase) + detuneA * sin(T * detuneF + iphase + wPhase);
-      float angle = baseAngle + waveAmp * wave;
-      float cosAngle = cos(angle);
-      float d = dot(N, spotDir);
-      float spotMask = smoothstep(cosAngle - soft, cosAngle + soft * 0.5, d);
-      float outerBlend = 1.0 - max(0.0, nDotV);
-      float innerBlend = max(0.0, nDotV);
-      vec3 spotColor = innerColor * innerBlend + outerColor * outerBlend;
-      acc += spotMask * spotColor;
+      float sharp = max($param.classicSpotSharpness, 1.0);
+      float spotMask = smoothstep(1.0 - 1.0 / sharp, 1.0, dotN);
+      spotMask *= (0.3 + 0.7 * wave);
+
+      vec3 outerColor = vec3($param.classicOuterGlowR, $param.classicOuterGlowG, $param.classicOuterGlowB);
+      vec3 innerColor = vec3($param.classicInnerGlowR, $param.classicInnerGlowG, $param.classicInnerGlowB);
+      vec3 col = mix(outerColor, innerColor, wave);
+      col = mix(outerColor * 0.2, col, spotMask);
+      col *= $param.brightness;
+
+      $output.out = vec4(clamp(col, 0.0, 1.0), 1.0);
+    } else {
+      float nSpots = clamp(float($param.spotCount), 16.0, 256.0);
+      float baseAngle = $param.baseSpotAngle;
+      float waveAmp = $param.waveAmplitude;
+      float waveSpeed = $param.waveSpeed;
+      float soft = $param.spotSoftness;
+      float T = $time * waveSpeed;
+      float wPhase = $param.wavePhase;
+      float idxScale = $param.indexPhaseScale;
+      float detuneF = $param.waveDetuneFreq;
+      float detuneA = $param.waveDetuneAmp;
+      float spinAngle = $time * $param.latticeSpinSpeed;
+      float spinC = cos(spinAngle);
+      float spinS = sin(spinAngle);
+
+      vec3 outerColor = bloomSphereOklchToRgb(vec3($param.outerL, $param.outerC, $param.outerH));
+      vec3 innerColor = bloomSphereOklchToRgb(vec3($param.innerL, $param.innerC, $param.innerH));
+
+      vec3 acc = vec3(0.0);
+      for (float i = 0.0; i < 256.0; i++) {
+        if (i >= nSpots) break;
+        vec3 spotDir = bloomSphereId2Sf(i, nSpots);
+        spotDir = vec3(spinC * spotDir.x + spinS * spotDir.z, spotDir.y, -spinS * spotDir.x + spinC * spotDir.z);
+        float iphase = i * idxScale;
+        float wave = sin(T + iphase + wPhase) + detuneA * sin(T * detuneF + iphase + wPhase);
+        float angle = baseAngle + waveAmp * wave;
+        float cosAngle = cos(angle);
+        float d = dot(N, spotDir);
+        float spotMask = smoothstep(cosAngle - soft, cosAngle + soft * 0.5, d);
+        float outerBlend = 1.0 - max(0.0, nDotV);
+        float innerBlend = max(0.0, nDotV);
+        vec3 spotColor = innerColor * innerBlend + outerColor * outerBlend;
+        acc += spotMask * spotColor;
+      }
+
+      float norm = 8.0 / max(nSpots * 0.1, 1.0);
+      acc = clamp(acc * norm * $param.brightness, 0.0, 1.0);
+      $output.out = vec4(acc, 1.0);
     }
-
-    float norm = 8.0 / max(nSpots * 0.1, 1.0);
-    acc = clamp(acc * norm * $param.brightness, 0.0, 1.0);
-    $output.out = vec4(acc, 1.0);
   }
 `
 };

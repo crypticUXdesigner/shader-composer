@@ -9,7 +9,7 @@ import type { IRenderer, PreviewDependencyMask } from '../types';
 import type { ShaderInstance } from '../ShaderInstance';
 
 export interface TimeManagerUpdateOptions {
-  /** From last successful compile (WP 02B); null = legacy full-rate behavior. */
+  /** From last successful compile; null = legacy full-rate behavior. */
   previewDependencies: PreviewDependencyMask | null;
   /** Timeline transport playing (full-rate preview while true). */
   timelinePlaying: boolean;

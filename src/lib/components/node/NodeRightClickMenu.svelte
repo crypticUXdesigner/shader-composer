@@ -17,9 +17,9 @@
 
   export function show(x: number, y: number, nodeId: string, nodeType: string, options?: { openAbove?: boolean }): void {
     const items: DropdownMenuItem[] = [
-      { label: 'Read Guide', action: () => onReadGuide?.(nodeId, nodeType) },
-      { label: 'Copy node name', action: () => onCopyNodeName?.(nodeType) },
-      { label: 'Remove', action: () => onRemove?.(nodeId) },
+      { label: 'Read Guide', iconName: 'book-open-text', action: () => onReadGuide?.(nodeId, nodeType) },
+      { label: 'Copy node name', iconName: 'copy', action: () => onCopyNodeName?.(nodeType) },
+      { label: 'Remove', iconName: 'trash', action: () => onRemove?.(nodeId) },
     ];
     dropdownMenuRef?.show(x, y, items, options);
   }

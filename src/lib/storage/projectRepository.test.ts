@@ -128,13 +128,13 @@ describe('projectRepository', () => {
       projectId: 'av',
       avatarNodeIcon: 'cube',
       avatarBgToken: 'blue-70',
-      avatarIconColorToken: 'blue-100',
+      avatarIconColorToken: 'blue-110',
       lastModifiedISO: t1,
     });
     const m = await getProjectMeta('av');
     expect(m?.avatarNodeIcon).toBe('cube');
     expect(m?.avatarBgToken).toBe('blue-70');
-    expect(m?.avatarIconColorToken).toBe('blue-100');
+    expect(m?.avatarIconColorToken).toBe('blue-110');
     expect(m?.lastModified).toBe(t1);
   });
 

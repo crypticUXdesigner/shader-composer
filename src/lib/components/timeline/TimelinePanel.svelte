@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * Timeline Panel - Svelte 5 Migration WP 05B
+   * Timeline Panel
    * Lanes, regions, BPM, ruler, playhead, snap, add-lane dropdown.
    */
   import { DropdownMenu } from '../ui';
@@ -41,6 +41,7 @@
   import { buildTimelineLaneViewModels, type TimelineLaneViewModel } from './timelineLaneViewModel';
   import { buildTimelineRulerData } from './timelineRulerModel';
   import { paintRulerWaveformCanvas } from './paintRulerWaveformCanvas';
+  import { pollOnAnimationFrame } from '../../utils/pollOnAnimationFrame';
 
   const DEFAULT_BPM = 120;
   const DEFAULT_BARS_NEW_REGION = 16;
@@ -63,6 +64,7 @@
     getTimelineState: () => TimelineState | null;
     onSeek?: (time: number) => void;
     waveformService?: WaveformService | null;
+    onRevealInNodeEditor?: (nodeId: string, paramName: string) => void;
     onOpenCurveEditor?: (
       laneId: string,
       regionId: string,
@@ -70,6 +72,9 @@
     ) => void;
     onClose?: () => void;
     nodeSpecs: NodeSpec[];
+    /** When the curve editor is open for this lane/region, drag/resize preview times are reported here. */
+    openCurveEditorRegion?: { laneId: string; regionId: string } | null;
+    onOpenCurveEditorRegionTimePreview?: (preview: { startTime: number; endTime: number } | null) => void;
   }
 
   let {
@@ -78,16 +83,58 @@
     getTimelineState,
     onSeek,
     waveformService = null,
+    onRevealInNodeEditor,
     onOpenCurveEditor,
     onClose,
     nodeSpecs,
+    openCurveEditorRegion = null,
+    onOpenCurveEditorRegionTimePreview,
   }: Props = $props();
 
   const nodeSpecsMap = $derived(new Map(nodeSpecs.map((s) => [s.id, s])));
 
+  function syncCurveEditorRegionTimePreview(): void {
+    const cb = onOpenCurveEditorRegionTimePreview;
+    const target = openCurveEditorRegion;
+    if (!cb || !target) return;
+
+    if (regionDrag?.isDuplicate) {
+      cb(null);
+      return;
+    }
+
+    if (
+      regionResize &&
+      regionResize.laneId === target.laneId &&
+      regionResize.regionId === target.regionId
+    ) {
+      const st = regionResize.startTime;
+      cb({ startTime: st, endTime: st + regionResize.startDuration });
+      return;
+    }
+
+    const drag = regionDrag;
+    if (drag && drag.laneId === target.laneId && drag.regionId === target.regionId) {
+      const graph = getGraph();
+      const lane = graph.automation?.lanes.find((l: AutomationLane) => l.id === drag.laneId);
+      const region = lane?.regions.find((r: AutomationRegion) => r.id === drag.regionId);
+      if (!region) {
+        cb(null);
+        return;
+      }
+      const st = drag.startTime;
+      cb({ startTime: st, endTime: st + region.duration });
+      return;
+    }
+
+    if (regionDrag || regionResize) {
+      cb(null);
+    }
+  }
+
   let zoomLevel = $state(ZOOM_DEFAULT);
   let panOffset = $state(0);
-  let snapEnabled = $state(true);
+  let snapEnabled = $state(false);
   let snapGridBars = $state(4);
   let selectedRegion = $state<{ laneId: string; regionId: string } | null>(null);
   let regionDrag = $state<{
@@ -150,8 +197,7 @@
         : null;
     };
     poll();
-    const interval = setInterval(poll, 100);
-    return () => clearInterval(interval);
+    return pollOnAnimationFrame(poll);
   });
 
   /**
@@ -350,7 +396,8 @@
   });
 
   const currentTime = $derived(timelineStateSnapshot?.currentTime ?? 0);
-  const showPlayhead = $derived(timelineStateSnapshot != null && lanes.length > 0);
+  const showPlayhead = $derived(timelineStateSnapshot != null);
+  const playheadOnlyLayout = $derived(showPlayhead && lanes.length === 0);
   const playheadX = $derived(timeToX(currentTime));
 
   const snapGridLabel = $derived(
@@ -602,8 +649,10 @@
         startTime: next.startTime,
         startDuration: next.duration,
       };
+      syncCurveEditorRegionTimePreview();
     };
     const onUp = (): void => {
+      onOpenCurveEditorRegionTimePreview?.(null);
       const final = regionResize;
       regionResize = null;
       window.removeEventListener('mousemove', onMove);
@@ -618,6 +667,7 @@
     };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
+    syncCurveEditorRegionTimePreview();
   }
 
   function onRegionMouseDown(e: MouseEvent, laneId: string, regionId: string) {
@@ -662,9 +712,11 @@
         snapGridBars,
       });
       regionDrag = { ...regionDrag, startTime: newStart };
+      syncCurveEditorRegionTimePreview();
     };
 
     const onMouseUp = (): void => {
+      onOpenCurveEditorRegionTimePreview?.(null);
       const final = regionDrag;
       regionDrag = null;
       window.removeEventListener('mousemove', onMouseMove);
@@ -679,6 +731,7 @@
 
     if (isDuplicate) {
       const onMouseUpDup = (e2: MouseEvent): void => {
+        onOpenCurveEditorRegionTimePreview?.(null);
         window.removeEventListener('mouseup', onMouseUpDup);
         const track = lanesContainerEl?.querySelector(
           `.track[data-lane-id="${laneId}"]`
@@ -699,10 +752,12 @@
         }
         regionDrag = null;
       };
+      syncCurveEditorRegionTimePreview();
       window.addEventListener('mouseup', onMouseUpDup);
       return;
     }
 
+    syncCurveEditorRegionTimePreview();
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
   }
@@ -891,32 +946,37 @@
     role="presentation"
   >
     <div class="scroll-viewport">
-      <div class="scroll-content">
-        <TimelineLanes
-          laneVMs={laneVMs}
-          trackGridLines={trackGridLines}
-          selectedRegion={selectedRegion}
-          regionDrag={regionDrag}
-          regionResize={regionResize}
-          timeToX={timeToX}
-          showPlayhead={showPlayhead}
-          playheadDragging={playheadDragging}
-          playheadX={playheadX}
-          duration={getDuration()}
-          currentTime={currentTime}
-          rulerSeekEnabled={rulerSeekEnabled}
-          onDeleteLane={deleteLane}
-          onTrackDblClick={handleTrackDblClick}
-          onRegionMouseDown={onRegionMouseDown}
-          onRegionContextMenu={onRegionContextMenu}
-          onRegionDblClick={handleRegionDblClick}
-          onRegionResizeStart={onRegionResizeStart}
-          onPlayheadPointerDown={onPlayheadPointerDown}
-          onTrackColumnEl={(el) => (trackColumnEl = el)}
-          onLanesContainerEl={(el) => (lanesContainerEl = el)}
-          onPlayheadClipEl={(el) => (playheadClipEl = el)}
-          footerRight={footerRight}
-        />
+      <TimelineLanes
+        laneVMs={laneVMs}
+        trackGridLines={trackGridLines}
+        selectedRegion={selectedRegion}
+        regionDrag={regionDrag}
+        regionResize={regionResize}
+        timeToX={timeToX}
+        playheadOnlyLayout={playheadOnlyLayout}
+        showPlayhead={showPlayhead}
+        playheadDragging={playheadDragging}
+        playheadX={playheadX}
+        duration={getDuration()}
+        currentTime={currentTime}
+        rulerSeekEnabled={rulerSeekEnabled}
+        onDeleteLane={deleteLane}
+        onTrackDblClick={handleTrackDblClick}
+        onRegionMouseDown={onRegionMouseDown}
+        onRegionContextMenu={onRegionContextMenu}
+        onRegionDblClick={handleRegionDblClick}
+        onRegionResizeStart={onRegionResizeStart}
+        onPlayheadPointerDown={onPlayheadPointerDown}
+        onRevealInNodeEditor={onRevealInNodeEditor}
+        onTrackColumnEl={(el) => (trackColumnEl = el)}
+        onLanesContainerEl={(el) => (lanesContainerEl = el)}
+        onPlayheadClipEl={(el) => (playheadClipEl = el)}
+      />
+    </div>
+    <div class="timeline-footer" role="presentation">
+      <div class="footer-corner" aria-hidden="true"></div>
+      <div class="timeline-footer-tracks">
+        {@render footerRight()}
       </div>
     </div>
   </div>
@@ -944,8 +1004,6 @@
       .scroll-viewport {
         flex: 1;
         min-height: 0;
-        display: flex;
-        flex-direction: column;
         overflow-y: auto;
         overflow-x: hidden;
         scrollbar-width: none;
@@ -956,12 +1014,31 @@
         display: none;
       }
 
-      .scroll-content {
-        flex: 1 0 auto;
-        min-height: 100%;
+      .timeline-footer {
+        flex-shrink: 0;
         display: flex;
         flex-direction: row;
         align-items: stretch;
+      }
+
+      .footer-corner {
+        flex-shrink: 0;
+        width: var(--track-header-width);
+        box-sizing: border-box;
+        padding-left: var(--pd-xs);
+      }
+
+      .timeline-footer-tracks {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--pd-xs);
+        padding: 0 var(--pd-xs) var(--pd-xs);
+        box-sizing: border-box;
+        background: var(--color-gray-60);
+        border-radius: 0 0 var(--radius-md) var(--radius-md);
+        overflow: hidden;
       }
     }
   }

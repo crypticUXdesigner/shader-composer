@@ -43,16 +43,14 @@ export interface RenderingOrchestratorDependencies {
   getViewStateInternal: () => { panX: number; panY: number; zoom: number };
   getSelectionState: () => { selectedNodeIds: Set<string>; selectedConnectionIds: Set<string> };
   getCachedViewportDimensions: () => { width: number; height: number };
-  renderSmartGuides: () => void;
   renderSelectionRectangle: () => void;
-  getCurrentSmartGuides: () => { vertical: Array<{ x: number; startY: number; endY: number }>; horizontal: Array<{ y: number; startX: number; endX: number }> };
   getIsDraggingNode: () => boolean;
   getDraggingNodeId: () => string | null;
   getSelectionRectangle: () => { x: number; y: number; width: number; height: number } | null;
   processPendingResize: () => void;
   /** When set, called after main render to draw parameter connections to overlay (above DOM nodes). */
   renderParameterConnectionsOverlay?: () => void;
-  /** When set, called after param connections to draw temp connection, smart guides, selection rect above nodes. */
+  /** When set, called after param connections to draw temp connection and selection rect above nodes. */
   renderTopOverlay?: () => void;
 }
 
@@ -124,9 +122,6 @@ export class RenderingOrchestrator {
     const frameTime =
       this.lastRenderEndTime > 0 ? now - this.lastRenderEndTime : 0;
 
-    // Process pending resize before rendering
-    // Resize is handled by handleResize() which processes it on next frame
-    // But if we're rendering and resize is pending, process it now for immediate update
     this.dependencies.processPendingResize();
     
     const { width, height } = this.dependencies.canvas;
@@ -148,7 +143,6 @@ export class RenderingOrchestrator {
       // Viewport changed - require full redraw
       this.dependencies.renderState.markFullRedraw();
       
-      // Update previous values
       this.previousPanX = viewState.panX;
       this.previousPanY = viewState.panY;
       this.previousZoom = viewState.zoom;
@@ -221,20 +215,16 @@ export class RenderingOrchestrator {
       return;
     }
     
-    // Save context
     this.dependencies.ctx.save();
     
-    // Apply pan/zoom transform
     const viewState = this.dependencies.getViewStateInternal();
     this.dependencies.ctx.translate(viewState.panX, viewState.panY);
     this.dependencies.ctx.scale(viewState.zoom, viewState.zoom);
     
-    // Render layers (grid, connections, nodes, ports, overlays)
-    // Overlay (temp connection, smart guides, selection rect) is either in OverlayLayerRenderer
+    // Overlay (temp connection, selection rect) is either in OverlayLayerRenderer
     // or rendered to top overlay canvas above DOM nodes
     this.dependencies.layerManager.render(this.dependencies.ctx, this.dependencies.renderState);
     
-    // Restore context
     this.dependencies.ctx.restore();
   }
 

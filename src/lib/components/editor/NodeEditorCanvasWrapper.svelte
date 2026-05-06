@@ -1,11 +1,11 @@
 <script lang="ts">
   /**
-   * NodeEditorCanvasWrapper - Svelte 5 Migration WP 04C
+   * NodeEditorCanvasWrapper
    *
    * Thin Svelte wrapper for vanilla NodeEditorCanvas. Syncs graph from store,
    * forwards canvas events to store/parent, and exposes canvas methods for parent.
    *
-   * Undo/copy-paste: Parent owns them (WP 06); wrapper only forwards events.
+   * Undo/copy-paste: parent owns them; wrapper only forwards events.
    */
 
   import { untrack } from 'svelte';
@@ -40,9 +40,9 @@
     callbacks?: NodeEditorCanvasWrapperCallbacks;
     api?: NodeEditorCanvasWrapperAPI | null;
     overlayBridge?: import('../../../types/editor').CanvasOverlayBridge | null;
-    /** WP 03: Current timeline time for automation-driven parameter display. */
+    /** Current timeline time for automation-driven parameter display. */
     getTimelineCurrentTime?: () => number;
-    /** WP 04: Timeline state for dirty-runner (mark automation nodes dirty when playing). */
+    /** Timeline state for the dirty-runner (mark automation nodes dirty when playing). */
     getTimelineState?: () => import('../../../runtime/types').TimelineState | null;
   }
 
@@ -171,6 +171,23 @@
     return {
       requestRender: () => canvas.requestRender(),
       fitToView: () => canvas.fitToView(),
+      focusNode: (nodeId, options) => {
+        canvas.focusNode(nodeId, options);
+        const vs = canvas.getViewState();
+        liveViewState = {
+          panX: vs.panX,
+          panY: vs.panY,
+          zoom: vs.zoom,
+          selectedNodeIds: [...vs.selectedNodeIds],
+        };
+        graphStore.updateViewState({
+          panX: vs.panX,
+          panY: vs.panY,
+          zoom: vs.zoom,
+          selectedNodeIds: [...vs.selectedNodeIds],
+        });
+        callbacks.onSelectionChanged?.([...vs.selectedNodeIds]);
+      },
       handleWheel: (e) => canvas.handleWheel(e),
       forwardMouseDown: (e) => canvas.handleMouseDownFromOverlay(e),
       hitTestConnection: (sx, sy) => canvas.hitTestConnectionAtScreen(sx, sy),
@@ -199,9 +216,6 @@
         return canvas.getNodeRenderer().calculateMetrics(node, spec);
       },
       isNodeVisible: (node, metrics) => canvas.isNodeVisible(node, metrics),
-      calculateSmartGuides: (node, x, y) => canvas.calculateSmartGuidesForDOM(node, x, y),
-      setSmartGuides: (guides) => canvas.setSmartGuidesFromDOM(guides),
-      clearSmartGuides: () => canvas.clearSmartGuides(),
       startConnectionFromPort: (sx, sy) => canvas.startConnectionFromPort(sx, sy),
       beginGraphHistoryRestore: () => {
         skipNextGraphPropApply = true;
@@ -305,25 +319,30 @@
     }
   }
 
-  /** Keeps bottom prompt text in sync with wire/node picks (one persistent toast, source patch-tool). */
-  let lastSyncedPatchPrompt = $state('');
-  $effect(() => {
-    const tool = activeTool;
-    if (tool !== 'patch') {
-      lastSyncedPatchPrompt = '';
-      return;
-    }
+  /** Prompt copy for patch mode from wire/node picks; empty when not in patch tool. */
+  const patchToolPromptMessage = $derived.by(() => {
+    if (activeTool !== 'patch') return '';
     const wire = patchWireConnectionId;
     const node = patchInsertNodeId;
-    const msg =
-      wire != null && node == null
-        ? 'Click a node...'
-        : wire == null && node != null
-          ? 'Click a cable...'
-          : 'Click a cable or node...';
+    if (wire != null && node == null) return 'Click a node...';
+    if (wire == null && node != null) return 'Click a cable...';
+    return 'Click a cable or node...';
+  });
 
-    if (msg === lastSyncedPatchPrompt) return;
-    lastSyncedPatchPrompt = msg;
+  /** Dedupes imperative toast updates (plain let avoids effect reading/writing same `$state`). */
+  let lastSyncedPatchToolToastMessage = '';
+
+  /** Keeps bottom prompt text in sync with wire/node picks (one persistent toast, source patch-tool). */
+  $effect(() => {
+    const tool = activeTool;
+    const msg = patchToolPromptMessage;
+    if (tool !== 'patch') {
+      lastSyncedPatchToolToastMessage = '';
+      appToastStore.dismissBySource('patch-tool');
+      return;
+    }
+    if (msg === lastSyncedPatchToolToastMessage) return;
+    lastSyncedPatchToolToastMessage = msg;
 
     appToastStore.dismissBySource('patch-tool');
     appToastStore.addToast({

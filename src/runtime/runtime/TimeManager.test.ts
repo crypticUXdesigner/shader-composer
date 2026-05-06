@@ -17,7 +17,7 @@ function audioDeps(): PreviewDependencyMask {
   return { ...staticDeps(), usesAudioUniforms: true };
 }
 
-describe('TimeManager (preview scheduling WP 03)', () => {
+describe('TimeManager (preview scheduling)', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });

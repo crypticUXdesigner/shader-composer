@@ -5,6 +5,7 @@
   import { untrack } from 'svelte';
   import { Button, IconSvg } from '../ui';
   import type { WaveformData } from '../../../runtime';
+  import { pollOnAnimationFrame } from '../../utils/pollOnAnimationFrame';
 
   interface PlaybackState {
     isPlaying: boolean;
@@ -299,7 +300,7 @@
 
   $effect(() => {
     if (!getState) return;
-    const interval = setInterval(() => {
+    return pollOnAnimationFrame(() => {
       const state = getState();
       if (state) {
         currentTime = state.currentTime;
@@ -312,8 +313,7 @@
         duration = 0;
         playheadPercent = 0;
       }
-    }, 100);
-    return () => clearInterval(interval);
+    });
   });
 
   function getPercentFromStripEvent(e: MouseEvent): number {

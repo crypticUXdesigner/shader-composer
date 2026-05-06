@@ -10,4 +10,22 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Default: Story = { args: {} };
+export const Overview: Story = {
+  args: {
+    visible: true,
+    positionMode: 'center',
+    screenX: 520,
+    screenY: 340,
+    helpMode: 'overview',
+  },
+};
+
+export const NodeGuideEmpty: Story = {
+  args: {
+    visible: true,
+    positionMode: 'center',
+    screenX: 520,
+    screenY: 340,
+    helpMode: 'node',
+  },
+};

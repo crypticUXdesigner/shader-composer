@@ -42,7 +42,7 @@ export interface ExportRenderPathResult {
  *
  * @param graph - Current node graph (same as live preview)
  * @param compiler - NodeShaderCompiler or any ShaderCompiler
- * @param audioSetup - Panel audio setup for band/remap uniforms (WP 15B)
+ * @param audioSetup - Panel audio setup for audio-derived uniforms (bands/remappers/files).
  * @param config - width, height, frameRate
  * @returns Object with renderFrame(frameIndex, frameState), getCanvas(), dispose()
  */

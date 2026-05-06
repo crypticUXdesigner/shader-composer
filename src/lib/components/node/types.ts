@@ -1,5 +1,5 @@
 /**
- * Node component types - Canvas DOM Migration WP 14A
+ * Node component types.
  */
 
 /** Port position for connection layer alignment */

@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * Node Editor Layout - Svelte 5 Migration WP 04A
+   * Node Editor Layout
    * Split view with resizable divider, corner widget, preset dropdown, zoom, help, panel toggle.
    */
   import { TopBar, KeyboardShortcutsModal } from '../top-bar';
@@ -47,6 +47,7 @@
     onHubRename?: (projectId: string, nextDisplayName: string) => void;
     onHubAppearanceChange?: (projectId: string, next: ProjectAvatarFields) => void;
     onHubImportJson?: (json: string) => void;
+    onHubExportAllProjects?: () => void | Promise<void>;
     isPanelVisible?: boolean;
     zoom?: number;
     fps?: number;
@@ -96,6 +97,7 @@
     onHubRename = () => {},
     onHubAppearanceChange = () => {},
     onHubImportJson = () => {},
+    onHubExportAllProjects = () => {},
     isPanelVisible = true,
     zoom = 1.0,
     fps = 0,
@@ -151,7 +153,8 @@
     if (cb) return cb();
     const g = getGraph();
     const ids = g?.viewState?.selectedNodeIds ?? [];
-    return ids.length === 1;
+    const n = ids.length;
+    return n === 0 || n === 1;
   });
 
   const fpsColor = $derived(
@@ -328,8 +331,14 @@
       await callbacks.onExport?.();
       pushToast('Image exported.', 'success');
     } catch (err) {
+      if (isUserCancelled(err)) {
+        pushToast('Image export canceled.', 'info');
+        return;
+      }
       const msg = err instanceof Error ? err.message : 'Failed to export image';
-      globalErrorHandler.report('runtime', 'error', 'Could not export image.', { originalError: err instanceof Error ? err : new Error(msg) });
+      globalErrorHandler.report('runtime', 'error', msg, {
+        originalError: err instanceof Error ? err : new Error(msg),
+      });
     }
   }
 
@@ -501,6 +510,7 @@
     onHubRename={onHubRename}
     onHubAppearanceChange={onHubAppearanceChange}
     onHubImportJson={onHubImportJson}
+    onHubExportAllProjects={onHubExportAllProjects}
   />
 
   <input

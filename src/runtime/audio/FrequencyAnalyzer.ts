@@ -7,8 +7,10 @@
 
 import type { ErrorHandler } from '../../utils/errorHandling';
 import { BaseDisposable } from '../../utils/Disposable';
+import type { AudioBandMode } from '../../data-model/audioSetupTypes';
 import type { AudioContextManager } from './AudioContextManager';
 import type { AudioNodeState } from './AudioPlaybackController';
+import { extractFrequencyBands01Into } from './extractFrequencyBands01';
 
 export interface FrequencyBand {
   minHz: number;
@@ -19,6 +21,8 @@ export interface AnalyzerNodeState {
   nodeId: string;
   analyserNode: AnalyserNode | null;
   frequencyBands: FrequencyBand[];
+  /** Per-band extraction mode. */
+  bandModes: AudioBandMode[];
   /** Symmetric half-life per band (seconds). */
   smoothingHalfLifeSeconds: number[];
   /** Optional attack half-life per band (seconds). */
@@ -52,6 +56,7 @@ export class FrequencyAnalyzer extends BaseDisposable {
     nodeId: string,
     audioFileNodeId: string,
     frequencyBands: FrequencyBand[],
+    bandModes: AudioBandMode[] | undefined,
     smoothingHalfLifeSeconds: number[],
     attackHalfLifeSeconds: Array<number | undefined> | undefined,
     releaseHalfLifeSeconds: Array<number | undefined> | undefined,
@@ -85,12 +90,21 @@ export class FrequencyAnalyzer extends BaseDisposable {
         : (releaseHalfLifeSeconds.length >= frequencyBands.length
             ? releaseHalfLifeSeconds.slice(0, frequencyBands.length)
             : [...releaseHalfLifeSeconds, ...new Array(frequencyBands.length - releaseHalfLifeSeconds.length).fill(undefined)]);
+    const DEFAULT_MODE: AudioBandMode = 'mean';
+    const bandModeArray =
+      (bandModes?.length ?? 0) >= frequencyBands.length
+        ? bandModes!.slice(0, frequencyBands.length)
+        : [
+            ...(bandModes ?? []),
+            ...new Array(frequencyBands.length - (bandModes?.length ?? 0)).fill(DEFAULT_MODE),
+          ];
     
     // Use the same analyser node from the audio file (shared FFT)
     const analyserState: AnalyzerNodeState = {
       nodeId,
       analyserNode: audioNodeState.analyserNode,
       frequencyBands,
+      bandModes: bandModeArray,
       smoothingHalfLifeSeconds: halfLifeArray,
       attackHalfLifeSeconds: attackArray,
       releaseHalfLifeSeconds: releaseArray,
@@ -131,33 +145,25 @@ export class FrequencyAnalyzer extends BaseDisposable {
   private extractFrequencyBands(
     frequencyData: Uint8Array,
     frequencyBands: FrequencyBand[],
+    bandModes: AudioBandMode[],
     sampleRate: number,
     fftSize: number
-  ): number[] {
-    const bandValues: number[] = [];
-    
-    for (const band of frequencyBands) {
-      // Convert Hz to FFT bin indices
-      const minBin = Math.floor((band.minHz / sampleRate) * fftSize);
-      const maxBin = Math.ceil((band.maxHz / sampleRate) * fftSize);
-      
-      // Sum energy in this band
-      let sum = 0;
-      let count = 0;
-      for (let i = minBin; i <= maxBin && i < frequencyData.length; i++) {
-        sum += frequencyData[i];
-        count++;
-      }
-      
-      // Normalize: 0-255 range → 0-1 range
-      const average = count > 0 ? sum / count : 0;
-      const normalized = average / 255.0;
-      
-      bandValues.push(normalized);
-    }
-    
-    return bandValues;
+  ): void {
+    extractFrequencyBands01Into(
+      frequencyData,
+      frequencyBands,
+      bandModes,
+      sampleRate,
+      fftSize,
+      this.analyzerStateTempWriteTarget
+    );
   }
+
+  /**
+   * Scratch write target for extractFrequencyBands to avoid per-frame allocations.
+   * Sized once per analyzer based on band count.
+   */
+  private analyzerStateTempWriteTarget: number[] = [];
   
   /**
    * Update frequency analysis for all analyzer nodes.
@@ -232,12 +238,20 @@ export class FrequencyAnalyzer extends BaseDisposable {
       if (!frequencyData) continue;
       
       // Extract frequency bands
-      analyzerState.bandValues = this.extractFrequencyBands(
+      if (this.analyzerStateTempWriteTarget.length !== analyzerState.bandValues.length) {
+        this.analyzerStateTempWriteTarget = new Array(analyzerState.bandValues.length).fill(0);
+      }
+      this.extractFrequencyBands(
         frequencyData,
         analyzerState.frequencyBands,
+        analyzerState.bandModes,
         sampleRate,
         analyzerState.fftSize
       );
+      // Copy into analyzerState.bandValues (stable array identity avoids downstream churn)
+      for (let i = 0; i < analyzerState.bandValues.length; i++) {
+        analyzerState.bandValues[i] = this.analyzerStateTempWriteTarget[i] ?? 0;
+      }
       
       // Apply per-band smoothing (time-based half-life) and check for changes
       const nowSeconds = performance.now() / 1000;

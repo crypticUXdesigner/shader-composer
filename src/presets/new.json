@@ -7,100 +7,29 @@
     "version": "2.0",
     "nodes": [
       {
-        "id": "node-1774046857199-ma9b97y9s",
-        "type": "final-output",
-        "position": {
-          "x": 5127,
-          "y": 269
-        },
-        "parameters": {}
-      },
-      {
-        "id": "node-1774046857199-zw5emlcj2",
-        "type": "bloom-sphere",
-        "position": {
-          "x": 3425,
-          "y": 188
-        },
-        "parameters": {
-          "sphereRadius": 2.66,
-          "spotCount": 55,
-          "baseSpotAngle": 0.05,
-          "waveSpeed": 0.401,
-          "waveAmplitude": 0.37,
-          "spotSoftness": 0.02,
-          "outerL": 0.7391552434772553,
-          "outerC": 0.09253691178218687,
-          "outerH": 296.59265191815484,
-          "innerL": 0.7236677864677247,
-          "innerC": 0.20734208593918924,
-          "innerH": 27.587637681632806,
-          "brightness": 1
-        }
-      },
-      {
         "id": "node-1774046857199-z1e8p50xf",
         "type": "uv-coordinates",
         "position": {
-          "x": 2691,
-          "y": 198
+          "x": 0,
+          "y": 0
         },
         "parameters": {}
       },
       {
-        "id": "node-1774046857199-joua1wtbx",
-        "type": "mixed-wave-signal",
+        "id": "node-1774046857199-ma9b97y9s",
+        "type": "final-output",
         "position": {
-          "x": 2544,
-          "y": 978
+          "x": 900,
+          "y": 0
         },
-        "parameters": {
-          "globalSpeed": 0.46000000000000085,
-          "globalOffset": 0,
-          "w0Speed": 12.730000000000004,
-          "w0Offset": 13.300000000000011,
-          "w0Weight": 0.09,
-          "w0Shape": 0,
-          "w1Speed": 20,
-          "w1Offset": 27.5,
-          "w1Weight": 0.04,
-          "w1Shape": 1,
-          "w2Speed": 1.31,
-          "w2Offset": 4.03,
-          "w2Weight": 1,
-          "w2Shape": 3,
-          "outMin": 0.15999999999999992,
-          "outMax": 0.43999999999999995
-        }
+        "parameters": {}
       }
     ],
-    "connections": [
-      {
-        "id": "conn-1774046857199-56mvbjxug",
-        "sourceNodeId": "node-1774046857199-z1e8p50xf",
-        "sourcePort": "out",
-        "targetNodeId": "node-1774046857199-zw5emlcj2",
-        "targetPort": "in"
-      },
-      {
-        "id": "conn-1774046857199-vmnx69zhi",
-        "sourceNodeId": "node-1774046857199-zw5emlcj2",
-        "sourcePort": "out",
-        "targetNodeId": "node-1774046857199-ma9b97y9s",
-        "targetPort": "in"
-      },
-      {
-        "id": "conn-1774046937096-0aw59532n",
-        "sourceNodeId": "node-1774046857199-joua1wtbx",
-        "sourcePort": "out",
-        "targetNodeId": "node-1774046857199-zw5emlcj2",
-        "targetParameter": "waveAmplitude"
-      }
-    ],
+    "connections": [],
     "viewState": {
-      "zoom": 0.3652042438346327,
-      "panX": -716.2735828252951,
-      "panY": -158.6029272458411,
+      "zoom": 1,
+      "panX": 0,
+      "panY": 0,
       "selectedNodeIds": []
     },
     "automation": {
@@ -110,14 +39,7 @@
     }
   },
   "audioSetup": {
-    "files": [
-      {
-        "id": "file-new-billie",
-        "name": "seb - music xcx",
-        "filePath": "seb - music xcx.mp3",
-        "autoPlay": true
-      }
-    ],
+    "files": [],
     "bands": [],
     "remappers": []
   }

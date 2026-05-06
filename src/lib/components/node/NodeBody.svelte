@@ -1,9 +1,9 @@
 <script lang="ts">
   /**
-   * NodeBody - Canvas DOM Migration WP 14A/14B/14C
+   * NodeBody
    * Renders parameter layout from spec.parameterLayout.
-   * WP 14B: Simple params (Knob, ValueInput, Toggle, Enum, Range) as Svelte.
-   * WP 14C: Layout elements (remap-range, bezier, frequency-range, color-picker) as Svelte.
+   * Simple controls (Knob, ValueInput, Toggle, Enum, Range) and layout elements
+   * (remap-range, bezier, frequency-range, color-picker) are rendered as Svelte components.
    */
 
   import { autoGenerateLayout } from '../../../utils/layoutMigration';
@@ -43,7 +43,7 @@
     audioSetup: AudioSetup;
     nodeSpecs: Map<string, NodeSpec>;
     getAudioManager?: () => IAudioManager | null;
-    /** WP 03: Current timeline time for automation-driven parameter display. */
+    /** Current timeline time for automation-driven parameter display. */
     getTimelineCurrentTime?: () => number;
     overlayBridge?: import('../../../types/editor').CanvasOverlayBridge | null;
     onPortPointerDownForConnection?: (screenX: number, screenY: number, pointerId?: number) => void;

@@ -1,0 +1,560 @@
+{
+  "format": "shadernoice-node-graph",
+  "formatVersion": "2.0",
+  "graph": {
+    "id": "graph-testing-prismatic-glass-smear",
+    "name": "Testing - Prismatic Glass Smear",
+    "version": "2.0",
+    "nodes": [
+      {
+        "id": "n-uv",
+        "type": "uv-coordinates",
+        "position": { "x": -2200, "y": 0 },
+        "parameters": {}
+      },
+      {
+        "id": "n-center",
+        "type": "constant-vec2",
+        "position": { "x": -2200, "y": 220 },
+        "parameters": { "x": 0.5, "y": 0.5 }
+      },
+      {
+        "id": "n-p",
+        "type": "subtract",
+        "position": { "x": -1900, "y": 0 },
+        "parameters": {}
+      },
+      {
+        "id": "n-r",
+        "type": "length",
+        "position": { "x": -1620, "y": 0 },
+        "parameters": {}
+      },
+      {
+        "id": "n-r2",
+        "type": "multiply",
+        "position": { "x": -1360, "y": 0 },
+        "parameters": {}
+      },
+      {
+        "id": "n-k1",
+        "type": "constant-float",
+        "position": { "x": -1360, "y": 220 },
+        "parameters": { "value": 6 }
+      },
+      {
+        "id": "n-term1",
+        "type": "multiply",
+        "position": { "x": -1100, "y": 0 },
+        "parameters": {}
+      },
+      {
+        "id": "n-time",
+        "type": "time",
+        "position": { "x": -1900, "y": -340 },
+        "parameters": {}
+      },
+      {
+        "id": "n-s1",
+        "type": "constant-float",
+        "position": { "x": -1900, "y": -140 },
+        "parameters": { "value": 1.2 }
+      },
+      {
+        "id": "n-t1",
+        "type": "multiply",
+        "position": { "x": -1620, "y": -340 },
+        "parameters": {}
+      },
+      {
+        "id": "n-s2",
+        "type": "constant-float",
+        "position": { "x": -1620, "y": -140 },
+        "parameters": { "value": 18 }
+      },
+      {
+        "id": "n-t2",
+        "type": "multiply",
+        "position": { "x": -1360, "y": -340 },
+        "parameters": {}
+      },
+      {
+        "id": "n-phase",
+        "type": "add",
+        "position": { "x": -1100, "y": -340 },
+        "parameters": {}
+      },
+      {
+        "id": "n-sinphase",
+        "type": "sine",
+        "position": { "x": -850, "y": -340 },
+        "parameters": {}
+      },
+      {
+        "id": "n-k2",
+        "type": "constant-float",
+        "position": { "x": -850, "y": -140 },
+        "parameters": { "value": 1.5 }
+      },
+      {
+        "id": "n-term2",
+        "type": "multiply",
+        "position": { "x": -620, "y": -340 },
+        "parameters": {}
+      },
+      {
+        "id": "n-angle",
+        "type": "add",
+        "position": { "x": -380, "y": -170 },
+        "parameters": {}
+      },
+      {
+        "id": "n-sn",
+        "type": "sine",
+        "position": { "x": -120, "y": -280 },
+        "parameters": {}
+      },
+      {
+        "id": "n-cs",
+        "type": "cosine",
+        "position": { "x": -120, "y": -60 },
+        "parameters": {}
+      },
+      {
+        "id": "n-split-p",
+        "type": "split-vector",
+        "position": { "x": -1620, "y": 420 },
+        "parameters": {}
+      },
+      {
+        "id": "n-pxcs",
+        "type": "multiply",
+        "position": { "x": -360, "y": 260 },
+        "parameters": {}
+      },
+      {
+        "id": "n-pysn",
+        "type": "multiply",
+        "position": { "x": -360, "y": 420 },
+        "parameters": {}
+      },
+      {
+        "id": "n-xrot",
+        "type": "subtract",
+        "position": { "x": -120, "y": 340 },
+        "parameters": {}
+      },
+      {
+        "id": "n-pxsn",
+        "type": "multiply",
+        "position": { "x": -360, "y": 560 },
+        "parameters": {}
+      },
+      {
+        "id": "n-pycs",
+        "type": "multiply",
+        "position": { "x": -360, "y": 720 },
+        "parameters": {}
+      },
+      {
+        "id": "n-yrot",
+        "type": "add",
+        "position": { "x": -120, "y": 640 },
+        "parameters": {}
+      },
+      {
+        "id": "n-p-swirl",
+        "type": "combine-vector",
+        "position": { "x": 140, "y": 500 },
+        "parameters": {}
+      },
+      {
+        "id": "n-freq",
+        "type": "constant-float",
+        "position": { "x": 140, "y": -340 },
+        "parameters": { "value": 60 }
+      },
+      {
+        "id": "n-rfreq",
+        "type": "multiply",
+        "position": { "x": 380, "y": -340 },
+        "parameters": {}
+      },
+      {
+        "id": "n-spd",
+        "type": "constant-float",
+        "position": { "x": 140, "y": -560 },
+        "parameters": { "value": 3 }
+      },
+      {
+        "id": "n-tspd",
+        "type": "multiply",
+        "position": { "x": 380, "y": -560 },
+        "parameters": {}
+      },
+      {
+        "id": "n-ripphase",
+        "type": "subtract",
+        "position": { "x": 620, "y": -450 },
+        "parameters": {}
+      },
+      {
+        "id": "n-rip",
+        "type": "sine",
+        "position": { "x": 860, "y": -450 },
+        "parameters": {}
+      },
+      {
+        "id": "n-rip2",
+        "type": "multiply",
+        "position": { "x": 1100, "y": -560 },
+        "parameters": {}
+      },
+      {
+        "id": "n-rip3",
+        "type": "multiply",
+        "position": { "x": 1340, "y": -560 },
+        "parameters": {}
+      },
+      {
+        "id": "n-amp",
+        "type": "constant-float",
+        "position": { "x": 1100, "y": -340 },
+        "parameters": { "value": 0.08 }
+      },
+      {
+        "id": "n-ripamt",
+        "type": "multiply",
+        "position": { "x": 1580, "y": -560 },
+        "parameters": {}
+      },
+      {
+        "id": "n-one",
+        "type": "constant-float",
+        "position": { "x": 1580, "y": -340 },
+        "parameters": { "value": 1 }
+      },
+      {
+        "id": "n-scale",
+        "type": "add",
+        "position": { "x": 1820, "y": -450 },
+        "parameters": {}
+      },
+      {
+        "id": "n-p-ripple",
+        "type": "multiply",
+        "position": { "x": 1820, "y": 500 },
+        "parameters": {}
+      },
+      {
+        "id": "n-split-ripple",
+        "type": "split-vector",
+        "position": { "x": 2060, "y": 740 },
+        "parameters": {}
+      },
+      {
+        "id": "n-negone",
+        "type": "constant-float",
+        "position": { "x": 2300, "y": 960 },
+        "parameters": { "value": -1 }
+      },
+      {
+        "id": "n-minus-rx",
+        "type": "multiply",
+        "position": { "x": 2540, "y": 740 },
+        "parameters": {}
+      },
+      {
+        "id": "n-perp",
+        "type": "combine-vector",
+        "position": { "x": 2780, "y": 740 },
+        "parameters": {}
+      },
+      {
+        "id": "n-dir",
+        "type": "normalize",
+        "position": { "x": 3020, "y": 740 },
+        "parameters": {}
+      },
+      {
+        "id": "n-w1",
+        "type": "constant-float",
+        "position": { "x": 2780, "y": -760 },
+        "parameters": { "value": 2 }
+      },
+      {
+        "id": "n-timew1",
+        "type": "multiply",
+        "position": { "x": 3020, "y": -760 },
+        "parameters": {}
+      },
+      {
+        "id": "n-w2",
+        "type": "constant-float",
+        "position": { "x": 2780, "y": -980 },
+        "parameters": { "value": 25 }
+      },
+      {
+        "id": "n-rw2",
+        "type": "multiply",
+        "position": { "x": 3020, "y": -980 },
+        "parameters": {}
+      },
+      {
+        "id": "n-wobphase",
+        "type": "add",
+        "position": { "x": 3260, "y": -870 },
+        "parameters": {}
+      },
+      {
+        "id": "n-wob",
+        "type": "sine",
+        "position": { "x": 3500, "y": -870 },
+        "parameters": {}
+      },
+      {
+        "id": "n-wobamp",
+        "type": "constant-float",
+        "position": { "x": 3500, "y": -650 },
+        "parameters": { "value": 0.03 }
+      },
+      {
+        "id": "n-wobterm",
+        "type": "multiply",
+        "position": { "x": 3740, "y": -870 },
+        "parameters": {}
+      },
+      {
+        "id": "n-base",
+        "type": "constant-float",
+        "position": { "x": 3740, "y": -650 },
+        "parameters": { "value": 0.03 }
+      },
+      {
+        "id": "n-amt",
+        "type": "add",
+        "position": { "x": 3980, "y": -760 },
+        "parameters": {}
+      },
+      {
+        "id": "n-diramt",
+        "type": "multiply",
+        "position": { "x": 3260, "y": 960 },
+        "parameters": {}
+      },
+      {
+        "id": "n-p-smear",
+        "type": "add",
+        "position": { "x": 3500, "y": 500 },
+        "parameters": {}
+      },
+      {
+        "id": "n-uvdist",
+        "type": "add",
+        "position": { "x": 3740, "y": 500 },
+        "parameters": {}
+      },
+      {
+        "id": "n-ab",
+        "type": "constant-float",
+        "position": { "x": 3260, "y": 1180 },
+        "parameters": { "value": 0.006 }
+      },
+      {
+        "id": "n-abvec",
+        "type": "multiply",
+        "position": { "x": 3500, "y": 1180 },
+        "parameters": {}
+      },
+      {
+        "id": "n-uvr",
+        "type": "add",
+        "position": { "x": 3980, "y": 340 },
+        "parameters": {}
+      },
+      {
+        "id": "n-uvb",
+        "type": "subtract",
+        "position": { "x": 3980, "y": 660 },
+        "parameters": {}
+      },
+      {
+        "id": "n-noise-r",
+        "type": "noise",
+        "position": { "x": 4220, "y": 340 },
+        "parameters": {
+          "noiseMode": 0,
+          "noiseScale": 2.5,
+          "noiseOctaves": 4,
+          "noiseLacunarity": 2,
+          "noiseGain": 0.5,
+          "noiseIntensity": 1,
+          "noiseTimeSpeed": 1,
+          "noiseTimeOffset": 0
+        }
+      },
+      {
+        "id": "n-noise-g",
+        "type": "noise",
+        "position": { "x": 4220, "y": 500 },
+        "parameters": {
+          "noiseMode": 0,
+          "noiseScale": 2.5,
+          "noiseOctaves": 4,
+          "noiseLacunarity": 2,
+          "noiseGain": 0.5,
+          "noiseIntensity": 1,
+          "noiseTimeSpeed": 1,
+          "noiseTimeOffset": 0
+        }
+      },
+      {
+        "id": "n-noise-b",
+        "type": "noise",
+        "position": { "x": 4220, "y": 660 },
+        "parameters": {
+          "noiseMode": 0,
+          "noiseScale": 2.5,
+          "noiseOctaves": 4,
+          "noiseLacunarity": 2,
+          "noiseGain": 0.5,
+          "noiseIntensity": 1,
+          "noiseTimeSpeed": 1,
+          "noiseTimeOffset": 0
+        }
+      },
+      {
+        "id": "n-rgb",
+        "type": "combine-vector",
+        "position": { "x": 4480, "y": 500 },
+        "parameters": {}
+      },
+      {
+        "id": "n-out",
+        "type": "final-output",
+        "position": { "x": 4760, "y": 500 },
+        "parameters": {}
+      }
+    ],
+    "connections": [
+      { "id": "c-uv-center", "sourceNodeId": "n-uv", "sourcePort": "out", "targetNodeId": "n-p", "targetPort": "a" },
+      { "id": "c-center-p", "sourceNodeId": "n-center", "sourcePort": "out", "targetNodeId": "n-p", "targetPort": "b" },
+      { "id": "c-p-r", "sourceNodeId": "n-p", "sourcePort": "out", "targetNodeId": "n-r", "targetPort": "in" },
+      { "id": "c-r-r2a", "sourceNodeId": "n-r", "sourcePort": "out", "targetNodeId": "n-r2", "targetPort": "a" },
+      { "id": "c-r-r2b", "sourceNodeId": "n-r", "sourcePort": "out", "targetNodeId": "n-r2", "targetPort": "b" },
+      { "id": "c-r2-term1a", "sourceNodeId": "n-r2", "sourcePort": "out", "targetNodeId": "n-term1", "targetPort": "a" },
+      { "id": "c-k1-term1b", "sourceNodeId": "n-k1", "sourcePort": "out", "targetNodeId": "n-term1", "targetPort": "b" },
+      { "id": "c-time-t1a", "sourceNodeId": "n-time", "sourcePort": "out", "targetNodeId": "n-t1", "targetPort": "a" },
+      { "id": "c-s1-t1b", "sourceNodeId": "n-s1", "sourcePort": "out", "targetNodeId": "n-t1", "targetPort": "b" },
+      { "id": "c-r-t2a", "sourceNodeId": "n-r", "sourcePort": "out", "targetNodeId": "n-t2", "targetPort": "a" },
+      { "id": "c-s2-t2b", "sourceNodeId": "n-s2", "sourcePort": "out", "targetNodeId": "n-t2", "targetPort": "b" },
+      { "id": "c-t1-phasea", "sourceNodeId": "n-t1", "sourcePort": "out", "targetNodeId": "n-phase", "targetPort": "a" },
+      { "id": "c-t2-phaseb", "sourceNodeId": "n-t2", "sourcePort": "out", "targetNodeId": "n-phase", "targetPort": "b" },
+      { "id": "c-phase-sinphase", "sourceNodeId": "n-phase", "sourcePort": "out", "targetNodeId": "n-sinphase", "targetPort": "in" },
+      { "id": "c-sinphase-term2a", "sourceNodeId": "n-sinphase", "sourcePort": "out", "targetNodeId": "n-term2", "targetPort": "a" },
+      { "id": "c-k2-term2b", "sourceNodeId": "n-k2", "sourcePort": "out", "targetNodeId": "n-term2", "targetPort": "b" },
+      { "id": "c-term1-anglea", "sourceNodeId": "n-term1", "sourcePort": "out", "targetNodeId": "n-angle", "targetPort": "a" },
+      { "id": "c-term2-angleb", "sourceNodeId": "n-term2", "sourcePort": "out", "targetNodeId": "n-angle", "targetPort": "b" },
+      { "id": "c-angle-sn", "sourceNodeId": "n-angle", "sourcePort": "out", "targetNodeId": "n-sn", "targetPort": "in" },
+      { "id": "c-angle-cs", "sourceNodeId": "n-angle", "sourcePort": "out", "targetNodeId": "n-cs", "targetPort": "in" },
+      { "id": "c-p-splitp", "sourceNodeId": "n-p", "sourcePort": "out", "targetNodeId": "n-split-p", "targetPort": "in" },
+
+      { "id": "c-px-pxcs-a", "sourceNodeId": "n-split-p", "sourcePort": "x", "targetNodeId": "n-pxcs", "targetPort": "a" },
+      { "id": "c-cs-pxcs-b", "sourceNodeId": "n-cs", "sourcePort": "out", "targetNodeId": "n-pxcs", "targetPort": "b" },
+      { "id": "c-py-pysn-a", "sourceNodeId": "n-split-p", "sourcePort": "y", "targetNodeId": "n-pysn", "targetPort": "a" },
+      { "id": "c-sn-pysn-b", "sourceNodeId": "n-sn", "sourcePort": "out", "targetNodeId": "n-pysn", "targetPort": "b" },
+      { "id": "c-pxcs-xrot-a", "sourceNodeId": "n-pxcs", "sourcePort": "out", "targetNodeId": "n-xrot", "targetPort": "a" },
+      { "id": "c-pysn-xrot-b", "sourceNodeId": "n-pysn", "sourcePort": "out", "targetNodeId": "n-xrot", "targetPort": "b" },
+
+      { "id": "c-px-pxsn-a", "sourceNodeId": "n-split-p", "sourcePort": "x", "targetNodeId": "n-pxsn", "targetPort": "a" },
+      { "id": "c-sn-pxsn-b", "sourceNodeId": "n-sn", "sourcePort": "out", "targetNodeId": "n-pxsn", "targetPort": "b" },
+      { "id": "c-py-pycs-a", "sourceNodeId": "n-split-p", "sourcePort": "y", "targetNodeId": "n-pycs", "targetPort": "a" },
+      { "id": "c-cs-pycs-b", "sourceNodeId": "n-cs", "sourcePort": "out", "targetNodeId": "n-pycs", "targetPort": "b" },
+      { "id": "c-pxsn-yrot-a", "sourceNodeId": "n-pxsn", "sourcePort": "out", "targetNodeId": "n-yrot", "targetPort": "a" },
+      { "id": "c-pycs-yrot-b", "sourceNodeId": "n-pycs", "sourcePort": "out", "targetNodeId": "n-yrot", "targetPort": "b" },
+
+      { "id": "c-xrot-pswirl-x", "sourceNodeId": "n-xrot", "sourcePort": "out", "targetNodeId": "n-p-swirl", "targetPort": "x" },
+      { "id": "c-yrot-pswirl-y", "sourceNodeId": "n-yrot", "sourcePort": "out", "targetNodeId": "n-p-swirl", "targetPort": "y" },
+
+      { "id": "c-r-rfreq-a", "sourceNodeId": "n-r", "sourcePort": "out", "targetNodeId": "n-rfreq", "targetPort": "a" },
+      { "id": "c-freq-rfreq-b", "sourceNodeId": "n-freq", "sourcePort": "out", "targetNodeId": "n-rfreq", "targetPort": "b" },
+      { "id": "c-time-tspd-a", "sourceNodeId": "n-time", "sourcePort": "out", "targetNodeId": "n-tspd", "targetPort": "a" },
+      { "id": "c-spd-tspd-b", "sourceNodeId": "n-spd", "sourcePort": "out", "targetNodeId": "n-tspd", "targetPort": "b" },
+      { "id": "c-rfreq-ripphase-a", "sourceNodeId": "n-rfreq", "sourcePort": "out", "targetNodeId": "n-ripphase", "targetPort": "a" },
+      { "id": "c-tspd-ripphase-b", "sourceNodeId": "n-tspd", "sourcePort": "out", "targetNodeId": "n-ripphase", "targetPort": "b" },
+      { "id": "c-ripphase-rip", "sourceNodeId": "n-ripphase", "sourcePort": "out", "targetNodeId": "n-rip", "targetPort": "in" },
+
+      { "id": "c-rip-rip2-a", "sourceNodeId": "n-rip", "sourcePort": "out", "targetNodeId": "n-rip2", "targetPort": "a" },
+      { "id": "c-rip-rip2-b", "sourceNodeId": "n-rip", "sourcePort": "out", "targetNodeId": "n-rip2", "targetPort": "b" },
+      { "id": "c-rip2-rip3-a", "sourceNodeId": "n-rip2", "sourcePort": "out", "targetNodeId": "n-rip3", "targetPort": "a" },
+      { "id": "c-rip-rip3-b", "sourceNodeId": "n-rip", "sourcePort": "out", "targetNodeId": "n-rip3", "targetPort": "b" },
+      { "id": "c-rip3-ripamt-a", "sourceNodeId": "n-rip3", "sourcePort": "out", "targetNodeId": "n-ripamt", "targetPort": "a" },
+      { "id": "c-amp-ripamt-b", "sourceNodeId": "n-amp", "sourcePort": "out", "targetNodeId": "n-ripamt", "targetPort": "b" },
+
+      { "id": "c-one-scale-a", "sourceNodeId": "n-one", "sourcePort": "out", "targetNodeId": "n-scale", "targetPort": "a" },
+      { "id": "c-ripamt-scale-b", "sourceNodeId": "n-ripamt", "sourcePort": "out", "targetNodeId": "n-scale", "targetPort": "b" },
+
+      { "id": "c-pswirl-pripple-a", "sourceNodeId": "n-p-swirl", "sourcePort": "out", "targetNodeId": "n-p-ripple", "targetPort": "a" },
+      { "id": "c-scale-pripple-b", "sourceNodeId": "n-scale", "sourcePort": "out", "targetNodeId": "n-p-ripple", "targetPort": "b" },
+
+      { "id": "c-pripple-split", "sourceNodeId": "n-p-ripple", "sourcePort": "out", "targetNodeId": "n-split-ripple", "targetPort": "in" },
+      { "id": "c-rx-minusrx-a", "sourceNodeId": "n-split-ripple", "sourcePort": "x", "targetNodeId": "n-minus-rx", "targetPort": "a" },
+      { "id": "c-negone-minusrx-b", "sourceNodeId": "n-negone", "sourcePort": "out", "targetNodeId": "n-minus-rx", "targetPort": "b" },
+      { "id": "c-ry-perp-x", "sourceNodeId": "n-split-ripple", "sourcePort": "y", "targetNodeId": "n-perp", "targetPort": "x" },
+      { "id": "c-minusrx-perp-y", "sourceNodeId": "n-minus-rx", "sourcePort": "out", "targetNodeId": "n-perp", "targetPort": "y" },
+      { "id": "c-perp-dir", "sourceNodeId": "n-perp", "sourcePort": "out", "targetNodeId": "n-dir", "targetPort": "in" },
+
+      { "id": "c-time-timew1-a", "sourceNodeId": "n-time", "sourcePort": "out", "targetNodeId": "n-timew1", "targetPort": "a" },
+      { "id": "c-w1-timew1-b", "sourceNodeId": "n-w1", "sourcePort": "out", "targetNodeId": "n-timew1", "targetPort": "b" },
+      { "id": "c-r-rw2-a", "sourceNodeId": "n-r", "sourcePort": "out", "targetNodeId": "n-rw2", "targetPort": "a" },
+      { "id": "c-w2-rw2-b", "sourceNodeId": "n-w2", "sourcePort": "out", "targetNodeId": "n-rw2", "targetPort": "b" },
+      { "id": "c-timew1-wobphase-a", "sourceNodeId": "n-timew1", "sourcePort": "out", "targetNodeId": "n-wobphase", "targetPort": "a" },
+      { "id": "c-rw2-wobphase-b", "sourceNodeId": "n-rw2", "sourcePort": "out", "targetNodeId": "n-wobphase", "targetPort": "b" },
+      { "id": "c-wobphase-wob", "sourceNodeId": "n-wobphase", "sourcePort": "out", "targetNodeId": "n-wob", "targetPort": "in" },
+      { "id": "c-wob-wobterm-a", "sourceNodeId": "n-wob", "sourcePort": "out", "targetNodeId": "n-wobterm", "targetPort": "a" },
+      { "id": "c-wobamp-wobterm-b", "sourceNodeId": "n-wobamp", "sourcePort": "out", "targetNodeId": "n-wobterm", "targetPort": "b" },
+      { "id": "c-base-amt-a", "sourceNodeId": "n-base", "sourcePort": "out", "targetNodeId": "n-amt", "targetPort": "a" },
+      { "id": "c-wobterm-amt-b", "sourceNodeId": "n-wobterm", "sourcePort": "out", "targetNodeId": "n-amt", "targetPort": "b" },
+
+      { "id": "c-dir-diramt-a", "sourceNodeId": "n-dir", "sourcePort": "out", "targetNodeId": "n-diramt", "targetPort": "a" },
+      { "id": "c-amt-diramt-b", "sourceNodeId": "n-amt", "sourcePort": "out", "targetNodeId": "n-diramt", "targetPort": "b" },
+      { "id": "c-pripple-psmear-a", "sourceNodeId": "n-p-ripple", "sourcePort": "out", "targetNodeId": "n-p-smear", "targetPort": "a" },
+      { "id": "c-diramt-psmear-b", "sourceNodeId": "n-diramt", "sourcePort": "out", "targetNodeId": "n-p-smear", "targetPort": "b" },
+      { "id": "c-psmear-uvdist-a", "sourceNodeId": "n-p-smear", "sourcePort": "out", "targetNodeId": "n-uvdist", "targetPort": "a" },
+      { "id": "c-center-uvdist-b", "sourceNodeId": "n-center", "sourcePort": "out", "targetNodeId": "n-uvdist", "targetPort": "b" },
+
+      { "id": "c-dir-abvec-a", "sourceNodeId": "n-dir", "sourcePort": "out", "targetNodeId": "n-abvec", "targetPort": "a" },
+      { "id": "c-ab-abvec-b", "sourceNodeId": "n-ab", "sourcePort": "out", "targetNodeId": "n-abvec", "targetPort": "b" },
+      { "id": "c-uvdist-uvr-a", "sourceNodeId": "n-uvdist", "sourcePort": "out", "targetNodeId": "n-uvr", "targetPort": "a" },
+      { "id": "c-abvec-uvr-b", "sourceNodeId": "n-abvec", "sourcePort": "out", "targetNodeId": "n-uvr", "targetPort": "b" },
+      { "id": "c-uvdist-uvb-a", "sourceNodeId": "n-uvdist", "sourcePort": "out", "targetNodeId": "n-uvb", "targetPort": "a" },
+      { "id": "c-abvec-uvb-b", "sourceNodeId": "n-abvec", "sourcePort": "out", "targetNodeId": "n-uvb", "targetPort": "b" },
+
+      { "id": "c-uvr-noiser", "sourceNodeId": "n-uvr", "sourcePort": "out", "targetNodeId": "n-noise-r", "targetPort": "in" },
+      { "id": "c-uvdist-noiseg", "sourceNodeId": "n-uvdist", "sourcePort": "out", "targetNodeId": "n-noise-g", "targetPort": "in" },
+      { "id": "c-uvb-noiseb", "sourceNodeId": "n-uvb", "sourcePort": "out", "targetNodeId": "n-noise-b", "targetPort": "in" },
+
+      { "id": "c-noiser-rgbx", "sourceNodeId": "n-noise-r", "sourcePort": "out", "targetNodeId": "n-rgb", "targetPort": "x" },
+      { "id": "c-noiseg-rgby", "sourceNodeId": "n-noise-g", "sourcePort": "out", "targetNodeId": "n-rgb", "targetPort": "y" },
+      { "id": "c-noiseb-rgbz", "sourceNodeId": "n-noise-b", "sourcePort": "out", "targetNodeId": "n-rgb", "targetPort": "z" },
+
+      { "id": "c-rgb-out", "sourceNodeId": "n-rgb", "sourcePort": "out", "targetNodeId": "n-out", "targetPort": "in" }
+    ],
+    "viewState": {
+      "zoom": 0.35,
+      "panX": 740,
+      "panY": 340,
+      "selectedNodeIds": []
+    },
+    "automation": {
+      "bpm": 120,
+      "durationSeconds": 30,
+      "lanes": []
+    }
+  },
+  "audioSetup": {
+    "files": [],
+    "bands": [],
+    "remappers": []
+  }
+}

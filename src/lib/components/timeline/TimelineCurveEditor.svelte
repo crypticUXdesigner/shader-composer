@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * TimelineCurveEditor - Svelte 5 Migration WP 05C
+   * TimelineCurveEditor
    * Edits keyframes and interpolation for one automation region.
    * Normalized time [0,1] horizontal, value [0,1] vertical.
    */
@@ -12,6 +12,7 @@
   import type { AutomationCurve, AutomationCurveInterpolation } from '../../../data-model/types';
   import type { NodeSpec } from '../../../types/nodeSpec';
   import { getWaveformSlice } from '../../../runtime/waveform/WaveformService';
+  import { pollOnAnimationFrame } from '../../utils/pollOnAnimationFrame';
   import {
     GRAPH_PADDING,
     curveClientToGraph,
@@ -56,9 +57,19 @@
     laneId: string;
     regionId: string;
     paramLabel: string;
+    onRevealInNodeEditor?: (nodeId: string, paramName: string) => void;
     nodeSpecs?: NodeSpec[];
     /** Optional: for waveform background. Returns full primary waveform; slice is computed from region times. */
     getWaveformData?: GetWaveformData;
+    /** When set, a vertical playhead tracks global transport time mapped onto this region's horizontal range. */
+    getCurrentTransportTime?: () => number;
+    /** When set, single-click / drag on empty graph seeks the global transport time. */
+    onSeek?: (timeSeconds: number) => void;
+    /**
+     * Optional wall-clock range (seconds) while the timeline region is dragged/resized —
+     * waveform background and snap/grid span track this before the graph commits.
+     */
+    regionTimeRangePreview?: { startTime: number; endTime: number } | null;
   }
 
   let {
@@ -68,8 +79,12 @@
     laneId,
     regionId,
     paramLabel,
+    onRevealInNodeEditor,
     nodeSpecs = [],
     getWaveformData,
+    getCurrentTransportTime,
+    onSeek,
+    regionTimeRangePreview = null,
   }: Props = $props();
 
   let graphWrapEl: HTMLDivElement | null = null;
@@ -81,7 +96,8 @@
   /** Sorted unique indices into `keyframesSorted` (selection set). */
   let selectedKeyframeIndices = $state<number[]>([]);
   let dragKeyframeSession = $state<CurveEditorDragSession | null>(null);
-  let snapEnabled = $state(true);
+  let dragKeyframePointerId = $state<number | null>(null);
+  let snapEnabled = $state(false);
   let snapDivision = $state<SnapDivision>(1);
   let snapGridOpen = $state(false);
   let snapGridButtonEl = $state<HTMLDivElement | null>(null);
@@ -102,6 +118,12 @@
   let valueOverlayH = $state(40);
   let valueOverlayValue = $state(0);
   let valueOverlayEditIndex = $state<number | null>(null);
+
+  /** Bumped every frame when `getCurrentTransportTime` is set so the curve playhead tracks preview playback. */
+  let transportTimeTick = $state(0);
+
+  let playheadSeekDragging = $state(false);
+  let playheadSeekPointerId = $state<number | null>(null);
 
   const nodeSpecsMap = $derived(new Map(nodeSpecs.map((s) => [s.id, s])));
 
@@ -132,6 +154,14 @@
   /** Icon identifier for the node this lane's region belongs to. */
   const nodeIconIdentifier = $derived(regionCtx.nodeIconIdentifier);
 
+  const nodeJumpEnabled = $derived(Boolean(onRevealInNodeEditor && regionCtx.lane));
+
+  function handleRevealClick(): void {
+    const lane = regionCtx.lane;
+    if (!lane || !onRevealInNodeEditor) return;
+    onRevealInNodeEditor(lane.nodeId, lane.paramName);
+  }
+
   const keyframesSorted = $derived.by(() => {
     if (!curve?.keyframes?.length) return [];
     return [...curve.keyframes].sort((a, b) => a.time - b.time);
@@ -141,6 +171,45 @@
 
   /** Region startTime and duration (seconds) for waveform slice. */
   const regionTimeRange = $derived(regionCtx.regionTimeRange);
+
+  /** Waveform + playhead + bar grid: preview range when timeline drag/resize is in progress. */
+  const waveformRegionTimeRange = $derived.by(() => {
+    const p = regionTimeRangePreview;
+    if (p != null && Number.isFinite(p.startTime) && Number.isFinite(p.endTime) && p.endTime > p.startTime) {
+      return p;
+    }
+    return regionTimeRange;
+  });
+
+  const effectiveRegionBars = $derived.by(() => {
+    const range = waveformRegionTimeRange;
+    const bpm = getGraph().automation?.bpm ?? 120;
+    if (!range || bpm <= 0) return regionBars;
+    const barSeconds = 60 / bpm;
+    const dur = range.endTime - range.startTime;
+    return Math.max(0.25, dur / barSeconds);
+  });
+
+  $effect(() => {
+    if (!getCurrentTransportTime) return;
+    return pollOnAnimationFrame(() => {
+      transportTimeTick += 1;
+    });
+  });
+
+  /** Global time mapped to normalized region X in SVG space; null when no range or no transport ticker. */
+  const transportPlayheadSvgX = $derived.by(() => {
+    void transportTimeTick;
+    void graphWidth;
+    const getT = getCurrentTransportTime;
+    const range = waveformRegionTimeRange;
+    if (!getT || !range || range.endTime <= range.startTime) return null;
+    const t = getT();
+    const span = range.endTime - range.startTime;
+    const u = (t - range.startTime) / span;
+    const clamped = Math.max(0, Math.min(1, u));
+    return curveTimeToX(clamped, graphWidth);
+  });
 
   const selectedKeyframeSet = $derived(new Set(selectedKeyframeIndices));
 
@@ -238,6 +307,16 @@
     return null;
   }
 
+  function seekFromClient(clientX: number, clientY: number): void {
+    const cb = onSeek;
+    const range = waveformRegionTimeRange;
+    if (!cb || !range || range.endTime <= range.startTime) return;
+    const { t } = clientToGraph(clientX, clientY);
+    const span = range.endTime - range.startTime;
+    const seconds = range.startTime + Math.max(0, Math.min(1, t)) * span;
+    cb(seconds);
+  }
+
   /** Screen-space center of keyframe mark (for tooltip / value overlay placement). */
   function keyframeCenterScreen(index: number): { x: number; y: number } | null {
     return curveKeyframeCenterScreen(index, keyframesSorted, getGraphRect(), graphWidth, graphHeight);
@@ -286,7 +365,7 @@
     return formatParamDisplay(normalizedToParam(keyframesSorted[i]!.value));
   });
 
-  function handleGraphMousemove(e: MouseEvent): void {
+  function handleGraphPointermove(e: PointerEvent): void {
     if (valueOverlayVisible) {
       hoveredKeyframeIndex = null;
       keyframeTooltipScreen = null;
@@ -347,7 +426,7 @@
 
   function addKeyframeAt(tRaw: number, vRaw: number) {
     if (!curve) return;
-    const t = maybeSnapCurveKeyframeTime(tRaw, { snapEnabled, regionBars, snapDivision });
+    const t = maybeSnapCurveKeyframeTime(tRaw, { snapEnabled, regionBars: effectiveRegionBars, snapDivision });
     const v = Math.max(0, Math.min(1, vRaw));
     const inserted = [...keyframesSorted.map((kf) => ({ ...kf })), { time: t, value: v }]
       .map((kf, idx) => ({ kf, idx }))
@@ -370,7 +449,7 @@
     dragKeyframeSession = null;
   }
 
-  function handleGraphMousedown(e: MouseEvent): void {
+  function handleGraphPointerdown(e: PointerEvent): void {
     if (e.button !== 0) return;
     graphWrapEl?.focus({ preventScroll: true });
     const additive = e.shiftKey || e.ctrlKey || e.metaKey;
@@ -388,10 +467,43 @@
         anchorT,
         anchorV,
       };
+      dragKeyframePointerId = e.pointerId;
       return;
     }
+
+    // Empty graph seek: single click sets playhead; drag scrubs (but don't block dblclick add-keyframe).
+    if (onSeek && e.detail <= 1) {
+      e.preventDefault();
+      const target = e.currentTarget as HTMLElement;
+      target.setPointerCapture(e.pointerId);
+      playheadSeekDragging = true;
+      playheadSeekPointerId = e.pointerId;
+      seekFromClient(e.clientX, e.clientY);
+
+      const onMove = (e2: PointerEvent): void => {
+        if (!playheadSeekDragging || playheadSeekPointerId !== e.pointerId) return;
+        e2.preventDefault();
+        seekFromClient(e2.clientX, e2.clientY);
+      };
+      const onUp = (e2: PointerEvent): void => {
+        if (e2.pointerId === e.pointerId) {
+          target.releasePointerCapture(e2.pointerId);
+        }
+        playheadSeekDragging = false;
+        playheadSeekPointerId = null;
+        target.removeEventListener('pointermove', onMove);
+        target.removeEventListener('pointerup', onUp);
+        target.removeEventListener('pointercancel', onUp);
+      };
+
+      target.addEventListener('pointermove', onMove);
+      target.addEventListener('pointerup', onUp);
+      target.addEventListener('pointercancel', onUp);
+    }
+
     if (!additive) selectedKeyframeIndices = [];
     dragKeyframeSession = null;
+    dragKeyframePointerId = null;
   }
 
   function handleGraphDblclick(e: MouseEvent): void {
@@ -434,13 +546,13 @@
   );
 
   const gridLines = $derived.by(() =>
-    buildCurveEditorGridLines(graphWidth, graphHeight, regionBars, snapDivision)
+    buildCurveEditorGridLines(graphWidth, graphHeight, effectiveRegionBars, snapDivision)
   );
 
   // Fetch waveform slice for region when getWaveformData and region available (stereo: left + right)
   $effect(() => {
     const getData = getWaveformData;
-    const range = regionTimeRange;
+    const range = waveformRegionTimeRange;
     if (!getData || !range) {
       waveformSliceLeft = [];
       waveformSliceRight = [];
@@ -502,9 +614,12 @@
     const cand = dragKeyframeSession;
     if (cand === null) return;
     const dragSnap: CurveEditorDragSession = cand;
+    const ptrId = dragKeyframePointerId;
+    if (ptrId == null) return;
 
-    function onMouseMove(e: MouseEvent) {
+    function onPointerMove(e: PointerEvent) {
       if (dragKeyframeSession === null) return;
+      if (e.pointerId !== ptrId) return;
       const activeCurve = resolveCurveEditorRegion(getGraph(), laneId, regionId, nodeSpecsMap).region?.curve;
       if (!activeCurve) return;
 
@@ -516,7 +631,7 @@
         dragSnap.anchorV,
         ptr.t,
         ptr.v,
-        (tn) => maybeSnapCurveKeyframeTime(tn, { snapEnabled, regionBars, snapDivision })
+        (tn) => maybeSnapCurveKeyframeTime(tn, { snapEnabled, regionBars: effectiveRegionBars, snapDivision })
       );
 
       const { sorted, oldToNew } = stableTimeSortKeyframes(proposed);
@@ -524,14 +639,19 @@
       selectedKeyframeIndices = remapSelectionIndices(dragSnap.selectedIndicesSorted, oldToNew);
     }
 
-    function onMouseUp() {
+    function onPointerUp(e: PointerEvent) {
+      if (e.pointerId !== ptrId) return;
       dragKeyframeSession = null;
+      dragKeyframePointerId = null;
     }
 
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp, { once: true });
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
     return () => {
-      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
     };
   });
 
@@ -552,12 +672,21 @@
   ></span>
   <div class="header">
     <div class="header-left">
-      {#if nodeIconIdentifier}
-        <span class="title-icon" aria-hidden="true">
-          <NodeIconSvg identifier={nodeIconIdentifier} />
-        </span>
-      {/if}
-      <span class="header-title" title={paramLabel}>{paramLabel}</span>
+      <Button
+        variant="ghost"
+        size="sm"
+        class="header-jump"
+        title="Reveal in node editor"
+        disabled={!nodeJumpEnabled}
+        onclick={handleRevealClick}
+      >
+        {#if nodeIconIdentifier}
+          <span class="title-icon" aria-hidden="true">
+            <NodeIconSvg identifier={nodeIconIdentifier} />
+          </span>
+        {/if}
+        <span class="header-title" title={paramLabel}>{paramLabel}</span>
+      </Button>
     </div>
     <div class="header-right">
       <div class="header-controls">
@@ -660,9 +789,9 @@
     aria-label="Automation curve graph. Double-click empty area adds a keyframe; double-click a keyframe to edit its value. Hover a keyframe to see its value. Shift-click or Ctrl-click to multi-select."
     aria-keyshortcuts="Delete Backspace"
     use:focusGraphWhenRegionTargeted={{ laneId, regionId }}
-    onmousedown={handleGraphMousedown}
+    onpointerdown={handleGraphPointerdown}
     ondblclick={handleGraphDblclick}
-    onmousemove={handleGraphMousemove}
+    onpointermove={handleGraphPointermove}
     onmouseleave={handleGraphMouseleave}
   >
     <svg bind:this={svgEl} class="graph-svg" viewBox="0 0 {graphWidth} {graphHeight}" preserveAspectRatio="none">
@@ -750,6 +879,16 @@
           {/each}
         </g>
       {/if}
+      {#if transportPlayheadSvgX != null}
+        <line
+          class="graph-transport-playhead"
+          x1={transportPlayheadSvgX}
+          x2={transportPlayheadSvgX}
+          y1={GRAPH_PADDING.top}
+          y2={graphHeight - GRAPH_PADDING.bottom}
+          aria-hidden="true"
+        />
+      {/if}
     </svg>
   </div>
 
@@ -803,6 +942,10 @@
     min-width: 0;
   }
 
+  .curve-editor .header :global(.button) {
+    border-radius: calc(var(--radius-md) - var(--pd-xs)) !important;
+  }
+
   .header-left {
     flex: 1 0 auto;
     display: flex;
@@ -810,6 +953,13 @@
     gap: var(--pd-sm);
     min-width: 0;
     max-width: 200px;
+  }
+
+  .header-jump {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: flex-start;
+    gap: var(--pd-sm);
   }
 
   .title-icon {
@@ -912,6 +1062,14 @@
     stroke-width: 2;
     vector-effect: non-scaling-stroke;
     stroke-linejoin: round;
+  }
+
+  .graph-transport-playhead {
+    stroke: var(--print-highlight, #fff);
+    stroke-width: 1.5px;
+    stroke-opacity: 0.85;
+    vector-effect: non-scaling-stroke;
+    pointer-events: none;
   }
 
   .grid-line {

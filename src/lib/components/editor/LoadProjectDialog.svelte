@@ -33,6 +33,7 @@
     onHubRename?: (projectId: string, nextDisplayName: string) => void;
     onHubAppearanceChange?: (projectId: string, next: ProjectAvatarFields) => void;
     onHubImportJson?: (json: string) => void;
+    onHubExportAllProjects?: () => void | Promise<void>;
   }
 
   let {
@@ -52,6 +53,7 @@
     onHubRename = () => {},
     onHubAppearanceChange = () => {},
     onHubImportJson = () => {},
+    onHubExportAllProjects = () => {},
   }: Props = $props();
 
   const busyCombined = $derived(hubBusy || presetLoading);
@@ -364,6 +366,16 @@
           <IconSvg name="upload-simple" variant="line" />
           Import
         </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          mode="both"
+          disabled={busyCombined}
+          onclick={() => void onHubExportAllProjects()}
+        >
+          <IconSvg name="download-simple" variant="line" />
+          Export
+        </Button>
       </div>
       <div class="footer-right">
         <Button variant="primary" size="sm" disabled={busyCombined || !dismissible} onclick={() => handleClose()}>
@@ -515,8 +527,9 @@
   }
 
   :global(.content.frame.modal-dialog.modal-dialog--list.preset-picker-dialog) {
-    width: min(440px, 94vw);
-    min-width: min(360px, 94vw);
+    width: min(540px, 94vw);
+    min-width: min(540px, 94vw);
+    height: min(720px, 92vh);
   }
 
   .storage-alert {

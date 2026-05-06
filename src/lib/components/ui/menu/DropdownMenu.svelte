@@ -17,12 +17,16 @@
     children?: import('svelte').Snippet<[]>;
     /** Imperative: items for simple list (when using show()) */
     items?: DropdownMenuItem[];
-    /** Horizontal alignment: 'start' = left edge at x, 'center' = center at x */
-    align?: 'start' | 'center';
+    /** Horizontal alignment: 'start' = left edge, 'center' = center, 'end' = right edge at x */
+    align?: 'start' | 'center' | 'end';
     /** Vertical alignment: 'start' = top at y, 'center' = vertical center at y */
     alignY?: 'start' | 'center';
     /** Position so the selected item's center aligns with (x,y). Overrides align/alignY. */
     anchorToSelected?: boolean;
+    /** Extra x offset applied after anchor alignment (px). */
+    offsetX?: number;
+    /** Extra y offset applied after anchor alignment (px). */
+    offsetY?: number;
     onClose?: () => void;
     class?: string;
   }
@@ -38,6 +42,8 @@
     align: alignProp = 'start',
     alignY: alignYProp = 'start',
     anchorToSelected: anchorToSelectedProp = false,
+    offsetX = 0,
+    offsetY = 0,
     onClose,
     class: className = ''
   }: Props = $props();
@@ -49,7 +55,7 @@
   let rawY = $state(0);
   let imperativeItems = $state<DropdownMenuItem[]>([]);
   let imperativeOpenAbove = $state(false);
-  let imperativeAlign = $state<'start' | 'center'>('start');
+  let imperativeAlign = $state<'start' | 'center' | 'end'>('start');
   let imperativeAlignY = $state<'start' | 'center'>('start');
   let imperativeAnchorToSelected = $state(false);
   let menuEl = $state<HTMLElement | null>(null);
@@ -83,11 +89,13 @@
       return { x: rawX, y: rawY, useStartAlign: false };
     }
     const anchorRect = anchor?.getBoundingClientRect() ?? null;
-    const gap = 4;
+    const gap = 12;
     const anchorX = anchorRect
       ? effectiveAlign === 'start'
         ? anchorRect.left
-        : anchorRect.left + anchorRect.width / 2
+        : effectiveAlign === 'end'
+          ? anchorRect.right
+          : anchorRect.left + anchorRect.width / 2
       : null;
     const anchorY = anchorRect
       ? effectiveAlignY === 'center'
@@ -104,8 +112,13 @@
       (isDeclarative || isControlledItems) && anchorY !== null ? anchorY : isDeclarative || isControlledItems ? yProp : rawY;
 
     // We position the popover using top/left with no transforms.
-    let menuLeft = effectiveAlign === 'center' ? x - rect.width / 2 : x;
-    let menuTop: number = y;
+    let menuLeft =
+      (effectiveAlign === 'center'
+        ? x - rect.width / 2
+        : effectiveAlign === 'end'
+          ? x - rect.width
+          : x) + offsetX;
+    let menuTop: number = y + offsetY;
     let useStartAlign = false;
 
     if (effectiveAnchorToSelected) {
@@ -144,7 +157,11 @@
               ? (() => {
                   const r = anchor?.getBoundingClientRect() ?? null;
                   if (!r) return xProp;
-                  return effectiveAlign === 'start' ? r.left : r.left + r.width / 2;
+                  return effectiveAlign === 'start'
+                    ? r.left
+                    : effectiveAlign === 'end'
+                      ? r.right
+                      : r.left + r.width / 2;
                 })()
               : rawX,
           y:
@@ -160,7 +177,17 @@
   const popoverAlign = 'start';
   const popoverAlignY = 'start';
 
-  export function show(x: number, y: number, items: DropdownMenuItem[], options?: { openAbove?: boolean; align?: 'start' | 'center'; alignY?: 'start' | 'center'; anchorToSelected?: boolean }): void {
+  export function show(
+    x: number,
+    y: number,
+    items: DropdownMenuItem[],
+    options?: {
+      openAbove?: boolean;
+      align?: 'start' | 'center' | 'end';
+      alignY?: 'start' | 'center';
+      anchorToSelected?: boolean;
+    }
+  ): void {
     rawX = x;
     rawY = y;
     imperativeItems = items;
@@ -215,6 +242,8 @@
             label={item.label}
             disabled={item.disabled}
             selected={item.selected}
+            iconName={item.iconName}
+            iconVariant={item.iconVariant}
             onclick={() => handleItemAction(item)}
           />
         {/each}

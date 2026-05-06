@@ -1,0 +1,82 @@
+{
+  "format": "shadernoice-node-graph",
+  "formatVersion": "2.0",
+  "graph": {
+    "id": "graph-preset-blur-softening",
+    "name": "Blur Softening",
+    "version": "2.0",
+    "nodes": [
+      {
+        "id": "node-uv",
+        "type": "uv-coordinates",
+        "position": { "x": -1200, "y": 0 },
+        "parameters": {}
+      },
+      {
+        "id": "node-noise",
+        "type": "noise",
+        "position": { "x": -600, "y": 0 },
+        "parameters": {}
+      },
+      {
+        "id": "node-color-map",
+        "type": "color-map",
+        "position": { "x": 0, "y": 0 },
+        "parameters": {}
+      },
+      {
+        "id": "node-blur",
+        "type": "blur",
+        "position": { "x": 650, "y": 0 },
+        "parameters": {}
+      },
+      {
+        "id": "node-output",
+        "type": "final-output",
+        "position": { "x": 1250, "y": 0 },
+        "parameters": {}
+      }
+    ],
+    "connections": [
+      {
+        "id": "conn-uv-noise",
+        "sourceNodeId": "node-uv",
+        "sourcePort": "out",
+        "targetNodeId": "node-noise",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-noise-color",
+        "sourceNodeId": "node-noise",
+        "sourcePort": "out",
+        "targetNodeId": "node-color-map",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-color-blur",
+        "sourceNodeId": "node-color-map",
+        "sourcePort": "out",
+        "targetNodeId": "node-blur",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-blur-out",
+        "sourceNodeId": "node-blur",
+        "sourcePort": "out",
+        "targetNodeId": "node-output",
+        "targetPort": "in"
+      }
+    ],
+    "viewState": {
+      "zoom": 0.8,
+      "panX": 200,
+      "panY": 150,
+      "selectedNodeIds": []
+    },
+    "automation": {
+      "bpm": 120,
+      "durationSeconds": 30,
+      "lanes": []
+    }
+  }
+}

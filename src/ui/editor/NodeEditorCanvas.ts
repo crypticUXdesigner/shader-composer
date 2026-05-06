@@ -21,7 +21,6 @@ import type { ToolType, CanvasOverlayBridge } from '../../types/editor';
 import {
   ViewStateManager,
   SelectionManager,
-  SmartGuidesManager,
   EdgeScrollManager,
   KeyboardShortcutHandler,
   UIElementManager,
@@ -44,7 +43,6 @@ import { EffectiveValueUpdateRunner } from './EffectiveValueUpdateRunner';
 import { initializeCanvas } from './CanvasInitializer';
 import * as CanvasCoordinateHelper from './CanvasCoordinateHelper';
 import type { createCanvasStateSync, ConnectionStateUpdate } from './CanvasStateSync';
-import type { createSmartGuidesCalculator } from './SmartGuidesCalculator';
 import { createDocumentListeners } from './DocumentListeners';
 import {
   buildMouseEventHandlerDeps,
@@ -55,7 +53,6 @@ import {
 } from './EventHandlerDeps';
 import { createHandlerContext, type HandlerContextSource } from './HandlerContextFactory';
 import { createNodeEditorCanvasStateBridge } from './NodeEditorCanvasStateBridge';
-import { createCanvasOverlayAndGuides } from './CanvasOverlayAndGuides';
 import { runNodeEditorCanvasPostInit } from './NodeEditorCanvasPostInit';
 
 export interface CanvasState {
@@ -88,7 +85,7 @@ export class NodeEditorCanvas {
   private parameterConnectionsOverlayCanvas: HTMLCanvasElement | null = null; // Rendered above DomNodeLayer so param connections appear on top
   /** When set, used for param port screen→canvas so connection endpoints match DOM node layer. */
   private connectionRectProvider: (() => DOMRect | null) | null = null;
-  private topOverlayCanvas: HTMLCanvasElement | null = null; // Temp connection, smart guides, selection rect – above nodes
+  private topOverlayCanvas: HTMLCanvasElement | null = null; // Temp connection + selection rect – above nodes
   private overlayLayerRenderer: OverlayLayerRenderer | null = null; // Stored for conditional unregister when using top overlay
   private interactionManager: InteractionManager | null = null; // Phase 2.4: Interaction handler system
   // Rendering state is now managed by RenderingOrchestrator
@@ -103,12 +100,12 @@ export class NodeEditorCanvas {
   private draggedNodeIds: Set<string> = new Set();
   private stateSync!: ReturnType<typeof createCanvasStateSync>;
   private stateBridge!: ReturnType<typeof createNodeEditorCanvasStateBridge>;
-  private calculateSmartGuidesFn!: ReturnType<typeof createSmartGuidesCalculator>;
   private documentListeners = createDocumentListeners();
-  private overlayAndGuides = createCanvasOverlayAndGuides();
+  private activeToolInternal: ToolType = 'cursor';
+  private selectionRectangle: { x: number; y: number; width: number; height: number } | null = null;
 
   get activeTool(): ToolType {
-    return this.overlayAndGuides.getActiveTool();
+    return this.activeToolInternal;
   }
 
   // Callbacks
@@ -153,7 +150,6 @@ export class NodeEditorCanvas {
   // Extracted managers (assigned in CanvasInitializer)
   private viewStateManager!: ViewStateManager;
   private selectionManager!: SelectionManager;
-  private smartGuidesManager!: SmartGuidesManager;
   private edgeScrollManager!: EdgeScrollManager;
   private keyboardShortcutHandler!: KeyboardShortcutHandler;
   private uiElementManager!: UIElementManager;
@@ -222,7 +218,7 @@ export class NodeEditorCanvas {
     initializeCanvas(this as unknown as import('./CanvasInitializer').CanvasInitTarget, graph, overlayBridge);
     runNodeEditorCanvasPostInit(this as unknown as import('./NodeEditorCanvasPostInit').NodeEditorCanvasPostInitTarget);
     // Refs used by CanvasInitializer / layer system, EventHandlerDeps or buildManagerContextDeps / post-init (satisfy noUnusedLocals)
-    void [this.stateSync, this.setupManagerContexts, this.setupInteractionHandlers, this.initializeEventHandlers, this.setupEventListeners, this.draggedNodeIds, this.getValidVirtualNodeIds, this.onFileParameterChanged, this.onFileDialogOpen, this.onFileDialogClose, this.onNodeLabelChanged, this.onTypeLabelClick, this.getParamPortPositionsFromDOM, this.getHeaderOutputPortPositionsFromDOM, this.getCanvasRectForConnections, this.renderSelectionRectangle, this.renderSmartGuides, this.getConnectionState, this.setConnectionState, this.getPanState, this.setPanState, this.getInteractionState, this.setInteractionState, this.updateMousePosition, this.detachDocumentListeners, this.onNodeDeleted, this.onConnectionDeleted, this.onSpacebarStateChange, this.isDialogVisible, this.onCopySelected, this.onPaste, this.onDuplicateSelected, this.hasClipboard, this.onUndo, this.onRedo, this.connectionLayerRenderer, this.parameterConnectionLayerRenderer, this.isSpacePressed, this.onNodeMoved, this.onNodeSelected, this.onConnectionSelected, this.onParameterChanged, this.onParameterInputModeChanged, this.connectionStateManager, this.getSelectionState, this.canvasToScreen, this.setSmartGuides, this.setDraggedNodeIds, this.setPanStateInternal, this.setSelectionRectangleInternal, this.renderState, this.screenToCanvas];
+    void [this.stateSync, this.setupManagerContexts, this.setupInteractionHandlers, this.initializeEventHandlers, this.setupEventListeners, this.draggedNodeIds, this.getValidVirtualNodeIds, this.onFileParameterChanged, this.onFileDialogOpen, this.onFileDialogClose, this.onNodeLabelChanged, this.onTypeLabelClick, this.getParamPortPositionsFromDOM, this.getHeaderOutputPortPositionsFromDOM, this.getCanvasRectForConnections, this.renderSelectionRectangle, this.getConnectionState, this.setConnectionState, this.getPanState, this.setPanState, this.getInteractionState, this.setInteractionState, this.updateMousePosition, this.detachDocumentListeners, this.onNodeDeleted, this.onConnectionDeleted, this.onSpacebarStateChange, this.isDialogVisible, this.onCopySelected, this.onPaste, this.onDuplicateSelected, this.hasClipboard, this.onUndo, this.onRedo, this.connectionLayerRenderer, this.parameterConnectionLayerRenderer, this.isSpacePressed, this.onNodeMoved, this.onNodeSelected, this.onConnectionSelected, this.onParameterChanged, this.onParameterInputModeChanged, this.connectionStateManager, this.getSelectionState, this.canvasToScreen, this.setDraggedNodeIds, this.setPanStateInternal, this.setSelectionRectangleInternal, this.renderState, this.screenToCanvas];
   }
 
   private getViewStateInternal(): { panX: number; panY: number; zoom: number } {
@@ -270,12 +266,8 @@ export class NodeEditorCanvas {
     this.stateBridge.updateMousePosition(x, y);
   }
 
-  getCurrentSmartGuides(): { vertical: Array<{ x: number; startY: number; endY: number }>; horizontal: Array<{ y: number; startX: number; endX: number }> } {
-    return this.overlayAndGuides.getCurrentGuides();
-  }
-
   getSelectionRectangle(): { x: number; y: number; width: number; height: number } | null {
-    return this.overlayAndGuides.getSelectionRectangle();
+    return this.selectionRectangle;
   }
 
   private setupManagerContexts(): void {
@@ -452,28 +444,31 @@ export class NodeEditorCanvas {
   
   // Visibility culling methods (getViewport, isNodeVisible, isConnectionVisible) are now handled by RenderingOrchestrator
   
-  private calculateSmartGuides(
-    draggingNode: NodeInstance,
-    proposedX: number,
-    proposedY: number
-  ): {
-    snappedX: number;
-    snappedY: number;
-    guides: { vertical: Array<{ x: number; startY: number; endY: number }>; horizontal: Array<{ y: number; startX: number; endX: number }> };
-  } {
-    return this.calculateSmartGuidesFn(draggingNode, proposedX, proposedY);
-  }
-
   private renderSelectionRectangle(ctx?: CanvasRenderingContext2D): void {
-    this.overlayAndGuides.renderSelectionRectangle(ctx ?? this.ctx, () => this.getViewStateInternal());
-  }
-
-  private renderSmartGuides(ctx?: CanvasRenderingContext2D): void {
-    this.overlayAndGuides.renderSmartGuides(ctx ?? this.ctx, this.viewStateManager, this.canvas, this.smartGuidesManager);
+    const rect = this.selectionRectangle;
+    if (!rect) return;
+    const c = ctx ?? this.ctx;
+    const { zoom } = this.getViewStateInternal();
+    c.save();
+    c.fillStyle = 'rgba(100, 150, 255, 0.1)';
+    c.strokeStyle = '#4a9eff';
+    c.lineWidth = 1 / zoom;
+    c.setLineDash([4 / zoom, 4 / zoom]);
+    c.fillRect(rect.x, rect.y, rect.width, rect.height);
+    c.strokeRect(rect.x, rect.y, rect.width, rect.height);
+    c.setLineDash([]);
+    c.restore();
   }
 
   public setActiveTool(tool: ToolType): void {
-    this.overlayAndGuides.setActiveTool(tool, this.canvas);
+    this.activeToolInternal = tool;
+    if (tool === 'hand') {
+      this.canvas.style.cursor = 'grab';
+    } else if (tool === 'select') {
+      this.canvas.style.cursor = 'crosshair';
+    } else {
+      this.canvas.style.cursor = 'default';
+    }
   }
   
   // handleMouseUp removed - now handled by MouseEventHandler
@@ -511,7 +506,7 @@ export class NodeEditorCanvas {
   }
 
   /**
-   * Set the top overlay canvas for temporary connection, smart guides, selection rect.
+   * Set the top overlay canvas for temporary connection and selection rect.
    * When set, overlay content renders here (above DOM nodes) instead of the main canvas.
    */
   public setTopOverlayCanvas(canvas: HTMLCanvasElement | null): void {
@@ -623,35 +618,6 @@ export class NodeEditorCanvas {
   }
 
   /**
-   * Calculate smart guides and snap position (for DOM node drag - WP 14A)
-   */
-  public calculateSmartGuidesForDOM(
-    draggingNode: NodeInstance,
-    proposedX: number,
-    proposedY: number
-  ): {
-    snappedX: number;
-    snappedY: number;
-    guides: { vertical: Array<{ x: number; startY: number; endY: number }>; horizontal: Array<{ y: number; startX: number; endX: number }> };
-  } {
-    return this.calculateSmartGuides(draggingNode, proposedX, proposedY);
-  }
-
-  /**
-   * Set smart guides from external source (e.g. DOM node drag - WP 14A)
-   */
-  public setSmartGuidesFromDOM(guides: {
-    vertical: Array<{ x: number; startY: number; endY: number }>;
-    horizontal: Array<{ y: number; startX: number; endX: number }>;
-  }): void {
-    this.overlayAndGuides.setCurrentGuides(guides);
-  }
-
-  public clearSmartGuides(): void {
-    this.overlayAndGuides.setCurrentGuides({ vertical: [], horizontal: [] });
-  }
-
-  /**
    * Set selection from DOM layer (when user clicks a node in DomNodeLayer).
    * Keeps canvas selection in sync so getViewState() and the wrapper's sync loop don't overwrite the selection.
    */
@@ -711,8 +677,41 @@ export class NodeEditorCanvas {
     return !!started;
   }
 
-  private setSmartGuides(guides: { vertical: Array<{ x: number; startY: number; endY: number }>; horizontal: Array<{ y: number; startX: number; endX: number }> }): void {
-    this.overlayAndGuides.setCurrentGuides(guides);
+  /**
+   * Programmatically center the viewport on a node and select it.
+   * Used by timeline/automation UI to "jump to" the driven parameter's node.
+   */
+  public focusNode(nodeId: string, options?: { zoom?: number; targetScreenYFrac?: number }): void {
+    const node = this.graph.nodes.find((n) => n.id === nodeId);
+    if (!node) return;
+
+    // Ensure we have metrics to compute a reasonable center point.
+    let metrics = this.nodeMetrics.get(nodeId);
+    if (!metrics) {
+      const spec = this.nodeSpecs.get(node.type);
+      if (spec) {
+        metrics = this.nodeRenderer.calculateMetrics(node, spec);
+        this.nodeMetrics.set(nodeId, metrics);
+      }
+    }
+
+    const w = metrics?.width ?? 240;
+    const h = metrics?.height ?? 140;
+    const centerCanvasX = node.position.x + w / 2;
+    const centerCanvasY = node.position.y + h / 2;
+
+    const rect = this.canvas.getBoundingClientRect();
+    const zoom = options?.zoom ?? this.viewStateManager.getState().zoom;
+    const targetScreenYFrac = options?.targetScreenYFrac ?? 0.38;
+    const targetScreenX = rect.width / 2;
+    const targetScreenY = rect.height * targetScreenYFrac;
+
+    const panX = targetScreenX - centerCanvasX * zoom;
+    const panY = targetScreenY - centerCanvasY * zoom;
+
+    this.viewStateManager.setViewState({ zoom, panX, panY });
+    this.selectionManager.selectNode(nodeId, false);
+    this.renderingOrchestrator.requestRender();
   }
 
   private setDraggedNodeIds(nodeIds: string[]): void {
@@ -728,7 +727,7 @@ export class NodeEditorCanvas {
   }
 
   private setSelectionRectangleInternal(rect: { x: number; y: number; width: number; height: number } | null): void {
-    this.overlayAndGuides.setSelectionRectangle(rect);
+    this.selectionRectangle = rect;
   }
 
   getOnConnectionCreated(): NodeEditorCanvas['onConnectionCreated'] {
@@ -736,7 +735,7 @@ export class NodeEditorCanvas {
   }
 
   getActiveTool(): ToolType {
-    return this.overlayAndGuides.getActiveTool();
+    return this.activeToolInternal;
   }
 
   public createHandlerContext(): HandlerContext {
@@ -748,9 +747,10 @@ export class NodeEditorCanvas {
   }
   
   /**
-   * Set the spacebar state change callback (for visual feedback)
+   * Set the spacebar state change callback (for visual feedback).
+   * Pass `undefined` to clear when unwiring the canvas from the app shell.
    */
-  public setSpacebarStateChangeCallback(callback: (isPressed: boolean) => void): void {
+  public setSpacebarStateChangeCallback(callback: ((isPressed: boolean) => void) | undefined): void {
     this.onSpacebarStateChange = callback;
   }
 

@@ -3,6 +3,8 @@
  * and ui (canvas engine). This module must not import from lib or ui.
  */
 
+import type { IconName } from '../utils/icons';
+
 /** Canvas tool: cursor, hand, lasso select, add node (Alt+click), or patch into a wire. */
 export type ToolType = 'cursor' | 'hand' | 'select' | 'add' | 'patch';
 
@@ -12,6 +14,9 @@ export interface DropdownMenuItem {
   action: () => void;
   disabled?: boolean;
   selected?: boolean;
+  /** Optional decorative leading icon (visual only; label remains accessible name). */
+  iconName?: IconName;
+  iconVariant?: 'line' | 'filled';
 }
 
 /** OKLCH color triple used by the color picker overlay bridge. */

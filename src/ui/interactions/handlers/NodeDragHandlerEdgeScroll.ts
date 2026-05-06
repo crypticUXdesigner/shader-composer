@@ -87,10 +87,8 @@ export function createNodeDragEdgeScroll(deps: NodeDragEdgeScrollDeps): {
               drag.currentMouseX - drag.dragOffsetX,
               drag.currentMouseY - drag.dragOffsetY
             );
-            const { snappedX, snappedY, guides } = deps.context.calculateSmartGuides?.(node, canvasPos.x, canvasPos.y)
-              ?? { snappedX: canvasPos.x, snappedY: canvasPos.y, guides: { vertical: [], horizontal: [] } };
-            const deltaX = snappedX - drag.draggingNodeInitialPos.x;
-            const deltaY = snappedY - drag.draggingNodeInitialPos.y;
+            const deltaX = canvasPos.x - drag.draggingNodeInitialPos.x;
+            const deltaY = canvasPos.y - drag.draggingNodeInitialPos.y;
             const movedNodeIds: string[] = [];
             for (const [nodeId, initialPos] of drag.selectedNodesInitialPositions.entries()) {
               const selectedNode = graph.nodes.find(n => n.id === nodeId);
@@ -101,10 +99,8 @@ export function createNodeDragEdgeScroll(deps: NodeDragEdgeScrollDeps): {
                 movedNodeIds.push(nodeId);
               }
             }
-            deps.context.setSmartGuides?.(guides);
             deps.context.setDraggedNodeIds?.(movedNodeIds);
             deps.context.markNodesDirty?.(movedNodeIds);
-            deps.context.markLayerDirty?.(RenderLayer.Overlays);
             const connectionsToUpdate: string[] = [];
             for (const nodeId of movedNodeIds) {
               for (const conn of graph.connections) {

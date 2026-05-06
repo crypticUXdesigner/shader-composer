@@ -409,7 +409,7 @@ export class ShaderInstance implements Disposable {
   }
 
   /**
-   * Set timeline time uniform (for automation; WP 03).
+   * Set timeline time uniform (for automation).
    * Set each frame from timeline currentTime so automation in shader stays in sync.
    */
   setTimelineTime(time: number): void {

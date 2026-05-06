@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * FrequencyRangeEditor - WP 07
+   * FrequencyRangeEditor
    * Compose: SpectrumStrip, FrequencyScale, RangeSlider (horizontal), ValueInput ×2 (start/end Hz)
    * Spectrum parity: selected violet, unselected gray; log scale 20–20k Hz.
    */
@@ -8,6 +8,8 @@
   import FrequencyScale from './FrequencyScale.svelte';
   import { RangeSlider, ValueInput } from '../ui';
   import { hzToNorm, normToHz, FREQ_MIN, FREQ_MAX } from './frequencyUtils';
+
+  const DEFAULT_HALF_LIFE_SECONDS = 1 / 120;
 
   interface Props {
     /** [[minHz, maxHz]] - single band */
@@ -18,8 +20,6 @@
     /** When provided with onFftSizeChange, value shown in FFT size input (e.g. band.fftSize) */
     fftSizeValue?: number;
     smoothing?: number;
-    /** Time-based smoothing half-life (seconds). */
-    smoothingHalfLifeSeconds?: number;
     /** Optional attack half-life (seconds) for rising edges. When provided with handler, preferred over symmetric half-life. */
     attackHalfLifeSeconds?: number;
     /** Optional release half-life (seconds) for falling edges. When provided with handler, preferred over symmetric half-life. */
@@ -30,7 +30,6 @@
     showSmoothingFft?: boolean;
     onChange?: (bands: [[number, number]]) => void;
     onSmoothingChange?: (value: number) => void;
-    onSmoothingHalfLifeSecondsChange?: (value: number) => void;
     onAttackHalfLifeSecondsChange?: (value: number | undefined) => void;
     onReleaseHalfLifeSecondsChange?: (value: number | undefined) => void;
     onFftSizeChange?: (value: number) => void;
@@ -43,7 +42,6 @@
     fftSize = 2048,
     fftSizeValue,
     smoothing = 0.5,
-    smoothingHalfLifeSeconds,
     attackHalfLifeSeconds,
     releaseHalfLifeSeconds,
     disabled = false,
@@ -51,7 +49,6 @@
     showSmoothingFft = true,
     onChange,
     onSmoothingChange,
-    onSmoothingHalfLifeSecondsChange,
     onAttackHalfLifeSecondsChange,
     onReleaseHalfLifeSecondsChange,
     onFftSizeChange,
@@ -88,11 +85,6 @@
 
   function handleSmoothingChange(value: number) {
     onSmoothingChange?.(Math.max(0, Math.min(1, value)));
-  }
-
-  function handleSmoothingHalfLifeMsChange(value: number) {
-    const ms = Math.max(0, value);
-    onSmoothingHalfLifeSecondsChange?.(ms / 1000);
   }
 
   function handleAttackHalfLifeMsChange(value: number) {
@@ -179,7 +171,7 @@
             <span class="field-label">Attack / Release</span>
             <div class="attack-release">
               <ValueInput
-                value={Math.round(((attackHalfLifeSeconds ?? smoothingHalfLifeSeconds ?? 0) as number) * 1000)}
+                value={Math.round(((attackHalfLifeSeconds ?? DEFAULT_HALF_LIFE_SECONDS) as number) * 1000)}
                 min={0}
                 max={10000}
                 step={1}
@@ -191,7 +183,7 @@
                 class="attack-half-life-input"
               />
               <ValueInput
-                value={Math.round(((releaseHalfLifeSeconds ?? smoothingHalfLifeSeconds ?? 0) as number) * 1000)}
+                value={Math.round(((releaseHalfLifeSeconds ?? DEFAULT_HALF_LIFE_SECONDS) as number) * 1000)}
                 min={0}
                 max={10000}
                 step={1}
@@ -203,20 +195,6 @@
                 class="release-half-life-input"
               />
             </div>
-          {:else if onSmoothingHalfLifeSecondsChange != null}
-            <span class="field-label">Half-life</span>
-            <ValueInput
-              value={Math.round((smoothingHalfLifeSeconds ?? 0) * 1000)}
-              min={0}
-              max={10000}
-              step={1}
-              decimals={0}
-              size="sm"
-              {disabled}
-              onChange={handleSmoothingHalfLifeMsChange}
-              onCommit={handleSmoothingHalfLifeMsChange}
-              class="smoothing-half-life-input"
-            />
           {:else if onSmoothingChange != null}
             <span class="field-label">Smooth</span>
             <ValueInput

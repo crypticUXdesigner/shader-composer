@@ -186,12 +186,14 @@ layer but still converge through the same serialize/deserialize path:
 
 - `presetManager.loadPreset(name, toValidationSpecs(nodeSystemSpecs))`:
   - Handles legacy preset shapes (raw `graph` vs `SerializedGraphFile` wrapper),
-  - Applies `migrateNoiseNodes`, `migrateBloomSphereColors`, and `migrateDriveHomeLightsSkyGradient` to the in-memory `graph`,
+  - Applies `migrateLegacyNodeGraph` (noise, kaleidoscope merge, displace 2D unify, bloom sphere colors, drive-home lights sky) to the in-memory `graph`,
   - Serializes via `serializeGraph` and immediately deserializes via `deserializeGraph` so
     `validateGraph` and the format-version–aware registry run on the final file shape.
 - `presetManager.loadPresetFromJson(json, toValidationSpecs(nodeSystemSpecs))`:
-  - Deserializes user-provided JSON via `deserializeGraph`,
-  - Then applies `migrateNoiseNodes`, `migrateBloomSphereColors`, and `migrateDriveHomeLightsSkyGradient` to the validated `graph`.
+  - Parses via `deserializeGraphUnvalidated` (no spec validation yet),
+  - Applies `migrateLegacyNodeGraph`, then serializes and `deserializeGraph` for full validation.
+
+`defaultState.loadDefaultState` uses the same **unvalidated → `migrateLegacyNodeGraph` → validate** round-trip so saved localStorage graphs with removed node types still load.
 
 In both flows, the **single source of truth** for persisted graphs is the serialized
 `SerializedGraphFile` shape guarded by `deserializeGraph` and its migration registry.

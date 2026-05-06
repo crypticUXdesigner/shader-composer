@@ -41,12 +41,41 @@
   let editing = $state(false);
   let editText = $state('');
   let inputEl: HTMLInputElement | undefined = $state();
+  let rootEl: HTMLElement | undefined = $state();
 
   onMount(() => {
     if (!autoEditOnMount || disabled) return;
     queueMicrotask(() => {
       startEdit();
     });
+  });
+
+  $effect(() => {
+    if (!editing) return;
+
+    // Some clicks (notably right-click/contextmenu or clicks on non-focusable areas)
+    // don't reliably cause the input to blur. Capture-phase listeners ensure we stop editing
+    // as soon as the user interacts outside this component.
+    function isOutsideTarget(target: EventTarget | null): boolean {
+      if (!rootEl) return false;
+      return !(target instanceof Node) || !rootEl.contains(target);
+    }
+
+    function onWindowPointerDown(e: PointerEvent) {
+      if (isOutsideTarget(e.target)) commit();
+    }
+
+    function onWindowContextMenu(e: MouseEvent) {
+      if (isOutsideTarget(e.target)) commit();
+    }
+
+    window.addEventListener('pointerdown', onWindowPointerDown, true);
+    window.addEventListener('contextmenu', onWindowContextMenu, true);
+
+    return () => {
+      window.removeEventListener('pointerdown', onWindowPointerDown, true);
+      window.removeEventListener('contextmenu', onWindowContextMenu, true);
+    };
   });
 
   function startEdit() {
@@ -94,6 +123,7 @@
   }
 </script>
 
+<span bind:this={rootEl} class="editable-label-root">
 {#if editing}
   <input
     bind:this={inputEl}
@@ -118,8 +148,15 @@
     {prefix}{value || placeholder || '—'}
   </span>
 {/if}
+</span>
 
 <style>
+  .editable-label-root {
+    display: inline-block;
+    width: 100%;
+    min-width: 0;
+  }
+
   .editable-label,
   .editable-label-input {
     display: inline-block;
@@ -142,6 +179,7 @@
     white-space: nowrap;
     line-height: 1;
     vertical-align: middle;
+    font-size: var(--text-sm);
   }
 
   .editable-label:focus-visible {
@@ -153,6 +191,7 @@
     border-color: var(--color-gray-70);
     background: var(--color-gray-30);
     color: var(--color-gray-130);
+    font-size: var(--text-sm);
   }
 
   .editable-label-input:focus {

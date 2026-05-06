@@ -22,5 +22,5 @@ export {
   HelpCallout,
 } from './floating-panel';
 export { SignalConnectionPicker } from './audio';
-export { VideoExportDialog } from './export';
+export { VideoExportDialog, ImageExportDialog } from './export';
 export { ValueInput, RangeSlider, VerticalRangeSlider } from './ui';

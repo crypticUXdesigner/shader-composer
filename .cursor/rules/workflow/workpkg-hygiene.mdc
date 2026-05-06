@@ -8,15 +8,15 @@ alwaysApply: false
 
 ## Naming
 
-`[project]-[NN][parallel]-[task-slug].md`
+`[NN][parallel]-[task-slug]-[project].md`
 
-- **Sequential:** `layout-system-01-flexbox-engine.md`
-- **Parallel streams (same prereq):** `layout-system-02A-grid.md` + `layout-system-02B-header-body.md`
+- **Sequential:** `01-flexbox-engine-layout-system.md`
+- **Parallel streams (same prereq):** `02A-grid-layout-system.md` + `02B-header-body-layout-system.md`
 - Letters = parallel batches after the prerequisite number (**02A/B**, never `01A` when dependency is `01`)
 
 ## Structure
 
-- **Single artifact:** optional lone `docs/implementation/foo-01-task.md`
+- **Single artifact:** optional lone `docs/implementation/01-task-foo.md`
 - **Package:** `docs/implementation/<project>/_OVERVIEW.md` + numbered tasks in the same directory (see **`define-project` / `define-tasks`** skills).
 - **_OVERVIEW:** no dependency ASCII art — Dependencies field per work package is enough.
 

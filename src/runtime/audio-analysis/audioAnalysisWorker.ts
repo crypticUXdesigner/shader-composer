@@ -7,6 +7,7 @@ import type {
   AudioAnalysisWorkerError,
 } from './audioAnalysisWorkerTypes';
 import type { AnalyzerConfig } from '../../video-export/OfflineAudioProvider';
+import { extractFrequencyBands01Into } from '../audio/extractFrequencyBands01';
 
 const TWO_PI = 2 * Math.PI;
 
@@ -147,28 +148,6 @@ function prevRetentionFromTau(dt: number, tau: number): number {
   return Math.exp(-dt / tau);
 }
 
-function extractFrequencyBands(
-  frequencyData: Uint8Array,
-  frequencyBands: Array<{ minHz: number; maxHz: number }>,
-  sampleRate: number,
-  fftSize: number
-): number[] {
-  const out: number[] = [];
-  for (const band of frequencyBands) {
-    const minBin = Math.floor((band.minHz / sampleRate) * fftSize);
-    const maxBin = Math.ceil((band.maxHz / sampleRate) * fftSize);
-    let sum = 0;
-    let count = 0;
-    for (let i = minBin; i <= maxBin && i < frequencyData.length; i++) {
-      sum += frequencyData[i]!;
-      count++;
-    }
-    const average = count > 0 ? sum / count : 0;
-    out.push(average / 255.0);
-  }
-  return out;
-}
-
 function buildChannels(analyzers: AnalyzerConfig[], remappers: Array<{ id: string; bandId: string; inMin: number; inMax: number; outMin: number; outMax: number }>) {
   const channels: Array<{ nodeId: string; paramName: string; min?: number; max?: number; defaultValue?: number; kind: 'band' | 'remap' | 'remapperOut'; index?: number }> = [];
   for (const a of analyzers) {
@@ -262,7 +241,15 @@ self.onmessage = (ev: MessageEvent<AudioAnalysisWorkerRequest>) => {
         }
 
         for (const a of analyzerConfigs) {
-          const bandValues = extractFrequencyBands(spectrumBytes, a.frequencyBands, sampleRate, a.mappingFftSize);
+          const bandValues: number[] = new Array(a.frequencyBands.length).fill(0);
+          extractFrequencyBands01Into(
+            spectrumBytes,
+            a.frequencyBands,
+            a.bandModes,
+            sampleRate,
+            a.mappingFftSize,
+            bandValues
+          );
           let smoothed = smoothedBandsById.get(a.nodeId);
           if (!smoothed || smoothed.length !== bandValues.length) {
             smoothed = new Array(bandValues.length).fill(0);

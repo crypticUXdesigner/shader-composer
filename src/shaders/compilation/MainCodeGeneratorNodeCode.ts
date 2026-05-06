@@ -13,6 +13,7 @@ export function generatePromotionCode(
   targetType: string
 ): string {
   if (sourceType === targetType) return sourceVar;
+  if (targetType === 'any' || sourceType === 'any') return sourceVar;
   const promotions: Record<string, Record<string, string>> = {
     float: { vec2: `vec2(${sourceVar}, ${sourceVar})`, vec3: `vec3(${sourceVar}, ${sourceVar}, ${sourceVar})`, vec4: `vec4(${sourceVar}, ${sourceVar}, ${sourceVar}, 1.0)` },
     vec2: { vec3: `vec3(${sourceVar}.x, ${sourceVar}.y, 0.0)`, vec4: `vec4(${sourceVar}.x, ${sourceVar}.y, 0.0, 1.0)` },
@@ -112,6 +113,7 @@ export function substituteInputRefsInExpression(
 
 export type NodeCodeContext = PlaceholderContext & {
   nodeSpecs: Map<string, NodeSpec>;
+  effectiveNodeSpecsById?: Map<string, NodeSpec>;
   getGenericRaymarcherReplacements: (
     node: NodeInstance,
     graph: NodeGraph,
@@ -151,7 +153,7 @@ export function generateNodeCode(
 
     const sourceNode = graph.nodes.find(n => n.id === conn.sourceNodeId);
     if (!sourceNode) continue;
-    const sourceSpec = ctx.nodeSpecs.get(sourceNode.type);
+    const sourceSpec = ctx.effectiveNodeSpecsById?.get(sourceNode.id) ?? ctx.nodeSpecs.get(sourceNode.type);
     if (!sourceSpec) continue;
     const sourceOutput = sourceSpec.outputs.find(o => o.name === conn.sourcePort);
     if (!sourceOutput) continue;

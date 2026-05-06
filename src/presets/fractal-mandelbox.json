@@ -1,0 +1,90 @@
+{
+  "format": "shadernoice-node-graph",
+  "formatVersion": "2.0",
+  "graph": {
+    "id": "graph-fractal-mandelbox",
+    "name": "Fractal — Mandelbox",
+    "version": "2.0",
+    "nodes": [
+      {
+        "id": "node-uv",
+        "type": "uv-coordinates",
+        "position": { "x": -200, "y": 200 },
+        "parameters": {}
+      },
+      {
+        "id": "node-fisheye",
+        "type": "fisheye",
+        "position": { "x": 200, "y": 200 },
+        "parameters": {
+          "fisheyeCenterX": 0.0,
+          "fisheyeCenterY": 0.0,
+          "fisheyeStrength": -0.35,
+          "fisheyeAspect": 1.0
+        }
+      },
+      {
+        "id": "node-fractal",
+        "type": "mandelbox-sdf",
+        "position": { "x": 250, "y": 520 },
+        "parameters": {}
+      },
+      {
+        "id": "node-raymarch",
+        "type": "generic-raymarcher",
+        "position": { "x": 1200, "y": 240 },
+        "parameters": {
+          "raymarchSteps": 96,
+          "glowIntensity": 0.32,
+          "brightness": 1.2,
+          "cameraRoX": 0.0,
+          "cameraRoY": 0.0,
+          "cameraRoZ": 3.5
+        }
+      },
+      {
+        "id": "node-output",
+        "type": "final-output",
+        "position": { "x": 2100, "y": 240 },
+        "parameters": {}
+      }
+    ],
+    "connections": [
+      {
+        "id": "conn-uv-to-fisheye",
+        "sourceNodeId": "node-uv",
+        "sourcePort": "out",
+        "targetNodeId": "node-fisheye",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-fisheye-to-raymarch",
+        "sourceNodeId": "node-fisheye",
+        "sourcePort": "out",
+        "targetNodeId": "node-raymarch",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-fractal-to-raymarch",
+        "sourceNodeId": "node-fractal",
+        "sourcePort": "out",
+        "targetNodeId": "node-raymarch",
+        "targetPort": "sdf"
+      },
+      {
+        "id": "conn-raymarch-to-output",
+        "sourceNodeId": "node-raymarch",
+        "sourcePort": "color",
+        "targetNodeId": "node-output",
+        "targetPort": "in"
+      }
+    ],
+    "viewState": {
+      "zoom": 0.4,
+      "panX": 80,
+      "panY": 220,
+      "selectedNodeIds": []
+    }
+  },
+  "audioSetup": { "files": [], "bands": [], "remappers": [] }
+}

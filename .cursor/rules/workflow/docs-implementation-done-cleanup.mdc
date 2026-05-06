@@ -1,0 +1,57 @@
+---
+description: Clean up completed docs/implementation work packages (safe delete/move rules).
+globs: "docs/implementation/**/*.md,docs/implementation/**"
+alwaysApply: false
+---
+
+# Cleanup completed `docs/implementation/` work packages
+
+Use this when `docs/implementation/**` has many packages and you want to remove *done* ones without breaking links.
+
+## What counts as “done”
+
+A package is **done** only when its `docs/implementation/<pkg>/_OVERVIEW.md` clearly indicates completion, e.g.
+
+- Status line includes **Done / Completed / Shipped**
+- A top “✅ Done” section exists and is unambiguous
+- Remaining tasks are explicitly marked completed
+
+If it’s ambiguous, treat as **not done**.
+
+## Safe cleanup algorithm (do this order)
+
+- **Inventory**: list `docs/implementation/**/_OVERVIEW.md`.
+- **Classify** each package: **done** vs **active** vs **ambiguous** (ask 1 question for ambiguous).
+- **Link check before delete** (must be clean):
+  - Search repo for `docs/implementation/<pkg>/` and the package slug.
+  - Confirm no links from:
+    - `docs/implementation/README.md`
+    - other `docs/implementation/**/_OVERVIEW.md`
+    - `.cursor/skills/**` and `.cursor/commands/**`
+    - `docs/user-goals/**` or `docs/architecture/**`
+- **Decide outcome**:
+  - **Default for done packages**: **delete the package directory** (`docs/implementation/<pkg>/`) if there are **no inbound links** and it’s clearly “delivered”.
+  - **Keep** (don’t delete) if it contains:
+    - a long-lived **decision record** not captured elsewhere, or
+    - a reusable reference that’s still actively pointed to by commands/skills/user-goals.
+    In that case, **shrink** the package to a short “decision + pointers” doc and delete the rest.
+  - **Never invent new taxonomy** during cleanup. Only move into an **existing** folder if there’s a clear, already-established target.
+
+## Safety constraints
+
+- **No surprise deletions**: deleting any `docs/implementation/<pkg>/` directory requires an explicit “OK to delete `<pkg>`” from the human when not already obviously unreferenced.
+- Never delete from `docs/user-goals/` as part of this rule. (See `cleanup-docs.md`.)
+- Prefer **truth over volume**: if a package is historical but still useful, add a short header like “Historical (shipped YYYY-MM)” and keep it minimal.
+
+## When you do delete
+
+- Delete the entire directory `docs/implementation/<pkg>/`.
+- Update `docs/implementation/README.md` to remove any links/rows for that package.
+- Re-run repo search for the deleted path to ensure no broken references remain.
+
+## Example of a “done cleanup” report format
+
+- **`docs/implementation/<pkg>/`**:
+  - **status**: done
+  - **inbound links**: none found
+  - **recommendation**: delete package directory + remove from `docs/implementation/README.md`

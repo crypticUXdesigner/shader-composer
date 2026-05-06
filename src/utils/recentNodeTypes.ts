@@ -1,8 +1,8 @@
 /**
- * Persisted recent node type ids for the canvas Add picker (deduplicated, max 10).
+ * Persisted recent node type ids for the canvas Add picker (deduplicated, max 5).
  */
 const STORAGE_KEY = 'shader-noice.recent-node-types-v1';
-const MAX = 10;
+const MAX = 5;
 
 export function loadRecentNodeTypes(): string[] {
   if (typeof localStorage === 'undefined') return [];

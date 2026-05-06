@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * SpectrumStrip - WP 07
+   * SpectrumStrip
    * Live FFT bars; selected range highlighted (teal), unselected dimmed (gray).
    * Log scale mapping 20–20k Hz. Uses canvas to avoid 256 DOM nodes and reactive updates per frame.
    */

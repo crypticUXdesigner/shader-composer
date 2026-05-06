@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * FrequencyScale - WP 07
+   * FrequencyScale
    * Log ticks: 20, 100, 250, 1k, 4k, 10k, 20k Hz
    */
   import { hzToNorm, FREQ_SCALE_TICKS } from './frequencyUtils';

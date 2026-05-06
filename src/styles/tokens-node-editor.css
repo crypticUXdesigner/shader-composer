@@ -15,12 +15,11 @@
  * 9. Icons / Other  → icon design, delete button, zoom
  */
 
-/* === 1. GRAPH LAYER (grid, bg, guides) === */
+/* === 1. GRAPH LAYER (grid, bg) === */
 --canvas-bg: var(--color-gray-40);
 --canvas-grid-color: var(--color-gray-60);
 --canvas-grid-size: 150px;
 --canvas-grid-dot-radius: 2.5px;
---smart-guide-color: var(--color-blue-90);
 
 /* === 2. NODE — BOX (outer container, border, shadow) === */
 --node-bg: var(--color-gray-80);

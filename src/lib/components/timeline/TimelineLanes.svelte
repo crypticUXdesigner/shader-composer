@@ -1,14 +1,40 @@
 <script lang="ts">
   import type { Action } from 'svelte/action';
   import { Button, IconSvg, NodeIconSvg } from '../ui';
-  import { automationLaneHasEvaluableRegions } from '../../../utils/automationEvaluator';
-  import { getAutomationHoldSpanTimeRanges } from './timelineAutomationHoldSpans';
   import { getNodeIcon } from '../../../utils/nodeSpecUtils';
+  import {
+    getCategorySlug,
+    isSystemInputNode,
+    isStructuredPatternNode,
+    isDerivedShapeNode,
+    isWarpDistortNode,
+    isFunctionsMathNode,
+    isAdvancedMathNode,
+    isStylizeEffectsNode,
+    isSdfRaymarcherNode,
+  } from '../../../utils/cssTokens';
+  import type { NodeSpec } from '../../../types/nodeSpec';
   import type { TimelineLaneRowViewModel } from './timelineLaneViewModel';
 
   type RegionKey = { laneId: string; regionId: string };
 
   export type LaneViewModel = TimelineLaneRowViewModel;
+
+  /** Mirrors DocsPanelItem / NodePanelItem subgroup classes for node-spec icon theming. */
+  function laneHeaderIconVariantClasses(spec: NodeSpec): string {
+    return [
+      isSystemInputNode(spec.id, spec.category) ? 'system-input' : '',
+      isStructuredPatternNode(spec.id, spec.category) ? 'structured' : '',
+      isDerivedShapeNode(spec.id, spec.category) ? 'derived' : '',
+      isWarpDistortNode(spec.id, spec.category) ? 'warp' : '',
+      isFunctionsMathNode(spec.id, spec.category) ? 'functions' : '',
+      isAdvancedMathNode(spec.id, spec.category) ? 'advanced' : '',
+      isStylizeEffectsNode(spec.id, spec.category) ? 'stylize' : '',
+      isSdfRaymarcherNode(spec.id, spec.category) ? 'raymarcher' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+  }
 
   interface Props {
     laneVMs: LaneViewModel[];
@@ -32,12 +58,14 @@
     onRegionDblClick?: (laneId: string, regionId: string) => void;
     onRegionResizeStart: (e: MouseEvent, laneId: string, regionId: string, edge: 'left' | 'right') => void;
     onPlayheadPointerDown: (e: PointerEvent) => void;
+    onRevealInNodeEditor?: (nodeId: string, paramName: string) => void;
 
     onTrackColumnEl?: (el: HTMLDivElement | null) => void;
     onLanesContainerEl?: (el: HTMLDivElement | null) => void;
     onPlayheadClipEl?: (el: HTMLDivElement | null) => void;
 
-    footerRight?: import('svelte').Snippet<[]>;
+    /** When there are no lanes but the playhead is shown, reserve track height so the absolute playhead strip is visible. */
+    playheadOnlyLayout?: boolean;
   }
 
   let {
@@ -47,6 +75,7 @@
     regionDrag,
     regionResize,
     timeToX,
+    playheadOnlyLayout = false,
     showPlayhead,
     playheadDragging,
     playheadX,
@@ -60,11 +89,16 @@
     onRegionDblClick,
     onRegionResizeStart,
     onPlayheadPointerDown,
+    onRevealInNodeEditor,
     onTrackColumnEl,
     onLanesContainerEl,
     onPlayheadClipEl,
-    footerRight,
   }: Props = $props();
+
+  function handleLaneRevealClick(e: MouseEvent, nodeId: string, paramName: string): void {
+    e.stopPropagation();
+    onRevealInNodeEditor?.(nodeId, paramName);
+  }
 
   const notifyDiv: Action<
     HTMLDivElement,
@@ -84,22 +118,30 @@
     <div class="track-headers-col">
       {#each laneVMs as vm (vm.lane.id)}
         <div class="lane-header" data-lane-id={vm.lane.id}>
-          <div class="lane-label">
+          <Button
+            variant="ghost"
+            size="sm"
+            class="lane-label-button"
+            title={`${vm.paramLabel} — ${vm.nodeLabel}. Reveal in node editor.`}
+            disabled={!onRevealInNodeEditor}
+            onclick={(e) => handleLaneRevealClick(e, vm.lane.nodeId, vm.lane.paramName)}
+          >
             {#if vm.spec}
-              <div class="lane-label-icon">
+              <div
+                class="lane-docs-icon {laneHeaderIconVariantClasses(vm.spec)}"
+                data-category={getCategorySlug(vm.spec.category)}
+                aria-hidden="true"
+              >
                 <NodeIconSvg identifier={getNodeIcon(vm.spec)} />
               </div>
             {/if}
-            <div
-              class="lane-label-text-col"
-              title={`${vm.paramLabel} — ${vm.nodeLabel}. Automation applies along the whole timeline (lead-in before the first region, hold in gaps, tail after the last region; looping repeats until the next region).`}
-            >
-              <div class="lane-label-param-row">
+            <span class="lane-label-text-col">
+              <span class="lane-label-param-row">
                 <span class="lane-label-param">{vm.paramLabel}</span>
-              </div>
+              </span>
               <span class="lane-label-node">{vm.nodeLabel}</span>
-            </div>
-          </div>
+            </span>
+          </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -118,7 +160,11 @@
     </div>
 
     <div use:notifyDiv={onTrackColumnEl} class="lanes-tracks-wrap">
-      <div use:notifyDiv={onLanesContainerEl} class="lanes-inner">
+      <div
+      use:notifyDiv={onLanesContainerEl}
+      class="lanes-inner"
+      class:lanes-inner--playhead-only={playheadOnlyLayout}
+    >
         {#each laneVMs as vm (vm.lane.id)}
           <div class="lane-row" data-lane-id={vm.lane.id}>
             <div class="track-wrap">
@@ -134,21 +180,6 @@
                     <div class="track-grid-line" style="left: {x}px"></div>
                   {/each}
                 </div>
-                {#if automationLaneHasEvaluableRegions(vm.lane)}
-                  {#each getAutomationHoldSpanTimeRanges(vm.lane, duration) as span, idx (`hold-${vm.lane.id}-${span.start}-${span.end}-${idx}`)}
-                    {@const gLeft = timeToX(span.start)}
-                    {@const gRight = timeToX(span.end)}
-                    {@const gW = Math.max(1, gRight - gLeft)}
-                    <div
-                      class="automation-hold-ghost"
-                      data-category={vm.categorySlug}
-                      data-subgroup={vm.subGroupSlug || undefined}
-                      style="left: {gLeft}px; width: {gW}px"
-                      aria-hidden="true"
-                      title="Automation holds the endpoint value here (before first region, between regions, or after the last)."
-                    ></div>
-                  {/each}
-                {/if}
                 {#each vm.lane.regions as region (region.id)}
                   {@const isDragging = regionDrag?.laneId === vm.lane.id && regionDrag?.regionId === region.id}
                   {@const isResizing = regionResize?.laneId === vm.lane.id && regionResize?.regionId === region.id}
@@ -222,22 +253,14 @@
       </div>
     </div>
   </div>
-
-  {#if footerRight}
-    <div class="timeline-footer">
-      <div class="footer-corner" aria-hidden="true"></div>
-      <div class="timeline-footer-tracks">
-        {@render footerRight()}
-      </div>
-    </div>
-  {/if}
 </div>
 
 <style>
   .timeline-shell {
-    flex: 1;
+    box-sizing: border-box;
+    width: 100%;
     min-width: 0;
-    min-height: 0;
+    min-height: 100%;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -262,61 +285,128 @@
     box-sizing: border-box;
   }
 
-  .timeline-footer {
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: row;
-    align-items: stretch;
-  }
-
-  .footer-corner {
-    flex-shrink: 0;
-    width: var(--track-header-width);
-    box-sizing: border-box;
-    padding-left: var(--pd-xs);
-  }
-
-  .timeline-footer-tracks {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: var(--pd-xs);
-    padding: 0 var(--pd-xs) var(--pd-xs);
-    box-sizing: border-box;
-    background: var(--color-gray-60);
-    border-radius: 0 0 var(--radius-md) var(--radius-md);
-    overflow: hidden;
-  }
-
   .lane-header {
     display: flex;
     align-items: center;
     gap: var(--pd-xs);
-    padding: 0 var(--pd-md);
+    padding: 0 var(--pd-sm);
     min-height: var(--size-md);
   }
 
-  .lane-label {
+  :global(.lane-label-button.sm.ghost) {
     flex: 1;
     min-width: 0;
+    justify-content: flex-start;
+    gap: var(--pd-sm);
+    padding: var(--pd-xs) var(--pd-xs);
+    transition: background-color var(--motion-effects-fast-duration) var(--motion-effects-fast-easing);
+  }
+
+  /* Docs-style category icon box (compact for track headers); tokens match DocsPanelItem.icon-box. */
+  .lane-docs-icon {
     display: flex;
     align-items: center;
-    gap: var(--pd-sm);
-    padding: var(--pd-xs) 0;
-    color: var(--print-highlight);
-  }
-
-  .lane-label-icon {
+    justify-content: center;
     flex-shrink: 0;
-    width: var(--icon-size-sm);
-    height: var(--icon-size-sm);
+    box-sizing: border-box;
+    width: var(--size-sm);
+    height: var(--size-sm);
+    padding: var(--pd-xs);
+    border-radius: var(--radius-sm);
+    background: var(--node-icon-box-bg-default);
   }
 
-  .lane-label-icon :global(svg) {
+  .lane-docs-icon :global(svg) {
     width: 100%;
     height: 100%;
     display: block;
+    color: var(--node-icon-box-color-default, var(--color-gray-120));
+  }
+
+  /* Category backgrounds (aligned with DocsPanelItem .icon-box) */
+  .lane-docs-icon[data-category='inputs'] { background: var(--node-icon-box-bg-inputs); }
+  .lane-docs-icon.system-input[data-category='inputs'] { background: var(--node-icon-box-bg-inputs-system); }
+  .lane-docs-icon[data-category='patterns'] { background: var(--node-icon-box-bg-patterns); }
+  .lane-docs-icon.structured[data-category='patterns'] { background: var(--node-icon-box-bg-patterns-structured); }
+  .lane-docs-icon[data-category='shapes'] { background: var(--node-icon-box-bg-shapes); }
+  .lane-docs-icon.derived[data-category='shapes'] { background: var(--node-icon-box-bg-shapes-derived); }
+  .lane-docs-icon[data-category='math'] { background: var(--node-icon-box-bg-math); }
+  .lane-docs-icon.functions[data-category='math'] { background: var(--node-icon-box-bg-math-functions); }
+  .lane-docs-icon.advanced[data-category='math'] { background: var(--node-icon-box-bg-math-advanced); }
+  .lane-docs-icon[data-category='utilities'] { background: var(--node-icon-box-bg-utilities); }
+  .lane-docs-icon[data-category='distort'] { background: var(--node-icon-box-bg-distort); }
+  .lane-docs-icon.warp[data-category='distort'] { background: var(--node-icon-box-bg-distort-warp); }
+  .lane-docs-icon[data-category='blend'] { background: var(--node-icon-box-bg-blend); }
+  .lane-docs-icon[data-category='mask'] { background: var(--node-icon-box-bg-mask); }
+  .lane-docs-icon[data-category='effects'] { background: var(--node-icon-box-bg-effects); }
+  .lane-docs-icon.stylize[data-category='effects'] { background: var(--node-icon-box-bg-effects-stylize); }
+  .lane-docs-icon[data-category='output'] { background: var(--node-icon-box-bg-output); }
+  .lane-docs-icon[data-category='audio'] { background: var(--node-icon-box-bg-audio); }
+  .lane-docs-icon[data-category='sdf'] { background: var(--node-icon-box-bg-sdf); }
+  .lane-docs-icon.raymarcher[data-category='sdf'] {
+    background: var(--node-icon-box-bg-sdf-raymarcher);
+  }
+
+  /* Category icon colors */
+  .lane-docs-icon[data-category='inputs'] :global(svg) {
+    color: var(--node-icon-box-color-inputs);
+  }
+  .lane-docs-icon.system-input[data-category='inputs'] :global(svg) {
+    color: var(--node-icon-box-color-inputs-system);
+  }
+  .lane-docs-icon[data-category='patterns'] :global(svg) {
+    color: var(--node-icon-box-color-patterns);
+  }
+  .lane-docs-icon.structured[data-category='patterns'] :global(svg) {
+    color: var(--node-icon-box-color-patterns-structured);
+  }
+  .lane-docs-icon[data-category='shapes'] :global(svg) {
+    color: var(--node-icon-box-color-shapes);
+  }
+  .lane-docs-icon.derived[data-category='shapes'] :global(svg) {
+    color: var(--node-icon-box-color-shapes-derived);
+  }
+  .lane-docs-icon[data-category='math'] :global(svg) {
+    color: var(--node-icon-box-color-math);
+  }
+  .lane-docs-icon.functions[data-category='math'] :global(svg) {
+    color: var(--node-icon-box-color-math-functions);
+  }
+  .lane-docs-icon.advanced[data-category='math'] :global(svg) {
+    color: var(--node-icon-box-color-math-advanced);
+  }
+  .lane-docs-icon[data-category='utilities'] :global(svg) {
+    color: var(--node-icon-box-color-utilities);
+  }
+  .lane-docs-icon[data-category='distort'] :global(svg) {
+    color: var(--node-icon-box-color-distort);
+  }
+  .lane-docs-icon.warp[data-category='distort'] :global(svg) {
+    color: var(--node-icon-box-color-distort-warp);
+  }
+  .lane-docs-icon[data-category='blend'] :global(svg) {
+    color: var(--node-icon-box-color-blend);
+  }
+  .lane-docs-icon[data-category='mask'] :global(svg) {
+    color: var(--node-icon-box-color-mask);
+  }
+  .lane-docs-icon[data-category='effects'] :global(svg) {
+    color: var(--node-icon-box-color-effects);
+  }
+  .lane-docs-icon.stylize[data-category='effects'] :global(svg) {
+    color: var(--node-icon-box-color-effects-stylize);
+  }
+  .lane-docs-icon[data-category='output'] :global(svg) {
+    color: var(--node-icon-box-color-output);
+  }
+  .lane-docs-icon[data-category='audio'] :global(svg) {
+    color: var(--node-icon-box-color-audio);
+  }
+  .lane-docs-icon[data-category='sdf'] :global(svg) {
+    color: var(--node-icon-box-color-sdf);
+  }
+  .lane-docs-icon.raymarcher[data-category='sdf'] :global(svg) {
+    color: var(--node-icon-box-color-sdf-raymarcher, var(--node-icon-box-color-sdf));
   }
 
   .lane-label-text-col {
@@ -330,7 +420,8 @@
 
   .lane-label-param-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
+    text-align: left;
     gap: 4px;
     min-width: 0;
   }
@@ -346,7 +437,7 @@
     min-width: 0;
   }
 
-  .lane-timeline-hint {
+  :global(.lane-timeline-hint) {
     flex-shrink: 0;
     display: inline-flex;
     opacity: 0.75;
@@ -362,9 +453,16 @@
     font-size: var(--text-2xs);
     font-weight: 500;
     color: var(--print-subtle);
+    text-align: left;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    transition: color var(--motion-effects-fast-duration) var(--motion-effects-fast-easing);
+  }
+
+  :global(.lane-label-button:hover) .lane-label-node,
+  :global(.lane-label-button:focus-visible) .lane-label-node {
+    color: var(--print-highlight);
   }
 
   :global(.delete-lane-btn) {
@@ -390,6 +488,11 @@
     flex-direction: column;
     gap: var(--pd-sm);
     padding: var(--pd-sm);
+  }
+
+  .lanes-inner--playhead-only {
+    /* Match lane row + track min-height so absolute playhead strip has non-zero height. */
+    min-height: calc(var(--size-md) + var(--pd-sm) * 2);
   }
 
   .lane-row {
@@ -425,20 +528,9 @@
     top: 0;
     bottom: 0;
     width: 1px;
-    margin-left: -0.5px;
+    transform: translateX(-50%) scaleX(0.5);
+    transform-origin: center;
     background: var(--color-gray-70);
-  }
-
-  .automation-hold-ghost {
-    position: absolute;
-    top: var(--pd-2xs);
-    bottom: var(--pd-2xs);
-    z-index: 1;
-    pointer-events: none;
-    border-radius: var(--radius-xs);
-    box-sizing: border-box;
-    opacity: 0.16;
-    background: var(--timeline-region-color-default);
   }
 
   .region-block {
@@ -451,65 +543,6 @@
     box-sizing: border-box;
     cursor: default;
     user-select: none;
-  }
-
-  .automation-hold-ghost[data-category='inputs'] {
-    background: var(--timeline-region-color-inputs);
-  }
-  .automation-hold-ghost[data-category='patterns'] {
-    background: var(--timeline-region-color-patterns);
-  }
-  .automation-hold-ghost[data-category='shapes'] {
-    background: var(--timeline-region-color-shapes);
-  }
-  .automation-hold-ghost[data-category='sdf'] {
-    background: var(--timeline-region-color-sdf);
-  }
-  .automation-hold-ghost[data-category='math'] {
-    background: var(--timeline-region-color-math);
-  }
-  .automation-hold-ghost[data-category='utilities'] {
-    background: var(--timeline-region-color-utilities);
-  }
-  .automation-hold-ghost[data-category='distort'] {
-    background: var(--timeline-region-color-distort);
-  }
-  .automation-hold-ghost[data-category='blend'] {
-    background: var(--timeline-region-color-blend);
-  }
-  .automation-hold-ghost[data-category='mask'] {
-    background: var(--timeline-region-color-mask);
-  }
-  .automation-hold-ghost[data-category='effects'] {
-    background: var(--timeline-region-color-effects);
-  }
-  .automation-hold-ghost[data-category='output'] {
-    background: var(--timeline-region-color-output);
-  }
-  .automation-hold-ghost[data-category='audio'] {
-    background: var(--timeline-region-color-audio);
-  }
-
-  .automation-hold-ghost[data-category='inputs'][data-subgroup='system-input'] {
-    background: var(--timeline-region-color-inputs-system);
-  }
-  .automation-hold-ghost[data-category='patterns'][data-subgroup='structured'] {
-    background: var(--timeline-region-color-patterns-structured);
-  }
-  .automation-hold-ghost[data-category='shapes'][data-subgroup='derived'] {
-    background: var(--timeline-region-color-shapes-derived);
-  }
-  .automation-hold-ghost[data-category='math'][data-subgroup='functions'] {
-    background: var(--timeline-region-color-math-functions);
-  }
-  .automation-hold-ghost[data-category='math'][data-subgroup='advanced'] {
-    background: var(--timeline-region-color-math-advanced);
-  }
-  .automation-hold-ghost[data-category='distort'][data-subgroup='warp'] {
-    background: var(--timeline-region-color-distort-warp);
-  }
-  .automation-hold-ghost[data-category='effects'][data-subgroup='stylize'] {
-    background: var(--timeline-region-color-effects-stylize);
   }
 
   .region-block[data-category='inputs'] {

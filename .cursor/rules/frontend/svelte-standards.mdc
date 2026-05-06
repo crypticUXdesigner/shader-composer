@@ -8,7 +8,7 @@ alwaysApply: false
 
 - **Props:** `$props()` + typed `Props`; one-line destructure + defaults; **`$bindable()`** when parent binds.
 - **State:** `$state` / `$derived` / `$derived.by` — not legacy `let` + `$:` for app state.
-- **Effects:** `$effect` for DOM/side effects only; return teardown; don’t write state that the same effect reads (loops).
+- **Effects:** `$effect` is an [escape hatch](https://svelte.dev/docs/svelte/$effect#When-not-to-use-$effect) — DOM/canvas/third-party/imperative side work; return teardown; don’t use effects to **sync** one reactive from another (prefer `$derived` / `$derived.by`, handlers, [function bindings](https://svelte.dev/docs/svelte/bind#Function-bindings)). Full audit workflow: **`/audit-svelte-effects`** → `.cursor/commands/audit-svelte-effects.md`.
 - **Events:** callback props (`onSelect`, …), not `createEventDispatcher`; `onclick`/`oninput` not `on:click` on components.
 - **Snippets:** Svelte 5 snippets; **`Snippet` / `Snippet<[T]>`** args when typed.
 - **Structure:** PascalCase components; **`script → markup → style`**. Prefer **`src/lib/components/ui/`** primitives over one-off styled tags.

@@ -107,14 +107,12 @@ export class Renderer implements Disposable {
       this.setupViewport();
       this.markDirty('resize');
     }
-    // Always process pending resize
     if (this.pendingResize) {
       this.setupViewport();
       this.pendingResize = false;
       this.markDirty('resize');
     }
     
-    // Only render if dirty or if forced
     if (!this.isDirty && !this.forceRender) {
       return; // Skip render - nothing changed
     }
@@ -126,16 +124,13 @@ export class Renderer implements Disposable {
 
     previewPerformanceMark(PreviewPerfMark.previewFrameStart);
     try {
-      // Update resolution if changed
       const width = this.canvas.width;
       const height = this.canvas.height;
       this.shaderInstance.setResolution(width, height);
 
-      // Clear
       this.gl.clearColor(0, 0, 0, 1);
       this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
-      // Render (uniform + draw marks are inside ShaderInstance.render)
       this.shaderInstance.render(width, height);
       previewPerfCounters.previewFrameCommits += 1;
       getPreviewScheduler().recordPreviewFrameCommit();
@@ -143,7 +138,6 @@ export class Renderer implements Disposable {
       previewPerformanceMark(PreviewPerfMark.previewFrameEnd);
     }
 
-    // Clear dirty flags after rendering
     this.clearDirty();
     this.forceRender = false;
   }

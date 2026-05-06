@@ -14,7 +14,7 @@ import type { HitTestManager } from '../HitTestManager';
 import type { EdgeScrollManager } from '../EdgeScrollManager';
 import type { SelectionManager } from '../SelectionManager';
 import type { ViewStateManager } from '../ViewStateManager';
-import type { NodeGraph, NodeInstance } from '../../../../data-model/types';
+import type { NodeGraph } from '../../../../data-model/types';
 import type { NodeSpec } from '../../../../types/nodeSpec';
 import type { NodeRenderMetrics, NodeRenderer } from '../../NodeRenderer';
 import type { ToolType } from '../../../../types/editor';
@@ -81,11 +81,6 @@ export interface MouseEventHandlerDependencies {
   handleEnumParameterClick: (nodeId: string, paramName: string, screenX: number, screenY: number) => void;
   handleColorPickerClick?: (nodeId: string, screenX: number, screenY: number) => void;
   handleSignalPickerClick?: (screenX: number, screenY: number, targetNodeId: string, targetParameter: string) => void;
-  calculateSmartGuides: (draggingNode: NodeInstance, proposedX: number, proposedY: number) => {
-    snappedX: number;
-    snappedY: number;
-    guides: { vertical: Array<{ x: number; startY: number; endY: number }>; horizontal: Array<{ y: number; startX: number; endX: number }> };
-  };
   getViewStateInternal: () => { panX: number; panY: number; zoom: number };
   getSelectionState: () => { selectedNodeIds: Set<string>; selectedConnectionIds: Set<string> };
   screenToCanvas: (screenX: number, screenY: number) => { x: number; y: number };
@@ -177,9 +172,6 @@ export interface MouseEventHandlerDependencies {
     dragOffsetX: number;
     dragOffsetY: number;
   }>) => void;
-  
-  // Smart guides setter
-  setSmartGuides: (guides: { vertical: Array<{ x: number; startY: number; endY: number }>; horizontal: Array<{ y: number; startX: number; endX: number }> }) => void;
   
   // Mouse position updater
   updateMousePosition: (x: number, y: number) => void;
@@ -336,7 +328,6 @@ export class MouseEventHandler {
       );
     }
     
-    // Check for edge scrolling when dragging nodes or connections
     const currentStateForScroll = this.getState();
     const shouldEdgeScroll = (currentStateForScroll.interaction.isDraggingNode || currentStateForScroll.connection.isConnecting) && !currentStateForScroll.pan.isPanning;
     if (shouldEdgeScroll) {

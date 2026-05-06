@@ -9,6 +9,8 @@ export function getOutputInitialValue(type: string, _nodeType: string): string {
   if (type === 'vec2') return 'vec2(0.0)';
   if (type === 'vec3') return 'vec3(0.0)';
   if (type === 'vec4') return 'vec4(0.0)';
+  if (type === 'int') return '0';
+  if (type === 'bool') return 'false';
   return '0.0';
 }
 
@@ -20,13 +22,14 @@ export function buildVariableDeclarations(
   graph: NodeGraph,
   nodeSpecs: Map<string, NodeSpec>,
   variableNames: Map<string, Map<string, string>>,
-  getOutputInitialValueFn: (type: string, nodeType: string) => string
+  getOutputInitialValueFn: (type: string, nodeType: string) => string,
+  effectiveNodeSpecsById?: Map<string, NodeSpec>
 ): { variableDeclarations: string[]; declaredVars: Set<string> } {
   const variableDeclarations: string[] = [];
   const declaredVars = new Set<string>();
 
   for (const node of graph.nodes) {
-    const nodeSpec = nodeSpecs.get(node.type);
+    const nodeSpec = effectiveNodeSpecsById?.get(node.id) ?? nodeSpecs.get(node.type);
     if (!nodeSpec) continue;
 
     const outputVars = variableNames.get(node.id);
@@ -56,7 +59,9 @@ export function buildVariableDeclarations(
   // Validate that all variables referenced in connections are declared
   for (const conn of graph.connections) {
     const sourceNode = graph.nodes.find(n => n.id === conn.sourceNodeId);
-    const sourceSpec = sourceNode ? nodeSpecs.get(sourceNode.type) : null;
+    const sourceSpec = sourceNode
+      ? (effectiveNodeSpecsById?.get(sourceNode.id) ?? nodeSpecs.get(sourceNode.type))
+      : null;
     const sourcePortName = conn.sourcePort ?? sourceSpec?.outputs?.[0]?.name;
     const sourceVarName = sourcePortName
       ? variableNames.get(conn.sourceNodeId)?.get(sourcePortName)

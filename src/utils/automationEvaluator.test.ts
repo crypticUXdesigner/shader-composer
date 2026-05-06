@@ -1,5 +1,5 @@
 /**
- * Tests for automation evaluator (WP 02B).
+ * Tests for automation evaluator.
  * Run: npm test (or npx vitest run src/utils/automationEvaluator.test.ts)
  */
 

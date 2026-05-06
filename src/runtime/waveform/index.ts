@@ -7,5 +7,10 @@ export type { WaveformData, AudiographResolution, AudiographChannels } from './t
 export { AudiographClient, SCRUBBER_RESOLUTION } from './AudiographClient';
 export { computeWaveformFromBuffer, DEFAULT_WAVEFORM_LENGTH } from './bufferWaveform';
 export type { BufferWaveformResult } from './bufferWaveform';
-export { WaveformService, getWaveformSlice } from './WaveformService';
+export {
+  WaveformService,
+  getWaveformSlice,
+  CURVE_EDITOR_AUDIOGRAPH_RESOLUTION,
+  CURVE_EDITOR_BUFFER_WAVEFORM_LENGTH,
+} from './WaveformService';
 export type { WaveformServiceDeps } from './WaveformService';

@@ -1,9 +1,9 @@
 <script lang="ts">
   /**
-   * ParamPortWithAudioState - WP 13
+   * ParamPortWithAudioState
    * Wraps ParameterCell and resolves connection state, signal name, and live value
    * from graph store + parameterValueCalculator. Polls live value on RAF when audio-connected.
-   * WP 03: When param has evaluable timeline automation, shows automation-driven value for the whole timeline (lead-in, gaps, tail).
+   * When a param has evaluable timeline automation, the displayed value is driven by automation across the full timeline (lead-in, gaps, tail).
    * Mode button shows only when connected (graph or audio); icon reflects input mode.
    * Passes effectiveValue to children for knob/input display when connected.
    */
@@ -46,7 +46,7 @@
     audioSetup: AudioSetup;
     nodeSpecs: Map<string, NodeSpec>;
     getAudioManager?: () => IAudioManager | null;
-    /** WP 03: Current timeline time for automation-driven parameter display. */
+    /** Current timeline time for automation-driven parameter display. */
     getTimelineCurrentTime?: () => number;
     onPortPointerDown?: (e: PointerEvent) => void;
     onPortDoubleClick?: (e: MouseEvent) => void;
@@ -124,7 +124,7 @@
     }
   }
 
-  /* Single tick: peak meter (audio only) + effective value. WP 03: also run when param has automation lane. */
+  /* Single tick: peak meter (audio only) + effective value. Also run when the param has an active automation lane. */
   $effect(() => {
     const g = graph;
     const n = node;

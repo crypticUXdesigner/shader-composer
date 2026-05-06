@@ -13,21 +13,21 @@ export { PROJECT_AVATAR_NODE_ICONS } from './projectAvatarIcons';
  */
 export const PROJECT_AVATAR_COLOR_TOKENS = [
   // 12 hues as base.
-  // First: 12× "-gray" in -60, then -70, -100, -120. Then the same for the non "-gray" version.
+  // First: 12× "-gray" in -50, then -70, -90, -110, -130. Then the same for the non "-gray" version.
 
-  // -gray-60
-  'blue-gray-60',
-  'cyan-gray-60',
-  'teal-gray-60',
-  'leaf-gray-60',
-  'yellow-gray-60',
-  'orange-gray-60',
-  'orange-red-gray-60',
-  'red-gray-60',
-  'red-purple-gray-60',
-  'purple-gray-60',
-  'violet-gray-60',
-  'red-orange-gray-60',
+  // -gray-50
+  'blue-gray-50',
+  'cyan-gray-50',
+  'teal-gray-50',
+  'leaf-gray-50',
+  'yellow-gray-50',
+  'orange-gray-50',
+  'orange-red-gray-50',
+  'red-gray-50',
+  'red-purple-gray-50',
+  'purple-gray-50',
+  'violet-gray-50',
+  'red-orange-gray-50',
 
   // -gray-70
   'blue-gray-70',
@@ -43,47 +43,61 @@ export const PROJECT_AVATAR_COLOR_TOKENS = [
   'violet-gray-70',
   'red-orange-gray-70',
 
-  // -gray-100
-  'blue-gray-100',
-  'cyan-gray-100',
-  'teal-gray-100',
-  'leaf-gray-100',
-  'yellow-gray-100',
-  'orange-gray-100',
-  'orange-red-gray-100',
-  'red-gray-100',
-  'red-purple-gray-100',
-  'purple-gray-100',
-  'violet-gray-100',
-  'red-orange-gray-100',
+  // -gray-90
+  'blue-gray-90',
+  'cyan-gray-90',
+  'teal-gray-90',
+  'leaf-gray-90',
+  'yellow-gray-90',
+  'orange-gray-90',
+  'orange-red-gray-90',
+  'red-gray-90',
+  'red-purple-gray-90',
+  'purple-gray-90',
+  'violet-gray-90',
+  'red-orange-gray-90',
 
-  // -gray-120
-  'blue-gray-120',
-  'cyan-gray-120',
-  'teal-gray-120',
-  'leaf-gray-120',
-  'yellow-gray-120',
-  'orange-gray-120',
-  'orange-red-gray-120',
-  'red-gray-120',
-  'red-purple-gray-120',
-  'purple-gray-120',
-  'violet-gray-120',
-  'red-orange-gray-120',
+  // -gray-110
+  'blue-gray-110',
+  'cyan-gray-110',
+  'teal-gray-110',
+  'leaf-gray-110',
+  'yellow-gray-110',
+  'orange-gray-110',
+  'orange-red-gray-110',
+  'red-gray-110',
+  'red-purple-gray-110',
+  'purple-gray-110',
+  'violet-gray-110',
+  'red-orange-gray-110',
 
-  // -60
-  'blue-60',
-  'cyan-60',
-  'teal-60',
-  'leaf-60',
-  'yellow-60',
-  'orange-60',
-  'orange-red-60',
-  'red-60',
-  'red-purple-60',
-  'purple-60',
-  'violet-60',
-  'red-orange-60',
+  // -gray-130
+  'blue-gray-130',
+  'cyan-gray-130',
+  'teal-gray-130',
+  'leaf-gray-130',
+  'yellow-gray-130',
+  'orange-gray-130',
+  'orange-red-gray-130',
+  'red-gray-130',
+  'red-purple-gray-130',
+  'purple-gray-130',
+  'violet-gray-130',
+  'red-orange-gray-130',
+
+  // -50
+  'blue-50',
+  'cyan-50',
+  'teal-50',
+  'leaf-50',
+  'yellow-50',
+  'orange-50',
+  'orange-red-50',
+  'red-50',
+  'red-purple-50',
+  'purple-50',
+  'violet-50',
+  'red-orange-50',
 
   // -70
   'blue-70',
@@ -99,33 +113,47 @@ export const PROJECT_AVATAR_COLOR_TOKENS = [
   'violet-70',
   'red-orange-70',
 
-  // -100
-  'blue-100',
-  'cyan-100',
-  'teal-100',
-  'leaf-100',
-  'yellow-100',
-  'orange-100',
-  'orange-red-100',
-  'red-100',
-  'red-purple-100',
-  'purple-100',
-  'violet-100',
-  'red-orange-100',
+  // -90
+  'blue-90',
+  'cyan-90',
+  'teal-90',
+  'leaf-90',
+  'yellow-90',
+  'orange-90',
+  'orange-red-90',
+  'red-90',
+  'red-purple-90',
+  'purple-90',
+  'violet-90',
+  'red-orange-90',
 
-  // -120
-  'blue-120',
-  'cyan-120',
-  'teal-120',
-  'leaf-120',
-  'yellow-120',
-  'orange-120',
-  'orange-red-120',
-  'red-120',
-  'red-purple-120',
-  'purple-120',
-  'violet-120',
-  'red-orange-120',
+  // -110
+  'blue-110',
+  'cyan-110',
+  'teal-110',
+  'leaf-110',
+  'yellow-110',
+  'orange-110',
+  'orange-red-110',
+  'red-110',
+  'red-purple-110',
+  'purple-110',
+  'violet-110',
+  'red-orange-110',
+
+  // -130
+  'blue-130',
+  'cyan-130',
+  'teal-130',
+  'leaf-130',
+  'yellow-130',
+  'orange-130',
+  'orange-red-130',
+  'red-130',
+  'red-purple-130',
+  'purple-130',
+  'violet-130',
+  'red-orange-130',
 ] as const;
 
 export type ProjectAvatarColorToken = (typeof PROJECT_AVATAR_COLOR_TOKENS)[number];
@@ -137,8 +165,8 @@ const ICON_SET = new Set<string>(PROJECT_AVATAR_NODE_ICONS);
 
 /** Matches pre-avatar `ProjectListItem` look (tinted tile + neutral glyph). */
 export const DEFAULT_PROJECT_AVATAR_NODE_ICON: NodeIconIdentifier = 'sphere';
-export const DEFAULT_PROJECT_AVATAR_BG_TOKEN: ProjectAvatarBgToken = 'orange-red-gray-60';
-export const DEFAULT_PROJECT_AVATAR_ICON_COLOR_TOKEN: ProjectAvatarIconColorToken = 'blue-gray-120';
+export const DEFAULT_PROJECT_AVATAR_BG_TOKEN: ProjectAvatarBgToken = 'orange-red-gray-50';
+export const DEFAULT_PROJECT_AVATAR_ICON_COLOR_TOKEN: ProjectAvatarIconColorToken = 'blue-gray-130';
 
 export interface ProjectAvatarFields {
   avatarNodeIcon: NodeIconIdentifier;
@@ -149,26 +177,26 @@ export interface ProjectAvatarFields {
 /** Full rows for new projects — one picked at random on create. */
 export const PROJECT_AVATAR_PRESETS: readonly ProjectAvatarFields[] = [
   // Gray backgrounds → solid light icons
-  { avatarNodeIcon: 'sphere', avatarBgToken: 'orange-red-gray-60', avatarIconColorToken: 'orange-red-120' },
-  { avatarNodeIcon: 'hexagon', avatarBgToken: 'teal-gray-70', avatarIconColorToken: 'teal-120' },
-  { avatarNodeIcon: 'waves', avatarBgToken: 'cyan-gray-70', avatarIconColorToken: 'cyan-120' },
-  { avatarNodeIcon: 'ripple', avatarBgToken: 'blue-gray-70', avatarIconColorToken: 'blue-120' },
-  { avatarNodeIcon: 'kaleidoscope', avatarBgToken: 'purple-gray-70', avatarIconColorToken: 'purple-120' },
-  { avatarNodeIcon: 'blur-circle', avatarBgToken: 'red-purple-gray-70', avatarIconColorToken: 'red-purple-120' },
-  { avatarNodeIcon: 'noise', avatarBgToken: 'violet-gray-70', avatarIconColorToken: 'violet-120' },
-  { avatarNodeIcon: 'sunrise', avatarBgToken: 'yellow-gray-70', avatarIconColorToken: 'yellow-120' },
-  { avatarNodeIcon: 'atom-2', avatarBgToken: 'leaf-gray-70', avatarIconColorToken: 'leaf-120' },
-  { avatarNodeIcon: 'cube', avatarBgToken: 'orange-gray-70', avatarIconColorToken: 'orange-120' },
+  { avatarNodeIcon: 'sphere', avatarBgToken: 'orange-red-gray-50', avatarIconColorToken: 'orange-red-130' },
+  { avatarNodeIcon: 'hexagon', avatarBgToken: 'teal-gray-70', avatarIconColorToken: 'teal-130' },
+  { avatarNodeIcon: 'waves', avatarBgToken: 'cyan-gray-70', avatarIconColorToken: 'cyan-130' },
+  { avatarNodeIcon: 'ripple', avatarBgToken: 'blue-gray-70', avatarIconColorToken: 'blue-130' },
+  { avatarNodeIcon: 'kaleidoscope', avatarBgToken: 'purple-gray-70', avatarIconColorToken: 'purple-130' },
+  { avatarNodeIcon: 'blur-circle', avatarBgToken: 'red-purple-gray-70', avatarIconColorToken: 'red-purple-130' },
+  { avatarNodeIcon: 'noise', avatarBgToken: 'violet-gray-70', avatarIconColorToken: 'violet-130' },
+  { avatarNodeIcon: 'sunrise', avatarBgToken: 'yellow-gray-70', avatarIconColorToken: 'yellow-130' },
+  { avatarNodeIcon: 'atom-2', avatarBgToken: 'leaf-gray-70', avatarIconColorToken: 'leaf-130' },
+  { avatarNodeIcon: 'cube', avatarBgToken: 'orange-gray-70', avatarIconColorToken: 'orange-130' },
 
   // Solid backgrounds → gray-tinted light icons (keeps glyph legible without “white”)
-  { avatarNodeIcon: 'gradient', avatarBgToken: 'teal-70', avatarIconColorToken: 'teal-gray-120' },
-  { avatarNodeIcon: 'glow', avatarBgToken: 'cyan-70', avatarIconColorToken: 'cyan-gray-120' },
-  { avatarNodeIcon: 'infinity', avatarBgToken: 'blue-70', avatarIconColorToken: 'blue-gray-120' },
-  { avatarNodeIcon: 'rings', avatarBgToken: 'purple-70', avatarIconColorToken: 'purple-gray-120' },
-  { avatarNodeIcon: 'sparkles-2', avatarBgToken: 'red-70', avatarIconColorToken: 'red-gray-120' },
-  { avatarNodeIcon: 'spiral', avatarBgToken: 'violet-70', avatarIconColorToken: 'violet-gray-120' },
-  { avatarNodeIcon: 'topology-star-ring', avatarBgToken: 'yellow-70', avatarIconColorToken: 'yellow-gray-120' },
-  { avatarNodeIcon: 'ikosaedr', avatarBgToken: 'leaf-70', avatarIconColorToken: 'leaf-gray-120' },
+  { avatarNodeIcon: 'gradient', avatarBgToken: 'teal-70', avatarIconColorToken: 'teal-gray-130' },
+  { avatarNodeIcon: 'glow', avatarBgToken: 'cyan-70', avatarIconColorToken: 'cyan-gray-130' },
+  { avatarNodeIcon: 'infinity', avatarBgToken: 'blue-70', avatarIconColorToken: 'blue-gray-130' },
+  { avatarNodeIcon: 'rings', avatarBgToken: 'purple-70', avatarIconColorToken: 'purple-gray-130' },
+  { avatarNodeIcon: 'sparkles-2', avatarBgToken: 'red-70', avatarIconColorToken: 'red-gray-130' },
+  { avatarNodeIcon: 'spiral', avatarBgToken: 'violet-70', avatarIconColorToken: 'violet-gray-130' },
+  { avatarNodeIcon: 'topology-star-ring', avatarBgToken: 'yellow-70', avatarIconColorToken: 'yellow-gray-130' },
+  { avatarNodeIcon: 'ikosaedr', avatarBgToken: 'leaf-70', avatarIconColorToken: 'leaf-gray-130' },
 ];
 
 export function pickRandomProjectAvatarPreset(): ProjectAvatarFields {

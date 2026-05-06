@@ -16,7 +16,10 @@ import { validateGraph } from './validation';
 import type { NodeSpecification } from './validation';
 import { migrateBandRemapToRemappers } from './audioBandRemapMigration';
 import { migrateMixedWaveSignalShapes } from './mixedWaveSignalShapeMigration';
-import { ensureBandSmoothingHalfLife } from './audioSmoothingMigration';
+import { migrateShapesNodeMerges } from './shapesNodeMergeMigration';
+import { ensureBandAttackReleaseHalfLives } from './audioSmoothingMigration';
+import { ensureBandMode } from './audioBandModeMigration';
+import { migrateDomainRepetitionToTiling } from './tilingUnifyMigration';
 
 const CURRENT_FORMAT_VERSION = '2.0' as const;
 
@@ -49,6 +52,14 @@ const MIGRATIONS_BY_VERSION: Record<string, MigrationStep[]> = {
   [CURRENT_FORMAT_VERSION]: [
     (ctx: MigrationContext): MigrationContext => ({
       ...ctx,
+      graph: migrateDomainRepetitionToTiling(ctx.graph),
+    }),
+    (ctx: MigrationContext): MigrationContext => ({
+      ...ctx,
+      graph: migrateShapesNodeMerges(ctx.graph),
+    }),
+    (ctx: MigrationContext): MigrationContext => ({
+      ...ctx,
       graph: migrateMixedWaveSignalShapes(ctx.graph),
     }),
     (ctx: MigrationContext): MigrationContext => {
@@ -60,7 +71,12 @@ const MIGRATIONS_BY_VERSION: Record<string, MigrationStep[]> = {
     (ctx: MigrationContext): MigrationContext => {
       const audio = ctx.audioSetup;
       if (!audio || audio.bands.length === 0) return ctx;
-      return { ...ctx, audioSetup: ensureBandSmoothingHalfLife(audio) };
+      return { ...ctx, audioSetup: ensureBandAttackReleaseHalfLives(audio) };
+    },
+    (ctx: MigrationContext): MigrationContext => {
+      const audio = ctx.audioSetup;
+      if (!audio || audio.bands.length === 0) return ctx;
+      return { ...ctx, audioSetup: ensureBandMode(audio) };
     },
   ],
 };
@@ -138,7 +154,6 @@ export function deserializeGraph(
   try {
     const data = JSON.parse(json);
 
-    // Validate format
     if (!isKnownGraphFileFormat(data.format)) {
       errors.push(
         'Invalid file format: expected "shadernoice-node-graph" (or legacy "shader-composer-node-graph")'
@@ -146,39 +161,35 @@ export function deserializeGraph(
       return { graph: null, errors, warnings };
     }
 
-    // Validate format version
     if (!isSupportedFormatVersion(data.formatVersion)) {
       errors.push(`Unsupported format version: ${data.formatVersion} (expected "${CURRENT_FORMAT_VERSION}")`);
       return { graph: null, errors, warnings };
     }
 
-    // Check graph exists
     if (!data.graph) {
       errors.push('Missing graph data in file');
       return { graph: null, errors, warnings };
     }
 
-    const graph = data.graph as NodeGraph;
-
-    // Validate graph structure
-    const validationResult = validateGraph(graph, nodeSpecs);
-    errors.push(...validationResult.errors);
-    warnings.push(...validationResult.warnings);
-
-    // If there are critical errors, return null graph
-    if (validationResult.errors.length > 0) {
-      return { graph: null, errors, warnings };
-    }
-
-    let graphResult = graph;
+    let graphResult = data.graph as NodeGraph;
     let audioSetup = isValidAudioSetup(data.audioSetup) ? data.audioSetup : undefined;
 
+    // Apply format-version migrations *before* validation so legacy node types can be rewritten
+    // into current specs (e.g. node merges / renames).
     const migrated = applyMigrationsForVersion(data.formatVersion, {
       graph: graphResult,
       audioSetup,
     });
     graphResult = migrated.graph;
     audioSetup = migrated.audioSetup;
+
+    const validationResult = validateGraph(graphResult, nodeSpecs);
+    errors.push(...validationResult.errors);
+    warnings.push(...validationResult.warnings);
+
+    if (validationResult.errors.length > 0) {
+      return { graph: null, errors, warnings };
+    }
 
     const startingTrackId = typeof data.startingTrackId === 'string' ? data.startingTrackId : undefined;
     if (audioSetup && startingTrackId && audioSetup.playlistState?.order) {
@@ -210,7 +221,6 @@ export function deserializeGraphUnvalidated(json: string): DeserializationResult
   try {
     const data = JSON.parse(json);
 
-    // Validate format
     if (!isKnownGraphFileFormat(data.format)) {
       errors.push(
         'Invalid file format: expected "shadernoice-node-graph" (or legacy "shader-composer-node-graph")'
@@ -218,13 +228,11 @@ export function deserializeGraphUnvalidated(json: string): DeserializationResult
       return { graph: null, errors, warnings };
     }
 
-    // Validate format version
     if (!isSupportedFormatVersion(data.formatVersion)) {
       errors.push(`Unsupported format version: ${data.formatVersion} (expected "${CURRENT_FORMAT_VERSION}")`);
       return { graph: null, errors, warnings };
     }
 
-    // Check graph exists
     if (!data.graph) {
       errors.push('Missing graph data in file');
       return { graph: null, errors, warnings };

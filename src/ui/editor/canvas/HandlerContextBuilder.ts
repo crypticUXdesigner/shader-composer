@@ -9,7 +9,6 @@ import type { HandlerContext } from '../../interactions/HandlerContext';
 import type { CanvasState } from '../NodeEditorCanvas';
 import type { NodeGraph } from '../../../data-model/types';
 import type { NodeSpec } from '../../../types/nodeSpec';
-import type { NodeInstance } from '../../../data-model/types';
 import type { NodeRenderMetrics } from '../NodeRenderer';
 import { RenderLayer } from '../rendering/RenderState';
 import type { ToolType } from '../../../types/editor';
@@ -91,14 +90,6 @@ export interface HandlerContextDependencies {
   nodeRenderer: { invalidateMetrics: (nodeId: string) => void };
   /** When provided, used for marquee selection when nodeMetrics has no cached value (e.g. off-screen nodes) */
   getNodeMetricsOrCalculate?: (nodeId: string) => NodeRenderMetrics | undefined;
-  calculateSmartGuides: (draggingNode: NodeInstance, proposedX: number, proposedY: number) => {
-    snappedX: number;
-    snappedY: number;
-    guides: {
-      vertical: Array<{ x: number; startY: number; endY: number }>;
-      horizontal: Array<{ y: number; startX: number; endX: number }>;
-    };
-  };
   renderState: {
     markNodesDirty: (nodeIds: string[]) => void;
     markConnectionsDirty: (connectionIds: string[]) => void;
@@ -106,10 +97,6 @@ export interface HandlerContextDependencies {
   };
   
   // State setters (these modify NodeEditorCanvas instance properties)
-  setSmartGuides: (guides: {
-    vertical: Array<{ x: number; startY: number; endY: number }>;
-    horizontal: Array<{ y: number; startX: number; endX: number }>;
-  }) => void;
   setDraggedNodeIds: (nodeIds: string[]) => void;
   setPanStateInternal: (state: {
     isPanning: boolean;
@@ -223,13 +210,9 @@ export class HandlerContextBuilder {
         if (cached) return cached;
         return this.deps.getNodeMetricsOrCalculate?.(nodeId);
       },
-      calculateSmartGuides: (draggingNode, proposedX, proposedY) => this.deps.calculateSmartGuides(draggingNode, proposedX, proposedY),
       invalidateNodeMetrics: (nodeId) => {
         this.deps.nodeMetrics.delete(nodeId);
         this.deps.nodeRenderer.invalidateMetrics(nodeId);
-      },
-      setSmartGuides: (guides) => {
-        this.deps.setSmartGuides(guides);
       },
       setDraggedNodeIds: (nodeIds: string[]) => {
         this.deps.setDraggedNodeIds(nodeIds);

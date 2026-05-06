@@ -14,7 +14,7 @@ import { parametersEqual, connectionsEqual } from '../../runtime/utils/deepEqual
 import type { ChangeDetectionResult, ChangeDetectionOptions } from './types';
 import { ChangeType } from './types';
 import { GraphAnalyzer } from '../../shaders/compilation/GraphAnalyzer';
-import { automationEqual, automationOnlyCurveDataDiffer, automationOnlyRegionTimesDiffer } from './automationComparison';
+import { automationEqual, automationOnlyRegionTimesDiffer } from './automationComparison';
 
 /**
  * Graph Change Detector
@@ -132,29 +132,6 @@ export class GraphChangeDetector {
 
     // If we get here, only positions (or viewState) changed
     return true;
-  }
-
-  /**
-   * True when the only change is automation curve data (keyframes, interpolation) within existing regions.
-   * Same nodes, connections, parameters, lanes, region start/duration/loop; only region.curve differs.
-   * Used to skip recompile when dragging keyframes (shader code unchanged; runtime only needs updated graph for evaluation).
-   */
-  static isOnlyAutomationCurveDataChange(
-    oldGraph: NodeGraph | null,
-    newGraph: NodeGraph
-  ): boolean {
-    if (oldGraph === newGraph || !oldGraph) return false;
-    if (oldGraph.nodes.length !== newGraph.nodes.length) return false;
-    if ((oldGraph.connections?.length ?? 0) !== (newGraph.connections?.length ?? 0)) return false;
-    if (!connectionsEqual(oldGraph.connections, newGraph.connections)) return false;
-    const oldNodesById = new Map(oldGraph.nodes.map(n => [n.id, n]));
-    for (const newNode of newGraph.nodes) {
-      const oldNode = oldNodesById.get(newNode.id);
-      if (!oldNode || oldNode.type !== newNode.type || !parametersEqual(oldNode.parameters, newNode.parameters)) {
-        return false;
-      }
-    }
-    return automationOnlyCurveDataDiffer(oldGraph.automation, newGraph.automation);
   }
 
   /**
@@ -304,6 +281,20 @@ export class GraphChangeDetector {
     );
 
     result.isConnectionsChanged = connectionCountChanged || connectionsStructurallyChanged;
+
+    // Automation is compiled into GLSL (evalAutomation_*). If automation differs, treat this as a structure
+    // change and mark the lane node(s) as changed so preview-recompile skip logic doesn't ignore it.
+    if (!automationEqual(oldGraph.automation, newGraph.automation)) {
+      result.isStructureChanged = true;
+      const laneNodeIds = new Set<string>();
+      for (const lane of oldGraph.automation?.lanes ?? []) laneNodeIds.add(lane.nodeId);
+      for (const lane of newGraph.automation?.lanes ?? []) laneNodeIds.add(lane.nodeId);
+      for (const id of laneNodeIds) {
+        if (!result.changedNodeIds.includes(id)) {
+          result.changedNodeIds.push(id);
+        }
+      }
+    }
 
     // Get connection IDs if requested
     if (includeConnectionIds && result.isConnectionsChanged) {

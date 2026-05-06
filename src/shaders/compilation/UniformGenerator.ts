@@ -35,13 +35,12 @@ export class UniformGenerator {
 
   /**
    * Generate uniform name mapping
-   * @param audioSetup - Optional panel audio setup; adds uniforms for band/remap per band (WP 09)
+   * @param audioSetup - Optional panel audio setup; adds uniforms for audio-derived signals.
    */
   generateUniformNameMapping(graph: NodeGraph, audioSetup?: AudioSetup | null): Map<string, string> {
     const uniformNames = new Map<string, string>();
 
-    // Panel audio bands (WP 09): one analyzer per band, outputs band (raw) and remap
-    // WP 11: Also map virtual node ids to uniform names for param connections
+    // Panel audio bands: band (raw) + remap, plus virtual-node ids for param connections.
     if (audioSetup?.bands) {
       for (const band of audioSetup.bands) {
         const bandUniformName = this.sanitizeUniformName(band.id, 'band');
@@ -52,7 +51,7 @@ export class UniformGenerator {
         uniformNames.set(getVirtualNodeId(`band-${band.id}-remap`), remapUniformName);
       }
     }
-    // WP 11: Remapper outputs (virtual nodes remap-{id})
+    // Remapper outputs (virtual nodes remap-{id}).
     if (audioSetup?.remappers) {
       for (const remapper of audioSetup.remappers) {
         const uniformName = this.sanitizeUniformName(`remap-${remapper.id}`, 'out');
@@ -60,7 +59,7 @@ export class UniformGenerator {
         uniformNames.set(getVirtualNodeId(`remap-${remapper.id}`), uniformName);
       }
     }
-    // WP 15B: Primary file uniforms (currentTime, duration, isPlaying) for video export
+    // Primary file uniforms (currentTime, duration, isPlaying) for export/runtime sync.
     const primaryFileId = getPrimaryFileId(audioSetup);
     if (primaryFileId) {
       for (const outputName of ['currentTime', 'duration', 'isPlaying'] as const) {
@@ -136,7 +135,7 @@ export class UniformGenerator {
 
   /**
    * Generate uniform metadata
-   * @param audioSetup - Optional panel audio setup; adds metadata for band uniforms (WP 09)
+   * @param audioSetup - Optional panel audio setup; adds metadata for audio-derived uniforms.
    */
   generateUniformMetadata(
     graph: NodeGraph,
@@ -146,7 +145,7 @@ export class UniformGenerator {
   ): UniformMetadata[] {
     const uniforms: UniformMetadata[] = [];
 
-    // Panel audio bands (WP 09): only include band/remap uniforms when actually used in shader.
+    // Panel audio bands: only include band/remap uniforms when actually used in shader.
     // Unused uniforms are optimized out by the GLSL compiler, causing "location not found" warnings.
     if (audioSetup?.bands) {
       for (const band of audioSetup.bands) {
@@ -172,7 +171,7 @@ export class UniformGenerator {
         }
       }
     }
-    // WP 11: Remapper output uniforms - only when used in shader
+    // Remapper output uniforms - only when used in shader.
     if (audioSetup?.remappers) {
       for (const remapper of audioSetup.remappers) {
         const uniformName = uniformNames.get(`remap-${remapper.id}.out`);
@@ -187,7 +186,7 @@ export class UniformGenerator {
         }
       }
     }
-    // WP 15B: Primary file uniforms (currentTime, duration, isPlaying) for video export
+    // Primary file uniforms (currentTime, duration, isPlaying) for export/runtime sync.
     const primaryFileId = getPrimaryFileId(audioSetup);
     if (primaryFileId) {
       for (const outputName of ['currentTime', 'duration', 'isPlaying'] as const) {

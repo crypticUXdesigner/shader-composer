@@ -101,7 +101,13 @@ export function getParameterEnumMappings(
 
   // shapes-2d
   if (nodeId === 'shapes-2d' && paramName === 'shapeType') {
-    return { 0: 'Circle', 1: 'Square' };
+    return {
+      0: 'Circle / Ellipse',
+      1: 'Square / Box (rounded)',
+      2: 'Superellipse',
+      3: 'Regular polygon',
+      4: 'Capsule',
+    };
   }
 
   // hex-voxel - shapeType

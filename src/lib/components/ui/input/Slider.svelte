@@ -66,6 +66,8 @@
   .slider {
     /* Layout */
     flex: 1;
+    width: 100%;
+    display: block;
     overflow: hidden;
 
     /* Box model */
@@ -80,6 +82,11 @@
     -webkit-appearance: none;
     appearance: none;
     cursor: default;
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
 
     &:focus {
       outline: none;
@@ -104,6 +111,16 @@
       );
     }
 
+    &:disabled::-webkit-slider-runnable-track {
+      background: linear-gradient(
+        to right,
+        color-mix(in srgb, var(--color-gray-60) 65%, transparent) 0,
+        color-mix(in srgb, var(--color-gray-60) 65%, transparent) var(--slider-progress, 0%),
+        color-mix(in srgb, var(--color-gray-50) 80%, transparent) var(--slider-progress, 0%),
+        color-mix(in srgb, var(--color-gray-50) 80%, transparent) 100%
+      );
+    }
+
     &::-moz-range-track,
     &::-moz-range-progress {
       height: var(--size-xs);
@@ -112,6 +129,15 @@
         to right,
         var(--color-yellow-70) 0,
         var(--color-yellow-90) 100%
+      );
+    }
+
+    &:disabled::-moz-range-track,
+    &:disabled::-moz-range-progress {
+      background: linear-gradient(
+        to right,
+        color-mix(in srgb, var(--color-gray-60) 65%, transparent) 0,
+        color-mix(in srgb, var(--color-gray-60) 65%, transparent) 100%
       );
     }
 
@@ -135,12 +161,20 @@
       appearance: none;
     }
 
+    &:disabled::-webkit-slider-thumb {
+      background: color-mix(in srgb, var(--color-gray-70) 80%, transparent);
+    }
+
     &::-moz-range-thumb {
       width: 3px;
       height: var(--size-xs);
       border: none;
       border-radius: 1px;
       background: var(--color-blue-90);
+    }
+
+    &:disabled::-moz-range-thumb {
+      background: color-mix(in srgb, var(--color-gray-70) 80%, transparent);
     }
 
     &::-webkit-slider-thumb:hover,
@@ -153,6 +187,14 @@
     &::-moz-range-thumb:active {
       background: var(--color-blue-110);
       width: 4px;
+    }
+
+    &:disabled::-webkit-slider-thumb:hover,
+    &:disabled::-moz-range-thumb:hover,
+    &:disabled::-webkit-slider-thumb:active,
+    &:disabled::-moz-range-thumb:active {
+      background: color-mix(in srgb, var(--color-gray-70) 80%, transparent);
+      width: 3px;
     }
 
     &:focus::-webkit-slider-thumb,

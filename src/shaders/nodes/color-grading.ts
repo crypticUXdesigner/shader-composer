@@ -195,52 +195,61 @@ export const colorGradingNodeSpec: NodeSpec = {
     }
   ],
   functions: `
-// Color curve adjustment (simplified - works on value before color mapping)
-float applyColorCurve(float value, float shadows, float midtones, float highlights) {
-  float luminance = value;
-  
-  float adjustedValue = value;
+float _safeDenom(float x) {
+  return abs(x) < 1e-6 ? (x < 0.0 ? -1e-6 : 1e-6) : x;
+}
+
+float luminance(vec3 color) {
+  return dot(color, vec3(0.2126, 0.7152, 0.0722));
+}
+
+// Color curve adjustment (shadows/midtones/highlights) using luminance masks.
+vec3 applyColorCurve(vec3 color, vec3 shadows, vec3 midtones, vec3 highlights) {
+  float lum = luminance(color);
+  vec3 adjusted = color;
   
   // Shadows (dark areas)
-  float shadowMask = 1.0 - smoothstep(0.0, 0.33, luminance);
-  adjustedValue = mix(adjustedValue, adjustedValue * shadows, shadowMask);
+  float shadowMask = 1.0 - smoothstep(0.0, 0.33, lum);
+  adjusted = mix(adjusted, adjusted * shadows, shadowMask);
   
   // Midtones
-  float midtoneMask = smoothstep(0.0, 0.33, luminance) * (1.0 - smoothstep(0.33, 0.66, luminance));
-  adjustedValue = mix(adjustedValue, adjustedValue * midtones, midtoneMask);
+  float midtoneMask = smoothstep(0.0, 0.33, lum) * (1.0 - smoothstep(0.33, 0.66, lum));
+  adjusted = mix(adjusted, adjusted * midtones, midtoneMask);
   
   // Highlights (bright areas)
-  float highlightMask = smoothstep(0.33, 1.0, luminance);
-  adjustedValue = mix(adjustedValue, adjustedValue * highlights, highlightMask);
+  float highlightMask = smoothstep(0.33, 1.0, lum);
+  adjusted = mix(adjusted, adjusted * highlights, highlightMask);
   
-  return adjustedValue;
+  return adjusted;
 }
 
 // Levels adjustment
 float applyLevels(float value, float inMin, float inMax, float outMin, float outMax, float gamma) {
-  value = clamp((value - inMin) / (inMax - inMin), 0.0, 1.0);
-  value = pow(value, 1.0 / gamma);
+  value = clamp((value - inMin) / _safeDenom(inMax - inMin), 0.0, 1.0);
+  value = pow(value, 1.0 / max(gamma, 1e-6));
   value = value * (outMax - outMin) + outMin;
   return value;
 }
+
+vec3 applyLevels(vec3 color, float inMin, float inMax, float outMin, float outMax, float gamma) {
+  return vec3(
+    applyLevels(color.r, inMin, inMax, outMin, outMax, gamma),
+    applyLevels(color.g, inMin, inMax, outMin, outMax, gamma),
+    applyLevels(color.b, inMin, inMax, outMin, outMax, gamma)
+  );
+}
 `,
   mainCode: `
-  // Extract float value from vec4 input
-  float value = $input.in.r;
+  vec4 inColor = $input.in;
+  vec3 color = inColor.rgb;
   
-  // Apply color grading before color mapping
-  // Note: Full color grading works on RGB channels after color mapping
-  // This is a simplified version that works on the value
+  vec3 shadows = vec3($param.colorShadowsR, $param.colorShadowsG, $param.colorShadowsB);
+  vec3 midtones = vec3($param.colorMidtonesR, $param.colorMidtonesG, $param.colorMidtonesB);
+  vec3 highlights = vec3($param.colorHighlightsR, $param.colorHighlightsG, $param.colorHighlightsB);
   
-  // Calculate average multipliers
-  float shadows = ($param.colorShadowsR + $param.colorShadowsG + $param.colorShadowsB) / 3.0;
-  float midtones = ($param.colorMidtonesR + $param.colorMidtonesG + $param.colorMidtonesB) / 3.0;
-  float highlights = ($param.colorHighlightsR + $param.colorHighlightsG + $param.colorHighlightsB) / 3.0;
-  
-  float result = applyColorCurve(value, shadows, midtones, highlights);
+  vec3 result = applyColorCurve(color, shadows, midtones, highlights);
   result = applyLevels(result, $param.levelsInMin, $param.levelsInMax, $param.levelsOutMin, $param.levelsOutMax, $param.levelsGamma);
   
-  // Output as vec4
-  $output.out = vec4(result, result, result, 1.0);
+  $output.out = vec4(result, inColor.a);
 `
 };

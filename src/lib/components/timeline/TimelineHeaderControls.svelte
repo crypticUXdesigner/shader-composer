@@ -92,7 +92,7 @@
             placeholder="Search node or param…"
             oninput={(e) => onUpdateAddLaneSearch((e.currentTarget as HTMLInputElement).value)}
           />
-          <div class="timeline-add-lane-list">
+          <div class="timeline-add-lane-list scrollbar-styled">
             {#if filteredFloatParams.options.length === 0}
               <MenuNoResults>
                 {addLaneSearch.trim() ? 'No matching params' : 'No float params available'}
@@ -185,36 +185,33 @@
 
 <style>
   /* Add Lane dropdown: uses Popover + .frame; layout/sizing here */
-  :global(.timeline-add-lane-dropdown) {
-    position: fixed;
-    top: var(--dropdown-top, 0);
-    left: var(--dropdown-left, 0);
-    display: none;
-    flex-direction: column;
+  :global(.timeline-add-lane-dropdown.dropdown-menu.menu-wrapper) {
     min-width: 200px; /* One-off */
-    max-height: 280px; /* One-off */
-    z-index: var(--message-z-index);
-    overflow-x: hidden;
-    overflow-y: hidden;
+    /* Allow the menu to grow with content until it hits the viewport. */
+    max-height: 40vh;
+    min-height: 300px;
+    overflow: hidden;
+    padding: 0;
 
-    &.is-open {
+    /* DropdownMenu renders: Popover(.timeline-add-lane-dropdown) > .menu-wrapper-inner > (MenuInput + list).
+       Make the inner wrapper a flex column so the list can take remaining height and scroll. */
+    :global(.menu-wrapper-inner) {
       display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+      padding: var(--pd-xs);
     }
 
     .timeline-add-lane-list {
       flex: 1;
       min-height: 0;
-      max-height: 180px; /* One-off */
       overflow-y: auto;
       overflow-x: hidden;
-      padding: 0;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
+      padding: var(--pd-sm) 0 0 0;
+      scrollbar-width: thin;
     }
 
-    .timeline-add-lane-list::-webkit-scrollbar {
-      display: none;
-    }
   }
 
   .timeline-header {
@@ -228,8 +225,8 @@
     padding: var(--pd-xs);
   }
 
-  :global(.button) {
-    border-radius: calc(var(--radius-md) - var(--pd-xs));
+  .timeline-header :global(.button.sm.ghost) {
+    border-radius: calc(var(--radius-md) - var(--pd-xs)) !important;
   }
 
   .header-left {

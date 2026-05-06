@@ -154,15 +154,30 @@
   const hasFiles = $derived(!!getPrimaryFileId(audioSetup));
   const bands = $derived(audioSetup.bands);
 
+  function nextBandIndex(bands: readonly AudioBandEntry[]): number {
+    // Prefer monotonic numeric names ("01", "02", ...) even if bands are deleted/reordered.
+    // Fall back to length+1 when existing names aren't purely numeric.
+    let max = 0;
+    for (const b of bands) {
+      const t = b.name.trim();
+      if (!/^\d+$/.test(t)) continue;
+      const n = Number.parseInt(t, 10);
+      if (Number.isFinite(n) && n > max) max = n;
+    }
+    return (max || bands.length) + 1;
+  }
+
   function handleNewBand() {
     const primaryId = getPrimaryFileId(audioSetup);
     if (!primaryId) return;
+    const n = nextBandIndex(bands);
     const newBand: AudioBandEntry = {
       id: `band-${generateUUID()}`,
-      name: `Band ${bands.length + 1}`,
+      name: String(n).padStart(2, '0'),
       sourceFileId: primaryId,
       frequencyBands: [[20, 20000]],
-      smoothingHalfLifeSeconds: 1 / 120,
+      attackHalfLifeSeconds: 1 / 120,
+      releaseHalfLifeSeconds: 1 / 120,
       fftSize: 2048,
     };
     onAudioSetupChange(addAudioBand(audioSetup, newBand));
@@ -242,9 +257,10 @@
     &.large {
       /* one-off: large picker dimensions */
       width: 100%;
-      min-width: 560px;
-      max-width: 840px;
+      min-width: 780px;
+      max-width: 780px;
       height: 70vh;
+      min-height: 70vh;
       max-height: 70vh;
 
       /* Let large content fill the 70vh shell (flex chain for grid / scroll). */

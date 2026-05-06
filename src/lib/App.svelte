@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * App.svelte - Svelte 5 Migration WP 06
+   * App.svelte
    * Root component: runtime, compiler, graph store, layout, bottom bar, node panel,
    * timeline, curve editor, canvas wrapper, error display, overlays.
    */
@@ -14,7 +14,7 @@
   import { nodeSystemSpecs } from '../shaders/nodes/index';
   import { listPresets, loadPresetFromJson, downloadGraphAsJsonFile } from '../utils/presetManager';
   import { toValidationSpecs } from '../utils/nodeSpecUtils';
-  import { exportImage } from '../utils/export';
+  import { runImageExportFlow } from '../image-export';
   import { runVideoExportFlow, isSupported as isVideoExportSupported } from '../video-export';
   import { globalErrorHandler, ErrorUtils } from '../utils/errorHandling';
   import { safeDestroy } from '../utils/Disposable';
@@ -103,6 +103,8 @@
   import { resolveAudiotoolSignInChromeAction } from '../utils/audiotoolChromeSignIn';
   import { isAudiotoolOAuthConfigured, initAudiotoolBrowserAuth } from '../utils/audiotoolBrowserAuth';
   import { setAudiotoolPlaylistLoadSessionAvailable } from '../utils/audiotoolPlaylistLoadHint';
+  import { importProjectTextAsNewLocalProjects } from './storage/projectImport';
+  import { buildProjectsBundle, downloadProjectsBundleAsJsonFile } from './storage/projectBundle';
 
   const splashFeatureEnabled = isAppSplashEnabled();
   const useAudiotoolGate = isAudiotoolOAuthConfigured();
@@ -189,10 +191,13 @@
     }
   }
 
+  // Clear canvas↔runtime wiring when `canvasApi` / `runtimeManager` change or the shell tears down
+  // (hub session reset, project bootstrap, HMR) so spacebar handlers and audioManager refs do not stack.
   $effect(() => {
     const api = canvasApi;
     const rm = runtimeManager;
     if (!api || !rm) return;
+    let fitTimer = 0;
     api.setSpacebarStateChangeCallback((isPressed) => {
       graphStore.setSpacebarPressed(isPressed);
       bottomBarRef?.setSpacebarPressed(isPressed);
@@ -200,8 +205,13 @@
     api.setAudioManager(rm.getAudioManager());
     if (!hasInitialFit && graphStore.graph.nodes.length > 0) {
       hasInitialFit = true;
-      setTimeout(() => api.fitToView(), 150);
+      fitTimer = window.setTimeout(() => api.fitToView(), 150);
     }
+    return () => {
+      if (fitTimer !== 0) clearTimeout(fitTimer);
+      api.setSpacebarStateChangeCallback(undefined);
+      api.setAudioManager(undefined);
+    };
   });
 
   $effect(() => {
@@ -210,13 +220,15 @@
     runtimeDispatcher?.setAudioSetup(graphStore.audioSetup);
   });
 
+  // Dispose prior WaveformService when runtime is recreated or cleared so audiograph / decode
+  // state does not leak across sessions (same rationale as canvas effect above).
   $effect(() => {
     const rm = runtimeManager;
     if (!rm) {
       waveformService = null;
       return;
     }
-    waveformService = new WaveformService({
+    const svc = new WaveformService({
       getPrimarySource: () => graphStore.audioSetup?.primarySource,
       getPrimaryFileId: () => getPrimaryFileId(graphStore.audioSetup),
       getPrimaryBuffer: () => {
@@ -224,6 +236,10 @@
         return id ? (rm.getAudioManager().getAudioNodeState(id)?.audioBuffer ?? null) : null;
       },
     });
+    waveformService = svc;
+    return () => {
+      svc.dispose();
+    };
   });
 
   $effect(() => {
@@ -378,6 +394,8 @@
   let curveEditorLaneId = $state<string | null>(null);
   let curveEditorRegionId = $state<string | null>(null);
   let curveEditorParamLabel = $state<string>('');
+  /** Live region bounds while dragging/resizing on the timeline (curve editor waveform). */
+  let curveEditorRegionTimePreview = $state<{ startTime: number; endTime: number } | null>(null);
   let presets = $state<Array<{ name: string; displayName: string }>>([]);
   let selectedPreset = $state<string | null>(null);
   let isPanelVisible = $state(true);
@@ -387,6 +405,9 @@
   let animationFrameId = $state<number | null>(null);
   let intersectionObserver: IntersectionObserver | null = null;
 
+  /** Discriminator: overview (no selection / top-bar Help) vs node guide (`openHelpForNodeType`). Passed to HelpCallout for shell/header. */
+  let helpMode = $state<'overview' | 'node'>('node');
+
   let helpVisible = $state(false);
   let helpScreenX = $state(0);
   let helpScreenY = $state(0);
@@ -394,6 +415,14 @@
   let helpContent = $state<HelpContent | null>(null);
   /** Node type id when help is for a node (e.g. "noise"); used to look up spec for port labels. */
   let helpNodeType = $state<string | undefined>(undefined);
+
+  /** Placeholder shown until `HelpOverviewContent`; not loaded via `getHelpContent`. */
+  const HELP_OVERVIEW_PLACEHOLDER: HelpContent = {
+    title: 'ShaderNoice',
+    titleType: 'category',
+    tagline: 'Overview',
+    description: 'Detailed overview sections are coming soon. With no node selected, Help opens here; select a node for its guide.',
+  };
 
   /** Primary track key for waveform scrubber; derived in App so layout re-renders on track change. */
   const primaryTrackKey = $derived(getPrimaryFileId(graphStore.audioSetup));
@@ -645,10 +674,11 @@
 
   async function handleExport(): Promise<void> {
     if (!compiler) return;
-    await exportImage(graphStore.graph, compiler, {
-      resolution: [1600, 1600],
-      format: 'png',
-      quality: 1.0,
+    await runImageExportFlow({
+      graph: graphStore.graph,
+      audioSetup: graphStore.audioSetup,
+      compiler,
+      getTimelineState: () => runtimeManager?.getTimelineState() ?? null,
     });
   }
 
@@ -977,35 +1007,58 @@
 
   async function handleHubImportJson(json: string): Promise<void> {
     if (hubBusy || !runEditorBootstrapFromHubRef) return;
-    try {
-      await createUserProjectFromValidatedJson(
-        toValidationSpecs(nodeSpecs),
-        remapGraphIds,
-        applyStartingTrack,
-        json
-      );
-    } catch (e) {
-      globalErrorHandler.report(
-        'validation',
-        'error',
-        e instanceof Error ? e.message : 'That file is not valid graph JSON'
-      );
-      return;
-    }
-    await refreshHubProjectList();
-    const list = await listProjectMeta();
-    const last = await readAppMeta();
-    const pid = last?.lastOpenedProjectId;
-    if (!pid || !list.some((p) => p.projectId === pid)) {
-      globalErrorHandler.report(
-        'validation',
-        'error',
-        'Your import is saved, but we could not open it automatically. Open it from Projects.'
-      );
-      return;
-    }
     hubBusy = true;
     try {
+      const result = await importProjectTextAsNewLocalProjects({
+        text: json,
+        nodeSpecs: toValidationSpecs(nodeSpecs),
+        remapGraphIds,
+        applyStartingTrack,
+      });
+
+      if (result.kind === 'bundle') {
+        await refreshHubProjectList();
+
+        const importedCount = result.importedProjectIds.length;
+        appToastStore.addToast({
+          variant: 'success',
+          message: importedCount === 1 ? 'Imported 1 project.' : `Imported ${importedCount} projects.`,
+          source: 'import',
+        });
+
+        if (result.failedCount > 0) {
+          appToastStore.addToast({
+            variant: 'warning',
+            message: `Some projects could not be imported (${result.failedCount}/${result.totalCount}).`,
+            source: 'import',
+          });
+        }
+        return;
+      }
+
+      await refreshHubProjectList();
+
+      const list = await listProjectMeta();
+      let pid = result.projectId;
+      try {
+        const last = await readAppMeta();
+        const lastPid = last?.lastOpenedProjectId;
+        if (lastPid && list.some((p) => p.projectId === lastPid)) {
+          pid = lastPid;
+        }
+      } catch {
+        // ignore: keep `pid` from import result
+      }
+
+      if (!pid || !list.some((p) => p.projectId === pid)) {
+        globalErrorHandler.report(
+          'validation',
+          'error',
+          'Your import is saved, but we could not open it automatically. Open it from Projects.'
+        );
+        return;
+      }
+
       if (runtimeManager !== null) {
         const resolved = await resolveHubSelectionToGraph(
           { kind: 'userProject', projectId: pid },
@@ -1018,6 +1071,40 @@
       } else {
         await runEditorBootstrapFromHubRef({ kind: 'userProject', projectId: pid });
       }
+    } catch (e) {
+      globalErrorHandler.report(
+        'validation',
+        'error',
+        e instanceof Error ? e.message : 'That file is not valid graph JSON'
+      );
+    } finally {
+      hubBusy = false;
+    }
+  }
+
+  async function handleHubExportAllProjects(): Promise<void> {
+    if (hubBusy) return;
+    hubBusy = true;
+    try {
+      const { bundle } = await buildProjectsBundle();
+      downloadProjectsBundleAsJsonFile(bundle);
+      const count = bundle.projects.length;
+      appToastStore.addToast({
+        variant: 'success',
+        message: count === 1 ? 'Exported 1 project.' : `Exported ${count} projects.`,
+        source: 'export',
+      });
+    } catch (e) {
+      const detail = e instanceof Error ? e.message : String(e);
+      globalErrorHandler.report('unexpected', 'error', 'Could not export projects.', {
+        originalError: e instanceof Error ? e : new Error(detail),
+      });
+      appToastStore.addToast({
+        variant: 'error',
+        message: 'Export failed.',
+        copyText: `Export failed.\n${detail}`,
+        source: 'export',
+      });
     } finally {
       hubBusy = false;
     }
@@ -1026,21 +1113,43 @@
   /** Import from top bar while editor running: new local row + hydrate in place */
   async function importFileAsNewLocalProject(json: string): Promise<void> {
     try {
-      const { projectId } = await createUserProjectFromValidatedJson(
-        toValidationSpecs(nodeSpecs),
+      const result = await importProjectTextAsNewLocalProjects({
+        text: json,
+        nodeSpecs: toValidationSpecs(nodeSpecs),
         remapGraphIds,
         applyStartingTrack,
-        json
-      );
+      });
+
+      if (result.kind === 'bundle') {
+        await refreshHubProjectList();
+
+        const importedCount = result.importedProjectIds.length;
+        appToastStore.addToast({
+          variant: 'success',
+          message: importedCount === 1 ? 'Imported 1 project.' : `Imported ${importedCount} projects.`,
+          source: 'import',
+        });
+
+        if (result.failedCount > 0) {
+          appToastStore.addToast({
+            variant: 'warning',
+            message: `Some projects could not be imported (${result.failedCount}/${result.totalCount}).`,
+            source: 'import',
+          });
+        }
+        return;
+      }
+
+      const projectId = result.projectId;
       const row = await getProjectPayload(projectId);
       if (!row) throw new Error('Import write failed');
-      const result = await loadPresetFromJson(row.json, toValidationSpecs(nodeSpecs));
-      if (!result.graph) throw new Error(result.errors[0] ?? 'Invalid file');
-      let audioSetup = result.audioSetup ?? { files: [], bands: [], remappers: [] };
-      if (result.startingTrackId) {
-        audioSetup = await applyStartingTrack(audioSetup, result.startingTrackId);
+      const loadResult = await loadPresetFromJson(row.json, toValidationSpecs(nodeSpecs));
+      if (!loadResult.graph) throw new Error(loadResult.errors[0] ?? 'Invalid file');
+      let audioSetup = loadResult.audioSetup ?? { files: [], bands: [], remappers: [] };
+      if (loadResult.startingTrackId) {
+        audioSetup = await applyStartingTrack(audioSetup, loadResult.startingTrackId);
       }
-      const graph = result.graph;
+      const graph = loadResult.graph;
       hydrating = true;
       undoRedoManager?.clear();
       graphStore.setGraph(graph);
@@ -1424,13 +1533,30 @@
     };
   });
 
+  function openHelpOverview(): void {
+    helpMode = 'overview';
+    const center = canvasApi?.getCanvasCenterInScreen() ?? { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    const pos = getStoredPosition('help-panel', {
+      fallback: center,
+      legacyKey: 'shader-composer.helpPanelPosition',
+    });
+    helpNodeType = undefined;
+    helpContent = HELP_OVERVIEW_PLACEHOLDER;
+    helpScreenX = pos.x;
+    helpScreenY = pos.y;
+    helpPositionMode = 'center';
+    helpVisible = true;
+  }
+
   function openHelpForNodeType(nodeType: string): void {
+    helpMode = 'node';
     const center = canvasApi?.getCanvasCenterInScreen() ?? { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     const pos = getStoredPosition('help-panel', {
       fallback: center,
       legacyKey: 'shader-composer.helpPanelPosition',
     });
     getHelpContent(`node:${nodeType}`).then((content) => {
+      if (helpMode !== 'node') return;
       helpContent = content;
       helpNodeType = nodeType;
       helpScreenX = pos.x;
@@ -1453,13 +1579,32 @@
     getTimelineState={() => runtimeManager?.getTimelineState() ?? null}
     onSeek={(t) => runtimeManager?.seekGlobalAudio(t)}
     waveformService={waveformService}
+    onRevealInNodeEditor={(nodeId, paramName) => {
+      canvasApi?.focusNode(nodeId, { zoom: 0.8, targetScreenYFrac: 0.34 });
+      queueMicrotask(() => {
+        const esc = (v: string) => (typeof CSS !== 'undefined' && 'escape' in CSS ? (CSS as unknown as { escape(s: string): string }).escape(v) : v);
+        const selector = `.param-port[data-node-id="${esc(nodeId)}"][data-param-name="${esc(paramName)}"]`;
+        const el = document.querySelector(selector) as HTMLElement | null;
+        el?.scrollIntoView?.({ block: 'center', inline: 'nearest' });
+        el?.focus?.({ preventScroll: true });
+      });
+    }}
     onOpenCurveEditor={(laneId, regionId, labels) => {
+      curveEditorRegionTimePreview = null;
       curveEditorLaneId = laneId;
       curveEditorRegionId = regionId;
       curveEditorParamLabel = labels.paramLabel;
     }}
     onClose={() => bottomBarRef?.setTimelinePanelOpen(false)}
     nodeSpecs={nodeSpecs}
+    openCurveEditorRegion={
+      curveEditorLaneId && curveEditorRegionId
+        ? { laneId: curveEditorLaneId, regionId: curveEditorRegionId }
+        : null
+    }
+    onOpenCurveEditorRegionTimePreview={(preview) => {
+      curveEditorRegionTimePreview = preview;
+    }}
   />
 {/snippet}
 
@@ -1471,7 +1616,9 @@
         graphStore.setGraph(g);
         await runtimeDispatcher?.loadGraph(g);
       }}
+      onSeek={(t) => runtimeManager?.seekGlobalAudio(t)}
       onClose={() => {
+        curveEditorRegionTimePreview = null;
         curveEditorLaneId = null;
         curveEditorRegionId = null;
         curveEditorParamLabel = '';
@@ -1479,8 +1626,20 @@
       laneId={curveEditorLaneId}
       regionId={curveEditorRegionId}
       paramLabel={curveEditorParamLabel}
+      onRevealInNodeEditor={(nodeId, paramName) => {
+        canvasApi?.focusNode(nodeId, { zoom: 0.8, targetScreenYFrac: 0.34 });
+        queueMicrotask(() => {
+          const esc = (v: string) => (typeof CSS !== 'undefined' && 'escape' in CSS ? (CSS as unknown as { escape(s: string): string }).escape(v) : v);
+          const selector = `.param-port[data-node-id="${esc(nodeId)}"][data-param-name="${esc(paramName)}"]`;
+          const el = document.querySelector(selector) as HTMLElement | null;
+          el?.scrollIntoView?.({ block: 'center', inline: 'nearest' });
+          el?.focus?.({ preventScroll: true });
+        });
+      }}
       nodeSpecs={nodeSpecs}
-      getWaveformData={waveformService ? async () => waveformService!.getWaveformForPrimary() : undefined}
+      regionTimeRangePreview={curveEditorRegionTimePreview}
+      getWaveformData={waveformService ? async () => waveformService!.getWaveformForCurveEditor() : undefined}
+      getCurrentTransportTime={() => runtimeManager?.getTimelineState()?.currentTime ?? 0}
     />
   {/if}
 {/snippet}
@@ -1544,6 +1703,7 @@
     onHubRename={(id, name) => void handleHubRename(id, name)}
     onHubAppearanceChange={(id, next) => void handleHubAppearanceChange(id, next)}
     onHubImportJson={(json) => void handleHubImportJson(json)}
+    onHubExportAllProjects={() => void handleHubExportAllProjects()}
     presetList={presets}
     selectedPreset={selectedPreset}
     primaryTrackKey={primaryTrackKey}
@@ -1585,9 +1745,16 @@
       onImportPresetFromFile: handleImportPresetFromFile,
       onZoomChange: (z) => canvasApi?.setZoom(z),
       getZoom: () => canvasApi?.getViewState().zoom ?? 1,
-      isHelpEnabled: () => (graphStore.graph.viewState?.selectedNodeIds?.length ?? 0) === 1,
-      onHelpClick: async () => {
+      isHelpEnabled: () => {
+        const n = graphStore.graph.viewState?.selectedNodeIds?.length ?? 0;
+        return n === 0 || n === 1;
+      },
+      onHelpClick: () => {
         const ids = graphStore.graph.viewState?.selectedNodeIds ?? [];
+        if (ids.length === 0) {
+          openHelpOverview();
+          return;
+        }
         if (ids.length !== 1) return;
         const nodeId = ids[0];
         const node = graphStore.graph.nodes.find((n) => n.id === nodeId);
@@ -1821,9 +1988,15 @@
     screenY={helpScreenY}
     positionMode={helpPositionMode}
     content={helpContent}
+    helpMode={helpMode}
     helpNodeType={helpNodeType}
     nodeSpecs={nodeSpecsMap}
-    onClose={() => { helpVisible = false; helpNodeType = undefined; }}
+    onClose={() => {
+      helpVisible = false;
+      helpNodeType = undefined;
+      helpContent = null;
+      helpMode = 'node';
+    }}
     onPositionChange={(x, y) => {
       helpScreenX = x;
       helpScreenY = y;
@@ -1927,7 +2100,10 @@
       signalPickerOnSelect = null;
       signalPickerTriggerElement = null;
     }}
-    onAudioSetupChange={(setup) => graphStore.setAudioSetup(setup)}
+    onAudioSetupChange={(setup) => {
+      graphStore.setAudioSetup(setup);
+      runtimeDispatcher?.setAudioSetup(setup);
+    }}
   />
 </div>
 

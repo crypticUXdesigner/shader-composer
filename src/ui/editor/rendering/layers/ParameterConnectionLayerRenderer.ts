@@ -94,7 +94,7 @@ export class ParameterConnectionLayerRenderer implements LayerRenderer {
     // Render parameter connections (connections to parameter ports)
     for (const conn of graph.connections) {
       if (conn.targetParameter) {
-        // WP 11: Never draw connections from audio sources on the canvas – they have no visual node
+        // Never draw connections from virtual audio sources on the canvas (no visual node).
         if (isVirtualNodeId(conn.sourceNodeId)) {
           continue;
         }
@@ -139,7 +139,7 @@ export class ParameterConnectionLayerRenderer implements LayerRenderer {
 
     const targetPos = { x: targetPortPos.x, y: targetPortPos.y };
 
-    // WP 11: Virtual node source - no visual node; use fixed anchor to the left of target
+    // Virtual node source - no visual node; use fixed anchor to the left of target.
     let sourcePos: { x: number; y: number };
     let sourceSpec: NodeSpec | undefined;
     if (isVirtualNodeId(conn.sourceNodeId)) {

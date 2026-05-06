@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * RemapRangeEditor - WP 08
+   * RemapRangeEditor
    * Two VerticalRangeSliders (in min/max, out min/max), connection visualization,
    * ValueInput row, optional RemapNeedles for live values.
    * Parity with canvas RemapRangeElement.

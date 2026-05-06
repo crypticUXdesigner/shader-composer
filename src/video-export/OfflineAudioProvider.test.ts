@@ -70,5 +70,68 @@ describe('OfflineAudioProvider', () => {
     expect(total).toBe(sampleRate * seconds);
     expect(prevEnd).toBe(sampleRate * seconds);
   });
+
+  it('applies bandMode to exported band/remap/remapperOut values', () => {
+    const sampleRate = 48_000;
+    const frameRate = 60;
+    const seconds = 2;
+    const buffer = makeMockAudioBuffer({
+      sampleRate,
+      numberOfChannels: 1,
+      length: sampleRate * seconds,
+    });
+
+    const analyzerBase = {
+      nodeId: 'band-1',
+      frequencyBands: [{ minHz: 0, maxHz: 20_000 }],
+      smoothingHalfLifeSeconds: [0], // avoid smoothing masking differences
+      spectrumFftSize: 4096,
+      mappingFftSize: 2048,
+      bandRemap: [{ inMin: 0, inMax: 1, outMin: 0, outMax: 1 }],
+    } as const;
+
+    const providerMean = new OfflineAudioProvider(buffer, {
+      sampleRate,
+      frameRate,
+      primaryFileId: 'file-1',
+      maxFrames: frameRate * seconds,
+      analyzerConfigs: [{ ...analyzerBase, bandModes: ['mean'] }],
+      remapperConfigs: [{ id: 'r1', bandId: 'band-1', inMin: 0, inMax: 1, outMin: 0, outMax: 1 }],
+    });
+
+    const providerMax = new OfflineAudioProvider(buffer, {
+      sampleRate,
+      frameRate,
+      primaryFileId: 'file-1',
+      maxFrames: frameRate * seconds,
+      analyzerConfigs: [{ ...analyzerBase, bandModes: ['max'] }],
+      remapperConfigs: [{ id: 'r1', bandId: 'band-1', inMin: 0, inMax: 1, outMin: 0, outMax: 1 }],
+    });
+
+    const frameIndex = 30; // away from warm-up boundary
+    const meanUpdates = providerMean.getFrameState(frameIndex).uniformUpdates;
+    const maxUpdates = providerMax.getFrameState(frameIndex).uniformUpdates;
+
+    const pick = (updates: Array<{ nodeId: string; paramName: string; value: number }>, nodeId: string, paramName: string): number => {
+      const u = updates.find((x) => x.nodeId === nodeId && x.paramName === paramName);
+      expect(u, `missing ${nodeId}.${paramName}`).toBeTruthy();
+      return u!.value;
+    };
+
+    const meanBand = pick(meanUpdates, 'band-1', 'band');
+    const maxBand = pick(maxUpdates, 'band-1', 'band');
+    expect(meanBand).not.toBeNaN();
+    expect(maxBand).not.toBeNaN();
+    expect(Math.abs(meanBand - maxBand)).toBeGreaterThan(1e-6);
+
+    // Derived uniforms should also reflect the difference.
+    const meanRemap = pick(meanUpdates, 'band-1', 'remap');
+    const maxRemap = pick(maxUpdates, 'band-1', 'remap');
+    expect(Math.abs(meanRemap - maxRemap)).toBeGreaterThan(1e-6);
+
+    const meanRemapperOut = pick(meanUpdates, 'remap-r1', 'out');
+    const maxRemapperOut = pick(maxUpdates, 'remap-r1', 'out');
+    expect(Math.abs(meanRemapperOut - maxRemapperOut)).toBeGreaterThan(1e-6);
+  });
 });
 

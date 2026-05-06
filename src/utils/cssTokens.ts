@@ -25,22 +25,18 @@ export function getCSSVariableAsNumber(propertyName: string, fallback: number = 
   const value = getCSSVariable(propertyName);
   if (!value) return fallback;
   
-  // Handle rem units - convert to pixels
   if (value.endsWith('rem')) {
     const remValue = parseFloat(value);
     if (isNaN(remValue)) return fallback;
-    // Get base font size from root element (defaults to 16px)
     const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
     return remValue * rootFontSize;
   }
   
-  // Handle px units
   if (value.endsWith('px')) {
     const pxValue = parseFloat(value);
     return isNaN(pxValue) ? fallback : pxValue;
   }
   
-  // Handle unitless values or fallback to parsing numeric value
   const numericValue = parseFloat(value.replace(/[^\d.-]/g, ''));
   return isNaN(numericValue) ? fallback : numericValue;
 }
@@ -53,12 +49,10 @@ export function getCSSVariableAsNumber(propertyName: string, fallback: number = 
 export function parseCSSColor(value: string): string {
   if (!value) return '#000000';
   
-  // If it's already a hex color, return it
   if (value.startsWith('#')) {
     return value;
   }
   
-  // If it's a CSS variable, resolve it
   if (value.startsWith('var(')) {
     const match = value.match(/var\((--[^)]+)\)/);
     if (match) {
@@ -67,7 +61,6 @@ export function parseCSSColor(value: string): string {
     }
   }
   
-  // If it's rgb/rgba, convert to hex
   if (value.startsWith('rgb')) {
     const match = value.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*[\d.]+)?\)/);
     if (match) {
@@ -81,7 +74,6 @@ export function parseCSSColor(value: string): string {
     }
   }
   
-  // Fallback
   return value;
 }
 
@@ -154,7 +146,6 @@ export const WARP_DISTORT_NODE_IDS = new Set([
   'twist-distortion',
   'vortex',
   'displace',
-  'directional-displace',
   'vector-field',
   'turbulence'
 ]);

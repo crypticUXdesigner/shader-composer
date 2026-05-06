@@ -1,7 +1,7 @@
 /**
  * NodeLayerRenderer - Renders nodes
  *
- * WP 15A: All nodes are DOM-only (DomNodeLayer). No nodes are rendered on canvas.
+ * All nodes are DOM-only (DomNodeLayer). No nodes are rendered on canvas.
  * Canvas retains grid, connections, overlays.
  */
 

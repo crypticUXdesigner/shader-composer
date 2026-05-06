@@ -163,12 +163,10 @@ export class RuntimeManager implements Disposable {
       this.audioParameterHandler.cleanupRemovedNodes(changeResult.removedNodeIds);
     }
     this.compilationManager.setGraph(graph);
-    const onlyCurveData = GraphChangeDetector.isOnlyAutomationCurveDataChange(oldGraph, graph);
-    if (!onlyCurveData) {
-      const onlyRegionTimes = GraphChangeDetector.isOnlyAutomationRegionTimesChange(oldGraph, graph);
-      const connectionsOnly = changeResult.isConnectionsChanged && !changeResult.isStructureChanged;
-      this.compilationManager.onGraphStructureChange(onlyRegionTimes || connectionsOnly);
-    }
+    const onlyRegionTimes = GraphChangeDetector.isOnlyAutomationRegionTimesChange(oldGraph, graph);
+    const connectionsOnly = changeResult.isConnectionsChanged && !changeResult.isStructureChanged;
+    // Automation curves are compiled into GLSL (evalAutomation_*); always schedule recompile on graph push.
+    this.compilationManager.onGraphStructureChange(onlyRegionTimes || connectionsOnly);
     const extraIds = [...this.audioSetupFileIds, ...this.audioSetupBandIds];
     this.audioManager.cleanupOrphanedResources(graph, extraIds.length > 0 ? extraIds : undefined);
   }
@@ -271,7 +269,7 @@ export class RuntimeManager implements Disposable {
   
   /**
    * Set time uniform.
-   * Also sets uTimelineTime from getTimelineState().currentTime so automation stays in sync (WP 03).
+   * Also sets uTimelineTime from getTimelineState().currentTime so automation stays in sync.
    */
   setTime(time: number): void {
     const shaderInstance = this.compilationManager.getShaderInstance();
@@ -364,7 +362,7 @@ export class RuntimeManager implements Disposable {
   /**
    * Get timeline state: current time, duration, BPM, and whether time comes from audio.
    * When no graph: null. When graph but no audio: synthetic transport (30s default duration).
-   * For WP 03: uTimelineTime should be set from the returned currentTime each frame.
+   * uTimelineTime should be set from the returned currentTime each frame.
    */
   getTimelineState(): TimelineState | null {
     if (!this.currentGraph) return null;
@@ -444,7 +442,7 @@ export class RuntimeManager implements Disposable {
     return this.renderer;
   }
 
-  /** Last successful compile preview dependency snapshot (WP 02B). */
+  /** Last successful compile preview dependency snapshot. */
   getPreviewDependencyMask(): PreviewDependencyMask | null {
     return this.compilationManager.getPreviewDependencyMask();
   }

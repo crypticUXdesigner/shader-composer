@@ -106,15 +106,20 @@ vec2 noise2D(vec2 p) {
 vec2 turbulence(vec2 p, float time, int iterations, float strength) {
   vec2 q = p;
   int iterCount = max(iterations, 1);
-  float s = clamp(strength, 0.0, 2.0);
+  // Strength is specified in "UV-ish" units in the UI. Without scaling, values >~0.2 quickly
+  // jump multiple UV tiles and can appear to "saturate" (many downstream nodes wrap/periodic).
+  float s = clamp(strength, 0.0, 2.0) * 0.2;
   if (isnan(s) || isinf(s)) s = 0.0; // guard: avoid NaN/Inf propagating to single-color output
   
+  // Use a 2D time vector so animation isn't just diagonal drift.
+  vec2 t = vec2(time, time * 1.37);
+
   for (int i = 0; i < 8; i++) {
     if (i >= iterCount) break;
     
     float scale = pow(2.0, float(i));
     float safeScale = max(scale, 0.001);
-    vec2 offset = noise2D(q * safeScale + time * 0.1) * 2.0 - 1.0;
+    vec2 offset = noise2D(q * safeScale + t) * 2.0 - 1.0;
     q += offset * s / safeScale;
   }
   
@@ -123,7 +128,14 @@ vec2 turbulence(vec2 p, float time, int iterations, float strength) {
 `,
   mainCode: `
   float turbulenceTime = ($time + $param.turbulenceTimeOffset) * $param.turbulenceTimeSpeed;
-  float turbulenceStrength = clamp($param.turbulenceStrength, 0.0, 2.0);
-  $output.out = turbulence($input.in * $param.turbulenceScale, turbulenceTime, $param.turbulenceIterations, turbulenceStrength);
+  float turbulenceScale = max($param.turbulenceScale, 0.001);
+  // Strength should stay meaningful regardless of scale.
+  // We warp in scaled space then divide back, so multiply by scale to keep output-space amplitude stable.
+  float turbulenceStrength = clamp($param.turbulenceStrength, 0.0, 2.0) * turbulenceScale;
+  // Keep output in the same coordinate space as input:
+  // scale controls noise frequency, not a permanent UV zoom.
+  $output.out =
+    turbulence($input.in * turbulenceScale, turbulenceTime, $param.turbulenceIterations, turbulenceStrength) /
+    turbulenceScale;
 `
 };

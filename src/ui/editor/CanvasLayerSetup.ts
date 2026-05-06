@@ -45,7 +45,6 @@ export interface CanvasLayerSetupDeps {
   recalculateMetricsForNodes: (nodeIds: string[]) => void;
   getIsDraggingNode: () => boolean;
   getSelectionRectangle: () => { x: number; y: number; width: number; height: number } | null;
-  renderSmartGuides: () => void;
   renderSelectionRectangle: () => void;
   getParamPortPositionsFromDOM: () => Map<string, { x: number; y: number }>;
   getHeaderOutputPortPositionsFromDOM: () => Map<string, { x: number; y: number }>;
@@ -142,7 +141,6 @@ export function createCanvasLayerSystem(deps: CanvasLayerSetupDeps): CanvasLayer
     getIsDraggingNode: deps.getIsDraggingNode,
     getSelectionRectangle: deps.getSelectionRectangle,
     renderTemporaryConnection: () => deps.connectionStateManager.renderTemporaryConnection(),
-    renderSmartGuides: deps.renderSmartGuides,
     renderSelectionRectangle: deps.renderSelectionRectangle
   });
   layerManager.register(overlayLayerRenderer);

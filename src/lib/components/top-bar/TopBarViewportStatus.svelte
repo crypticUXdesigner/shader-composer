@@ -105,7 +105,7 @@
       <IconSvg name="keyboard" variant="line" />
     </Button>
     <Button variant="ghost" size="sm" mode="icon-only" title="Help" disabled={!helpEnabled} onclick={() => onHelpClick?.()}>
-      <IconSvg name="help-circle" variant="filled" />
+      <IconSvg name="book-open-text" variant="filled" />
     </Button>
   </ButtonGroup>
 </div>

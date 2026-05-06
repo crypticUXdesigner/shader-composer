@@ -8,8 +8,10 @@ import type { NodeSpecification } from '../data-model/validation';
 import {
   serializeGraph,
   deserializeGraph,
+  deserializeGraphUnvalidated,
   type DeserializationResult,
 } from '../data-model/serialization';
+import { migrateLegacyNodeGraph } from '../data-model/graphLegacyMigrations';
 
 const DEFAULT_STATE_KEY = 'shadernoice-default-state';
 const LEGACY_DEFAULT_STATE_KEY = 'shader-composer-default-state';
@@ -60,18 +62,38 @@ export function loadDefaultState(
       return { graph: null, errors: [], warnings: [] };
     }
 
-    const result = deserializeGraph(serialized, nodeSpecs);
+    const unvalidated = deserializeGraphUnvalidated(serialized);
+    if (unvalidated.errors.length > 0 || !unvalidated.graph) {
+      console.warn('[DefaultState] Failed to parse default state:', unvalidated.errors);
+      localStorage.removeItem(DEFAULT_STATE_KEY);
+      localStorage.removeItem(LEGACY_DEFAULT_STATE_KEY);
+      return {
+        graph: null,
+        errors: unvalidated.errors,
+        warnings: unvalidated.warnings,
+      };
+    }
+
+    const migrated = migrateLegacyNodeGraph(unvalidated.graph);
+    const roundtripJson = serializeGraph(
+      migrated,
+      false,
+      unvalidated.audioSetup,
+      unvalidated.startingTrackId ? { startingTrackId: unvalidated.startingTrackId } : undefined
+    );
+    const result = deserializeGraph(roundtripJson, nodeSpecs);
+
     if (result.graph) {
       console.log('[DefaultState] Loaded default state from localStorage');
     } else {
-      console.warn(
-        '[DefaultState] Failed to deserialize default state:',
-        result.errors
-      );
+      console.warn('[DefaultState] Failed to deserialize default state:', result.errors);
       localStorage.removeItem(DEFAULT_STATE_KEY);
       localStorage.removeItem(LEGACY_DEFAULT_STATE_KEY);
     }
-    return result;
+    return {
+      ...result,
+      warnings: [...unvalidated.warnings, ...result.warnings],
+    };
   } catch (error) {
     console.error('[DefaultState] Failed to load default state:', error);
     localStorage.removeItem(DEFAULT_STATE_KEY);

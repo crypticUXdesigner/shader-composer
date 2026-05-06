@@ -7,7 +7,7 @@
  */
 
 import type { CanvasState } from '../editor/NodeEditorCanvas';
-import type { NodeGraph, NodeInstance } from '../../data-model/types';
+import type { NodeGraph } from '../../data-model/types';
 import type { NodeSpec } from '../../types/nodeSpec';
 import type { NodeRenderMetrics } from '../editor/NodeRenderer';
 import { RenderLayer } from '../editor/rendering/RenderState';
@@ -44,23 +44,7 @@ export interface HandlerContext {
   // Node operations (for NodeDragHandler)
   hitTestNode?(screenX: number, screenY: number): string | null;
   getNodeMetrics?(nodeId: string): NodeRenderMetrics | undefined;
-  calculateSmartGuides?(
-    draggingNode: NodeInstance,
-    proposedX: number,
-    proposedY: number
-  ): {
-    snappedX: number;
-    snappedY: number;
-    guides: {
-      vertical: Array<{ x: number; startY: number; endY: number }>;
-      horizontal: Array<{ y: number; startX: number; endX: number }>;
-    };
-  };
   invalidateNodeMetrics?(nodeId: string): void;
-  setSmartGuides?(guides: {
-    vertical: Array<{ x: number; startY: number; endY: number }>;
-    horizontal: Array<{ y: number; startX: number; endX: number }>;
-  }): void;
   setDraggedNodeIds?(nodeIds: string[]): void;
   markNodesDirty?(nodeIds: string[]): void;
   markConnectionsDirty?(connectionIds: string[]): void;

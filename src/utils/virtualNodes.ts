@@ -10,8 +10,7 @@
  * - band-{bandId}-raw   — raw band output
  * - remap-{remapperId}  — remapper output (one default per band after migration)
  *
- * WP 11: parameterValueCalculator uses virtual node id to resolve value.
- * WP 12: Signal picker uses getNamedSignalsFromAudioSetup.
+ * Used by parameter value resolution and the signal connection picker.
  */
 
 import type { AudioSetup, AudioSignalId } from '../data-model/audioSetupTypes';

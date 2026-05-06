@@ -5,11 +5,11 @@
  * (for band/remapper config), produces per-frame state: raw channel samples for
  * the export file and FFT-derived band values (and remapped values) for shader uniforms.
  * No dependency on live AudioManager or DOM.
- *
- * WP 15B: Reads from audioSetup instead of graph nodes.
  */
 
 import type { AudioSetup } from '../data-model/audioSetupTypes';
+import type { AudioBandMode } from '../data-model/audioSetupTypes';
+import { extractFrequencyBands01Into } from '../runtime/audio/extractFrequencyBands01';
 
 // --- Types (API for 02B / 03) ---
 
@@ -21,7 +21,7 @@ export interface FrameAudioState {
   channelSamples: Float32Array[];
   /** Uniform updates: { nodeId, paramName, value } — apply via setAudioUniform / setParameters */
   uniformUpdates: Array<{ nodeId: string; paramName: string; value: number }>;
-  /** Timeline currentTime for this frame (seconds). Used as uTimelineTime so automation stays in sync (WP 07). */
+  /** Timeline currentTime for this frame (seconds). Used as uTimelineTime so automation stays in sync. */
   timelineTime: number;
 }
 
@@ -31,10 +31,12 @@ export interface UniformUpdate {
   value: number;
 }
 
-/** Per-band config derived from audioSetup (WP 15B) */
+/** Per-band config derived from audioSetup. */
 export interface AnalyzerConfig {
   nodeId: string;
   frequencyBands: Array<{ minHz: number; maxHz: number }>;
+  /** Per-band extraction mode (parity with live preview). */
+  bandModes: AudioBandMode[];
   /** Time-based smoothing half-life per band (seconds). */
   smoothingHalfLifeSeconds?: number[];
   /** Optional time-based attack half-life per band (seconds). When present with release, preferred over symmetric half-life. */
@@ -286,23 +288,12 @@ function computeLinearMagnitudeSpectrum(
 function extractFrequencyBandsOffline(
   frequencyData: Uint8Array,
   frequencyBands: Array<{ minHz: number; maxHz: number }>,
+  bandModes: AudioBandMode[],
   sampleRate: number,
   fftSize: number
 ): number[] {
-  const bandValues: number[] = [];
-  for (const band of frequencyBands) {
-    const minBin = Math.floor((band.minHz / sampleRate) * fftSize);
-    const maxBin = Math.ceil((band.maxHz / sampleRate) * fftSize);
-    let sum = 0;
-    let count = 0;
-    for (let i = minBin; i <= maxBin && i < frequencyData.length; i++) {
-      sum += frequencyData[i];
-      count++;
-    }
-    const average = count > 0 ? sum / count : 0;
-    const normalized = average / 255.0;
-    bandValues.push(normalized);
-  }
+  const bandValues: number[] = new Array(frequencyBands.length).fill(0);
+  extractFrequencyBands01Into(frequencyData, frequencyBands, bandModes, sampleRate, fftSize, bandValues);
   return bandValues;
 }
 
@@ -642,10 +633,11 @@ export class OfflineAudioProvider {
 
     // Band extraction and per-band smoothing (time-based).
     for (const analyzer of config.analyzerConfigs) {
-      const { mappingFftSize, frequencyBands } = analyzer;
+      const { mappingFftSize, frequencyBands, bandModes } = analyzer;
       const bandValues = extractFrequencyBandsOffline(
         this.spectrumBytes,
         frequencyBands,
+        bandModes,
         sampleRate,
         mappingFftSize
       );
@@ -833,7 +825,7 @@ export class OfflineAudioProvider {
   }
 }
 
-// --- Factory: build provider from audioSetup (WP 15B) ---
+// --- Factory: build provider from audioSetup ---
 
 /**
  * Create OfflineAudioProvider from audioSetup, primary file id, and buffer.
@@ -882,9 +874,14 @@ export function buildOfflineAudioAnalysisConfigs(
       ? [{ minHz: Number(fb[0]), maxHz: Number(fb[1]) }]
       : [{ minHz: 20, maxHz: 20000 }];
 
-    const smoothingHalfLifeSeconds = band.smoothingHalfLifeSeconds ?? DEFAULT_HALF_LIFE_SECONDS;
+    const bandModes: AudioBandMode[] = [band.bandMode ?? 'mean'];
     const attackHalfLifeSeconds = band.attackHalfLifeSeconds;
     const releaseHalfLifeSeconds = band.releaseHalfLifeSeconds;
+    const smoothingHalfLifeSeconds =
+      attackHalfLifeSeconds ??
+      releaseHalfLifeSeconds ??
+      band.smoothingHalfLifeSeconds ??
+      DEFAULT_HALF_LIFE_SECONDS;
     const spectrumFftSize = 4096;
     const mappingFftSize = band.fftSize ?? 2048;
 
@@ -900,6 +897,7 @@ export function buildOfflineAudioAnalysisConfigs(
     return {
       nodeId: band.id,
       frequencyBands,
+      bandModes,
       smoothingHalfLifeSeconds: [smoothingHalfLifeSeconds],
       attackHalfLifeSeconds: attackHalfLifeSeconds != null ? [attackHalfLifeSeconds] : undefined,
       releaseHalfLifeSeconds: releaseHalfLifeSeconds != null ? [releaseHalfLifeSeconds] : undefined,

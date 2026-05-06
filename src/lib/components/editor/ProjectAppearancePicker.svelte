@@ -234,10 +234,10 @@
   .appearance-target-tab {
     margin: 0;
     padding: var(--pd-2xs) var(--pd-sm);
-    border: 1px solid color-mix(in srgb, var(--color-n-65) 22%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-gray-90) 22%, transparent);
     border-radius: var(--radius-md);
     background: color-mix(in srgb, var(--ghost-bg) 85%, transparent);
-    color: var(--print-soft, var(--color-n-65));
+    color: var(--print-subtle);
     font: inherit;
     font-size: var(--text-xs);
     cursor: pointer;

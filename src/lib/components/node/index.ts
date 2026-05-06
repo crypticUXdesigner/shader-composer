@@ -1,5 +1,5 @@
 /**
- * Node components - Canvas DOM Migration WP 14A
+ * Node components.
  */
 
 export { default as Node } from './Node.svelte';

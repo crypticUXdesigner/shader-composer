@@ -118,7 +118,7 @@
     aria-label={ariaLabel}
     tabindex="-1"
     onkeydown={onKeydown}
-    onmousedown={startDrag}
+    onmousedown={onPositionChange ? startDrag : undefined}
   >
     <header class="header">
       <div class="header-left">
@@ -126,16 +126,18 @@
           {@render headerLeft()}
         {/if}
       </div>
-      <div
-        class="drag-indicator"
-        role="button"
-        tabindex="0"
-        aria-label="Drag to move panel"
-        title="Drag to move panel"
-        onmousedown={startDrag}
-      >
-        <IconSvg name="grip-horizontal" variant="line" class="drag-icon" />
-      </div>
+      {#if onPositionChange}
+        <div
+          class="drag-indicator"
+          role="button"
+          tabindex="0"
+          aria-label="Drag to move panel"
+          title="Drag to move panel"
+          onmousedown={startDrag}
+        >
+          <IconSvg name="grip-horizontal" variant="line" class="drag-icon" />
+        </div>
+      {/if}
       <div class="header-right">
         <Button
           variant="ghost"

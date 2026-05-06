@@ -47,6 +47,15 @@ export const oscillator2dNodeSpec: NodeSpec = {
     { name: 'y', type: 'float', label: 'Y' },
   ],
   parameters: {
+    globalSpeed: oscFloatParam('Global speed', 1.0, -10.0, 10.0, 0.001, {
+      supportsAnimation: true,
+      knobPolarity: 'two-sided',
+    }),
+    globalOffset: oscFloatParam('Global offset', 0.0, -100.0, 100.0, 0.01, {
+      supportsAnimation: true,
+      knobPolarity: 'two-sided',
+    }),
+
     layerCombine: {
       type: 'int',
       default: 0,
@@ -91,6 +100,13 @@ export const oscillator2dNodeSpec: NodeSpec = {
     offsetY: oscFloatParam('Y', 0.0, -5.0, 5.0, 0.01, { supportsAnimation: true, knobPolarity: 'two-sided' }),
   },
   parameterGroups: [
+    {
+      id: 'osc2d-global',
+      label: 'Global time',
+      parameters: ['globalSpeed', 'globalOffset'],
+      collapsible: true,
+      defaultCollapsed: false,
+    },
     {
       id: 'osc2d-mix',
       label: 'Mix',
@@ -158,6 +174,12 @@ export const oscillator2dNodeSpec: NodeSpec = {
   parameterLayout: {
     minColumns: 3,
     elements: [
+      {
+        type: 'grid',
+        label: 'Global time',
+        parameters: ['globalSpeed', 'globalOffset'],
+        layout: { columns: 2 },
+      },
       {
         type: 'grid',
         label: 'Mix',
@@ -278,7 +300,7 @@ export const oscillator2dNodeSpec: NodeSpec = {
   `,
   mainCode: `
     float osc2dTau = 6.283185307179586;
-    float osc2dT = $time;
+    float osc2dT = $time * $param.globalSpeed + $param.globalOffset;
     float osc2dSx1 = sin(osc2dT * osc2dTau * $param.x1Freq + $param.x1Phase);
     float osc2dSx2 = sin(osc2dT * osc2dTau * $param.x2Freq + $param.x2Phase);
     float osc2dSx3 = sin(osc2dT * osc2dTau * $param.x3Freq + $param.x3Phase);

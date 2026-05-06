@@ -96,7 +96,6 @@
       sampleRate={spectrumData?.sampleRate ?? 44100}
       fftSize={band.fftSize}
       fftSizeValue={band.fftSize}
-      smoothingHalfLifeSeconds={band.smoothingHalfLifeSeconds}
       showSmoothingFft={false}
       onChange={(bands) => onBandChange?.((b) => ({ ...b, frequencyBands: bands }))}
     />
@@ -120,7 +119,7 @@
       min-height: 0;
 
       :global(.button) {
-        border-radius: calc(var(--radius-md) - var(--pd-sm));
+        border-radius: calc(var(--radius-md) - var(--pd-sm)) !important;
       }
     }
 

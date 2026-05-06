@@ -81,6 +81,7 @@
       {paramName}
       state={portState}
       {signalName}
+      {timelineDriven}
       showSignalName={false}
       onPointerDown={onPortPointerDown}
       onDoubleClick={onPortDoubleClick}

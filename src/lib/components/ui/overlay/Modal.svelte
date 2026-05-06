@@ -4,7 +4,6 @@
   import { readCssTimeMs } from '../../../../utils/readCssTimeMs';
 
   let reducedMotion = $state(false);
-  let fadeMs = $state(150);
   $effect(() => {
     if (typeof window === 'undefined') return;
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -16,15 +15,11 @@
     return () => mq.removeEventListener('change', handler);
   });
 
-  $effect(() => {
-    if (typeof window === 'undefined') return;
-    if (reducedMotion) {
-      fadeMs = 0;
-      return;
-    }
-
+  const fadeMs = $derived.by(() => {
+    if (typeof window === 'undefined') return 150;
+    if (reducedMotion) return 0;
     const fast = readCssTimeMs('--motion-effects-fast-duration');
-    fadeMs = Number.isFinite(fast) ? fast : 150;
+    return Number.isFinite(fast) ? fast : 150;
   });
 
   interface Props {

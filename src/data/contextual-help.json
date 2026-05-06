@@ -33,7 +33,7 @@
       "relatedItems": [
         "node:constant-vec2",
         "node:uv-coordinates",
-        "node:translate",
+        "node:displace",
         "node:rotate",
         "node:scale"
       ]

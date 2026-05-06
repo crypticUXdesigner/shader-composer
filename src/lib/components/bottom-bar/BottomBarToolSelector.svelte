@@ -2,7 +2,7 @@
   /**
    * BottomBarToolSelector - Canvas tool buttons (Cursor, Hand, Select, Add, Patch) for the bottom bar.
    */
-  import { Button, ButtonGroup, IconSvg } from '../ui';
+  import { Button, ButtonGroup, DropdownMenu, IconSvg, MenuItem } from '../ui';
   import { graphStore } from '../../stores';
   import type { ToolType } from '../../stores';
   import { altOptionKeycapLabel } from '../../../utils/platformKeys';
@@ -30,6 +30,18 @@
     { id: 'patch', icon: 'plug', shortcut: 'P', label: 'Patch' },
   ];
 
+  const primaryToolIds: ToolType[] = ['add', 'cursor'];
+
+  const primaryTools = $derived(
+    tools.filter((t) => primaryToolIds.includes(t.id))
+  );
+  const overflowTools = $derived(
+    tools.filter((t) => !primaryToolIds.includes(t.id))
+  );
+
+  let moreMenuOpen = $state(false);
+  let moreMenuAnchorEl = $state<HTMLDivElement | null>(null);
+
   function handleToolClick(tool: ToolType) {
     graphStore.setActiveTool(tool);
     onToolChange?.(tool);
@@ -38,7 +50,7 @@
 
 <div class="tool-selector-wrapper">
   <ButtonGroup class="tool-selector">
-    {#each tools as tool}
+    {#each primaryTools as tool (tool.id)}
       <Button
         variant="ghost"
         size="sm"
@@ -59,6 +71,46 @@
         {/if}
       </Button>
     {/each}
+    <div bind:this={moreMenuAnchorEl} class="tool-more-anchor">
+      <Button
+        variant="ghost"
+        size="sm"
+        mode="icon-only"
+        class={!primaryToolIds.includes(effectiveTool) ? 'is-active' : ''}
+        aria-pressed={!primaryToolIds.includes(effectiveTool)}
+        title="More tools…"
+        onclick={() => (moreMenuOpen = !moreMenuOpen)}
+      >
+        <IconSvg name="dots-three-vertical" variant="line" />
+      </Button>
+    </div>
+    <DropdownMenu
+      open={moreMenuOpen}
+      anchor={moreMenuAnchorEl}
+      align="end"
+      offsetX={13}
+      openAbove={true}
+      onClose={() => (moreMenuOpen = false)}
+      class="tool-more-menu"
+    >
+      {#snippet children()}
+        {#each overflowTools as tool (tool.id)}
+          <MenuItem
+            label={tool.label}
+            selected={effectiveTool === tool.id}
+            shortcut={tool.shortcut}
+            onclick={() => {
+              handleToolClick(tool.id);
+              moreMenuOpen = false;
+            }}
+          >
+            {#snippet icon()}
+              <IconSvg name={tool.icon} variant="line" />
+            {/snippet}
+          </MenuItem>
+        {/each}
+      {/snippet}
+    </DropdownMenu>
   </ButtonGroup>
 </div>
 
@@ -89,5 +141,9 @@
 
   :global(.tool-selector .is-active) .mod-key {
     border-color: var(--color-gray-90);
+  }
+
+  .tool-more-anchor {
+    display: inline-flex;
   }
 </style>

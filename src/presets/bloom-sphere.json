@@ -178,17 +178,17 @@
       },
       {
         "id": "node-1774049305878-2adkx6a4b",
-        "type": "kaleidoscope-smooth",
+        "type": "kaleidoscope",
         "position": {
           "x": 3130,
           "y": -395
         },
         "parameters": {
-          "kaleidSmoothCenterX": 0,
-          "kaleidSmoothCenterY": 0,
-          "kaleidSmoothSegments": 32,
-          "kaleidSmoothRotation": 0,
-          "kaleidSmoothEdge": 0.5
+          "kaleidCenterX": 0,
+          "kaleidCenterY": 0,
+          "kaleidSegments": 32,
+          "kaleidRotation": 0,
+          "kaleidEdgeSmooth": 0.5
         }
       },
       {

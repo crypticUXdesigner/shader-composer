@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * SignalConnectionPicker - WP 12
+   * SignalConnectionPicker
    * Dropdown/list for "connect to signal" flow: graph outputs + named audio signals.
    * User selects one; connection is created (graph → param or virtual node → param).
    */

@@ -2,11 +2,11 @@
  * WaveformService - unified waveform data for current primary source (02B).
  * For playlist tracks: audiograph API (with buffer fallback on failure).
  * For uploads: buffer-derived waveform only.
- * Exposes getWaveformForPrimary() and getWaveformSlice() for 03A/03B/03C.
+ * Exposes getWaveformForPrimary(), getWaveformForCurveEditor(), and getWaveformSlice() for 03A/03B/03C.
  */
 
 import type { PrimarySource } from '../../data-model/audioSetupTypes';
-import type { WaveformData } from './types';
+import type { AudiographResolution, WaveformData } from './types';
 import { AudiographClient, SCRUBBER_RESOLUTION } from './AudiographClient';
 import { computeWaveformFromBuffer, DEFAULT_WAVEFORM_LENGTH } from './bufferWaveform';
 import { getTrackDurationSeconds, getTracksData, resolvePlaylistTrackMp3Url } from '../tracksData';
@@ -15,6 +15,15 @@ import { getTrackDurationSeconds, getTracksData, resolvePlaylistTrackMp3Url } fr
 function toAudiographResourceName(trackId: string): string {
   return trackId.startsWith('tracks/') ? trackId : `tracks/${trackId}`;
 }
+
+/**
+ * Audiograph resolution for the automation curve editor background (full track).
+ * Higher than {@link SCRUBBER_RESOLUTION} so short regions still look detailed.
+ */
+export const CURVE_EDITOR_AUDIOGRAPH_RESOLUTION: AudiographResolution = 960;
+
+/** Buffer RMS bucket count for uploads / buffer fallbacks when drawing the curve editor waveform. */
+export const CURVE_EDITOR_BUFFER_WAVEFORM_LENGTH = 1920;
 
 export interface WaveformServiceDeps {
   /** Current primary source (from audioSetup.primarySource). */
@@ -54,6 +63,7 @@ export class WaveformService {
   private trackWaveformCache = new Map<string, WaveformData>();
   private trackWaveformInFlight = new Map<string, Promise<WaveformData>>();
   private decodeCtx: OfflineAudioContext | null = null;
+  private disposed = false;
 
   constructor(deps: WaveformServiceDeps, audiographClient?: AudiographClient) {
     this.deps = deps;
@@ -71,20 +81,43 @@ export class WaveformService {
     return `${primary.type}:${primaryId}`;
   }
 
+  /**
+   * Stop audiograph / MP3 decode bookkeeping when the service is dropped (runtime teardown,
+   * project switch). In-flight fetches still settle but no longer write into cleared caches.
+   */
+  dispose(): void {
+    this.disposed = true;
+    this.trackWaveformCache.clear();
+    this.trackWaveformInFlight.clear();
+    this.audiographClient.clearCache();
+    this.lastPrimaryId = undefined;
+    this.decodeCtx = null;
+  }
+
   private getDecodeContext(): OfflineAudioContext {
     // OfflineAudioContext can decode without a user gesture and is safe for background work.
     if (this.decodeCtx) return this.decodeCtx;
+    if (this.disposed) {
+      // Straggling MP3 decode after `dispose()` must not reattach a context to this instance.
+      return new OfflineAudioContext(1, 1, 44100);
+    }
     this.decodeCtx = new OfflineAudioContext(1, 1, 44100);
     return this.decodeCtx;
   }
 
-  private async getWaveformFromTrackMp3(trackId: string): Promise<WaveformData> {
-    const cached = this.trackWaveformCache.get(trackId);
+  private mp3WaveformCacheKey(trackId: string, targetLength: number): string {
+    return `${trackId}\0${targetLength}`;
+  }
+
+  private async getWaveformFromTrackMp3(trackId: string, targetLength: number): Promise<WaveformData> {
+    const cacheKey = this.mp3WaveformCacheKey(trackId, targetLength);
+    const cached = this.trackWaveformCache.get(cacheKey);
     if (cached) return cached;
-    const inFlight = this.trackWaveformInFlight.get(trackId);
+    const inFlight = this.trackWaveformInFlight.get(cacheKey);
     if (inFlight) return inFlight;
 
     const promise = (async () => {
+      if (this.disposed) return EMPTY_WAVEFORM;
       try {
         const data = await getTracksData();
         const mp3Url = resolvePlaylistTrackMp3Url(data, toAudiographResourceName(trackId));
@@ -96,7 +129,7 @@ export class WaveformService {
 
         const ctx = this.getDecodeContext();
         const audioBuffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
-        const { values, durationSeconds } = computeWaveformFromBuffer(audioBuffer, DEFAULT_WAVEFORM_LENGTH);
+        const { values, durationSeconds } = computeWaveformFromBuffer(audioBuffer, targetLength);
 
         const waveform: WaveformData = {
           values,
@@ -104,25 +137,27 @@ export class WaveformService {
           durationSeconds,
           source: 'buffer',
         };
-        this.trackWaveformCache.set(trackId, waveform);
+        if (!this.disposed) this.trackWaveformCache.set(cacheKey, waveform);
         return waveform;
       } catch {
         return EMPTY_WAVEFORM;
       }
     })();
 
-    this.trackWaveformInFlight.set(trackId, promise);
-    promise.finally(() => this.trackWaveformInFlight.delete(trackId));
+    this.trackWaveformInFlight.set(cacheKey, promise);
+    promise.finally(() => this.trackWaveformInFlight.delete(cacheKey));
     return promise;
   }
 
   /**
-   * Get waveform for the current primary source.
-   * Playlist: fetch audiograph (or from cache); on failure fall back to buffer if loaded.
-   * Upload: buffer-derived only.
-   * Returns empty WaveformData on no primary or when no data available (no crash).
+   * Shared implementation: audiograph resolution and buffer bucket count differ per consumer.
    */
-  async getWaveformForPrimary(): Promise<WaveformData> {
+  private async resolveWaveformForPrimary(options: {
+    audiographResolution: AudiographResolution;
+    bufferTargetLength: number;
+  }): Promise<WaveformData> {
+    const { audiographResolution, bufferTargetLength } = options;
+    if (this.disposed) return EMPTY_WAVEFORM;
     const primary = this.deps.getPrimarySource();
     const primaryId = this.deps.getPrimaryFileId();
     const buffer = this.deps.getPrimaryBuffer();
@@ -139,13 +174,13 @@ export class WaveformService {
 
     if (primary.type === 'upload') {
       if (!buffer) return EMPTY_WAVEFORM;
-      const { values, durationSeconds } = computeWaveformFromBuffer(buffer, DEFAULT_WAVEFORM_LENGTH);
+      const { values, durationSeconds } = computeWaveformFromBuffer(buffer, bufferTargetLength);
       return { values, durationSeconds, source: 'buffer' };
     }
 
     // Playlist: stereo audiograph (reference); shared L/R scale. Fallback to buffer if empty/zeros.
     const resourceName = toAudiographResourceName(primary.trackId);
-    const stereo = await this.audiographClient.getAudiographStereo(resourceName, SCRUBBER_RESOLUTION);
+    const stereo = await this.audiographClient.getAudiographStereo(resourceName, audiographResolution);
     const left = stereo?.left ?? [];
     const right = stereo?.right ?? [];
     const maxL = left.length ? Math.max(...left) : 0;
@@ -167,18 +202,42 @@ export class WaveformService {
     // Fallback: buffer-derived when we have the buffer (e.g. track already loaded for playback).
     // Used when audiograph is missing, empty, or all zeros so we still show a real waveform.
     if (buffer) {
-      const { values, durationSeconds } = computeWaveformFromBuffer(buffer, DEFAULT_WAVEFORM_LENGTH);
+      const { values, durationSeconds } = computeWaveformFromBuffer(buffer, bufferTargetLength);
       return { values, durationSeconds, source: 'buffer' };
     }
 
     // Last resort for playlist: fetch MP3 and derive waveform client-side (avoids relying on Audiograph RPC).
-    // This is cached per track id to prevent repeated decoding work.
-    return await this.getWaveformFromTrackMp3(primary.trackId);
+    // Cached per track id and target length.
+    return await this.getWaveformFromTrackMp3(primary.trackId, bufferTargetLength);
+  }
+
+  /**
+   * Get waveform for the current primary source.
+   * Playlist: fetch audiograph (or from cache); on failure fall back to buffer if loaded.
+   * Upload: buffer-derived only.
+   * Returns empty WaveformData on no primary or when no data available (no crash).
+   */
+  async getWaveformForPrimary(): Promise<WaveformData> {
+    return this.resolveWaveformForPrimary({
+      audiographResolution: SCRUBBER_RESOLUTION,
+      bufferTargetLength: DEFAULT_WAVEFORM_LENGTH,
+    });
+  }
+
+  /**
+   * Higher-resolution waveform for the automation curve editor background only.
+   * Does not affect scrubber / mini timeline (those use {@link getWaveformForPrimary}).
+   */
+  async getWaveformForCurveEditor(): Promise<WaveformData> {
+    return this.resolveWaveformForPrimary({
+      audiographResolution: CURVE_EDITOR_AUDIOGRAPH_RESOLUTION,
+      bufferTargetLength: CURVE_EDITOR_BUFFER_WAVEFORM_LENGTH,
+    });
   }
 
   /**
    * Return a slice of waveform values for the given time window (for timeline/curve editor).
-   * Call after getWaveformForPrimary(); uses the same full values + duration.
+   * Use with the same `fullValues` / `durationSeconds` returned from getWaveformForPrimary or getWaveformForCurveEditor.
    */
   getWaveformSlice(
     fullValues: number[],

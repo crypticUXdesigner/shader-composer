@@ -1,7 +1,7 @@
 /**
  * Main entry point for ShaderNoice
  *
- * Svelte 5 Migration WP 06: Mount App.svelte, load icons, handle HMR.
+ * Mount App.svelte, load icons, handle HMR.
  */
 
 import { mount, unmount } from 'svelte';

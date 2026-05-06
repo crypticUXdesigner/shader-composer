@@ -45,7 +45,7 @@
       onclick={() => setViewMode('full')}
       title="Shader [3] — Shader fills viewport"
     >
-      <IconSvg name="play" variant="line" />
+      <IconSvg name="frame-corners" variant="line" />
       <span>3</span>
     </Button>
   </ButtonGroup>

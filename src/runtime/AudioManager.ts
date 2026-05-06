@@ -75,13 +75,11 @@ export class AudioManager implements Disposable {
   private audioWorkerBuildChain: Promise<void> = Promise.resolve();
   private activeWorkerBuildKeys: string[] = [];
   
-  // Track previous uniform values to detect changes
   private previousUniformValues: Map<string, number> = new Map();
   private readonly VALUE_CHANGE_THRESHOLD = 0.001; // Only update if change > 0.1%
   
   constructor(errorHandler?: ErrorHandler) {
     
-    // Create component instances
     this.contextManager = new AudioContextManager(errorHandler);
     this.loader = new AudioLoader(this.contextManager, errorHandler);
     this.playbackController = new AudioPlaybackController(this.contextManager, errorHandler);
@@ -220,6 +218,7 @@ export class AudioManager implements Disposable {
       nodeId,
       audioFileNodeId,
       frequencyBands,
+      undefined,
       smoothingHalfLifeSeconds,
       attackHalfLifeSeconds,
       releaseHalfLifeSeconds,
@@ -624,7 +623,7 @@ export class AudioManager implements Disposable {
 
   /**
    * Get live value for a virtual node (audio signal).
-   * WP 11: Used by parameterValueCalculator when param is connected to virtual node.
+   * Used when a parameter is connected to a virtual node.
    */
   getVirtualNodeLiveValue(virtualNodeId: string): number | null {
     return getVirtualNodeLiveValueImpl(

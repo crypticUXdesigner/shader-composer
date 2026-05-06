@@ -3,7 +3,6 @@
    * Full-viewport branding overlay until the user dismisses it (after the app is ready).
    * Logo: place `public/ShaderNoice-logo.png` (optional; hidden if missing or broken).
    */
-  import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import { IconSvg } from '../icon';
@@ -99,37 +98,27 @@
     layer3: `${baseUrl}app-logo/layer3-content.webp`,
   } as const;
 
-  function prefersReducedMotion(): boolean {
-    if (typeof window === 'undefined') return false;
-    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  }
-
-  let reduceMotion = $state(prefersReducedMotion());
-
-  onMount(() => {
-    reduceMotion = prefersReducedMotion();
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const onChange = (): void => {
-      reduceMotion = mq.matches;
-    };
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
-  });
-
-  let fadeMs = $state(200);
+  let reduceMotion = $state(false);
   $effect(() => {
     if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    reduceMotion = mq.matches;
+    const handler = (): void => {
+      reduceMotion = mq.matches;
+    };
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  });
 
+  const fadeMs = $derived.by(() => {
+    if (typeof window === 'undefined') return 200;
     const fast = readCssTimeMs('--motion-effects-fast-duration');
     const normal = readCssTimeMs('--motion-effects-normal-duration');
-
     // Shorter when reduced motion; never 0 or the dismiss feels like a hard cut.
     if (reduceMotion) {
-      fadeMs = Number.isFinite(fast) ? fast : 150;
-      return;
+      return Number.isFinite(fast) ? fast : 150;
     }
-
-    fadeMs = Number.isFinite(normal) ? normal : Number.isFinite(fast) ? fast : 200;
+    return Number.isFinite(normal) ? normal : Number.isFinite(fast) ? fast : 200;
   });
 
   function handleActivate(): void {

@@ -14,14 +14,20 @@ import type {
   PlaylistState,
 } from './audioSetupTypes';
 
+function withDefaultBandMode(entry: AudioBandEntry): AudioBandEntry {
+  if (entry.bandMode != null) return entry;
+  return { ...entry, bandMode: 'mean' };
+}
+
 function copyFile(entry: AudioFileEntry): AudioFileEntry {
   return { ...entry };
 }
 
 function copyBand(entry: AudioBandEntry): AudioBandEntry {
+  const normalized = withDefaultBandMode(entry);
   const band = entry.frequencyBands[0];
   const copy: [[number, number]] = band ? [[band[0], band[1]]] : [[0, 0]];
-  return { ...entry, frequencyBands: copy };
+  return { ...normalized, frequencyBands: copy };
 }
 
 function copyRemapper(entry: AudioRemapperEntry): AudioRemapperEntry {
@@ -89,7 +95,7 @@ export function removeBand(setup: AudioSetup, bandId: string): AudioSetup {
 export function addRemapper(setup: AudioSetup, remapper: AudioRemapperEntry): AudioSetup {
   return {
     ...setup,
-    remappers: [...setup.remappers, copyRemapper(remapper)],
+    remappers: [copyRemapper(remapper), ...setup.remappers],
   };
 }
 

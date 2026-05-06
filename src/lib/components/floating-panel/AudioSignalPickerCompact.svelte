@@ -94,6 +94,16 @@
 
   let sourceFileButtonEl: HTMLDivElement | undefined = $state();
   let sourceFileOpen = $state(false);
+
+  type BandMode = 'mean' | 'max' | 'rms';
+  const BAND_MODE_OPTIONS: ReadonlyArray<{ value: BandMode; label: string }> = [
+    { value: 'mean', label: 'Mean' },
+    { value: 'max', label: 'Max' },
+    { value: 'rms', label: 'RMS' },
+  ];
+
+  let modeButtonEl: HTMLDivElement | undefined = $state();
+  let modeOpen = $state(false);
 </script>
 
 <div class="compact">
@@ -137,12 +147,47 @@
             class="dropdown"
           >
             {#snippet children()}
-              {#each files as file}
+              {#each files as file (file.id)}
                 <MenuItem
                   label={file.name || file.filePath || `File ${file.id}`}
                   onclick={() => {
                     handleBandChange(bandId, (b) => ({ ...b, sourceFileId: file.id }));
                     sourceFileOpen = false;
+                  }}
+                />
+              {/each}
+            {/snippet}
+          </DropdownMenu>
+        </div>
+      </div>
+      <div class="row">
+        <span class="label">Mode</span>
+        <div class="source" bind:this={modeButtonEl}>
+          <Button
+            variant="ghost"
+            size="sm"
+            mode="both"
+            class="trigger"
+            aria-label="Mode"
+            onclick={() => (modeOpen = !modeOpen)}
+          >
+            <span class="text">
+              {BAND_MODE_OPTIONS.find((o) => o.value === (band.bandMode ?? 'mean'))?.label ?? 'Mean'}
+            </span>
+          </Button>
+          <DropdownMenu
+            open={modeOpen}
+            anchor={modeButtonEl}
+            onClose={() => (modeOpen = false)}
+            class="dropdown"
+          >
+            {#snippet children()}
+              {#each BAND_MODE_OPTIONS as option (option.value)}
+                <MenuItem
+                  label={option.label}
+                  onclick={() => {
+                    handleBandChange(bandId, (b) => ({ ...b, bandMode: option.value }));
+                    modeOpen = false;
                   }}
                 />
               {/each}
@@ -157,11 +202,9 @@
           sampleRate={spectrumDataByBand.get(bandId)?.sampleRate ?? 44100}
           fftSize={band.fftSize}
           fftSizeValue={band.fftSize}
-          smoothingHalfLifeSeconds={band.smoothingHalfLifeSeconds}
           attackHalfLifeSeconds={band.attackHalfLifeSeconds}
           releaseHalfLifeSeconds={band.releaseHalfLifeSeconds}
           onChange={(bands) => handleBandChange(bandId, (b) => ({ ...b, frequencyBands: bands }))}
-          onSmoothingHalfLifeSecondsChange={(v) => handleBandChange(bandId, (b) => ({ ...b, smoothingHalfLifeSeconds: Math.max(0, v) }))}
           onAttackHalfLifeSecondsChange={(v) =>
             handleBandChange(bandId, (b) => ({ ...b, attackHalfLifeSeconds: v != null ? Math.max(0, v) : undefined }))}
           onReleaseHalfLifeSecondsChange={(v) =>

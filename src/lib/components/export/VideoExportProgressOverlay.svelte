@@ -34,7 +34,12 @@
   let speed: SpeedState = { startMs: null, lastMs: null, lastFrame: 0, emaFps: null };
   let remainingSeconds = $state<number | null>(null);
   let remainingText = $derived(remainingSeconds == null ? 'Estimating…' : formatCountdown(remainingSeconds));
+
+  // ETA uses the same clock as progress + EMA updates (subscribe callback), not a separate
+  // setInterval whose effect deps could miss `progress` / leave duplicate timers. Throttle
+  // writes to ~1 Hz when a numeric ETA exists; always refresh when estimating or finished.
   $effect(() => {
+    let lastRemainingUiMs = 0;
     const unsub = progress.subscribe((v) => {
       const now = performance.now();
       if (speed.startMs == null) {
@@ -54,21 +59,19 @@
         speed = { ...speed, lastMs: now, lastFrame: v.current };
       }
       progressValue = v;
+
+      const { current, total } = v;
+      const fps = speed.emaFps;
+      const canCompute =
+        total > 0 && fps != null && fps > 0.001 && current >= 0 && current <= total;
+      const nextRemaining = canCompute ? (total - current) / fps : null;
+      const doneOrEstimate = !canCompute || current >= total;
+      if (doneOrEstimate || now - lastRemainingUiMs >= 1000) {
+        lastRemainingUiMs = now;
+        remainingSeconds = nextRemaining;
+      }
     });
     return unsub;
-  });
-
-  $effect(() => {
-    const interval = window.setInterval(() => {
-      const { current, total } = progressValue;
-      const fps = speed.emaFps;
-      if (total > 0 && fps != null && fps > 0.001 && current >= 0 && current <= total) {
-        remainingSeconds = (total - current) / fps;
-      } else {
-        remainingSeconds = null;
-      }
-    }, 1000);
-    return () => window.clearInterval(interval);
   });
 </script>
 

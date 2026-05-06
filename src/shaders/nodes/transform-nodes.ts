@@ -5,59 +5,6 @@ import type { NodeSpec } from '../../types/nodeSpec';
  * These nodes modify coordinates (vec2 → vec2)
  */
 
-export const translateNodeSpec: NodeSpec = {
-  id: 'translate',
-  category: 'Distort',
-  displayName: 'Translate',
-  description: 'Translates coordinates by x and y offsets',
-  icon: 'arrow-move-right',
-  inputs: [
-    {
-      name: 'in',
-      type: 'vec2',
-      label: 'UV'
-    }
-  ],
-  outputs: [
-    {
-      name: 'out',
-      type: 'vec2',
-      label: 'UV'
-    }
-  ],
-  parameters: {
-    x: {
-      type: 'float',
-      default: 0.0,
-      min: -10.0,
-      max: 10.0,
-      step: 0.01,
-      label: 'Offset X',
-      knobPolarity: 'two-sided' },
-    y: {
-      type: 'float',
-      default: 0.0,
-      min: -10.0,
-      max: 10.0,
-      step: 0.01,
-      label: 'Offset Y',
-      knobPolarity: 'two-sided' }
-  },
-  parameterLayout: {
-    elements: [
-      {
-        type: 'grid',
-        parameters: ['x', 'y'],
-        parameterUI: { x: 'coords', y: 'coords' },
-        layout: { columns: 2, coordsSpan: 2 }
-      }
-    ]
-  },
-  mainCode: `
-    $output.out = $input.in + vec2($param.x, $param.y);
-  `
-};
-
 export const rotateNodeSpec: NodeSpec = {
   id: 'rotate',
   category: 'Distort',

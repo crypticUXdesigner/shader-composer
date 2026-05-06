@@ -7,11 +7,16 @@ Learn what a node does (contextual help) and perform quick actions (right-click 
 ## 2. User & Context
 
 - **Who:** Any user; especially when learning or unsure about ports and parameters.
-- **When:** When one node is selected (help) or when right-clicking a node (context menu).
+- **When:** When zero or one node is selected (Help) or when right-clicking a node (context menu).
 
 ## 3. User Goals
 
-- **Read a guide for the selected node type** — When exactly one node is selected, “Help” control (e.g. top bar) available; click opens contextual help. Content in callout/popover: description, inputs, outputs, parameters, examples; user can close (button or click outside). Help content keyed by node type (e.g. `node:hexagonal-grid`); from static files (`node-documentation.json`, `contextual-help.json`) or node spec; missing content shows fallback or empty. Help enabled only when exactly one node selected; zero or multiple keeps Help disabled (or different message).
+- **Read help** — “Help” control (e.g. top bar) is available when **zero or one** node is selected:
+  - **Zero selected:** opens a concise **overview** (what ShaderNoice is, how to think in signals, a simple UV→output mental model, and where to explore next).
+  - **One selected:** opens the contextual **node guide** for the selected node type.
+  - **Multiple selected:** Help remains disabled (unchanged).
+  
+  In node-guide mode, content appears in the callout/popover: description, inputs, outputs, parameters, examples; user can close (button or click outside). Help content is keyed by node type (e.g. `node:hexagonal-grid`); sourced from static files (`node-documentation.json`, `contextual-help.json`) or node spec; missing content shows fallback or empty.
 - **Use the node context menu** — Right-click node: “Read Guide,” “Copy node name,” “Remove”; menu at pointer or near node. “Read Guide” opens same help content as Help button. “Copy node name” copies node type id (e.g. `hexagonal-grid`) to clipboard. “Remove” removes node and all its connections; graph and runtime updated. Menu implemented as dropdown; does not block canvas after close.
 - **Understand what can connect** — Port type pills or “compatible types” in help can guide connections; may link to signal picker where applicable.
 

@@ -7,7 +7,7 @@ description: Break a project definition or briefing into actionable task files a
 
 Emit **implementable-one-session** markdown tasks + hydrate **`_OVERVIEW`** work-package grid.
 
-**Context:** **`project-workflow.mdc`**, **`workpkg-hygiene.mdc`** (filenames `[project]-NN[ABC]-slug.md`; parallel sibling streams share prerequisites → `02A/02B`).
+**Context:** **`project-workflow.mdc`**, **`workpkg-hygiene.mdc`** (filenames `NN[ABC]-task-slug-project.md`; parallel sibling streams share prerequisites → `02A/02B`).
 
 ---
 

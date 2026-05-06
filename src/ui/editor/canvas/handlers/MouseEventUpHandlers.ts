@@ -9,7 +9,7 @@ import type { MouseEventHandlerDependencies } from './MouseEventHandler';
 import type { MouseEventMoveContext } from './MouseEventHandlerTypes';
 
 /**
- * End all interaction types, stop edge scroll, clear smart guides, mark overlay dirty, request render.
+ * End all interaction types, stop edge scroll, mark overlay dirty, request render.
  */
 export function endAllInteractionsAndClearGuides(deps: MouseEventHandlerDependencies, e: MouseEvent): void {
   if (deps.interactionManager) {
@@ -27,7 +27,6 @@ export function endAllInteractionsAndClearGuides(deps: MouseEventHandlerDependen
     }
   }
   deps.edgeScrollManager.stop();
-  deps.setSmartGuides({ vertical: [], horizontal: [] });
   deps.renderState.markLayerDirty(RenderLayer.Overlays);
   deps.handlerContext.requestRender();
 }

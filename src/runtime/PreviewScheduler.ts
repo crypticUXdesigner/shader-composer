@@ -1,6 +1,6 @@
 /**
- * P1a preview scheduler skeleton (WP 02A): records dirty + compile signals for dev/debug.
- * Does not change presentation cadence — WP 03 consumes this contract.
+ * Preview scheduler (dev/debug): records dirty + compile signals.
+ * Does not change presentation cadence.
  */
 
 import type {
@@ -42,10 +42,10 @@ export class PreviewScheduler {
   private marksEnabled = true;
   private overlayTimer: ReturnType<typeof setInterval> | null = null;
   private overlayEl: HTMLDivElement | null = null;
-  /** P2 (WP 04): when true, preview may cap DPR during interaction and settle after release. */
+  /** When true, preview may cap DPR during interaction and settle after release. */
   private adaptivePreviewEnabled =
     typeof localStorage !== 'undefined' && localStorage.getItem(ADAPTIVE_PREVIEW_STORAGE_KEY) === '1';
-  /** Next `Renderer.setupViewport` uses full device DPR once (WP 04 settle). */
+  /** Next `Renderer.setupViewport` uses full device DPR once. */
   private adaptiveSettleFullDprOnce = false;
 
   recordDirty(
@@ -118,7 +118,7 @@ export class PreviewScheduler {
     });
   }
 
-  /** Editor began a continuous interaction (WP 03 — interactionReduced). */
+  /** Editor began a continuous interaction (interactionReduced). */
   recordInteractionStart(source: string): void {
     this.mode = 'interactionReduced';
     this.recordTypedDirty('interaction.started', source, {
@@ -127,7 +127,7 @@ export class PreviewScheduler {
     });
   }
 
-  /** Editor ended interaction; scheduler may settle (WP 03). */
+  /** Editor ended interaction; scheduler may settle. */
   recordInteractionEnd(source: string): void {
     this.recordTypedDirty('interaction.ended', source);
     if (this.lastCompilePhase !== 'started') {
@@ -255,7 +255,7 @@ export type PreviewSchedulerDebugApi = {
   getLastFrames: (n: number) => PreviewDirtyEvent[];
   enableMarks: (on: boolean) => void;
   enableOverlay: (on: boolean) => void;
-  /** WP 04: toggle adaptive preview DPR cap (persists `localStorage` key). */
+  /** Toggle adaptive preview DPR cap (persists `localStorage` key). */
   setAdaptivePreview: (on: boolean) => void;
 };
 

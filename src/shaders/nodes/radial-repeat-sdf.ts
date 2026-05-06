@@ -4,7 +4,7 @@ import type { NodeSpec } from '../../types/nodeSpec';
  * Radial Repeat SDF
  * 3D SDF primitive: concentric spherical shells.
  * SDF(p) = abs(mod(length(p), period) - halfPeriod)
- * vec3 position in → float SDF out. Usable standalone or as input to generic raymarcher (WP03).
+ * vec3 position in → float SDF out. Usable standalone or as input to generic raymarcher.
  */
 export const radialRepeatSdfNodeSpec: NodeSpec = {
   id: 'radial-repeat-sdf',

@@ -23,6 +23,8 @@ Context: **`AGENTS.md`**, **`core/project-conventions.mdc`** (immutable graph, u
 | Capture investigated bug | `/write-bug` |
 | Close loop on `docs/bug/` report | `/review-bug` |
 | Prune / relocate stale `docs/`; refresh `docs/architecture/` vs code | `/cleanup-docs` |
+| Clean up shipped `docs/implementation/` packages | See `docs-implementation-done-cleanup.mdc` |
 | Audit Cursor agent config itself | `/review-agent-tooling` |
+| Audit `$effect` usage vs Svelte 5 guidance | `/audit-svelte-effects` |
 
 After big structural changes: consider new/updated **`docs/`** or **`.cursor/rules/`** entries — propose separately, don’t fold into unrelated implementation PRs unless required.

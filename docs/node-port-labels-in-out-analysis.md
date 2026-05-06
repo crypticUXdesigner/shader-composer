@@ -49,8 +49,6 @@ All node ports should show **human-readable labels** in the UI, not code-like na
 | rotate | out | vec2 | — | **UV** |
 | scale | in | vec2 | — | **UV** |
 | scale | out | vec2 | — | **UV** |
-| domain-repetition | in | vec2 | — | **UV** |
-| domain-repetition | out | vec2 | — | **UV** |
 
 ---
 
@@ -78,6 +76,7 @@ All node ports should show **human-readable labels** in the UI, not code-like na
 | mirror-flip | out | vec2 | — | **UV** |
 | displace | in | vec2 | — | **UV** |
 | displace | offset | vec2 | — | **Offset** |
+| displace | amount | float | — | **Amount** |
 | displace | out | vec2 | — | **UV** |
 | vortex | in | vec2 | — | **UV** |
 | vortex | out | vec2 | — | **UV** |
@@ -85,14 +84,10 @@ All node ports should show **human-readable labels** in the UI, not code-like na
 | spherize | out | vec2 | — | **UV** |
 | quad-warp | in | vec2 | — | **UV** |
 | quad-warp | out | vec2 | — | **UV** |
-| directional-displace | in | vec2 | — | **UV** |
-| directional-displace | out | vec2 | — | **UV** |
 | brick-tiling | in | vec2 | — | **UV** |
 | brick-tiling | out | vec2 | — | **UV** |
 | infinite-zoom | in | vec2 | — | **Position** |
 | infinite-zoom | out | vec2 | — | **UV** |
-| kaleidoscope-smooth | in | vec2 | — | **Position** |
-| kaleidoscope-smooth | out | vec2 | — | **UV** |
 | fractal | in | vec2 | — | **UV** |
 | fractal | out | vec2 | — | **UV** |
 

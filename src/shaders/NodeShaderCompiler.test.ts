@@ -99,7 +99,7 @@ function expectedOutputVariableName(nodeId: string, portName: string): string {
 
 describe('NodeShaderCompiler', () => {
   /**
-   * Full compile path (WP 11): minimal graph → compile → assert result structure.
+     * Full compile path: minimal graph → compile → assert result structure.
    * Guards the critical path graph → NodeShaderCompiler → CompilationResult.
    */
   describe('full compile path (minimal graph)', () => {
@@ -372,7 +372,7 @@ describe('NodeShaderCompiler', () => {
 
   describe('turbulence node (function extraction must ignore // comments)', () => {
     it('compiles new preset with uv → turbulence → orbit without spurious reserved word output', () => {
-      const presetPath = join(__dirname, '..', 'presets', 'new.json');
+      const presetPath = join(__dirname, '..', 'presets', 'bloom-sphere.json');
       const preset = JSON.parse(readFileSync(presetPath, 'utf8')) as { graph: NodeGraph };
       const graph: NodeGraph = structuredClone(preset.graph);
 
@@ -384,25 +384,21 @@ describe('NodeShaderCompiler', () => {
         parameters: {}
       });
 
-      // Use ids from the preset under test (avoid brittleness when preset node ids change).
-      const uvNode = graph.nodes.find((n) => n.type === 'uv-coordinates');
       const bloomSphereNode = graph.nodes.find((n) => n.type === 'bloom-sphere');
-      expect(uvNode).toBeTruthy();
       expect(bloomSphereNode).toBeTruthy();
-      const uvId = uvNode!.id;
       const bloomSphereId = bloomSphereNode!.id;
-      const connIdx = graph.connections.findIndex((c) => {
-        // Some graphs use targetPort, others use targetParameter; we only want the uv -> bloom-sphere input.
-        const isInput = c.targetPort === 'in';
-        return c.sourceNodeId === uvId && c.targetNodeId === bloomSphereId && isInput;
-      });
-      expect(connIdx).toBeGreaterThanOrEqual(0);
-      graph.connections.splice(connIdx, 1);
+      const incomingToBloom = graph.connections.find(
+        (c) => c.targetNodeId === bloomSphereId && c.targetPort === 'in'
+      );
+      expect(incomingToBloom).toBeTruthy();
+      const srcId = incomingToBloom!.sourceNodeId;
+      const srcPort = incomingToBloom!.sourcePort;
+      graph.connections = graph.connections.filter((c) => c.id !== incomingToBloom!.id);
       graph.connections.push(
         {
-          id: 'c-uv-turb',
-          sourceNodeId: uvId,
-          sourcePort: 'out',
+          id: 'c-src-turb',
+          sourceNodeId: srcId,
+          sourcePort: srcPort,
           targetNodeId: turbId,
           targetPort: 'in'
         },
@@ -520,7 +516,7 @@ describe('NodeShaderCompiler', () => {
   });
 
   /**
-   * Param wiring contract (WP 02): execution order and variable substitution for a
+     * Param wiring contract: execution order and variable substitution for a
    * parameter connection chain. Chain: time → one-minus → hexagon.hexGap.
    * See docs/architecture/audio-reactivity.md — Contract (invariants).
    */
@@ -538,7 +534,7 @@ describe('NodeShaderCompiler', () => {
 
       return {
         id: 'graph-wp02',
-        name: 'WP02',
+        name: 'ParamWiringContract',
         version: '2.0',
         nodes: [
           { id: uvId, type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
@@ -612,7 +608,7 @@ describe('NodeShaderCompiler', () => {
     });
 
     /**
-     * Audio param chain (WP 10): virtual remap → one-minus (port) → hexagon.hexGap (param).
+     * Audio param chain: virtual remap → one-minus (port) → hexagon.hexGap (param).
      * Ensures the compiler wires virtual node uniform into one-minus input and one-minus output into hexGap.
      */
     it('wires virtual remap → one-minus → hexGap when audioSetup is provided', () => {
@@ -625,7 +621,7 @@ describe('NodeShaderCompiler', () => {
 
       const graph: NodeGraph = {
         id: 'graph-wp10',
-        name: 'WP10',
+        name: 'AudioParamChain',
         version: '2.0',
         nodes: [
           { id: uvId, type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
@@ -848,6 +844,282 @@ describe('NodeShaderCompiler', () => {
       ).not.toContain('$param.timeOffset');
     });
 
+    it('compiles generic-raymarcher with menger-sponge-sdf feeding sdf port', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const uvId = 'n-uv-ms';
+      const mengerId = 'n-menger';
+      const rayId = 'n-ray-ms';
+      const outId = 'n-out-ms';
+      const graph: NodeGraph = {
+        id: 'graph-menger-ray',
+        name: 'Menger Ray',
+        version: '2.0',
+        nodes: [
+          { id: uvId, type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          {
+            id: mengerId,
+            type: 'menger-sponge-sdf',
+            position: { x: 0, y: 0 },
+            parameters: { iterations: 2, domainScale: 1.0, deFudge: 0.2 }
+          },
+          { id: rayId, type: 'generic-raymarcher', position: { x: 0, y: 0 }, parameters: {} },
+          { id: outId, type: 'final-output', position: { x: 0, y: 0 }, parameters: {} }
+        ],
+        connections: [
+          { id: 'm1', sourceNodeId: uvId, sourcePort: 'out', targetNodeId: rayId, targetPort: 'in' },
+          { id: 'm2', sourceNodeId: mengerId, sourcePort: 'out', targetNodeId: rayId, targetPort: 'sdf' },
+          { id: 'm3', sourceNodeId: rayId, sourcePort: 'color', targetNodeId: outId, targetPort: 'in' }
+        ]
+      };
+
+      const result = compiler.compile(graph);
+      expect(result.metadata.errors, result.metadata.errors.join('; ')).toHaveLength(0);
+      expect(result.shaderCode).toContain('mengerSponge_eval');
+      expect(result.shaderCode).toContain('generic_raymarcher_sdf_n_ray_ms');
+      expect(result.shaderCode).not.toContain('$param.iterations');
+    });
+
+    it('compiles generic-raymarcher with mandelbox-sdf feeding sdf port', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const uvId = 'n-uv-mbox';
+      const mboxId = 'n-mandelbox';
+      const rayId = 'n-ray-mbox';
+      const outId = 'n-out-mbox';
+      const graph: NodeGraph = {
+        id: 'graph-mandelbox-ray',
+        name: 'Mandelbox Ray',
+        version: '2.0',
+        nodes: [
+          { id: uvId, type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          {
+            id: mboxId,
+            type: 'mandelbox-sdf',
+            position: { x: 0, y: 0 },
+            parameters: { iterations: 8, scale: -2.0, foldingLimit: 1.0, minRadius: 0.25 }
+          },
+          { id: rayId, type: 'generic-raymarcher', position: { x: 0, y: 0 }, parameters: {} },
+          { id: outId, type: 'final-output', position: { x: 0, y: 0 }, parameters: {} }
+        ],
+        connections: [
+          { id: 'b1', sourceNodeId: uvId, sourcePort: 'out', targetNodeId: rayId, targetPort: 'in' },
+          { id: 'b2', sourceNodeId: mboxId, sourcePort: 'out', targetNodeId: rayId, targetPort: 'sdf' },
+          { id: 'b3', sourceNodeId: rayId, sourcePort: 'color', targetNodeId: outId, targetPort: 'in' }
+        ]
+      };
+
+      const result = compiler.compile(graph);
+      expect(result.metadata.errors, result.metadata.errors.join('; ')).toHaveLength(0);
+      expect(result.shaderCode).toContain('mandelbox_sdf_eval');
+      expect(result.shaderCode).toContain('generic_raymarcher_sdf_n_ray_mbox');
+      expect(result.shaderCode).not.toContain('$param.iterations');
+    });
+
+    it('compiles generic-raymarcher with sierpinski-tetra-sdf feeding sdf port', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const uvId = 'n-uv-st';
+      const stId = 'n-stetra';
+      const rayId = 'n-ray-st';
+      const outId = 'n-out-st';
+      const graph: NodeGraph = {
+        id: 'graph-stetra-ray',
+        name: 'Sierpinski Tetra Ray',
+        version: '2.0',
+        nodes: [
+          { id: uvId, type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          {
+            id: stId,
+            type: 'sierpinski-tetra-sdf',
+            position: { x: 0, y: 0 },
+            parameters: { iterations: 4, scale: 2.0, coreRadius: 0.1 }
+          },
+          { id: rayId, type: 'generic-raymarcher', position: { x: 0, y: 0 }, parameters: {} },
+          { id: outId, type: 'final-output', position: { x: 0, y: 0 }, parameters: {} }
+        ],
+        connections: [
+          { id: 's1', sourceNodeId: uvId, sourcePort: 'out', targetNodeId: rayId, targetPort: 'in' },
+          { id: 's2', sourceNodeId: stId, sourcePort: 'out', targetNodeId: rayId, targetPort: 'sdf' },
+          { id: 's3', sourceNodeId: rayId, sourcePort: 'color', targetNodeId: outId, targetPort: 'in' }
+        ]
+      };
+
+      const result = compiler.compile(graph);
+      expect(result.metadata.errors, result.metadata.errors.join('; ')).toHaveLength(0);
+      expect(result.shaderCode).toContain('stetraSdfBody');
+      expect(result.shaderCode).toContain('generic_raymarcher_sdf_n_ray_st');
+      expect(result.shaderCode).not.toContain('$param.iterations');
+    });
+
+    it('uses constant-float output for sierpinski-tetra-sdf.scale inside generic-raymarcher SDF function', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const uvId = 'n-uv-st2';
+      const constId = 'n-const-st2';
+      const stId = 'n-stetra2';
+      const rayId = 'n-ray-st2';
+      const outId = 'n-out-st2';
+      const graph: NodeGraph = {
+        id: 'graph-stetra-scale-wire',
+        name: 'STetra scale wire',
+        version: '2.0',
+        nodes: [
+          { id: uvId, type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          { id: constId, type: 'constant-float', position: { x: 0, y: 0 }, parameters: { value: 2.2 } },
+          {
+            id: stId,
+            type: 'sierpinski-tetra-sdf',
+            position: { x: 0, y: 0 },
+            parameters: { iterations: 3 }
+          },
+          { id: rayId, type: 'generic-raymarcher', position: { x: 0, y: 0 }, parameters: {} },
+          { id: outId, type: 'final-output', position: { x: 0, y: 0 }, parameters: {} }
+        ],
+        connections: [
+          { id: 'w1', sourceNodeId: uvId, sourcePort: 'out', targetNodeId: rayId, targetPort: 'in' },
+          { id: 'w2', sourceNodeId: stId, sourcePort: 'out', targetNodeId: rayId, targetPort: 'sdf' },
+          {
+            id: 'w3',
+            sourceNodeId: constId,
+            sourcePort: 'out',
+            targetNodeId: stId,
+            targetParameter: 'scale'
+          },
+          { id: 'w4', sourceNodeId: rayId, sourcePort: 'color', targetNodeId: outId, targetPort: 'in' }
+        ]
+      };
+
+      const result = compiler.compile(graph);
+      expect(result.metadata.errors).toHaveLength(0);
+      const constVar = expectedOutputVariableName(constId, 'out');
+      const funcName = 'generic_raymarcher_sdf_n_ray_st2';
+      const pattern = new RegExp(
+        `float\\s+${funcName}\\s*\\(vec3\\s+p\\)\\s*\\{[\\s\\S]*${constVar}[\\s\\S]*\\}`
+      );
+      expect(result.shaderCode, 'SDF function must inline constant for scale').toMatch(pattern);
+      expect(result.shaderCode).not.toContain('$param.scale');
+    });
+
+    it('uses audio uniform for sierpinski-tetra-sdf.scale in generic-raymarcher SDF function', () => {
+      const remapperId = 'remap-node-stetra-audio';
+      const virtualRemapId = `audio-signal:remap-${remapperId}`;
+      const uvId = 'n-uv-sta';
+      const stId = 'n-stetra-audio';
+      const rayId = 'n-ray-sta';
+      const outputId = 'n-out-sta';
+
+      const graph: NodeGraph = {
+        id: 'graph-ray-stetra-audio',
+        name: 'Raymarcher STetra audio scale',
+        version: '2.0',
+        nodes: [
+          { id: uvId, type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          { id: stId, type: 'sierpinski-tetra-sdf', position: { x: 0, y: 0 }, parameters: { scale: 2.0 } },
+          { id: rayId, type: 'generic-raymarcher', position: { x: 0, y: 0 }, parameters: {} },
+          { id: outputId, type: 'final-output', position: { x: 0, y: 0 }, parameters: {} }
+        ],
+        connections: [
+          { id: 'a1', sourceNodeId: uvId, sourcePort: 'out', targetNodeId: rayId, targetPort: 'in' },
+          { id: 'a2', sourceNodeId: stId, sourcePort: 'out', targetNodeId: rayId, targetPort: 'sdf' },
+          {
+            id: 'a3',
+            sourceNodeId: virtualRemapId,
+            sourcePort: 'out',
+            targetNodeId: stId,
+            targetParameter: 'scale'
+          },
+          { id: 'a4', sourceNodeId: rayId, sourcePort: 'color', targetNodeId: outputId, targetPort: 'in' }
+        ]
+      };
+
+      const audioSetup: AudioSetup = {
+        files: [],
+        bands: [
+          { id: 'band-st', name: 'B1', sourceFileId: 'f1', frequencyBands: [[0, 1000]], smoothingHalfLifeSeconds: 1 / 120, fftSize: 4096 }
+        ],
+        remappers: [
+          { id: remapperId, name: 'R1', bandId: 'band-st', inMin: 0, inMax: 1, outMin: 1.5, outMax: 2.5 }
+        ]
+      };
+
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const result = compiler.compile(graph, audioSetup);
+
+      expect(result.metadata.errors).toHaveLength(0);
+
+      const uniformNodeId = `remap-${remapperId}`;
+      const sanitizedId = uniformNodeId.replace(/[^a-zA-Z0-9]/g, '_').replace(/^(\d)/, 'n$1');
+      const expectedUniform = `u${sanitizedId}Out`;
+
+      const funcName = 'generic_raymarcher_sdf_n_ray_sta';
+      const pattern = new RegExp(`float\\s+${funcName}\\s*\\(vec3\\s+p\\)\\s*\\{([\\s\\S]*?)\\}`);
+      const match = result.shaderCode.match(pattern);
+      expect(match, 'generic-raymarcher SDF function body must be found').not.toBeNull();
+      const body = match![1];
+
+      expect(body, 'SDF body must reference audio uniform for scale').toContain(expectedUniform);
+      expect(body, 'SDF body must not leave raw $param.scale').not.toContain('$param.scale');
+    });
+
+    it('uses SDF parameter input variable in generic-raymarcher SDF function body for julia-slab-sdf.xyScale', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const uvId = 'n-uv';
+      const constId = 'n-const-julia';
+      const juliaId = 'n-julia';
+      const rayId = 'n-ray-julia';
+      const outputId = 'n-out-julia';
+
+      const graph: NodeGraph = {
+        id: 'graph-raymarcher-sdf-julia',
+        name: 'Raymarcher Julia SDF Param',
+        version: '2.0',
+        nodes: [
+          { id: uvId, type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          { id: constId, type: 'constant-float', position: { x: 0, y: 0 }, parameters: { value: 2.25 } },
+          { id: juliaId, type: 'julia-slab-sdf', position: { x: 0, y: 0 }, parameters: {} },
+          {
+            id: rayId,
+            type: 'generic-raymarcher',
+            position: { x: 0, y: 0 },
+            parameters: {},
+          },
+          { id: outputId, type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'j1', sourceNodeId: uvId, sourcePort: 'out', targetNodeId: rayId, targetPort: 'in' },
+          { id: 'j2', sourceNodeId: juliaId, sourcePort: 'out', targetNodeId: rayId, targetPort: 'sdf' },
+          {
+            id: 'j3',
+            sourceNodeId: constId,
+            sourcePort: 'out',
+            targetNodeId: juliaId,
+            targetParameter: 'xyScale',
+          },
+          { id: 'j4', sourceNodeId: rayId, sourcePort: 'color', targetNodeId: outputId, targetPort: 'in' },
+        ],
+      };
+
+      const result = compiler.compile(graph);
+
+      expect(result.metadata.errors).toHaveLength(0);
+      const constVar = expectedOutputVariableName(constId, 'out');
+      const funcName = `generic_raymarcher_sdf_n_ray_julia`;
+      const pattern = new RegExp(
+        `float\\s+${funcName}\\s*\\(vec3\\s+p\\)\\s*\\{[\\s\\S]*${constVar}[\\s\\S]*\\}`
+      );
+      expect(
+        result.shaderCode,
+        'generic-raymarcher SDF function must reference constant-float output variable for julia-slab-sdf.xyScale'
+      ).toMatch(pattern);
+      expect(
+        result.shaderCode,
+        'generic-raymarcher SDF function must not contain raw $param.xyScale placeholder when wired'
+      ).not.toContain('$param.xyScale');
+    });
+
     it('uses displacement parameter input variable in generic-raymarcher displacement expression', () => {
       const nodeSpecsMap = buildNodeSpecsMap();
       const compiler = new NodeShaderCompiler(nodeSpecsMap);
@@ -941,6 +1213,181 @@ describe('NodeShaderCompiler', () => {
         body,
         'SDF function body must not contain raw $param.timeOffset placeholder when audio connection is present'
       ).not.toContain('$param.timeOffset');
+    });
+
+    it('compiles graph with mandelbulb-sdf driving generic-raymarcher SDF', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const uvId = 'n-uv-mbulb';
+      const mbId = 'n-mbulb';
+      const rayId = 'n-ray-mbulb';
+      const outId = 'n-out-mbulb';
+      const graph: NodeGraph = {
+        id: 'graph-mandelbulb-ray',
+        name: 'Mandelbulb Ray',
+        version: '2.0',
+        nodes: [
+          { id: uvId, type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          { id: mbId, type: 'mandelbulb-sdf', position: { x: 0, y: 0 }, parameters: {} },
+          { id: rayId, type: 'generic-raymarcher', position: { x: 0, y: 0 }, parameters: {} },
+          { id: outId, type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'mb1', sourceNodeId: uvId, sourcePort: 'out', targetNodeId: rayId, targetPort: 'in' },
+          { id: 'mb2', sourceNodeId: mbId, sourcePort: 'out', targetNodeId: rayId, targetPort: 'sdf' },
+          { id: 'mb3', sourceNodeId: rayId, sourcePort: 'color', targetNodeId: outId, targetPort: 'in' },
+        ],
+      };
+
+      const result = compiler.compile(graph);
+      expect(result.metadata.errors).toHaveLength(0);
+      expect(result.shaderCode).toContain('mandelbulbSdf');
+      expect(result.shaderCode).toContain('generic_raymarcher_sdf_n_ray_mbulb');
+    });
+
+    it('mandelbulb-sdf bailout and deFudge grid compile without errors (DE verification matrix)', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const bailouts = [1.35, 1.9, 2.5, 3.5];
+      const deFudges = [0.12, 0.45, 0.78, 1.25];
+      for (const bailout of bailouts) {
+        for (const deFudge of deFudges) {
+          const graph: NodeGraph = {
+            id: `graph-mb-sweep-${bailout}-${deFudge}`,
+            name: 'Mandelbulb sweep',
+            version: '2.0',
+            nodes: [
+              { id: 'n-uv-sw', type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+              {
+                id: 'n-mb-sw',
+                type: 'mandelbulb-sdf',
+                position: { x: 0, y: 0 },
+                parameters: { bailout, deFudge, hybridMix: 0.0 },
+              },
+              { id: 'n-ray-sw', type: 'generic-raymarcher', position: { x: 0, y: 0 }, parameters: {} },
+              { id: 'n-out-sw', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+            ],
+            connections: [
+              { id: 's1', sourceNodeId: 'n-uv-sw', sourcePort: 'out', targetNodeId: 'n-ray-sw', targetPort: 'in' },
+              { id: 's2', sourceNodeId: 'n-mb-sw', sourcePort: 'out', targetNodeId: 'n-ray-sw', targetPort: 'sdf' },
+              { id: 's3', sourceNodeId: 'n-ray-sw', sourcePort: 'color', targetNodeId: 'n-out-sw', targetPort: 'in' },
+            ],
+          };
+          const result = compiler.compile(graph);
+          expect(result.metadata.errors, `bailout=${bailout} deFudge=${deFudge}`).toHaveLength(0);
+        }
+      }
+    });
+
+    it('mandelbulb-sdf uses audio uniform for deFudge in generic-raymarcher SDF function', () => {
+      const remapperId = 'remap-mb-defudge';
+      const virtualRemapId = `audio-signal:remap-${remapperId}`;
+      const uvId = 'n-uv-mb-aud';
+      const mbId = 'n-mb-aud';
+      const rayId = 'n-ray-mb-aud';
+      const outputId = 'n-out-mb-aud';
+
+      const graph: NodeGraph = {
+        id: 'graph-mb-audio-defudge',
+        name: 'Mandelbulb deFudge audio',
+        version: '2.0',
+        nodes: [
+          { id: uvId, type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          { id: mbId, type: 'mandelbulb-sdf', position: { x: 0, y: 0 }, parameters: { deFudge: 0.5 } },
+          {
+            id: rayId,
+            type: 'generic-raymarcher',
+            position: { x: 0, y: 0 },
+            parameters: {},
+          },
+          { id: outputId, type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'a1', sourceNodeId: uvId, sourcePort: 'out', targetNodeId: rayId, targetPort: 'in' },
+          { id: 'a2', sourceNodeId: mbId, sourcePort: 'out', targetNodeId: rayId, targetPort: 'sdf' },
+          {
+            id: 'a3',
+            sourceNodeId: virtualRemapId,
+            sourcePort: 'out',
+            targetNodeId: mbId,
+            targetParameter: 'deFudge',
+          },
+          { id: 'a4', sourceNodeId: rayId, sourcePort: 'color', targetNodeId: outputId, targetPort: 'in' },
+        ],
+      };
+
+      const audioSetup: AudioSetup = {
+        files: [],
+        bands: [
+          { id: 'band-mb', name: 'B1', sourceFileId: 'f1', frequencyBands: [[0, 1000]], smoothingHalfLifeSeconds: 1 / 120, fftSize: 4096 },
+        ],
+        remappers: [
+          { id: remapperId, name: 'R1', bandId: 'band-mb', inMin: 0, inMax: 1, outMin: 0.05, outMax: 1.5 },
+        ],
+      };
+
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const result = compiler.compile(graph, audioSetup);
+
+      expect(result.metadata.errors).toHaveLength(0);
+
+      const uniformNodeId = `remap-${remapperId}`;
+      const sanitizedId = uniformNodeId.replace(/[^a-zA-Z0-9]/g, '_').replace(/^(\d)/, 'n$1');
+      const expectedUniform = `u${sanitizedId}Out`;
+
+      const funcName = 'generic_raymarcher_sdf_n_ray_mb_aud';
+      const pattern = new RegExp(`float\\s+${funcName}\\s*\\(vec3\\s+p\\)\\s*\\{([\\s\\S]*?)\\}`);
+      const match = result.shaderCode.match(pattern);
+      expect(match, 'generic-raymarcher SDF function body must be found').not.toBeNull();
+      const body = match![1];
+      expect(body, 'SDF body must reference audio uniform for mandelbulb deFudge').toContain(expectedUniform);
+      expect(body, 'must not leave raw deFudge placeholder').not.toContain('$param.deFudge');
+    });
+
+    it('mandelbulb-sdf uses constant-float output for hybridMix in generic-raymarcher SDF function', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const uvId = 'n-uv-mb-hyb';
+      const constId = 'n-const-mb-hyb';
+      const mbId = 'n-mb-hyb';
+      const rayId = 'n-ray-mb-hyb';
+      const outputId = 'n-out-mb-hyb';
+
+      const graph: NodeGraph = {
+        id: 'graph-mb-hybrid',
+        name: 'Mandelbulb hybrid',
+        version: '2.0',
+        nodes: [
+          { id: uvId, type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          { id: constId, type: 'constant-float', position: { x: 0, y: 0 }, parameters: { value: 0.42 } },
+          { id: mbId, type: 'mandelbulb-sdf', position: { x: 0, y: 0 }, parameters: {} },
+          { id: rayId, type: 'generic-raymarcher', position: { x: 0, y: 0 }, parameters: {} },
+          { id: outputId, type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'h1', sourceNodeId: uvId, sourcePort: 'out', targetNodeId: rayId, targetPort: 'in' },
+          { id: 'h2', sourceNodeId: mbId, sourcePort: 'out', targetNodeId: rayId, targetPort: 'sdf' },
+          {
+            id: 'h3',
+            sourceNodeId: constId,
+            sourcePort: 'out',
+            targetNodeId: mbId,
+            targetParameter: 'hybridMix',
+          },
+          { id: 'h4', sourceNodeId: rayId, sourcePort: 'color', targetNodeId: outputId, targetPort: 'in' },
+        ],
+      };
+
+      const result = compiler.compile(graph);
+      expect(result.metadata.errors).toHaveLength(0);
+      const constVar = expectedOutputVariableName(constId, 'out');
+      const funcName = 'generic_raymarcher_sdf_n_ray_mb_hyb';
+      const pattern = new RegExp(
+        `float\\s+${funcName}\\s*\\(vec3\\s+p\\)\\s*\\{[\\s\\S]*${constVar.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*\\}`
+      );
+      expect(result.shaderCode, 'SDF function must inline constant-float for hybridMix').toMatch(pattern);
+      expect(result.shaderCode).not.toContain('$param.hybridMix');
     });
   });
 

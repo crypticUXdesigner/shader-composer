@@ -106,4 +106,16 @@
       font-size: var(--text-sm);
     }
   }
+
+  /* Tool selector "More" menu: tighter width (hug content) */
+  &.tool-more-menu {
+    width: auto;
+    min-width: 180px;
+  }
+
+  /* Top-bar export menu: tighter width (hug content) */
+  &.topbar-export-menu {
+    width: 220px;
+    min-width: 220px;
+  }
 }

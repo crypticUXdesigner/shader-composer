@@ -27,7 +27,7 @@
   /* Knob */
   --node-knob-value-bg-utilities: var(--color-yellow-gray-40);
   --node-knob-value-color-utilities: var(--color-yellow-gray-120);
-  --node-knob-ring-color-utilities: var(--color-yellow-gray-100);
+  --node-knob-ring-color-utilities: var(--color-yellow-gray-110);
   --node-knob-arc-active-utilities: var(--color-blue-80);
   --node-knob-marker-utilities: var(--color-yellow-gray-120);
   --knob-ring-bg-width-utilities: 10px;

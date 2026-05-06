@@ -150,7 +150,7 @@ export {
   retargetBandsToPrimary,
 } from './audioSetupUpdates';
 
-// Virtual nodes for named audio signals (WP 10)
+// Virtual nodes for named audio signals.
 export {
   VIRTUAL_NODE_PREFIX,
   isVirtualNodeId,
@@ -161,7 +161,7 @@ export {
 } from '../utils/virtualNodes';
 export type { NamedSignal } from '../utils/virtualNodes';
 
-// Param port audio state (WP 13)
+// Audio state/values for parameter ports.
 export {
   getParamPortConnectionState,
   getParamPortLiveValue,
@@ -180,6 +180,18 @@ export { migrateBloomSphereColors } from './bloomSphereColorsMigration';
 
 // Drive home lights: single sky OKLCH -> horizon + zenith gradient
 export { migrateDriveHomeLightsSkyGradient } from './driveHomeLightsSkyGradientMigration';
+
+// Distort: kaleidoscope-smooth -> kaleidoscope + edge smooth
+export {
+  migrateKaleidoscopeSmooth,
+  hasLegacyKaleidoscopeSmoothNodes,
+} from './kaleidoscopeMergeMigration';
+
+// Distort: translate + directional-displace -> displace (modes)
+export { migrateDisplace2dUnify, hasLegacyDisplace2dNodes } from './displace2dUnifyMigration';
+
+// Preset/import/default-state: compose legacy node migrations before validation
+export { migrateLegacyNodeGraph } from './graphLegacyMigrations';
 
 // Mixed wave signal: cosine toggles -> per-wave shape enum
 export { migrateMixedWaveSignalShapes } from './mixedWaveSignalShapeMigration';

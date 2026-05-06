@@ -280,8 +280,8 @@
     letter-spacing: 0;
   }
 
-  :global(.modal-dialog-close-btn.button) {
-    border-radius: calc(var(--radius-md) - var(--pd-xs));
+  :global(.modal-dialog-close-btn.button.sm.ghost) {
+    border-radius: calc(var(--radius-md) - var(--pd-xs)) !important;
   }
 
   .modal-dialog-main {

@@ -1,6 +1,4 @@
 /**
- * ParamPort Audio State — WP 13
- *
  * Resolves connection state (default | graph-connected | audio-connected),
  * signal name for audio-connected params, and live value for peak meter.
  * Parent (NodeBody or param renderer) uses these to pass props to ParamPort/ParameterCell.

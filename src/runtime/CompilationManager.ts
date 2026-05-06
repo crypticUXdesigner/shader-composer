@@ -105,7 +105,7 @@ export class CompilationManager implements Disposable {
   // Parameter update batching
   private parameterRenderScheduled: boolean = false;
 
-  /** Snapshot from last successful compile (WP 02B); not inferred per frame from the graph. */
+  /** Snapshot from last successful compile; not inferred per frame from the graph. */
   private previewDependencyMask: PreviewDependencyMask | null = null;
 
   constructor(
@@ -254,7 +254,7 @@ export class CompilationManager implements Disposable {
   }
 
   /**
-   * Set audio setup from panel (for uniform generation from bands; WP 09).
+   * Set audio setup from panel (for uniform generation from audio-derived signals).
    */
   setAudioSetup(audioSetup: AudioSetup | null): void {
     this.audioSetup = audioSetup ?? null;

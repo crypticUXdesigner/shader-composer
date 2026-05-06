@@ -12,11 +12,13 @@ import {
   LEGACY_GRAPH_FILE_FORMAT,
 } from '../data-model/types';
 import type { AudioSetup } from '../data-model/audioSetupTypes';
-import { serializeGraph, deserializeGraph } from '../data-model/serialization';
+import {
+  serializeGraph,
+  deserializeGraph,
+  deserializeGraphUnvalidated,
+} from '../data-model/serialization';
 import type { NodeSpecification } from '../data-model/validation';
-import { migrateNoiseNodes } from '../data-model/noiseNodesMigration';
-import { migrateBloomSphereColors } from '../data-model/bloomSphereColorsMigration';
-import { migrateDriveHomeLightsSkyGradient } from '../data-model/driveHomeLightsSkyGradientMigration';
+import { migrateLegacyNodeGraph } from '../data-model/graphLegacyMigrations';
 
 /**
  * Preset metadata (filename without extension)
@@ -113,9 +115,7 @@ export async function loadPreset(
       return emptyResult([`Invalid preset format: ${presetName}`]);
     }
 
-    const migratedGraph = migrateDriveHomeLightsSkyGradient(
-      migrateBloomSphereColors(migrateNoiseNodes(graph))
-    );
+    const migratedGraph = migrateLegacyNodeGraph(graph);
     const audioSetup = isValidAudioSetup(data.audioSetup)
       ? (data.audioSetup as AudioSetup)
       : { files: [], bands: [], remappers: [] };
@@ -160,28 +160,35 @@ export async function loadPresetFromJson(
   });
 
   try {
-    const result = deserializeGraph(json, nodeSpecs);
-    if (result.errors.length > 0) {
+    const unvalidated = deserializeGraphUnvalidated(json);
+    if (unvalidated.errors.length > 0) {
       return {
-        graph: result.graph ?? null,
-        audioSetup: result.audioSetup ?? undefined,
-        errors: result.errors,
-        warnings: result.warnings,
+        graph: null,
+        audioSetup: undefined,
+        errors: unvalidated.errors,
+        warnings: unvalidated.warnings,
       };
     }
-    if (!result.graph) {
-      return emptyResult(result.errors, result.warnings);
+    if (!unvalidated.graph) {
+      return emptyResult(unvalidated.errors, unvalidated.warnings);
     }
-    const migrated = migrateDriveHomeLightsSkyGradient(
-      migrateBloomSphereColors(migrateNoiseNodes(result.graph))
+
+    const migratedGraph = migrateLegacyNodeGraph(unvalidated.graph);
+
+    const roundtripJson = serializeGraph(
+      migratedGraph,
+      false,
+      unvalidated.audioSetup,
+      unvalidated.startingTrackId ? { startingTrackId: unvalidated.startingTrackId } : undefined
     );
-    const audioSetup: AudioSetup | undefined = result.audioSetup ?? undefined;
+    const result = deserializeGraph(roundtripJson, nodeSpecs);
+
     return {
-      graph: migrated,
-      audioSetup,
-      startingTrackId: result.startingTrackId,
+      graph: result.graph,
+      audioSetup: result.audioSetup ?? unvalidated.audioSetup ?? undefined,
+      startingTrackId: result.startingTrackId ?? unvalidated.startingTrackId,
       errors: result.errors,
-      warnings: result.warnings,
+      warnings: [...unvalidated.warnings, ...result.warnings],
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

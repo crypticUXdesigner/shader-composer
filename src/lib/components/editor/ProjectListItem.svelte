@@ -425,11 +425,7 @@
 
   .meta {
     font-size: var(--text-xs);
-    color: var(--print-soft, var(--color-n-65));
-  }
-
-  .row-card--accent .meta {
-    color: color-mix(in srgb, var(--color-blue-110) 75%, var(--color-n-65));
+    color: var(--print-default)
   }
 
   .icon-box {

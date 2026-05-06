@@ -1,7 +1,7 @@
 // Node Specification Types
 // These define the available node types and their ports/parameters
 
-export type PortType = 'float' | 'vec2' | 'vec3' | 'vec4' | 'int' | 'bool';
+export type PortType = 'float' | 'vec2' | 'vec3' | 'vec4' | 'int' | 'bool' | 'any';
 
 export interface PortSpec {
   name: string;

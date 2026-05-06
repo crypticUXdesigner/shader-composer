@@ -11,6 +11,7 @@ import { UniformGenerator } from './compilation/UniformGenerator';
 import { FunctionGenerator } from './compilation/FunctionGenerator';
 import { MainCodeGenerator } from './compilation/MainCodeGenerator';
 import { computePreviewDependencyMask } from './compilation/previewDependencyMask';
+import { computeEffectiveNodeSpecs } from './compilation/effectiveNodeSpecs';
 import {
   audioNodesFirst as audioNodesFirstHelper,
   isAudioNode as isAudioNodeHelper,
@@ -194,7 +195,8 @@ export class NodeShaderCompiler {
         }
       }
 
-      const typeErrors = this.typeValidator.validateTypes(graph);
+      const effectiveNodeSpecsById = computeEffectiveNodeSpecs(graph, executionOrder, this.nodeSpecs);
+      const typeErrors = this.typeValidator.validateTypes(graph, effectiveNodeSpecsById);
       if (typeErrors.length > 0) {
         return null;
       }
@@ -215,7 +217,14 @@ export class NodeShaderCompiler {
     );
       
       // Generate main code (includes generic-raymarcher SDF function code)
-      const { variableDeclarations, mainCode, genericRaymarcherSdfFunctions } = this.mainCodeGenerator.generateMainCode(graph, executionOrder, variableNames, uniformNames, functionNameMap);
+      const { variableDeclarations, mainCode, genericRaymarcherSdfFunctions } = this.mainCodeGenerator.generateMainCode(
+        graph,
+        executionOrder,
+        variableNames,
+        uniformNames,
+        functionNameMap,
+        effectiveNodeSpecsById
+      );
       if (genericRaymarcherSdfFunctions) {
         functions = functions ? `${functions}\n\n${genericRaymarcherSdfFunctions}` : genericRaymarcherSdfFunctions;
       }
@@ -244,7 +253,7 @@ export class NodeShaderCompiler {
         }
       }
       
-      // Assemble shader (include automation eval functions when graph has automation; WP 03)
+      // Assemble shader (include automation eval functions when graph has automation).
       const automationFunctions = this.mainCodeGenerator.generateAutomationFunctions(graph, executionOrder);
       const shaderCode = this.mainCodeGenerator.assembleShader(functions, uniforms, variableDeclarations, mainCode, finalColorVar, automationFunctions);
       
@@ -275,7 +284,7 @@ export class NodeShaderCompiler {
 
   /**
    * Compile a node graph into GLSL shader code
-   * @param audioSetup - Optional panel audio setup for uniforms from bands (WP 09)
+   * @param audioSetup - Optional panel audio setup for audio-derived uniforms (bands/remappers/files).
    */
   compile(graph: NodeGraph, audioSetup?: AudioSetup | null): CompilationResult {
     const errors: string[] = [];
@@ -348,8 +357,11 @@ export class NodeShaderCompiler {
       };
     }
 
+    // Step 2.5: Effective node specs (type-polymorphic nodes like select)
+    const effectiveNodeSpecsById = computeEffectiveNodeSpecs(graph, executionOrder, this.nodeSpecs);
+
     // Step 3: Type validation
-    const typeErrors = this.typeValidator.validateTypes(graph);
+    const typeErrors = this.typeValidator.validateTypes(graph, effectiveNodeSpecsById);
     if (typeErrors.length > 0) {
       errors.push(...typeErrors);
       return {
@@ -379,7 +391,14 @@ export class NodeShaderCompiler {
     );
 
     // Step 7: Generate main code (returns variable declarations, main code, and generic-raymarcher SDF functions)
-    const { variableDeclarations, mainCode, genericRaymarcherSdfFunctions } = this.mainCodeGenerator.generateMainCode(graph, executionOrder, variableNames, uniformNames, functionNameMap);
+    const { variableDeclarations, mainCode, genericRaymarcherSdfFunctions } = this.mainCodeGenerator.generateMainCode(
+      graph,
+      executionOrder,
+      variableNames,
+      uniformNames,
+      functionNameMap,
+      effectiveNodeSpecsById
+    );
     if (genericRaymarcherSdfFunctions) {
       functions = functions ? `${functions}\n\n${genericRaymarcherSdfFunctions}` : genericRaymarcherSdfFunctions;
     }
@@ -408,7 +427,7 @@ export class NodeShaderCompiler {
       }
     }
 
-    // Step 13: Assemble shader (include automation eval functions when graph has automation; WP 03)
+    // Step 13: Assemble shader (include automation eval functions when graph has automation).
     const automationFunctions = this.mainCodeGenerator.generateAutomationFunctions(graph, executionOrder);
     const shaderCode = this.mainCodeGenerator.assembleShader(functions, uniforms, variableDeclarations, mainCode, finalColorVar, automationFunctions);
 

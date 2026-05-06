@@ -5,6 +5,7 @@
 export type IconName =
   | 'grip-vertical'
   | 'grip-horizontal'
+  | 'dots-three-vertical'
   | 'x'
   | 'circle-notch'
   | 'plus'
@@ -21,6 +22,7 @@ export type IconName =
   | 'minimize-2'
   | 'play'
   | 'pause'
+  | 'frame-corners'
   | 'mouse-pointer'
   | 'cursor-text'
   | 'hand'
@@ -52,6 +54,7 @@ export type IconName =
   | 'warning'
   | 'brand-youtube'
   | 'help-circle'
+  | 'book-open-text'
   | 'keyboard'
   | 'circle-check'
   | 'circle-x'
@@ -87,6 +90,7 @@ export type IconName =
 export const iconNameMap: Record<IconName, string> = {
   'grip-vertical': 'dots-six-vertical',
   'grip-horizontal': 'dots-six',
+  'dots-three-vertical': 'dots-three-vertical',
   'x': 'x',
   'circle-notch': 'circle-notch',
   'plus': 'plus',
@@ -103,6 +107,7 @@ export const iconNameMap: Record<IconName, string> = {
   'minimize-2': 'arrows-in',
   'play': 'play',
   'pause': 'pause',
+  'frame-corners': 'frame-corners',
   'mouse-pointer': 'cursor-click',
   'cursor-text': 'cursor-text',
   'hand': 'hand-pointing',
@@ -135,6 +140,7 @@ export const iconNameMap: Record<IconName, string> = {
   'warning': 'warning',
   'brand-youtube': 'youtube-logo',
   'help-circle': 'question',
+  'book-open-text': 'book-open-text',
   'keyboard': 'keyboard',
   'circle-check': 'check-circle',
   'circle-x': 'x-circle',

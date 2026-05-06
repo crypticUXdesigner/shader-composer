@@ -63,11 +63,11 @@ export const selectNodeSpec: NodeSpec = {
   icon: 'select',
   inputs: [
     { name: 'condition', type: 'float', label: 'Condition' },
-    { name: 'trueValue', type: 'float', fallbackParameter: 'trueValue', label: 'If true' },
-    { name: 'falseValue', type: 'float', fallbackParameter: 'falseValue', label: 'If false' }
+    { name: 'trueValue', type: 'any', fallbackParameter: 'trueValue', label: 'If true' },
+    { name: 'falseValue', type: 'any', fallbackParameter: 'falseValue', label: 'If false' }
   ],
   outputs: [
-    { name: 'out', type: 'float', label: 'Result' }
+    { name: 'out', type: 'any', label: 'Result' }
   ],
   parameters: {
     trueValue: { type: 'float', default: 1.0, min: -10.0, max: 10.0, step: 0.001, label: 'True Value',

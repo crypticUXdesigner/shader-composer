@@ -619,6 +619,82 @@ export function testDeserializeAppliesBandRemapMigrationFromFixture(): void {
   );
 }
 
+// Test: Deserialization (unvalidated) applies Shapes node merge migrations.
+export function testDeserializeUnvalidatedAppliesShapesNodeMergeMigration(): void {
+  const json = `{
+    "format": "shadernoice-node-graph",
+    "formatVersion": "2.0",
+    "graph": {
+      "id": "g-shapes-merge",
+      "name": "Shapes merge",
+      "version": "2.0",
+      "nodes": [
+        {
+          "id": "n-bloom",
+          "type": "bloom-sphere-effect",
+          "position": { "x": 0, "y": 0 },
+          "parameters": {
+            "latticeCount": 512,
+            "sphereRadius": 1.25,
+            "waveSpeed": 3,
+            "spotSharpness": 20,
+            "outerGlowR": 0.2,
+            "outerGlowG": 0.4,
+            "outerGlowB": 0.9,
+            "innerGlowR": 0.9,
+            "innerGlowG": 0.2,
+            "innerGlowB": 0.2
+          }
+        },
+        {
+          "id": "n-star",
+          "type": "star-2d",
+          "position": { "x": 0, "y": 0 },
+          "parameters": { "starPoints": 7, "starRoundness": 0.25 }
+        },
+        {
+          "id": "n-super",
+          "type": "superellipse",
+          "position": { "x": 0, "y": 0 },
+          "parameters": {
+            "superCenterX": 0.1,
+            "superCenterY": -0.2,
+            "superRadiusX": 0.3,
+            "superRadiusY": 0.25,
+            "superPower": 6,
+            "superSoftness": 0.03,
+            "superIntensity": 1.5
+          }
+        }
+      ],
+      "connections": []
+    }
+  }`;
+
+  const result = deserializeGraphUnvalidated(json);
+  assert(result.graph !== null, 'Graph should deserialize successfully');
+  const g = result.graph!;
+
+  const bloom = g.nodes.find((n) => n.id === 'n-bloom')!;
+  assertEqual(bloom.type, 'bloom-sphere', 'bloom-sphere-effect should migrate to bloom-sphere');
+  assertEqual(bloom.parameters.mode as number, 1, 'Migrated bloom sphere should be in Classic mode');
+  assertEqual(bloom.parameters.spotCount as number, 512, 'latticeCount should map to spotCount');
+  assertEqual(bloom.parameters.classicSpotSharpness as number, 20, 'spotSharpness should map to classicSpotSharpness');
+
+  const star = g.nodes.find((n) => n.id === 'n-star')!;
+  assertEqual(star.type, 'star-shape-2d', 'star-2d should migrate to star-shape-2d');
+  assertEqual(star.parameters.style as number, 1, 'Migrated star should be Starburst style');
+  assertEqual(star.parameters.starRotation as number, 0, 'Migrated star should set rotation');
+  assertEqual(star.parameters.starRoundness as number, 0.5, 'Starburst roundness should be expanded to 0..1 space');
+
+  const superN = g.nodes.find((n) => n.id === 'n-super')!;
+  assertEqual(superN.type, 'shapes-2d', 'superellipse should migrate to shapes-2d');
+  assertEqual(superN.parameters.shapeType as number, 2, 'Migrated shapes-2d should be superellipse shapeType');
+  assertEqual(superN.parameters.sizeX as number, 0.6, 'superRadiusX should map to sizeX (diameter)');
+  assertEqual(superN.parameters.sizeY as number, 0.5, 'superRadiusY should map to sizeY (diameter)');
+  assertEqual(superN.parameters.superPower as number, 6, 'superPower should map to superPower');
+ }
+
 // Test: Deserialization of an already-migrated file (no band-remap usage) is idempotent via registry (fixture file)
 export function testDeserializeBandRemapMigrationIdempotentFromFixture(): void {
   const fixturePath = join(
@@ -1379,6 +1455,10 @@ describe('data-model', () => {
   it(
     'deserializeUnvalidatedAppliesBandRemapMigration',
     testDeserializeUnvalidatedAppliesBandRemapMigration
+  );
+  it(
+    'deserializeUnvalidatedAppliesShapesNodeMergeMigration',
+    testDeserializeUnvalidatedAppliesShapesNodeMergeMigration
   );
   it('deserializeInvalidJSON', testDeserializeInvalidJSON);
   it('findNode', testFindNode);

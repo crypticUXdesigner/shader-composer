@@ -55,7 +55,6 @@
 
   let previewContainerEl = $state<HTMLDivElement | undefined>(undefined);
   let cornerWidgetSize = $state({ width: INITIAL_WIDGET_WIDTH, height: INITIAL_WIDGET_HEIGHT });
-  let cornerWidgetPosition = $state({ x: 0, y: 60 });
   let cornerWidgetAnchor = $state<CornerWidgetAnchor | null>(null);
   let snappedCorner = $state<'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | null>('top-right');
 
@@ -174,11 +173,11 @@
   function onPreviewMouseDown(e: MouseEvent) {
     const target = e.target as HTMLElement;
     if (target.closest('.resize-handle') || target.closest('button')) return;
+    dragStartWidgetX = cornerWidgetPosition.x;
+    dragStartWidgetY = cornerWidgetPosition.y;
     isDraggingCornerWidget = true;
     dragStartX = e.clientX;
     dragStartY = e.clientY;
-    dragStartWidgetX = cornerWidgetPosition.x;
-    dragStartWidgetY = cornerWidgetPosition.y;
     e.preventDefault();
   }
 
@@ -196,6 +195,26 @@
     e.stopPropagation();
   }
 
+  /** Pixel position of the floating preview in node view: anchor projection, frozen while dragging. */
+  const cornerWidgetPosition = $derived.by(() => {
+    if (viewMode !== 'node') return { x: 0, y: topBarHeight };
+    if (isDraggingCornerWidget) {
+      return { x: dragStartWidgetX, y: dragStartWidgetY };
+    }
+    if (!cornerWidgetAnchor || containerWidth <= 0 || containerHeight <= 0) {
+      return { x: 0, y: topBarHeight };
+    }
+    return applyAnchorToPosition(
+      cornerWidgetAnchor,
+      cornerWidgetSize.width,
+      cornerWidgetSize.height,
+      containerWidth,
+      containerHeight,
+      topBarHeight,
+      bottomSafeInset
+    );
+  });
+
   const previewContainerStyle = $derived.by(() => {
     const base = 'overflow: hidden; background: var(--layout-preview-bg);';
     if (viewMode === 'full') {
@@ -210,7 +229,8 @@
     return `${base} position: fixed; left: ${cornerWidgetPosition.x}px; top: ${cornerWidgetPosition.y}px; width: ${cornerWidgetSize.width}px; height: ${cornerWidgetSize.height}px; border: var(--layout-preview-border); border-radius: var(--button-radius, 4px); cursor: move; z-index: 50;${transform}`;
   });
 
-  // When switching from split/full to node, set initial position to top-right
+  // When switching from split/full to node, set anchor to top-right (position follows via $derived).
+  // Invariant: update prevViewMode last so the next run observes the prior mode for split/full → node detection.
   $effect(() => {
     const mode = viewMode;
     const wasSplitOrFull = prevViewMode === 'split' || prevViewMode === 'full';
@@ -224,7 +244,6 @@
       x: rect.width - w - SAFE_DISTANCE,
       y: th,
     };
-    cornerWidgetPosition = pos;
     snappedCorner = 'top-right';
     cornerWidgetAnchor = computeAnchorFromPosition(
       pos.x,
@@ -238,7 +257,7 @@
     );
   });
 
-  // Initial corner position on first mount
+  // Initial corner anchor on first mount (position follows via $derived).
   $effect(() => {
     if (!containerEl || hasInitializedCornerPosition || viewMode !== 'node') return;
     hasInitializedCornerPosition = true;
@@ -249,7 +268,6 @@
       x: rect.width - w - SAFE_DISTANCE,
       y: topBarHeight,
     };
-    cornerWidgetPosition = pos;
     cornerWidgetAnchor = computeAnchorFromPosition(
       pos.x,
       pos.y,
@@ -260,30 +278,7 @@
       topBarHeight,
       bottomSafeInset
     );
-  });
-
-  // Keep preview anchored to same edge when container resizes (node view)
-  $effect(() => {
-    if (
-      viewMode !== 'node' ||
-      !cornerWidgetAnchor ||
-      !containerEl ||
-      containerWidth <= 0 ||
-      containerHeight <= 0 ||
-      isDraggingCornerWidget ||
-      isResizingCornerWidget
-    )
-      return;
-    const pos = applyAnchorToPosition(
-      cornerWidgetAnchor,
-      cornerWidgetSize.width,
-      cornerWidgetSize.height,
-      containerWidth,
-      containerHeight,
-      topBarHeight,
-      bottomSafeInset
-    );
-    cornerWidgetPosition = pos;
+    snappedCorner = 'top-right';
   });
 
   // Global mouse handlers for corner widget drag/resize (throttled with rAF)
@@ -368,7 +363,6 @@
 
         cornerWidgetSize = { width: newWidth, height: newHeight };
         const snapped = snapToEdges(newX, newY, newWidth, newHeight, rect.width, rect.height);
-        cornerWidgetPosition = snapped;
         cornerWidgetAnchor = computeAnchorFromPosition(
           snapped.x,
           snapped.y,
@@ -405,7 +399,6 @@
         const w = cornerWidgetSize.width;
         const h = cornerWidgetSize.height;
         const snapped = snapToEdges(newX, newY, w, h, rect.width, rect.height);
-        cornerWidgetPosition = snapped;
         cornerWidgetAnchor = computeAnchorFromPosition(
           snapped.x,
           snapped.y,

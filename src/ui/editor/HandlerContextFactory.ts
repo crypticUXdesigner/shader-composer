@@ -24,15 +24,9 @@ export interface HandlerContextSource {
   readonly canvas: HTMLCanvasElement;
   readonly nodeMetrics: Map<string, import('./NodeRenderer').NodeRenderMetrics>;
   readonly nodeRenderer: { invalidateMetrics: (nodeId: string) => void; calculateMetrics: (node: NodeInstance, spec: import('../../types/nodeSpec').NodeSpec) => import('./NodeRenderer').NodeRenderMetrics };
-  calculateSmartGuides(draggingNode: NodeInstance, proposedX: number, proposedY: number): {
-    snappedX: number;
-    snappedY: number;
-    guides: { vertical: Array<{ x: number; startY: number; endY: number }>; horizontal: Array<{ y: number; startX: number; endX: number }> };
-  };
   readonly renderState: HandlerContextDependencies['renderState'];
   requestRender(): void;
   render(): void;
-  setSmartGuides(guides: { vertical: Array<{ x: number; startY: number; endY: number }>; horizontal: Array<{ y: number; startX: number; endX: number }> }): void;
   setDraggedNodeIds(nodeIds: string[]): void;
   setPanStateInternal(state: {
     isPanning: boolean;
@@ -82,9 +76,7 @@ export function createHandlerContext(source: HandlerContextSource): HandlerConte
       if (!spec) return undefined;
       return source.nodeRenderer.calculateMetrics(node, spec);
     },
-    calculateSmartGuides: (node, px, py) => source.calculateSmartGuides(node, px, py),
     renderState: source.renderState,
-    setSmartGuides: (g) => source.setSmartGuides(g),
     setDraggedNodeIds: (ids) => source.setDraggedNodeIds(ids),
     setPanStateInternal: (s) => source.setPanStateInternal(s),
     setSelectionRectangleInternal: (r) => source.setSelectionRectangleInternal(r),

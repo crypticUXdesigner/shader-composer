@@ -41,11 +41,13 @@ export class MainCodeGenerator {
 
   private getNodeCodeContext(
     variableNames: Map<string, Map<string, string>>,
-    executionOrder: string[]
+    executionOrder: string[],
+    effectiveNodeSpecsById?: Map<string, NodeSpec>
   ): NodeCodeContext {
     const self = this;
     return {
       nodeSpecs: this.nodeSpecs,
+      effectiveNodeSpecsById,
       escapeRegex: this.escapeRegex,
       generateArrayVariableName: this.generateArrayVariableName,
       generateParameterCombination: this.generateParameterCombination,
@@ -74,24 +76,26 @@ export class MainCodeGenerator {
     executionOrder: string[],
     variableNames: Map<string, Map<string, string>>,
     uniformNames: Map<string, string>,
-    functionNameMap: Map<string, Map<string, string>> = new Map()
+    functionNameMap: Map<string, Map<string, string>> = new Map(),
+    effectiveNodeSpecsById?: Map<string, NodeSpec>
   ): { variableDeclarations: string; mainCode: string; genericRaymarcherSdfFunctions: string } {
     const { variableDeclarations: declLines } = buildVariableDeclarations(
       graph,
       this.nodeSpecs,
       variableNames,
-      getOutputInitialValue
+      getOutputInitialValue,
+      effectiveNodeSpecsById
     );
     const variableDeclarations = declLines.join('\n');
     const mainCode: string[] = [];
     const genericRaymarcherSdfFunctions: string[] = [];
-    const nodeCodeCtx = this.getNodeCodeContext(variableNames, executionOrder);
+    const nodeCodeCtx = this.getNodeCodeContext(variableNames, executionOrder, effectiveNodeSpecsById);
 
     for (const nodeId of executionOrder) {
       const node = graph.nodes.find(n => n.id === nodeId);
       if (!node) continue;
 
-      const nodeSpec = this.nodeSpecs.get(node.type);
+      const nodeSpec = effectiveNodeSpecsById?.get(node.id) ?? this.nodeSpecs.get(node.type);
       if (!nodeSpec) continue;
 
       if (nodeSpec.id === 'final-output') continue;

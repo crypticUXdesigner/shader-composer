@@ -41,7 +41,6 @@ export function createInteractionEventFromSource(
     originalEvent: e
   };
 }
-import type { NodeInstance } from '../../data-model/types';
 import type {
   MouseEventHandlerDependencies
 } from './canvas/handlers/MouseEventHandler';
@@ -83,7 +82,6 @@ export interface MouseEventHandlerDepsSource {
   handleEnumParameterClick(nodeId: string, paramName: string, screenX: number, screenY: number): void;
   handleColorPickerClick(nodeId: string, screenX: number, screenY: number): void;
   handleSignalPickerClick(screenX: number, screenY: number, targetNodeId: string, targetParameter: string): void;
-  calculateSmartGuides(draggingNode: NodeInstance, proposedX: number, proposedY: number): MouseEventHandlerDependencies['calculateSmartGuides'] extends (...args: unknown[]) => infer R ? R : never;
   getViewStateInternal(): { panX: number; panY: number; zoom: number };
   getSelectionState(): { selectedNodeIds: Set<string>; selectedConnectionIds: Set<string> };
   screenToCanvas(screenX: number, screenY: number): { x: number; y: number };
@@ -93,7 +91,6 @@ export interface MouseEventHandlerDepsSource {
   setPanState(state: Parameters<MouseEventHandlerDependencies['setPanState']>[0]): void;
   getInteractionState(): MouseEventHandlerDependencies['getInteractionState'] extends () => infer R ? R : never;
   setInteractionState(state: Parameters<MouseEventHandlerDependencies['setInteractionState']>[0]): void;
-  setSmartGuides(guides: Parameters<MouseEventHandlerDependencies['setSmartGuides']>[0]): void;
   updateMousePosition(x: number, y: number): void;
   onRequestAddNodeAtCanvas?: (screenX: number, screenY: number) => void;
 }
@@ -148,7 +145,6 @@ export function buildMouseEventHandlerDeps(
     handleEnumParameterClick: (nodeId, paramName, screenX, screenY) => source.handleEnumParameterClick(nodeId, paramName, screenX, screenY),
     handleColorPickerClick: (nodeId, screenX, screenY) => source.handleColorPickerClick(nodeId, screenX, screenY),
     handleSignalPickerClick: (screenX, screenY, targetNodeId, targetParameter) => source.handleSignalPickerClick(screenX, screenY, targetNodeId, targetParameter),
-    calculateSmartGuides: (draggingNode, proposedX, proposedY) => source.calculateSmartGuides(draggingNode, proposedX, proposedY),
     getViewStateInternal: () => source.getViewStateInternal(),
     getSelectionState: () => source.getSelectionState(),
     screenToCanvas: (screenX, screenY) => source.screenToCanvas(screenX, screenY),
@@ -158,7 +154,6 @@ export function buildMouseEventHandlerDeps(
     setPanState: (state) => source.setPanState(state),
     getInteractionState: () => source.getInteractionState(),
     setInteractionState: (state) => source.setInteractionState(state),
-    setSmartGuides: (guides) => source.setSmartGuides(guides),
     updateMousePosition: (x, y) => source.updateMousePosition(x, y),
     onRequestAddNodeAtCanvas: source.onRequestAddNodeAtCanvas
   };

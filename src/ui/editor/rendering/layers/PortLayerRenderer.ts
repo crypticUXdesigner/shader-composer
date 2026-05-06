@@ -1,7 +1,7 @@
 /**
  * PortLayerRenderer - Renders node ports
  *
- * WP 15A: All nodes are DOM-only; no ports rendered on canvas.
+ * All nodes are DOM-only; no ports rendered on canvas.
  */
 
 import type { LayerRenderer } from '../LayerRenderer';

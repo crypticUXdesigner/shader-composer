@@ -1,9 +1,9 @@
 /**
- * Preview scheduler contract types (plan §3.4–§3.5, WP 02A).
- * Subset of dirty keys — extend as P1b wires more sources.
+ * Preview scheduler contract types.
+ * Subset of dirty keys — extend as more sources are wired.
  */
 
-/** Typed dirty reason keys (plan §3.5 taxonomy; expand in WP 03). */
+/** Typed dirty reason keys (expand as the scheduler grows). */
 export type PreviewDirtyReasonKey =
   | 'graph.semantic'
   | 'graph.layoutOnly'
@@ -35,7 +35,7 @@ export interface PreviewDirtyEvent {
   dropNote?: string;
 }
 
-/** Plan §3.4 illustrative states — WP 03 implements transitions. */
+/** Scheduler states (debug/telemetry). */
 export type PreviewSchedulerState =
   | 'idleStatic'
   | 'needsSingleFrame'

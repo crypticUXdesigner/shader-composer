@@ -9,7 +9,7 @@ import type { AnalyzerNodeState } from './FrequencyAnalyzer';
 
 /**
  * Get live value for a virtual node (audio signal).
- * WP 11: Used by parameterValueCalculator when param is connected to virtual node.
+ * Used when a parameter is connected to a virtual audio signal node.
  */
 export function getVirtualNodeLiveValue(
   virtualNodeId: string,

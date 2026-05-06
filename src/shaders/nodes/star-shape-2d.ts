@@ -4,7 +4,7 @@ export const starShape2dNodeSpec: NodeSpec = {
   id: 'star-shape-2d',
   category: 'Shapes',
   displayName: 'Star',
-  description: 'N-point star shape with inner/outer radius, rotation, and softness',
+  description: 'N-point star / starburst mask. Style toggles between Star (radial) and Starburst (segment).',
   icon: 'star',
   inputs: [
     {
@@ -21,6 +21,14 @@ export const starShape2dNodeSpec: NodeSpec = {
     }
   ],
   parameters: {
+    style: {
+      type: 'int',
+      default: 0,
+      min: 0,
+      max: 1,
+      step: 1,
+      label: 'Style'
+    },
     starCenterX: {
       type: 'float',
       default: 0.0,
@@ -98,7 +106,7 @@ export const starShape2dNodeSpec: NodeSpec = {
     {
       id: 'star-shape-main',
       label: 'Shape',
-      parameters: ['starPoints', 'starInnerRadius', 'starOuterRadius', 'starRoundness', 'starRotation'],
+      parameters: ['style', 'starPoints', 'starInnerRadius', 'starOuterRadius', 'starRoundness', 'starRotation'],
       collapsible: true,
       defaultCollapsed: false
     },
@@ -124,6 +132,7 @@ export const starShape2dNodeSpec: NodeSpec = {
         parameters: [
           'starCenterX',
           'starCenterY',
+          'style',
           'starPoints',
           'starRotation',
           'starInnerRadius',
@@ -141,6 +150,32 @@ export const starShape2dNodeSpec: NodeSpec = {
     ]
   },
   functions: `
+float sdSegment(vec2 p, vec2 a, vec2 b) {
+  vec2 pa = p - a;
+  vec2 ba = b - a;
+  float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+  return length(pa - ba * h);
+}
+
+float sdStarburst2d(vec2 p, int points, float innerR, float outerR, float roundness01) {
+  const float PI = 3.14159265359;
+  float n = float(points);
+  float an = 2.0 * PI / n;
+  float angle = atan(p.y, p.x);
+  float r = length(p);
+  angle = mod(angle + PI, an) - 0.5 * an;
+  vec2 q = vec2(cos(angle), sin(angle)) * r;
+  float halfAngle = 0.5 * an;
+  vec2 pa = vec2(innerR * cos(halfAngle), innerR * sin(halfAngle));
+  vec2 pb = vec2(outerR, 0.0);
+  float d = sdSegment(q, pa, pb);
+  float roundness = 0.5 * clamp(roundness01, 0.0, 1.0);
+  if (roundness > 0.001) {
+    d -= roundness;
+  }
+  return d;
+}
+
 float starRadius(float angle, int points, float innerR, float outerR, float rotationDeg, float roundness) {
   const float TAU = 6.283185307179586;
   float rot = rotationDeg * 0.017453292519943295; // deg to rad
@@ -167,7 +202,12 @@ float sdStarShape2d(vec2 p, int points, float innerR, float outerR, float rotati
   mainCode: `
   vec2 starCenter = vec2($param.starCenterX, $param.starCenterY);
   vec2 p = $input.in - starCenter;
-  float d = sdStarShape2d(p, int($param.starPoints), $param.starInnerRadius, $param.starOuterRadius, $param.starRotation, $param.starRoundness);
+  float d;
+  if ($param.style == 1) {
+    d = sdStarburst2d(p, int($param.starPoints), $param.starInnerRadius, $param.starOuterRadius, $param.starRoundness);
+  } else {
+    d = sdStarShape2d(p, int($param.starPoints), $param.starInnerRadius, $param.starOuterRadius, $param.starRotation, $param.starRoundness);
+  }
   float halfSoft = $param.starSoftness * 0.5;
   float mask = 1.0 - smoothstep(-halfSoft, halfSoft, d);
   $output.out += mask * $param.starIntensity;

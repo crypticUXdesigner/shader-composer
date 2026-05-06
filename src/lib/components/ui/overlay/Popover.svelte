@@ -5,7 +5,6 @@
   import { readCssTimeMs } from '../../../../utils/readCssTimeMs';
 
   let reducedMotion = $state(false);
-  let fadeMs = $state(150);
   $effect(() => {
     if (typeof window === 'undefined') return;
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -17,15 +16,11 @@
     return () => mq.removeEventListener('change', handler);
   });
 
-  $effect(() => {
-    if (typeof window === 'undefined') return;
-    if (reducedMotion) {
-      fadeMs = 0;
-      return;
-    }
-
+  const fadeMs = $derived.by(() => {
+    if (typeof window === 'undefined') return 150;
+    if (reducedMotion) return 0;
     const fast = readCssTimeMs('--motion-effects-fast-duration');
-    fadeMs = Number.isFinite(fast) ? fast : 150;
+    return Number.isFinite(fast) ? fast : 150;
   });
 
   interface Props {
@@ -86,7 +81,7 @@
   let positionDelta = $state({ top: 0, left: 0 });
 
   /** Sets openedAt when the popover content mounts (each open is a fresh {#if open} subtree). */
-  const stampOpenedAt: Action<HTMLElement, Record<string, never>> = () => {
+  const stampOpenedAt: Action<HTMLElement, void> = () => {
     openedAt = Date.now();
     return {};
   };
@@ -94,7 +89,7 @@
   function getPosition(): { top: number; left: number } {
     if (anchor) {
       const rect = anchor.getBoundingClientRect();
-      const gap = 4; /* one-off: space between anchor and popover edge */
+      const gap = 12; /* one-off: space between anchor and popover edge */
       const left =
         align === 'start' ? rect.left : rect.left + rect.width / 2;
       return {
@@ -284,6 +279,7 @@
     flex-direction: column;
     min-height: 0;
     min-width: 0;
+    padding: var(--pd-sm);
 
     /* Box model / visual from layer .frame */
 

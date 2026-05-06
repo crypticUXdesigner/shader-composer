@@ -332,6 +332,7 @@
     }
 
     if (!progress) return;
+    let lastRemainingUiMs = 0;
     const unsub = progress.subscribe((v) => {
       const now = performance.now();
       if (speed.startMs == null) {
@@ -352,24 +353,19 @@
       }
 
       progressValue = v;
+
+      const { current, total } = v;
+      const fpsNow = speed.emaFps;
+      const canCompute =
+        total > 0 && fpsNow != null && fpsNow > 0.001 && current >= 0 && current <= total;
+      const nextRemaining = canCompute ? (total - current) / fpsNow : null;
+      const doneOrEstimate = !canCompute || current >= total;
+      if (doneOrEstimate || now - lastRemainingUiMs >= 1000) {
+        lastRemainingUiMs = now;
+        remainingSeconds = nextRemaining;
+      }
     });
     return unsub;
-  });
-
-  $effect(() => {
-    if (step !== 'progress') return;
-
-    const interval = window.setInterval(() => {
-      const { current, total } = progressValue;
-      const fpsNow = speed.emaFps;
-      if (total > 0 && fpsNow != null && fpsNow > 0.001 && current >= 0 && current <= total) {
-        remainingSeconds = (total - current) / fpsNow;
-      } else {
-        remainingSeconds = null;
-      }
-    }, 1000);
-
-    return () => window.clearInterval(interval);
   });
 </script>
 

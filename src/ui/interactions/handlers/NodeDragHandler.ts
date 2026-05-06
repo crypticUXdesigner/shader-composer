@@ -54,22 +54,18 @@ export class NodeDragHandler implements InteractionHandler {
   }
   
   canHandle(event: InteractionEvent): boolean {
-    // If we're currently dragging or have a potential drag, we can handle end events
     if (this.isDraggingNode || this.potentialNodeDrag) {
       return true;
     }
     
-    // Can handle if clicking on a node header (not spacebar pressed)
     if (event.type === InteractionType.NodeDrag) {
       return true;
     }
     
-    // Check if spacebar is pressed - if so, don't handle (let pan handler take it)
     if (this.context.isSpacePressed?.()) {
       return false;
     }
     
-    // Check if clicking on a node
     const nodeId = this.context.hitTestNode?.(event.screenPosition.x, event.screenPosition.y);
     if (nodeId) {
       return true;
@@ -92,9 +88,7 @@ export class NodeDragHandler implements InteractionHandler {
     const canvasPos = this.context.screenToCanvas(event.screenPosition.x, event.screenPosition.y);
     const headerHeight = metrics.headerHeight;
     
-    // Check if clicking on node header (for dragging)
     if (canvasPos.y - node.position.y < headerHeight) {
-      // Handle selection first (for multi-select with shift-click)
       const state = this.context.getState();
       const multiSelect = event.modifiers.shift;
       
@@ -124,7 +118,6 @@ export class NodeDragHandler implements InteractionHandler {
         this.context.onNodeSelected?.(nodeId, true);
       }
       
-      // Set up potential drag (with threshold)
       this.potentialNodeDrag = true;
       this.potentialNodeDragId = nodeId;
       this.nodeDragStartX = event.screenPosition.x;
@@ -182,11 +175,9 @@ export class NodeDragHandler implements InteractionHandler {
   }
   
   onUpdate(event: InteractionEvent): void {
-    // Store current mouse position for edge scrolling
     this.currentMouseX = event.screenPosition.x;
     this.currentMouseY = event.screenPosition.y;
     
-    // Check if we should start node dragging
     if (this.potentialNodeDrag && !this.isDraggingNode && this.potentialNodeDragId) {
       const dx = event.screenPosition.x - this.nodeDragStartX;
       const dy = event.screenPosition.y - this.nodeDragStartY;
@@ -227,7 +218,6 @@ export class NodeDragHandler implements InteractionHandler {
       }
     }
     
-    // Update node positions if dragging
     if (this.isDraggingNode && this.draggingNodeId && this.draggingNodeInitialPos) {
       const graph = this.context.getGraph();
       const node = graph.nodes.find(n => n.id === this.draggingNodeId);
@@ -238,16 +228,9 @@ export class NodeDragHandler implements InteractionHandler {
         event.screenPosition.y - this.dragOffsetY
       );
       
-      // Calculate smart guides and snap position for the primary dragged node
-      const { snappedX, snappedY, guides } = this.context.calculateSmartGuides?.(
-        node,
-        canvasPos.x,
-        canvasPos.y
-      ) ?? { snappedX: canvasPos.x, snappedY: canvasPos.y, guides: { vertical: [], horizontal: [] } };
-      
-      // Calculate the delta from initial position
-      const deltaX = snappedX - this.draggingNodeInitialPos.x;
-      const deltaY = snappedY - this.draggingNodeInitialPos.y;
+      // Calculate the delta from initial position (no snapping/alignment guides)
+      const deltaX = canvasPos.x - this.draggingNodeInitialPos.x;
+      const deltaY = canvasPos.y - this.draggingNodeInitialPos.y;
       
       // Move all selected nodes by the same delta
       const movedNodeIds: string[] = [];
@@ -263,15 +246,13 @@ export class NodeDragHandler implements InteractionHandler {
         }
       }
       
-      // Update smart guides
-      this.context.setSmartGuides?.(guides);
-      
       // Phase 3.4: Track dragged nodes for metrics recalculation before connection rendering
       this.context.setDraggedNodeIds?.(movedNodeIds);
       
       // Mark moved nodes and all related elements as dirty
       this.context.markNodesDirty?.(movedNodeIds);
-      this.context.markLayerDirty?.(RenderLayer.Overlays); // Smart guides render in overlay layer
+      // Keep overlays up-to-date (selection rectangle / other overlays may exist)
+      this.context.markLayerDirty?.(RenderLayer.Overlays);
       
       // Mark all connections connected to moved nodes as dirty
       const connectionsToUpdate: string[] = [];
@@ -317,9 +298,7 @@ export class NodeDragHandler implements InteractionHandler {
     this.potentialNodeDragId = null;
     this.edgeScroll.stop();
     
-    // Clear smart guides
-    this.context.setSmartGuides?.({ vertical: [], horizontal: [] });
-    // Force overlays to redraw immediately so guide lines disappear on mouseup
+    // Force overlays to redraw immediately on mouseup
     this.context.markLayerDirty?.(RenderLayer.Overlays);
     this.context.requestRender();
     

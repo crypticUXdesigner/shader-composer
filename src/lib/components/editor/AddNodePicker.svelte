@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
-   * Compact node picker for empty-canvas add (Add tool / Alt+click): search, I/O type tags,
-   * category pills, main list, recent footer. Anchored to cursor like other popovers.
+   * Compact node picker for empty-canvas add (Add tool / Alt+click): search, category pills,
+   * main list, recent footer. Anchored to cursor like other popovers.
    */
   import { untrack } from 'svelte';
   import { Popover, SearchInput, Tag, NodeIconSvg } from '../ui';
@@ -23,7 +23,6 @@
   let { open, x, y, nodeSpecs, onSelect, onClose, canCloseOnClickOutside }: Props = $props();
 
   let searchQuery = $state('');
-  let selectedTypes = $state<Set<string>>(new Set());
   let selectedCategories = $state<Set<string>>(new Set());
   let searchRowRef = $state<HTMLDivElement | null>(null);
   let listRef = $state<HTMLDivElement | null>(null);
@@ -55,15 +54,6 @@
     });
   }
 
-  const allTypes = $derived.by(() => {
-    const set = new Set<string>();
-    for (const spec of nodeSpecs) {
-      for (const input of spec.inputs) set.add(input.type);
-      for (const output of spec.outputs) set.add(output.type);
-    }
-    return Array.from(set).sort();
-  });
-
   const allCategories = $derived(sortCategories([...new Set(nodeSpecs.map((s) => s.category))]));
 
   const filteredSpecs = $derived.by(() => {
@@ -77,14 +67,6 @@
           (spec.description?.toLowerCase().includes(query) ?? false) ||
           spec.category.toLowerCase().includes(query)
       );
-    }
-
-    if (selectedTypes.size > 0) {
-      filtered = filtered.filter((spec) => {
-        const hasInputType = spec.inputs.some((i) => selectedTypes.has(i.type));
-        const hasOutputType = spec.outputs.some((o) => selectedTypes.has(o.type));
-        return hasInputType || hasOutputType;
-      });
     }
 
     if (selectedCategories.size > 0) {
@@ -120,13 +102,6 @@
 
   function getSearchInput(): HTMLInputElement | null {
     return searchRowRef?.querySelector('input') ?? null;
-  }
-
-  function toggleType(t: string): void {
-    const next = new Set(selectedTypes);
-    if (next.has(t)) next.delete(t);
-    else next.add(t);
-    selectedTypes = next;
   }
 
   function toggleCategory(cat: string): void {
@@ -243,16 +218,6 @@
         />
       </div>
 
-      {#if allTypes.length > 0}
-        <div class="filters-row filter-types">
-          {#each allTypes as t (t)}
-            <Tag size="xs" interactive selected={selectedTypes.has(t)} type={t} onclick={() => toggleType(t)}>
-              {t}
-            </Tag>
-          {/each}
-        </div>
-      {/if}
-
       {#if allCategories.length > 0}
         <div class="filters-row filter-categories">
           {#each allCategories as cat (cat)}
@@ -271,7 +236,7 @@
     </div>
 
     <div
-      class="result-list"
+      class="result-list scrollbar-styled frame-elevated"
       bind:this={listRef}
       tabindex="-1"
       role="listbox"
@@ -330,7 +295,8 @@
     min-width: min(280px, calc(100vw - 24px));
     max-width: min(340px, calc(100vw - 24px));
     /* Stay within viewport padding (see Popover clampToViewport); list scrolls inside. */
-    max-height: min(42vh, 280px, calc(100vh - 48px));
+    min-height: 480px;
+    max-height: 480px;
     box-sizing: border-box;
   }
 
@@ -338,9 +304,8 @@
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
-    gap: var(--pd-xs);
-    padding: 0 var(--pd-md);
-    padding-top: var(--pd-md);
+    gap: var(--pd-md);
+    padding: var(--pd-sm) var(--pd-md);
   }
 
   :global(.add-node-picker) .search-row :global(input) {
@@ -356,7 +321,7 @@
     overflow-y: auto;
     scrollbar-width: none;
     -ms-overflow-style: none;
-    padding-bottom: var(--pd-xs);
+    padding-bottom: var(--pd-sm);
   }
 
   :global(.add-node-picker) .filters-row::-webkit-scrollbar {
@@ -367,18 +332,11 @@
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    padding: var(--pd-xs) var(--pd-md);
-    border-top: 1px solid var(--color-gray-70);
+    gap: var(--pd-sm);
+    padding: var(--pd-md);
     outline: none;
-  }
-
-  :global(.add-node-picker) .result-list::-webkit-scrollbar {
-    display: none;
   }
 
   .node-row {
@@ -432,8 +390,7 @@
 
   :global(.add-node-picker) .pinned-bottom {
     flex-shrink: 0;
-    border-top: 1px solid var(--color-gray-70);
-    padding: var(--pd-sm) var(--pd-md) var(--pd-md);
+    padding: var(--pd-md);
   }
 
   .recent-label {

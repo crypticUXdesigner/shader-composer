@@ -173,7 +173,7 @@ export function applyPortHoverAndCursor(
 }
 
 /**
- * Apply node drag position update (smart guides, move nodes, mark dirty, request render).
+ * Apply node drag position update (move nodes, mark dirty, request render).
  */
 export function applyNodeDragPosition(
   ctx: MouseEventMoveContext,
@@ -186,9 +186,9 @@ export function applyNodeDragPosition(
   const node = graph.nodes.find(n => n.id === state.interaction.draggingNodeId);
   if (!node) return;
   const canvasPos = ctx.deps.screenToCanvas(mouseX - state.interaction.dragOffsetX, mouseY - state.interaction.dragOffsetY);
-  const { snappedX, snappedY, guides } = ctx.deps.calculateSmartGuides(node, canvasPos.x, canvasPos.y);
-  const deltaX = snappedX - state.interaction.draggingNodeInitialPos.x;
-  const deltaY = snappedY - state.interaction.draggingNodeInitialPos.y;
+  // No snapping/alignment guides: move nodes based on raw canvas cursor position.
+  const deltaX = canvasPos.x - state.interaction.draggingNodeInitialPos.x;
+  const deltaY = canvasPos.y - state.interaction.draggingNodeInitialPos.y;
   const movedNodeIds: string[] = [];
   for (const [nodeId, initialPos] of state.interaction.selectedNodesInitialPositions.entries()) {
     const selectedNode = graph.nodes.find(n => n.id === nodeId);
@@ -199,7 +199,6 @@ export function applyNodeDragPosition(
       movedNodeIds.push(nodeId);
     }
   }
-  ctx.deps.setSmartGuides(guides);
   ctx.deps.renderState.markNodesDirty(movedNodeIds);
   ctx.deps.renderState.markLayerDirty(RenderLayer.Overlays);
   const connectionsToUpdate: string[] = [];

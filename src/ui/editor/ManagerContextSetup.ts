@@ -30,11 +30,6 @@ export interface ManagerContextSetupDeps {
   renderState: { markNodesDirty: (nodeIds: string[]) => void; markFullRedraw: () => void };
   graph: { nodes: NodeInstance[] };
   screenToCanvas: (screenX: number, screenY: number) => { x: number; y: number };
-  calculateSmartGuides: (
-    draggingNode: NodeInstance,
-    proposedX: number,
-    proposedY: number
-  ) => { snappedX: number; snappedY: number };
   /** Getters so edge-scroll callback sees current drag state */
   getIsDraggingNode: () => boolean;
   getDraggingNodeId: () => string | null;
@@ -97,7 +92,6 @@ export interface ManagerContextSetupDepsSource {
     getPanState(): { isPanning: boolean };
   };
   screenToCanvas(screenX: number, screenY: number): { x: number; y: number };
-  calculateSmartGuides(node: NodeInstance, proposedX: number, proposedY: number): { snappedX: number; snappedY: number };
   isSpacePressed: boolean;
   onNodeMoved?: (nodeId: string, x: number, y: number) => void;
   onNodeDeleted?: (nodeId: string) => void;
@@ -138,7 +132,6 @@ export function buildManagerContextDeps(source: ManagerContextSetupDepsSource): 
     renderState: source.renderState,
     graph: source.graph,
     screenToCanvas: (x, y) => source.screenToCanvas(x, y),
-    calculateSmartGuides: (node, px, py) => source.calculateSmartGuides(node, px, py),
     getIsDraggingNode: () => ist.getInteractionState().isDraggingNode,
     getDraggingNodeId: () => ist.getInteractionState().draggingNodeId,
     getDraggingNodeInitialPos: () => ist.getInteractionState().draggingNodeInitialPos,
@@ -193,13 +186,8 @@ export function setupManagerContexts(deps: ManagerContextSetupDeps): void {
             mouse.x - deps.getDragOffsetX(),
             mouse.y - deps.getDragOffsetY()
           );
-          const { snappedX, snappedY } = deps.calculateSmartGuides(
-            node,
-            canvasPos.x,
-            canvasPos.y
-          );
-          const deltaX2 = snappedX - draggingNodeInitialPos.x;
-          const deltaY2 = snappedY - draggingNodeInitialPos.y;
+          const deltaX2 = canvasPos.x - draggingNodeInitialPos.x;
+          const deltaY2 = canvasPos.y - draggingNodeInitialPos.y;
           const movedNodeIds: string[] = [];
           for (const [nodeId, initialPos] of deps.getSelectedNodesInitialPositions().entries()) {
             const selectedNode = deps.graph.nodes.find((n) => n.id === nodeId);

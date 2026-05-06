@@ -11,6 +11,7 @@ export class TypeValidator {
    * Check if two types are compatible (exact match, promotion, or demotion)
    */
   private areTypesCompatible(source: string, target: string): boolean {
+    if (source === 'any' || target === 'any') return true;
     if (source === target) return true;
 
     // Promotion: narrower type can feed wider type
@@ -33,8 +34,11 @@ export class TypeValidator {
   /**
    * Validate type compatibility for all connections
    */
-  validateTypes(graph: NodeGraph): string[] {
+  validateTypes(graph: NodeGraph, effectiveNodeSpecsById?: Map<string, NodeSpec>): string[] {
     const errors: string[] = [];
+
+    const getSpec = (nodeId: string, nodeType: string): NodeSpec | undefined =>
+      effectiveNodeSpecsById?.get(nodeId) ?? this.nodeSpecs.get(nodeType);
 
     for (const conn of graph.connections) {
       const sourceNode = graph.nodes.find(n => n.id === conn.sourceNodeId);
@@ -42,8 +46,8 @@ export class TypeValidator {
 
       if (!sourceNode || !targetNode) continue;
 
-      const sourceSpec = this.nodeSpecs.get(sourceNode.type);
-      const targetSpec = this.nodeSpecs.get(targetNode.type);
+      const sourceSpec = getSpec(sourceNode.id, sourceNode.type);
+      const targetSpec = getSpec(targetNode.id, targetNode.type);
 
       if (!sourceSpec || !targetSpec) continue;
 
@@ -56,7 +60,6 @@ export class TypeValidator {
         continue;
       }
 
-      // Handle parameter connections
       if (conn.targetParameter) {
         const paramSpec = targetSpec.parameters[conn.targetParameter];
         if (!paramSpec) {
@@ -66,7 +69,6 @@ export class TypeValidator {
           continue;
         }
         
-        // Check type compatibility for parameter connections (float only)
         if (paramSpec.type !== 'float') {
           errors.push(
             `[ERROR] Parameter connection type mismatch: Parameter '${conn.targetParameter}' on node ${targetNode.type} ` +
@@ -75,7 +77,6 @@ export class TypeValidator {
           continue;
         }
         
-        // Check source type compatibility (must be float, int, or vec type)
         if (sourceOutput.type !== 'float' && sourceOutput.type !== 'int' && 
             sourceOutput.type !== 'vec2' && sourceOutput.type !== 'vec3' && sourceOutput.type !== 'vec4') {
           errors.push(
