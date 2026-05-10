@@ -9,10 +9,12 @@ import { mount, unmount } from 'svelte';
 import type { NodeGraph } from '../data-model/types';
 import type { AudioSetup } from '../data-model/audioSetupTypes';
 import type { ShaderCompiler } from '../runtime/types';
+import { globalErrorHandler } from '../utils/errorHandling';
 import { createExportRenderPath } from '../video-export/ExportRenderPath';
 import type { FrameAudioState } from '../video-export/OfflineAudioProvider';
 import ImageExportDialog from '../lib/components/export/ImageExportDialog.svelte';
 import type { ImageExportConfirmPayload } from './types';
+import { renderWebGpuExportRgba8 } from './WebGpuExportRenderPath';
 
 export interface ImageExportOrchestratorOptions {
   graph: NodeGraph;
@@ -145,6 +147,19 @@ async function canvasToBlob(
   });
 }
 
+function rgba8ToCanvas(width: number, height: number, rgba8: Uint8Array): HTMLCanvasElement {
+  const canvas = Object.assign(document.createElement('canvas'), { width, height }) as HTMLCanvasElement;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    throw new Error('2D canvas unsupported');
+  }
+  // Copy into a fresh clamped array so the ImageData overload matches `ArrayBuffer` (not `ArrayBufferLike`).
+  const clamped = new Uint8ClampedArray(rgba8);
+  const imageData = new ImageData(clamped, width, height);
+  ctx.putImageData(imageData, 0, 0);
+  return canvas;
+}
+
 /**
  * Maximum dimension (px) for the in-dialog preview. The preview is rendered at the chosen
  * export aspect ratio but scaled down to keep updates fast while scrubbing.
@@ -263,31 +278,68 @@ export async function runImageExportFlow(options: ImageExportOrchestratorOptions
 
     const timeSeconds = config.mode === 'time' ? Math.max(0, config.timeSeconds) : initialTimeSeconds;
 
-    // Use frameRate=1 and startTimeSeconds=timeSeconds to hit the exact time with frameIndex=0.
-    const frameRate = 1;
-    const frameIndex = 0;
+    // Prefer WebGPU export when available and the graph is WGSL-supported; otherwise fall back to WebGL export unchanged.
+    const frameState: FrameAudioState = {
+      channelSamples: [],
+      uniformUpdates: [],
+      timelineTime: timeSeconds,
+    };
 
-    const renderPath = createExportRenderPath(options.graph, options.compiler, options.audioSetup, {
-      width: config.width,
-      height: config.height,
-      frameRate,
-      startTimeSeconds: timeSeconds,
-    });
-
+    let usedWebGpu = false;
     try {
-      const frameState: FrameAudioState = {
-        channelSamples: [],
-        uniformUpdates: [],
-        timelineTime: timeSeconds,
-      };
-      const canvasLike = renderPath.renderFrame(frameIndex, frameState);
-      const canvas = canvasLike as HTMLCanvasElement;
-      const blob = await canvasToBlob(canvas, config.format, config.quality);
-      downloadBlob(blob, defaultFilename(config.format));
-    } finally {
-      renderPath.dispose();
-      dialog.close();
+      const wg = await renderWebGpuExportRgba8(options.graph, options.compiler, options.audioSetup, {
+        width: config.width,
+        height: config.height,
+        timeSeconds,
+        timelineTimeSeconds: frameState.timelineTime,
+        uniformUpdates: frameState.uniformUpdates,
+      });
+
+      if (wg.ok) {
+        usedWebGpu = true;
+        const canvas = rgba8ToCanvas(config.width, config.height, wg.rgba8);
+        const blob = await canvasToBlob(canvas, config.format, config.quality);
+        downloadBlob(blob, defaultFilename(config.format));
+      } else {
+        const detail = wg.compilation?.unsupportedReasons?.join('; ') ?? wg.reason;
+        globalErrorHandler.report(
+          'runtime',
+          'warning',
+          'WebGPU image export unavailable; falling back to WebGL export.',
+          { context: { webgpuExport: { reason: wg.reason, detail } }, originalError: wg.error }
+        );
+      }
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error('WebGPU image export failed', { cause: err });
+      globalErrorHandler.report('runtime', 'warning', 'WebGPU image export failed; falling back to WebGL export.', {
+        context: { webgpuExport: { reason: 'exception' } },
+        originalError: e,
+      });
     }
+
+    if (!usedWebGpu) {
+      // Use frameRate=1 and startTimeSeconds=timeSeconds to hit the exact time with frameIndex=0.
+      const frameRate = 1;
+      const frameIndex = 0;
+
+      const renderPath = createExportRenderPath(options.graph, options.compiler, options.audioSetup, {
+        width: config.width,
+        height: config.height,
+        frameRate,
+        startTimeSeconds: timeSeconds,
+      });
+
+      try {
+        const canvasLike = renderPath.renderFrame(frameIndex, frameState);
+        const canvas = canvasLike as HTMLCanvasElement;
+        const blob = await canvasToBlob(canvas, config.format, config.quality);
+        downloadBlob(blob, defaultFilename(config.format));
+      } finally {
+        renderPath.dispose();
+      }
+    }
+
+    dialog.close();
   } finally {
     previewController.dispose();
   }

@@ -5,8 +5,7 @@
  * Extracted from RuntimeManager to improve separation of concerns.
  */
 
-import type { IRenderer, PreviewDependencyMask } from '../types';
-import type { ShaderInstance } from '../ShaderInstance';
+import type { IRenderer, PreviewDependencyMask, PreviewProgramInstance } from '../types';
 
 export interface TimeManagerUpdateOptions {
   /** From last successful compile; null = legacy full-rate behavior. */
@@ -30,8 +29,9 @@ export class TimeManager {
 
   /**
    * Update time uniform if it changed meaningfully or if dirty.
-   * When `previewDependencies` is set, skips per-frame audio uniform work unless the shader
-   * uses audio uniforms or the timeline is playing (pattern B — no orphan uploads when idle).
+   * When `previewDependencies` is set, skips per-frame audio/analyser work unless the shader
+   * uses audio uniforms, radial-pulse spawn passes (virtual Drive and/or loop-interval preview),
+   * or the timeline is playing (pattern B — no orphan uploads when idle).
    *
    * @param time - Current time value
    * @param shaderInstance - Shader instance to update
@@ -41,9 +41,9 @@ export class TimeManager {
    */
   updateTime(
     time: number,
-    shaderInstance: ShaderInstance | null,
+    shaderInstance: PreviewProgramInstance | null,
     renderer: IRenderer,
-    updateAudioUniforms?: (shaderInstance: ShaderInstance) => void,
+    updateAudioUniforms?: (shaderInstance: PreviewProgramInstance) => void,
     options?: TimeManagerUpdateOptions
   ): boolean {
     if (!shaderInstance) return false;
@@ -51,7 +51,17 @@ export class TimeManager {
     const deps = options?.previewDependencies ?? null;
     const playing = options?.timelinePlaying ?? false;
     const hasDeps = deps !== null;
-    const audioInShader = !hasDeps || deps.usesAudioUniforms;
+
+    const timeChanged = Math.abs(time - this.lastTime) > this.TIME_CHANGE_THRESHOLD;
+    const wallOrTimelineDrives =
+      !hasDeps || !!(deps && (deps.usesWallTime || deps.usesTimelineTime));
+    const needsFrameStepping = !!(deps?.usesFrameIndex);
+    const needRenderByClock = wallOrTimelineDrives && (timeChanged || needsFrameStepping);
+
+    const spawnPass = !!(deps?.usesRadialPulseSpawnUniformPass);
+    const needsAnalyserCadence =
+      !hasDeps ||
+      !!(deps && (deps.usesAudioUniforms || deps.usesRadialPulseSpawnUniformPass));
 
     let shouldRunAudioUniformPass = false;
     if (updateAudioUniforms) {
@@ -61,7 +71,9 @@ export class TimeManager {
         shouldRunAudioUniformPass = true;
       } else if (this.isDirty) {
         shouldRunAudioUniformPass = true;
-      } else if (audioInShader) {
+      } else if (spawnPass && needRenderByClock) {
+        shouldRunAudioUniformPass = true;
+      } else if (needsAnalyserCadence) {
         const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
         if (now - this.lastPausedAudioUniformMs >= TimeManager.PAUSED_AUDIO_MIN_INTERVAL_MS) {
           shouldRunAudioUniformPass = true;
@@ -73,11 +85,7 @@ export class TimeManager {
     if (shouldRunAudioUniformPass && updateAudioUniforms) {
       updateAudioUniforms(shaderInstance);
     }
-
-    const timeChanged = Math.abs(time - this.lastTime) > this.TIME_CHANGE_THRESHOLD;
-    const wallOrTimelineDrives = !hasDeps || deps.usesWallTime || deps.usesTimelineTime;
-    const needRenderByClock = timeChanged && wallOrTimelineDrives;
-    const needRenderForPausedAudio = shouldRunAudioUniformPass && audioInShader && !playing;
+    const needRenderForPausedAudio = shouldRunAudioUniformPass && needsAnalyserCadence && !playing;
 
     if (!this.isDirty && !playing && !needRenderByClock && !needRenderForPausedAudio) {
       return false;

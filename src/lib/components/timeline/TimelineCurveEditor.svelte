@@ -38,6 +38,10 @@
     remapSelectionIndices,
     stableTimeSortKeyframes,
   } from './curveEditorKeyframes';
+  import {
+    createStrictDoubleClickHandler,
+    createStrictTapThenDownDouble,
+  } from '../../utils/strictDoubleClick';
 
   /** Half side length (SVG units) for endpoint squares; diamonds use same apex radius. */
   const KEYFRAME_MARK_HALF = 6.5;
@@ -118,6 +122,11 @@
   let valueOverlayH = $state(40);
   let valueOverlayValue = $state(0);
   let valueOverlayEditIndex = $state<number | null>(null);
+
+  /** Arms strict double on graph when `click` doesn't fire (seek uses `preventDefault` on pointerdown). */
+  const graphStrictTapPair = createStrictTapThenDownDouble();
+
+  let keyframeDragPointerDownClient: { x: number; y: number } | null = null;
 
   /** Bumped every frame when `getCurrentTransportTime` is set so the curve playhead tracks preview playback. */
   let transportTimeTick = $state(0);
@@ -452,6 +461,10 @@
   function handleGraphPointerdown(e: PointerEvent): void {
     if (e.button !== 0) return;
     graphWrapEl?.focus({ preventScroll: true });
+    if (graphStrictTapPair.consumeIfSecondPress(e)) {
+      handleGraphDblclick(e);
+      return;
+    }
     const additive = e.shiftKey || e.ctrlKey || e.metaKey;
     const keyframeHit = hitKeyframe(e.clientX, e.clientY);
     if (keyframeHit !== null) {
@@ -468,13 +481,16 @@
         anchorV,
       };
       dragKeyframePointerId = e.pointerId;
+      keyframeDragPointerDownClient = { x: e.clientX, y: e.clientY };
       return;
     }
 
-    // Empty graph seek: single click sets playhead; drag scrubs (but don't block dblclick add-keyframe).
+    // Empty graph seek: single click sets playhead; drag scrubs; arm strict-double via tap on pointerup when still.
     if (onSeek && e.detail <= 1) {
       e.preventDefault();
       const target = e.currentTarget as HTMLElement;
+      const seekDownX = e.clientX;
+      const seekDownY = e.clientY;
       target.setPointerCapture(e.pointerId);
       playheadSeekDragging = true;
       playheadSeekPointerId = e.pointerId;
@@ -488,6 +504,11 @@
       const onUp = (e2: PointerEvent): void => {
         if (e2.pointerId === e.pointerId) {
           target.releasePointerCapture(e2.pointerId);
+        }
+        const movedFar =
+          Math.abs(e2.clientX - seekDownX) > 6 || Math.abs(e2.clientY - seekDownY) > 6;
+        if (!movedFar) {
+          graphStrictTapPair.recordCompletedPrimaryTap(e2);
         }
         playheadSeekDragging = false;
         playheadSeekPointerId = null;
@@ -504,9 +525,10 @@
     if (!additive) selectedKeyframeIndices = [];
     dragKeyframeSession = null;
     dragKeyframePointerId = null;
+    keyframeDragPointerDownClient = null;
   }
 
-  function handleGraphDblclick(e: MouseEvent): void {
+  function handleGraphDblclick(e: MouseEvent | PointerEvent): void {
     if (e.button !== 0) return;
     e.preventDefault();
     graphWrapEl?.focus({ preventScroll: true });
@@ -518,6 +540,11 @@
     const { t, v } = clientToGraph(e.clientX, e.clientY);
     addKeyframeAt(t, v);
   }
+
+  /** When `onSeek` is absent, rely on clicks; when seek is enabled, rely on tap-pair so we don't double-fire. */
+  const graphStrictBackgroundClick = createStrictDoubleClickHandler((e: MouseEvent) =>
+    handleGraphDblclick(e)
+  );
 
   function handleKeyDownCapture(e: KeyboardEvent): void {
     const ae = document.activeElement as HTMLElement | null;
@@ -641,6 +668,15 @@
 
     function onPointerUp(e: PointerEvent) {
       if (e.pointerId !== ptrId) return;
+      if (keyframeDragPointerDownClient) {
+        const movedFar =
+          Math.abs(e.clientX - keyframeDragPointerDownClient.x) > 6 ||
+          Math.abs(e.clientY - keyframeDragPointerDownClient.y) > 6;
+        if (!movedFar) {
+          graphStrictTapPair.recordCompletedPrimaryTap(e);
+        }
+        keyframeDragPointerDownClient = null;
+      }
       dragKeyframeSession = null;
       dragKeyframePointerId = null;
     }
@@ -790,7 +826,7 @@
     aria-keyshortcuts="Delete Backspace"
     use:focusGraphWhenRegionTargeted={{ laneId, regionId }}
     onpointerdown={handleGraphPointerdown}
-    ondblclick={handleGraphDblclick}
+    onclick={onSeek ? undefined : graphStrictBackgroundClick}
     onpointermove={handleGraphPointermove}
     onmouseleave={handleGraphMouseleave}
   >

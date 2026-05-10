@@ -936,7 +936,7 @@ function nodesOverlap(
 ├─────────────────────────────┤
 │ Transform                   │
 │   Polar Coordinates         │
-│   Twist Distortion          │
+│   Vortex                    │
 │   ...                       │
 ├─────────────────────────────┤
 │ Generator                   │

@@ -3,9 +3,9 @@ import type { NodeSpec } from '../../types/nodeSpec';
 export const starShape2dNodeSpec: NodeSpec = {
   id: 'star-shape-2d',
   category: 'Shapes',
-  displayName: 'Star',
-  description: 'N-point star / starburst mask. Style toggles between Star (radial) and Starburst (segment).',
-  icon: 'star',
+  displayName: 'Starflower',
+  description: 'N-point star/flower mask. Mode toggles between Star (radial profile) and Starburst (segment rays).',
+  icon: 'flower',
   inputs: [
     {
       name: 'in',
@@ -27,7 +27,7 @@ export const starShape2dNodeSpec: NodeSpec = {
       min: 0,
       max: 1,
       step: 1,
-      label: 'Style'
+      label: 'Mode'
     },
     starCenterX: {
       type: 'float',
@@ -130,8 +130,6 @@ export const starShape2dNodeSpec: NodeSpec = {
       {
         type: 'grid',
         parameters: [
-          'starCenterX',
-          'starCenterY',
           'style',
           'starPoints',
           'starRotation',
@@ -139,12 +137,17 @@ export const starShape2dNodeSpec: NodeSpec = {
           'starOuterRadius',
           'starRoundness',
           'starSoftness',
-          'starIntensity'
+          'starIntensity',
+          'starCenterX',
+          'starCenterY',
         ],
-        parameterUI: { starCenterX: 'coords', starCenterY: 'coords' },
+        parameterUI: { starCenterX: 'coords', starCenterY: 'coords', style: 'enum' },
         layout: {
           columns: 3,
-          coordsSpan: 2
+          coordsSpan: 3,
+          parameterSpan: {
+            starIntensity: 2
+          }
         }
       }
     ]

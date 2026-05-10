@@ -34,6 +34,7 @@ export type NodeIconIdentifier =
   | 'ring'
   | 'rings'
   | 'cell'
+  | 'cloud'
   | 'curly-loop'
   | 'dots'
   | 'spray'
@@ -61,7 +62,9 @@ export type NodeIconIdentifier =
   | 'power'
   | 'sqrt'
   | 'trig-wave'
+  | 'flower'
   | 'arrow-right'
+  | 'arrow-square-right'
   | 'arrow-down'
   | 'arrow-up'
   | 'arrows-left-right'
@@ -141,6 +144,7 @@ export type NodeIconIdentifier =
   | 'circle-half-tilt'
   | 'circle-notch'
   | 'circuitry'
+  | 'columns-plus-right'
   | 'corners-in'
   | 'corners-out'
   | 'cpu'
@@ -154,6 +158,7 @@ export type NodeIconIdentifier =
   | 'disco-ball'
   | 'disc'
   | 'dna'
+  | 'drop-half'
   | 'drone'
   | 'equalizer'
   | 'fan'
@@ -196,6 +201,7 @@ export type NodeIconIdentifier =
   | 'spinner-ball'
   | 'star-of-david'
   | 'sticker'
+  | 'subtract-square'
   | 'swap'
   | 'target'
   | 'tennis-ball'
@@ -211,6 +217,7 @@ export type NodeIconIdentifier =
   | 'volleyball'
   | 'wall'
   | 'washing-machine'
+  | 'wrench'
   | 'yarn'
   | 'yin-yang';
 
@@ -274,7 +281,9 @@ export const ALL_NODE_ICON_IDENTIFIERS: readonly NodeIconIdentifier[] = [
   'power',
   'sqrt',
   'trig-wave',
+  'flower',
   'arrow-right',
+  'arrow-square-right',
   'arrow-down',
   'arrow-up',
   'arrows-left-right',
@@ -354,6 +363,7 @@ export const ALL_NODE_ICON_IDENTIFIERS: readonly NodeIconIdentifier[] = [
   'circle-half-tilt',
   'circle-notch',
   'circuitry',
+  'columns-plus-right',
   'corners-in',
   'corners-out',
   'cpu',
@@ -367,6 +377,7 @@ export const ALL_NODE_ICON_IDENTIFIERS: readonly NodeIconIdentifier[] = [
   'disco-ball',
   'disc',
   'dna',
+  'drop-half',
   'drone',
   'equalizer',
   'fan',
@@ -409,6 +420,7 @@ export const ALL_NODE_ICON_IDENTIFIERS: readonly NodeIconIdentifier[] = [
   'spinner-ball',
   'star-of-david',
   'sticker',
+  'subtract-square',
   'swap',
   'target',
   'tennis-ball',
@@ -424,6 +436,7 @@ export const ALL_NODE_ICON_IDENTIFIERS: readonly NodeIconIdentifier[] = [
   'volleyball',
   'wall',
   'washing-machine',
+  'wrench',
   'yarn',
   'yin-yang',
 ];

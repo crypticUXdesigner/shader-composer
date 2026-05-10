@@ -31,9 +31,16 @@ export function getUniformName(nodeId: string, paramName: string): string {
 /**
  * Hash a graph structure to detect changes.
  * Includes automation so that adding/editing lanes or curves triggers recompile (shader uses evalAutomation_*).
+ * Includes per-node `bypassed` so toggling Power triggers a structural recompile (the compiler
+ * drops bypassed nodes from execution order — different GLSL/WGSL output, different uniforms).
  */
 export function hashGraph(graph: import('../data-model/types').NodeGraph): string {
   const nodeIds = graph.nodes.map(n => n.id).sort().join(',');
+  const bypassed = graph.nodes
+    .filter((n) => n.bypassed)
+    .map((n) => n.id)
+    .sort()
+    .join(',');
   const connectionIds = graph.connections.map(c => c.id).sort().join(',');
   const connections = graph.connections
     .map(c => `${c.sourceNodeId}:${c.sourcePort}->${c.targetNodeId}:${c.targetPort ?? ''}:${c.targetParameter ?? ''}`)
@@ -58,5 +65,5 @@ export function hashGraph(graph: import('../data-model/types').NodeGraph): strin
             })),
           })),
         });
-  return `${nodeIds}|${connectionIds}|${connections}|${automation}`;
+  return `${nodeIds}|${bypassed}|${connectionIds}|${connections}|${automation}`;
 }

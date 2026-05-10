@@ -40,7 +40,7 @@ export const displaceNodeSpec: NodeSpec = {
       min: 0,
       max: 1,
       step: 1,
-      label: 'Mode'
+      label: 'Displacement'
     },
     displaceScale: {
       type: 'float',
@@ -115,6 +115,7 @@ export const displaceNodeSpec: NodeSpec = {
       {
         type: 'grid',
         parameters: ['displaceMode', 'displaceScale'],
+        parameterUI: { displaceMode: 'enum' },
         layout: { columns: 2 }
       },
       {

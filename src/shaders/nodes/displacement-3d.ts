@@ -75,7 +75,7 @@ export const displacement3dNodeSpec: NodeSpec = {
       default: 1.0,
       min: 0.0,
       max: 5.0,
-      step: 0.01,
+      step: 0.001,
       label: 'Time Speed'
     },
     timeOffset: {
@@ -83,7 +83,7 @@ export const displacement3dNodeSpec: NodeSpec = {
       default: 0.0,
       min: -100.0,
       max: 100.0,
-      step: 0.05,
+      step: 0.001,
       label: 'Time Offset',
       knobPolarity: 'two-sided' },
     positionX: {

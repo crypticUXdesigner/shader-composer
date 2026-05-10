@@ -7,8 +7,13 @@
  */
 
 import { ShaderInstance, SHADER_INSTANCE_PROGRAM_PENDING_MESSAGE } from './ShaderInstance';
-import { Renderer } from './Renderer';
-import type { ShaderCompiler, CompilationResult, PreviewDependencyMask } from './types';
+import type {
+  PreviewProgramInstance,
+  ShaderCompiler,
+  CompilationResult,
+  PreviewDependencyMask,
+  RenderBackendKind
+} from './types';
 import type { NodeGraph, ParameterValue } from '../data-model/types';
 import type { AudioSetup } from '../data-model/audioSetupTypes';
 import { hashGraph } from './utils';
@@ -17,7 +22,11 @@ import { globalErrorHandler, ErrorUtils } from '../utils/errorHandling';
 import type { Disposable } from '../utils/Disposable';
 import { GraphChangeDetector } from '../utils/changeDetection/GraphChangeDetector';
 import { isRuntimeOnlyParameter } from '../utils/runtimeOnlyParams';
-import { transferParameters as transferParametersImpl, transferParametersFromGraph as transferParametersFromGraphImpl } from './compilation/parameterTransfer';
+import {
+  applyUniformDefaults as applyUniformDefaultsImpl,
+  transferParameters as transferParametersImpl,
+  transferParametersFromGraph as transferParametersFromGraphImpl
+} from './compilation/parameterTransfer';
 import { reportCompilationErrors, reportCompilationError } from './compilation/compilationErrorReporting';
 import { cloneableCompilePayload, type WorkerCompilePayload, type WorkerReplyMessage } from './compilation/workerMessages';
 import {
@@ -31,6 +40,10 @@ import {
   clearPreviewCompileProgressToast,
   shouldDeferPreviewCompileToast,
 } from '../lib/stores/previewCompileStatusStore';
+import type { IRenderBackend } from './renderBackends/IRenderBackend';
+
+/** Debounce for {@link CompilationManager.onGraphStructureChange} when `immediate === true` (wiring, automation region times). */
+const CONNECTION_STRUCTURE_COMPILE_DEBOUNCE_MS = 80;
 
 /** Change snapshot from {@link CompilationManager.detectGraphChanges} for one compile kick. */
 type GraphCompileChanges = {
@@ -43,6 +56,15 @@ type GraphCompileChanges = {
   affectedNodeIds: Set<string>;
 };
 
+/**
+ * WebGPU MVP unsupported reasons tied to the Output node (`final-output`) contract.
+ * When the last compile failed for one of these, {@link CompilationManager.shouldSkipPreviewRecompileForIdleGraphChanges}
+ * must not treat connection edits on “orphan” branches as idle: those endpoints are often outside the upstream
+ * slice of an unwired Output, so skipping would freeze the same user-facing error while the user wires step-by-step
+ * (e.g. Look-at Camera → Raymarch before the branch reaches Output).
+ */
+const WEBGPU_FINAL_OUTPUT_GATE_UNSUPPORTED = new Set<string>(['missing final-output node']);
+
 /** True if value can be applied to a single uniform (float/int or vec4). */
 function isUniformValue(v: ParameterValue): v is number | [number, number, number, number] {
   if (typeof v === 'number') return true;
@@ -51,9 +73,9 @@ function isUniformValue(v: ParameterValue): v is number | [number, number, numbe
 }
 
 export class CompilationManager implements Disposable {
-  private shaderInstance: ShaderInstance | null = null;
+  private shaderInstance: PreviewProgramInstance | null = null;
   private compiler: ShaderCompiler;
-  private renderer: Renderer;
+  private renderer: IRenderBackend;
   private graph: NodeGraph | null = null;
   private audioSetup: AudioSetup | null = null;
   private compileIdleCallback: number | null = null;
@@ -90,8 +112,8 @@ export class CompilationManager implements Disposable {
   /** Called after successful recompile so runtime can mark dirty and sync time on next frame. */
   private onRecompiled?: () => void;
 
-  /** Called with the new shader instance before its first render so runtime can push audio uniforms. */
-  private onBeforeFirstRender?: (instance: ShaderInstance) => void;
+  /** Called with the new program instance before its first render so runtime can push audio uniforms. */
+  private onBeforeFirstRender?: (instance: PreviewProgramInstance) => void;
 
   // Worker compilation (optional)
   private worker: Worker | null = null;
@@ -102,6 +124,28 @@ export class CompilationManager implements Disposable {
   private pendingApplyRetryResult: CompilationResult | null = null;
   private pendingApplyRetryWorkerId: number | null = null;
 
+  /** Backend requested for the most recent compile kick (Task 04 coverage fallback). */
+  private lastRequestedBackend: RenderBackendKind = 'webgl';
+
+  /**
+   * `unsupportedReasons` captured from the last WebGPU compile that fell back to WebGL.
+   * Surfaced through `PreviewScheduler.setEffectiveBackend(..., details)` so the dev
+   * overlay shows *why* a graph (e.g. fractal presets using `generic-raymarcher`) renders
+   * via the WebGL fallback path. Cleared whenever a WebGPU compile succeeds or the
+   * requested backend is WebGL.
+   */
+  private lastWebgpuFallbackReasons: string[] | null = null;
+
+  /**
+   * Last error-handler info notice emitted for a WebGPU→WebGL fallback. Used to
+   * suppress repeated notices on every recompile of the same graph snapshot — only
+   * a fresh fallback (different reasons or recovery in between) re-emits.
+   */
+  private lastNotifiedFallbackKey: string | null = null;
+
+  /** After a WebGL fallback toast, the next successful WebGPU preview shows a short recovery notice. */
+  private webglFallbackToastShown: boolean = false;
+
   // Parameter update batching
   private parameterRenderScheduled: boolean = false;
 
@@ -110,7 +154,7 @@ export class CompilationManager implements Disposable {
 
   constructor(
     compiler: ShaderCompiler,
-    renderer: Renderer,
+    renderer: IRenderBackend,
     errorHandler?: ErrorHandler
   ) {
     this.compiler = compiler;
@@ -121,6 +165,61 @@ export class CompilationManager implements Disposable {
   /** Resolve the active error handler (injected or global). */
   private getErrorHandler(): ErrorHandler {
     return this.errorHandler ?? globalErrorHandler;
+  }
+
+  /**
+   * Surface a single, non-alarming `info` notice the first time WebGPU compilation falls
+   * back to WebGL for a given set of reasons. Subsequent recompiles of the same graph
+   * snapshot are deduplicated via `lastNotifiedFallbackKey` to avoid toast spam — only a
+   * fresh fallback (different reasons) re-emits.
+   *
+   * Treated as informational because the runtime continues to render correctly via the
+   * existing WebGL path; the message exists so developers / advanced users can see *why*
+   * a graph (e.g. fractal presets that need `generic-raymarcher` in WGSL) is not on the
+   * WebGPU pipeline yet.
+   */
+  private notifyWebgpuFallback(reasons: string[] | null): void {
+    if (!reasons || reasons.length === 0) return;
+    const key = reasons.slice().sort().join('|');
+    if (this.lastNotifiedFallbackKey === key) return;
+    this.lastNotifiedFallbackKey = key;
+    this.webglFallbackToastShown = true;
+    this.getErrorHandler().report('runtime', 'info', 'Switching to WebGL fallback...', reasons);
+  }
+
+  /**
+   * True when the worker/WebGPU compile attempt should not drive preview (recompile WebGL).
+   * WebGL `CompilationResult`s from an explicit fallback compile must return false so we do not loop.
+   */
+  private webGpuCompileUnusable(result: CompilationResult): boolean {
+    if (result.backend === 'webgl') {
+      return false;
+    }
+    return (
+      result.metadata.errors.length > 0 ||
+      result.backend !== 'webgpu' ||
+      result.supported !== true
+    );
+  }
+
+  /**
+   * Reasons for dev overlay / deduped info toast when falling back WebGPU → WebGL.
+   * Includes unsupportedReasons, compiler error strings, and structural signals.
+   */
+  private captureWebgpuFallbackReasons(result: CompilationResult): string[] {
+    const parts: string[] = [];
+    if (result.unsupportedReasons && result.unsupportedReasons.length > 0) {
+      parts.push(...result.unsupportedReasons);
+    }
+    for (const err of result.metadata.errors) {
+      parts.push(`compile.error:${err}`);
+    }
+    if (!result.supported && !(result.unsupportedReasons && result.unsupportedReasons.length > 0)) {
+      parts.push('compile.supported:false');
+    }
+    const seen = new Set<string>();
+    const deduped = parts.filter((p) => (!seen.has(p) ? (seen.add(p), true) : false));
+    return deduped.length > 0 ? deduped : ['webgpu.compile.unusable'];
   }
   
   /**
@@ -140,7 +239,7 @@ export class CompilationManager implements Disposable {
   /**
    * Set callback invoked with the new shader instance before its first render (e.g. to push audio uniforms).
    */
-  setOnBeforeFirstRender(callback: (instance: ShaderInstance) => void): void {
+  setOnBeforeFirstRender(callback: (instance: PreviewProgramInstance) => void): void {
     this.onBeforeFirstRender = callback;
   }
 
@@ -180,6 +279,31 @@ export class CompilationManager implements Disposable {
       this.pendingWorkerApplyRafId = requestAnimationFrame(() => {
         this.pendingWorkerApplyRafId = null;
         if (id !== this.workerCompileId) return;
+        // Task 04/11: WebGPU → WebGL fallback when WGSL output is unusable: unsupported coverage,
+        // compile errors in metadata, or inconsistent backend/support flags.
+        if (
+          this.worker !== null &&
+          this.graph !== null &&
+          this.lastRequestedBackend === 'webgpu' &&
+          this.webGpuCompileUnusable(result)
+        ) {
+          this.lastWebgpuFallbackReasons = this.captureWebgpuFallbackReasons(result);
+          this.notifyWebgpuFallback(this.lastWebgpuFallbackReasons);
+
+          this.workerCompileId += 1;
+          const payload: WorkerCompilePayload = {
+            type: 'compile',
+            id: this.workerCompileId,
+            targetBackend: 'webgl',
+            graph: this.graph,
+            audioSetup: this.audioSetup,
+            previousResult: null,
+            affectedNodeIds: [],
+            tryIncremental: false,
+          };
+          this.worker.postMessage(cloneableCompilePayload(payload));
+          return;
+        }
         if (result.metadata.errors.length > 0) {
           getPreviewScheduler().recordCompileFailed();
           reportCompilationErrors(result.metadata.errors, (err) => this.getErrorHandler().reportError(err));
@@ -341,7 +465,7 @@ export class CompilationManager implements Disposable {
   
   /**
    * Handle graph structure change (node added/removed, connection added/removed).
-   * @param immediate - If true, recompile immediately (e.g. when only connections changed) so parameter connections take effect right away.
+   * @param immediate - If true, schedule `recompile()` after a short debounce (**~80 ms**) so bursts coalesce (wiring, automation region times).
    */
   onGraphStructureChange(immediate: boolean = false): void {
     if (immediate) {
@@ -353,7 +477,7 @@ export class CompilationManager implements Disposable {
         this.immediateCompileScheduled = false;
         this.compileTimeout = null;
         this.recompile();
-      }, 0);
+      }, CONNECTION_STRUCTURE_COMPILE_DEBOUNCE_MS);
     } else {
       this.scheduleRecompile();
     }
@@ -392,7 +516,11 @@ export class CompilationManager implements Disposable {
    * Schedule parameter update for next frame (batching).
    * Updates uniforms immediately (cheap operation) but defers rendering.
    */
-  private scheduleParameterUpdate(nodeId: string, paramName: string, value: number | [number, number, number, number]): void {
+  private scheduleParameterUpdate(
+    nodeId: string,
+    paramName: string,
+    value: number | [number, number, number, number]
+  ): void {
     if (!this.graph || !this.shaderInstance) return;
     
     // Update uniform immediately (cheap operation, doesn't block)
@@ -474,24 +602,124 @@ export class CompilationManager implements Disposable {
    * Used by both main-thread compile path and worker result handler. Run inside try/catch at call site; reports errors via getErrorHandler().
    */
   private applyCompilationResult(result: CompilationResult): void {
+    const prevInstance = this.shaderInstance;
+
+    // Task 03: allow WebGPU backend to consume WGSL compilation results.
+    // Important: do not route WebGL fallback results through the WebGPU install hook.
+    if (
+      result.backend === 'webgpu' &&
+      this.renderer.selection.selected === 'webgpu' &&
+      typeof this.renderer.setWebGpuProgram === 'function'
+    ) {
+      const maybe = this.renderer.setWebGpuProgram(result);
+      // If we requested/received a WebGPU compilation result but the backend isn't ready to install a program yet,
+      // do NOT fall back to the legacy WebGL path with an incompatible (WGSL/empty) `CompilationResult`.
+      // Instead, signal "program pending" so the existing retry mechanism can re-apply shortly.
+      if (!maybe && result.backend === 'webgpu') {
+        throw new Error(SHADER_INSTANCE_PROGRAM_PENDING_MESSAGE);
+      }
+      if (maybe) {
+        // WebGPU compile succeeded — clear the cached fallback reasons so the next graph
+        // edit doesn't reuse stale `unsupportedReasons` from an earlier failed attempt.
+        this.lastWebgpuFallbackReasons = null;
+        this.lastNotifiedFallbackKey = null;
+        if (this.webglFallbackToastShown) {
+          this.webglFallbackToastShown = false;
+          this.getErrorHandler().report('runtime', 'info', 'Using WebGPU...');
+        }
+        getPreviewScheduler().setEffectiveBackend('webgpu', 'compile.webgpu');
+        try {
+          if (prevInstance) {
+            if (this.graph) {
+              applyUniformDefaultsImpl(result.uniforms, maybe);
+              transferParametersImpl(this.graph, prevInstance, maybe);
+              transferParametersFromGraphImpl(this.graph, maybe);
+            }
+            maybe.setTimelineTime(prevInstance.getTimelineTime());
+            maybe.setTime(prevInstance.getTime());
+          } else if (this.graph) {
+            applyUniformDefaultsImpl(result.uniforms, maybe);
+            transferParametersFromGraphImpl(this.graph, maybe);
+          }
+
+          this.onBeforeFirstRender?.(maybe);
+
+          this.shaderInstance = maybe;
+
+          this.previewDependencyMask = result.metadata.previewDependencies ?? null;
+          this.compilationMetadata = {
+            result,
+            executionOrder: result.metadata.executionOrder
+          };
+
+          if (this.previousGraphState) {
+            this.previousGraphState.executionOrder = result.metadata.executionOrder;
+          }
+
+          if (this.graph) {
+            this.lastGraphHash = hashGraph(this.graph);
+          }
+
+          this.renderer.markDirty('compilation');
+          this.renderer.render();
+
+          prevInstance?.destroy();
+
+          this.onRecompiled?.();
+          getPreviewScheduler().recordCompileSucceeded();
+          return;
+        } catch (e) {
+          if (e instanceof Error && e.message === SHADER_INSTANCE_PROGRAM_PENDING_MESSAGE) {
+            // Preserve program pending semantics for the caller (recompileExecute will schedule retry).
+            throw e;
+          }
+          // If WebGPU apply fails, fall back to legacy WebGL path below.
+          try {
+            maybe.destroy();
+          } catch {
+            // ignore cleanup errors
+          }
+          this.shaderInstance = prevInstance;
+        }
+      }
+    }
+
+    // Coverage fallback visibility: when WebGPU was requested but we apply a WebGL program,
+    // record the effective backend so the dev overlay is not misleading. The
+    // `unsupportedReasons` were captured during the WebGPU result above (see worker handler);
+    // forward them here so the overlay/effectiveBackend snapshot includes the cause.
+    if (this.lastRequestedBackend === 'webgpu' && result.backend === 'webgl') {
+      getPreviewScheduler().setEffectiveBackend(
+        'webgl2',
+        'fallback.webgl2.wgsl.unsupported',
+        this.lastWebgpuFallbackReasons ?? undefined
+      );
+    } else {
+      getPreviewScheduler().setEffectiveBackend('webgl2', 'compile.webgl');
+      this.lastWebgpuFallbackReasons = null;
+      this.lastNotifiedFallbackKey = null;
+    }
+
+    // Legacy WebGL path (unchanged)
     const gl = this.renderer.getGLContext();
     if (gl.isContextLost && gl.isContextLost()) {
       clearPreviewCompileProgressToast();
       return;
     }
 
-    const prevInstance = this.shaderInstance;
-    const newInstance = new ShaderInstance(gl, result);
+    const newInstance = new ShaderInstance(gl, result, { linkCompletionMode: 'deferPending' });
 
     try {
       if (prevInstance) {
         if (this.graph) {
+          applyUniformDefaultsImpl(result.uniforms, newInstance);
           transferParametersImpl(this.graph, prevInstance, newInstance);
           transferParametersFromGraphImpl(this.graph, newInstance);
         }
         newInstance.setTimelineTime(prevInstance.getTimelineTime());
         newInstance.setTime(prevInstance.getTime());
       } else if (this.graph) {
+        applyUniformDefaultsImpl(result.uniforms, newInstance);
         transferParametersFromGraphImpl(this.graph, newInstance);
       }
 
@@ -533,7 +761,9 @@ export class CompilationManager implements Disposable {
       }
       this.shaderInstance = prevInstance;
       if (prevInstance) {
-        this.renderer.setShaderInstance(prevInstance);
+        if (prevInstance instanceof ShaderInstance) {
+          this.renderer.setShaderInstance(prevInstance);
+        }
       }
       throw err;
     }
@@ -583,9 +813,19 @@ export class CompilationManager implements Disposable {
     }
 
     const kick = (): void => {
+      const connectionOnlyCompile =
+        changes.changedConnections &&
+        changes.addedNodes.length === 0 &&
+        changes.removedNodes.length === 0;
+
       if (!deferPreviewToast) {
-        clearPreviewCompileProgressToast();
+        if (connectionOnlyCompile) {
+          beginPreviewCompileProgressToast();
+        } else {
+          clearPreviewCompileProgressToast();
+        }
       }
+
       previewPerformanceMark(PreviewPerfMark.compileRequested);
       previewPerfCounters.compileRequests += 1;
       getPreviewScheduler().recordCompileStarted();
@@ -635,6 +875,7 @@ export class CompilationManager implements Disposable {
 
     if (connectionDelta) {
       if (!priorGraph) return false;
+      if (this.webGpuFailedOnFinalOutputGate(previousResult)) return false;
       const touched = new Set<string>();
       for (const id of this.collectConnectionEndpointNodeIds(graph, changes.addedConnectionIds)) {
         touched.add(id);
@@ -660,6 +901,13 @@ export class CompilationManager implements Disposable {
 
     // Purely idle structural edits: no impact on preview output.
     return true;
+  }
+
+  private webGpuFailedOnFinalOutputGate(result: CompilationResult | null): boolean {
+    if (!result || result.backend !== 'webgpu' || result.supported !== false) return false;
+    const reasons = result.unsupportedReasons;
+    if (!reasons || reasons.length === 0) return false;
+    return reasons.some((r) => WEBGPU_FINAL_OUTPUT_GATE_UNSUPPORTED.has(r));
   }
 
   /** Endpoints (source + target node ids) for the given connection ids in `graph`. */
@@ -718,11 +966,15 @@ export class CompilationManager implements Disposable {
       return;
     }
 
+    const targetBackend: RenderBackendKind = this.renderer.selection.selected === 'webgpu' ? 'webgpu' : 'webgl';
+    this.lastRequestedBackend = targetBackend;
+
     if (this.worker !== null) {
       this.workerCompileId += 1;
       const payload: WorkerCompilePayload = {
         type: 'compile',
         id: this.workerCompileId,
+        targetBackend,
         graph: this.graph,
         audioSetup: this.audioSetup,
         previousResult,
@@ -740,18 +992,32 @@ export class CompilationManager implements Disposable {
           this.graph,
           previousResult,
           changes.affectedNodeIds,
-          this.audioSetup
+          this.audioSetup,
+          { backend: targetBackend }
         );
         if (incrementalResult) {
           result = incrementalResult;
         } else {
-          result = this.compiler.compile(this.graph, this.audioSetup);
+          result = this.compiler.compile(this.graph, this.audioSetup, { backend: targetBackend });
         }
       } else {
-        result = this.compiler.compile(this.graph, this.audioSetup);
+        result = this.compiler.compile(this.graph, this.audioSetup, { backend: targetBackend });
       }
 
-      if (result.metadata.errors.length > 0) {
+      // Task 04/11: same-thread WebGPU → WebGL fallback (unsupported, compile errors, etc.).
+      if (targetBackend === 'webgpu') {
+        if (this.webGpuCompileUnusable(result)) {
+          this.lastWebgpuFallbackReasons = this.captureWebgpuFallbackReasons(result);
+          this.notifyWebgpuFallback(this.lastWebgpuFallbackReasons);
+          const fallback = this.compiler.compile(this.graph, this.audioSetup, { backend: 'webgl' });
+          if (fallback.metadata.errors.length > 0) {
+            getPreviewScheduler().recordCompileFailed();
+            reportCompilationErrors(fallback.metadata.errors, (err) => this.getErrorHandler().reportError(err));
+            return;
+          }
+          result = fallback;
+        }
+      } else if (result.metadata.errors.length > 0) {
         getPreviewScheduler().recordCompileFailed();
         reportCompilationErrors(result.metadata.errors, (err) => this.getErrorHandler().reportError(err));
         return;
@@ -841,7 +1107,7 @@ export class CompilationManager implements Disposable {
   /**
    * Get current shader instance (for time/resolution updates).
    */
-  getShaderInstance(): ShaderInstance | null {
+  getShaderInstance(): PreviewProgramInstance | null {
     return this.shaderInstance;
   }
 

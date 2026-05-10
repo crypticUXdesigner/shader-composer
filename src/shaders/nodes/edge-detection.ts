@@ -4,7 +4,8 @@ export const edgeDetectionNodeSpec: NodeSpec = {
   id: 'edge-detection',
   category: 'Effects',
   displayName: 'Edge Detection',
-  description: 'Detects edges and creates outline effects for structural definition',
+  description:
+    'Luminance ridge around a Threshold (not Sobel/neighbor convolution). Outputs mix of source and ridge; preserves chroma by scaling RGB from luma.',
   icon: 'focus',
   inputs: [
     {
@@ -57,7 +58,7 @@ export const edgeDetectionNodeSpec: NodeSpec = {
   parameterGroups: [
     {
       id: 'edge-main',
-      label: 'Edge Detection',
+      label: 'Edges',
       parameters: ['edgeThreshold', 'edgeWidth', 'edgeIntensity', 'edgeStrength'],
       collapsible: true,
       defaultCollapsed: false
@@ -80,14 +81,12 @@ float edgeEffect(float value, float threshold, float width) {
 }
 `,
   mainCode: `
-  // Extract float value from vec4 input
-  float value = $input.in.r;
-  
-  // Apply edge detection
-  float edges = edgeEffect(value, $param.edgeThreshold, $param.edgeWidth);
-  float result = mix(value, edges * $param.edgeIntensity, $param.edgeStrength);
-  
-  // Output as vec4
-  $output.out = vec4(result, result, result, 1.0);
+  vec4 inColor = $input.in;
+  vec3 color = inColor.rgb;
+  float lum = dot(color, vec3(0.2126, 0.7152, 0.0722));
+  float edges = edgeEffect(lum, $param.edgeThreshold, $param.edgeWidth);
+  float blendedLum = mix(lum, edges * $param.edgeIntensity, $param.edgeStrength);
+  vec3 resultRgb = lum > 1e-4 ? clamp(color * (blendedLum / lum), 0.0, 1.0) : vec3(blendedLum);
+  $output.out = vec4(resultRgb, inColor.a);
 `
 };

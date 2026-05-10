@@ -108,7 +108,9 @@ export {
   updateNodePosition,
   updateNodeParameter,
   updateNodeParameterInputMode,
+  resetNodeParametersToDefaults,
   updateNodeLabel,
+  setNodeBypassed,
   addConnection,
   removeConnection,
   removeConnections,
@@ -127,6 +129,7 @@ export {
 export type {
   AddConnectionWithValidationResult,
   AddConnectionWithValidationOptions,
+  RemoveNodeOptions,
 } from './immutableUpdates';
 export {
   insertNodeIntoConnection,
@@ -178,6 +181,15 @@ export {
 // Bloom sphere colors migration (RGB -> OKLCH)
 export { migrateBloomSphereColors } from './bloomSphereColorsMigration';
 
+// Inflated icosahedron background colors migration (RGB -> OKLCH)
+export { migrateInflatedIcosahedronColors } from './inflatedIcosahedronColorsMigration';
+
+// Glass shell inner / background colors migration (RGB -> OKLCH)
+export { migrateGlassShellColors } from './glassShellColorsMigration';
+
+// Iridescent tunnel colors migration (RGB -> OKLCH)
+export { migrateIridescentTunnelColors } from './iridescentTunnelColorsMigration';
+
 // Drive home lights: single sky OKLCH -> horizon + zenith gradient
 export { migrateDriveHomeLightsSkyGradient } from './driveHomeLightsSkyGradientMigration';
 
@@ -190,8 +202,17 @@ export {
 // Distort: translate + directional-displace -> displace (modes)
 export { migrateDisplace2dUnify, hasLegacyDisplace2dNodes } from './displace2dUnifyMigration';
 
+// Particle system: fold legacy UV scale into grid spacing
+export { migrateParticleSystemFoldScale } from './particleSystemGrainMigration';
+
+// Streak: streakAngle (rad) → streakAngleDeg (deg)
+export { migrateStreakNodeAngleToDegrees } from './streakNodeMigration';
+
 // Preset/import/default-state: compose legacy node migrations before validation
 export { migrateLegacyNodeGraph } from './graphLegacyMigrations';
+
+// Radial repeat SDF: period/halfPeriod → shellSpacing/ringPhase
+export { migrateRadialRepeatSdfParameters } from './radialRepeatSdfMigration';
 
 // Mixed wave signal: cosine toggles -> per-wave shape enum
 export { migrateMixedWaveSignalShapes } from './mixedWaveSignalShapeMigration';

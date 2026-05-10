@@ -1,15 +1,15 @@
 import type { NodeSpec } from '../../types/nodeSpec';
 
 /**
- * Warp Terrain node — IQ-style domain-warped 2D value noise FBM with finite-diff normals and shading.
- * Replicates the visual of Inigo Quilez's "Warp" tutorial (Shadertoy ltfXzj).
+ * Warp Terrain — IQ-style domain-warped 2D value noise FBM with neutral grayscale
+ * shading, finite-difference bump lighting and adjustable ridge/specular cues.
  */
 export const warpTerrainNodeSpec: NodeSpec = {
   id: 'warp-terrain',
   category: 'Patterns',
   displayName: 'Warp Terrain',
   description:
-    'Domain-warped terrain/cloud pattern from 2D value noise FBM with rotation, finite-difference normals and shading. Based on IQ Warp tutorial.',
+    'Domain-warped value-noise terrain field with shaded neutral grayscale output. Adjust ridge and diffuse bump separately; vignette removed—add in the graph.',
   icon: 'noise',
   inputs: [
     {
@@ -22,7 +22,7 @@ export const warpTerrainNodeSpec: NodeSpec = {
     {
       name: 'out',
       type: 'vec4',
-      label: 'Value'
+      label: 'Color'
     }
   ],
   parameters: {
@@ -32,47 +32,85 @@ export const warpTerrainNodeSpec: NodeSpec = {
       min: 0.1,
       max: 2.0,
       step: 0.01,
-      label: 'Scale'
+      label: 'Terrain Scale'
     },
     warpTimeSpeed: {
       type: 'float',
       default: 1.0,
       min: 0.0,
       max: 3.0,
-      step: 0.01,
+      step: 0.001,
       label: 'Time Speed'
     },
-    warpVignetteStrength: {
+    warpTimeOffset: {
       type: 'float',
-      default: 0.1,
+      default: 0.0,
+      min: -100.0,
+      max: 100.0,
+      step: 0.001,
+      label: 'Time Offset',
+      knobPolarity: 'two-sided'
+    },
+    warpTerrainRidge: {
+      type: 'float',
+      default: 1.0,
       min: 0.0,
-      max: 1.0,
+      max: 3.0,
       step: 0.01,
-      label: 'Vignette'
+      label: 'Ridge Highlights'
+    },
+    warpTerrainBump: {
+      type: 'float',
+      default: 1.0,
+      min: 0.0,
+      max: 3.0,
+      step: 0.01,
+      label: 'Bump / Diffuse'
     }
   },
   parameterGroups: [
     {
       id: 'warp-main',
-      label: 'Terrain',
-      parameters: ['warpTerrainScale', 'warpTimeSpeed'],
+      label: 'Field',
+      parameters: ['warpTerrainScale'],
       collapsible: true,
       defaultCollapsed: false
     },
     {
-      id: 'warp-vignette',
-      label: 'Vignette',
-      parameters: ['warpVignetteStrength'],
+      id: 'warp-animation',
+      label: 'Animation',
+      parameters: ['warpTimeSpeed', 'warpTimeOffset'],
       collapsible: true,
       defaultCollapsed: true
+    },
+    {
+      id: 'warp-shade',
+      label: 'Shading',
+      parameters: ['warpTerrainRidge', 'warpTerrainBump'],
+      collapsible: true,
+      defaultCollapsed: false
     }
   ],
   parameterLayout: {
+    minColumns: 2,
     elements: [
       {
         type: 'grid',
-        parameters: ['warpTerrainScale', 'warpTimeSpeed', 'warpVignetteStrength'],
-        layout: { columns: 3 }
+        label: 'Field',
+        parameters: ['warpTerrainScale'],
+        layout: { columns: 2, parameterSpan: { warpTerrainScale: 2 } }
+      },
+      {
+        type: 'grid',
+        label: 'Animation',
+        parameters: ['warpTimeSpeed', 'warpTimeOffset'],
+        layout: { columns: 2 }
+      },
+      {
+        type: 'grid',
+        label: 'Shading',
+        parameters: ['warpTerrainRidge', 'warpTerrainBump'],
+        layout: { columns: 2 }
       }
     ]
   },
@@ -108,18 +146,17 @@ vec2 warp_fbm2(vec2 p) {
   return vec2(warp_fbm(p), warp_fbm(p.yx));
 }
 
-vec3 warp_map(vec2 p, float time) {
+void warp_ter_fields(vec2 p, float time, out float o_ti, out float o_bl) {
   p *= $param.warpTerrainScale;
   float tScale = $param.warpTimeSpeed * 0.05;
-  vec2 q = 1.0 * (tScale * time + p + warp_fbm2(-tScale * time + 2.0 * (p + warp_fbm2(4.0 * p))));
-  float f = dot(warp_fbm2(q), vec2(1.0, -1.0));
-  float bl = smoothstep(-0.8, 0.8, f);
-  float ti = smoothstep(-1.0, 1.0, warp_fbm(p));
-  return mix(
-    mix(vec3(0.50, 0.00, 0.00), vec3(1.00, 0.75, 0.35), ti),
-    vec3(0.00, 0.00, 0.02),
-    bl
-  );
+  vec2 q = tScale * time + p + warp_fbm2(-tScale * time + 2.0 * (p + warp_fbm2(4.0 * p)));
+  float f_q = dot(warp_fbm2(q), vec2(1.0, -1.0));
+  o_bl = smoothstep(-0.8, 0.8, f_q);
+  o_ti = smoothstep(-1.0, 1.0, warp_fbm(p));
+}
+
+float warp_ter_neutral_gray(float ti, float bl) {
+  return mix(mix(0.18, 0.92, ti), 0.06, bl);
 }
 `,
   mainCode: `
@@ -128,11 +165,20 @@ vec3 warp_map(vec2 p, float time) {
   float aspect = res.x / res.y;
   vec2 p = (uv - 0.5) * vec2(aspect * 2.0, 2.0);
 
-  float e = 0.0045;
+  float warpTime = $time + $param.warpTimeOffset;
+  float ti;
+  float bl;
+  warp_ter_fields(p, warpTime, ti, bl);
 
-  vec3 colc = warp_map(p, $time);
-  vec3 cola = warp_map(p + vec2(e, 0.0), $time);
-  vec3 colb = warp_map(p + vec2(0.0, e), $time);
+  float e = 0.0045;
+  float tia, bla;
+  float tib, blb;
+  warp_ter_fields(p + vec2(e, 0.0), warpTime, tia, bla);
+  warp_ter_fields(p + vec2(0.0, e), warpTime, tib, blb);
+
+  vec3 colc = vec3(warp_ter_neutral_gray(ti, bl));
+  vec3 cola = vec3(warp_ter_neutral_gray(tia, bla));
+  vec3 colb = vec3(warp_ter_neutral_gray(tib, blb));
 
   float gc = dot(colc, vec3(0.333));
   float ga = dot(cola, vec3(0.333));
@@ -140,14 +186,12 @@ vec3 warp_map(vec2 p, float time) {
 
   vec3 nor = normalize(vec3(ga - gc, e, gb - gc));
 
-  vec3 col = colc;
-  col += vec3(1.0, 0.7, 0.6) * 8.0 * abs(2.0 * gc - ga - gb);
-  col *= 1.0 + 0.2 * nor.y * nor.y;
-  col += 0.05 * nor.y * nor.y * nor.y;
+  vec3 ridgeRgb = vec3(1.0);
+  float ridgeAmt = max($param.warpTerrainRidge, 0.0);
+  vec3 accented = colc + ridgeRgb * ridgeAmt * 8.0 * abs(2.0 * gc - ga - gb);
 
-  vec2 q = uv;
-  float vig = pow(16.0 * q.x * q.y * (1.0 - q.x) * (1.0 - q.y), $param.warpVignetteStrength);
-  col *= vig;
+  float bump = max($param.warpTerrainBump, 0.0);
+  vec3 col = accented * (1.0 + bump * 0.2 * nor.y * nor.y) + vec3(bump * 0.05 * nor.y * nor.y * nor.y);
 
   $output.out = vec4(col, 1.0);
 `

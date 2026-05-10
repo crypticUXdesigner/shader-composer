@@ -23,14 +23,15 @@ export function getNodeIcon(spec: NodeSpec): NodeIconIdentifier | string {
  * Chosen so categories are visually distinct: no duplicate icons, and line vs filled
  * used to differentiate (e.g. Patterns = sparkles filled, Effects = adjustments line). */
 const categoryIconMap: Record<string, NodeIconIdentifier> = {
-  'Inputs': 'settings',
+  'Inputs': 'arrow-square-right',
   'Patterns': 'grid',          /* line – grid-4x4; clearly not circle-like */
   'Shapes': 'kaleidoscope',    /* line – multiple shapes */
+  'SDF': 'sphere',             /* fill – 3D primitive; signed distance fields */
   'Math': 'calculator',
-  'Utilities': 'resize',       /* maximize – transform/toolbox; distinct from Inputs */
+  'Utilities': 'wrench',
   'Distort': 'move',
-  'Blend': 'blend-mode',      /* line – blend controls; distinct from circle-like layers */
-  'Mask': 'mask',             /* line – mask/cutout; distinct from generic square */
+  'Blend': 'drop-half',       /* line – half-filled drop; category blend/mix */
+  'Mask': 'subtract-square',  /* line – square subtraction; category masking */
   'Effects': 'adjustments',   /* line – filters/effects; distinct from Patterns sparkles */
   'Output': 'video',
   'Audio': 'audio-waveform'

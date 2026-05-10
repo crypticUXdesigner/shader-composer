@@ -1,4 +1,5 @@
 /// <reference types="vitest/config" />
+import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 
@@ -12,6 +13,10 @@ const audiotoolRpcProxy = {
 
 export default defineConfig({
   base: '/ShaderNoice/',
+  /** Prefer Svelte's client entry (`mount`/`unmount`) for Vitest + DOM environments (see `lifecycle_function_unavailable`). */
+  resolve: {
+    conditions: ['browser', 'module', 'import', 'default'],
+  },
   plugins: [
     svelte({
       compilerOptions: {
@@ -44,7 +49,13 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true
+    sourcemap: true,
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        webgpuGoldenHarness: resolve(__dirname, 'webgpu-golden-harness.html')
+      }
+    }
   },
   test: {
     environment: 'node',

@@ -262,12 +262,3 @@
   --param-control-bg-active: var(--color-teal-60);
 }
 
-/* Shiny: use header print color as ring accent */
-.node.shapes.shiny {
-  --node-shiny-ring-color: var(--node-header-print-shapes);
-}
-
-.node.shapes.derived.shiny {
-  --node-shiny-ring-color: var(--node-header-print-shapes-derived);
-}
-

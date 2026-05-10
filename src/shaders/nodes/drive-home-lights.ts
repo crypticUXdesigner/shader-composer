@@ -10,7 +10,7 @@ export const driveHomeLightsNodeSpec: NodeSpec = {
   category: 'Shapes',
   displayName: 'Drive Home Lights',
   description:
-    'Bokeh-style night drive lights: street lights, headlights, tail/brake lights, and environment lights in one node, plus a two-color OKLCH sky tint along the ray. Darkness toward the horizon follows ray elevation (like the original); the two colors only shape the gradient within the lit sky. Connect ro/rd from Look-at Camera and time. Reference: Shadertoy The Drive Home.',
+    'Additive bokeh night drive in one node: street, head, tail, and environment lights plus two OKLCH sky stops along the ray. Connect camera ro/rd and time. Details in help.',
   icon: 'headlights',
   inputs: [
     { name: 'ro', type: 'vec3', label: 'Ray origin' },
@@ -29,7 +29,7 @@ export const driveHomeLightsNodeSpec: NodeSpec = {
       default: 0.8310620950454196,
       min: 0.0,
       max: 1.0,
-      step: 0.01,
+      step: 0.001,
       label: 'Sky low L'
     },
     skyGradientLowC: {
@@ -37,7 +37,7 @@ export const driveHomeLightsNodeSpec: NodeSpec = {
       default: 0.09644388819426743,
       min: 0.0,
       max: 0.4,
-      step: 0.005,
+      step: 0.001,
       label: 'Sky low C'
     },
     skyGradientLowH: {
@@ -45,7 +45,7 @@ export const driveHomeLightsNodeSpec: NodeSpec = {
       default: 335.51536530351405,
       min: 0.0,
       max: 360.0,
-      step: 1.0,
+      step: 0.001,
       label: 'Sky low H'
     },
     skyGradientHighL: {
@@ -53,7 +53,7 @@ export const driveHomeLightsNodeSpec: NodeSpec = {
       default: 0.8310620950454196,
       min: 0.0,
       max: 1.0,
-      step: 0.01,
+      step: 0.001,
       label: 'Sky high L'
     },
     skyGradientHighC: {
@@ -61,7 +61,7 @@ export const driveHomeLightsNodeSpec: NodeSpec = {
       default: 0.09644388819426743,
       min: 0.0,
       max: 0.4,
-      step: 0.005,
+      step: 0.001,
       label: 'Sky high C'
     },
     skyGradientHighH: {
@@ -69,7 +69,7 @@ export const driveHomeLightsNodeSpec: NodeSpec = {
       default: 335.51536530351405,
       min: 0.0,
       max: 360.0,
-      step: 1.0,
+      step: 0.001,
       label: 'Sky high H'
     },
     skyStrength: {
@@ -94,14 +94,14 @@ export const driveHomeLightsNodeSpec: NodeSpec = {
       min: 0.0,
       max: 1.0,
       step: 0.01,
-      label: 'Lane bias'
+      label: 'Tail-light lanes'
     }
   },
   parameterLayout: {
     elements: [
       {
         type: 'color-picker-row',
-        label: 'Sky tint (low / high along ray)',
+        label: 'Sky',
         pickers: [
           ['skyGradientLowL', 'skyGradientLowC', 'skyGradientLowH'],
           ['skyGradientHighL', 'skyGradientHighC', 'skyGradientHighH']
@@ -109,16 +109,19 @@ export const driveHomeLightsNodeSpec: NodeSpec = {
       },
       {
         type: 'grid',
-        parameters: ['skyGradientLowL', 'skyGradientLowC', 'skyGradientLowH'],
+        parameters: [
+          'skyGradientLowL',
+          'skyGradientLowC',
+          'skyGradientLowH',
+          'skyGradientHighL',
+          'skyGradientHighC',
+          'skyGradientHighH'
+        ],
         layout: { columns: 3 }
       },
       {
         type: 'grid',
-        parameters: ['skyGradientHighL', 'skyGradientHighC', 'skyGradientHighH'],
-        layout: { columns: 3 }
-      },
-      {
-        type: 'grid',
+        label: 'Motion',
         parameters: ['skyStrength', 'timeScale', 'laneBias'],
         layout: { columns: 3 }
       }

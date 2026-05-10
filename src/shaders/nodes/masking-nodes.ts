@@ -15,7 +15,7 @@ export const compareNodeSpec: NodeSpec = {
     { name: 'b', type: 'float', fallbackParameter: 'b', label: 'B' }
   ],
   outputs: [
-    { name: 'out', type: 'float', label: '=' }
+    { name: 'out', type: 'float', label: 'Result' }
   ],
   parameters: {
     operation: {
@@ -70,9 +70,9 @@ export const selectNodeSpec: NodeSpec = {
     { name: 'out', type: 'any', label: 'Result' }
   ],
   parameters: {
-    trueValue: { type: 'float', default: 1.0, min: -10.0, max: 10.0, step: 0.001, label: 'True Value',
+    trueValue: { type: 'float', default: 1.0, min: -10.0, max: 10.0, step: 0.001, label: 'If true',
       knobPolarity: 'two-sided' },
-    falseValue: { type: 'float', default: 0.0, min: -10.0, max: 10.0, step: 0.001, label: 'False Value',
+    falseValue: { type: 'float', default: 0.0, min: -10.0, max: 10.0, step: 0.001, label: 'If false',
       knobPolarity: 'two-sided' }
   },
   parameterLayout: {
@@ -96,7 +96,6 @@ export const maskCompositeFloatNodeSpec: NodeSpec = {
   category: 'Mask',
   displayName: 'Mask BW',
   description: 'Composites foreground over background using a mask. Dark areas show background, bright areas show foreground.',
-  icon: 'mask',
   inputs: [
     { name: 'bg', type: 'float', fallbackParameter: 'bg', label: 'Background' },
     { name: 'mask', type: 'float', fallbackParameter: 'mask', label: 'Mask' },
@@ -132,7 +131,6 @@ export const maskCompositeVec3NodeSpec: NodeSpec = {
   category: 'Mask',
   displayName: 'Mask Color',
   description: 'Composites colored foreground over colored background using a mask. Dark areas show background, bright areas show foreground.',
-  icon: 'mask',
   inputs: [
     { name: 'bg', type: 'vec3', label: 'Background' },
     { name: 'mask', type: 'float', fallbackParameter: 'mask', label: 'Mask' },

@@ -154,7 +154,7 @@ vec3 applyToneMappingLayer(vec3 color, float exposure, float contrast, float sat
 }
 
 // Blending mode functions (always available for layer compositing)
-// These match the blending-modes element functions but with correct mode mapping
+// Blend mode helpers (consistent mode indexing for procedural blend nodes)
 // Mode 0 = Normal, 1 = Multiply, 2 = Screen, etc.
 float blendMultiply(float base, float blend) {
   return base * blend;

@@ -41,7 +41,7 @@ self.onmessage = (event: MessageEvent<WorkerInitPayload | WorkerCompilePayload>)
       return;
     }
 
-    const { id, graph, audioSetup, previousResult, affectedNodeIds, tryIncremental } = payload;
+    const { id, targetBackend, graph, audioSetup, previousResult, affectedNodeIds, tryIncremental } = payload;
     const affectedNodeIdsSet = new Set(affectedNodeIds);
 
     previewPerformanceMark(PreviewPerfMark.compileWorkerStart);
@@ -53,15 +53,16 @@ self.onmessage = (event: MessageEvent<WorkerInitPayload | WorkerCompilePayload>)
           graph,
           previousResult,
           affectedNodeIdsSet,
-          audioSetup ?? undefined
+          audioSetup ?? undefined,
+          { backend: targetBackend }
         );
         if (incrementalResult != null) {
           result = incrementalResult;
         } else {
-          result = compiler.compile(graph, audioSetup ?? undefined);
+          result = compiler.compile(graph, audioSetup ?? undefined, { backend: targetBackend });
         }
       } else {
-        result = compiler.compile(graph, audioSetup ?? undefined);
+        result = compiler.compile(graph, audioSetup ?? undefined, { backend: targetBackend });
       }
 
       self.postMessage({

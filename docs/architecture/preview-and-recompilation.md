@@ -1,6 +1,6 @@
 # Preview, recompilation, and graph updates
 
-**Last updated:** 2026-05
+**Last updated:** 2026-05-10
 
 This document describes **how graph and structure changes reach the runtime**, how **`CompilationManager`** schedules full compiles vs fast paths, and how **`PreviewScheduler`** records signals for debugging and future scheduling work. For the parameter-specific path, see [`parameters-pipeline.md`](./parameters-pipeline.md). For worker offload of GLSL generation, see [`compilation-worker.md`](./compilation-worker.md).
 
@@ -26,12 +26,16 @@ With immutable updates, the reference passed into `setGraph` is always the lates
 1. **`RuntimeManager`** — Decides whether to skip work (`isOnlyPositionChange`), what cleanup to run, and whether to ask for an **immediate** recompile path (`onGraphStructureChange(true)`) vs a debounced one (`false`). Treats some automation edits as not requiring shader recompile.
 2. **`CompilationManager.recompile`** — Uses `detectGraphChanges(this.graph)` for **full vs incremental** compilation and to update cached metadata for the next run.
 
+### Per-node Power (`NodeInstance.bypassed`)
+
+Toggling **`bypassed`** is a **structural** graph change for compilation (same class as adding or removing a connection): it goes through `graphStore` → `setGraph` → full shader recompile, not a uniform-only fast path. Bypassed nodes are omitted from the compiled execution order; preview and export both read the same compiled result for a given graph snapshot.
+
 ## Compilation scheduling (current code)
 
 | Trigger | Behavior (simplified) |
 | --- | --- |
 | Structure change, `immediate === false` | `scheduleRecompile()` — cancels pending work, then uses **`requestIdleCallback`** when available (with timeout matching compile debounce), else **`setTimeout`** — callback runs **`recompile()`** |
-| Structure change, `immediate === true` | Cancels pending, **`setTimeout(0)`** → `recompile()` (e.g. connections-only, audio setup updates) |
+| Structure change, `immediate === true` | Cancels pending, short **`setTimeout`** (**~80 ms**, `CONNECTION_STRUCTURE_COMPILE_DEBOUNCE_MS`) → `recompile()` — coalesces rapid wiring; shows **Updating preview…** for pure connection edits via `previewCompileStatusStore` |
 | Parameter change | `onParameterChange` — graph hash / value type decide **recompile** vs **`scheduleParameterUpdate`** (uniforms + **`requestAnimationFrame`** batch for render) |
 | Audio setup change | Treated as structure-sensitive; uses the **immediate** path |
 

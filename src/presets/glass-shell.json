@@ -16,62 +16,33 @@
           "parameters": {}
         },
         {
-          "id": "node-1774034473062-p8p1ltry7",
-          "type": "orbit-camera",
-          "position": {
-            "x": -520,
-            "y": -61
-          },
-          "parameters": {
-            "orbitRadius": 3.6,
-            "orbitSpeed": 0.05,
-            "targetX": 0,
-            "targetY": 0,
-            "targetZ": -1.7999999999999998,
-            "inclination": 0.7300000000000002,
-            "fovScale": 0.95
-          }
-        },
-        {
           "id": "node-1774034473062-m2uffp9ji",
-          "type": "glass-shell",
+          "type": "bloom-sphere",
           "position": {
             "x": 1013,
             "y": -431
           },
           "parameters": {
-            "outerShape": 0,
-            "innerShape": 2,
-            "ior": 1.44,
-            "outerSize": 1.8000000000000003,
-            "innerSize": 0.4,
-            "innerCenterX": 0.15000000000000013,
-            "innerCenterY": -0.08,
-            "innerCenterZ": 0.18,
-            "innerBlendK": 0.9600000000000001,
-            "outerSpecularStr": 2,
-            "specularRoughness": 0.34,
-            "specularF0": 0.22,
-            "lightDirX": 0.20999999999999996,
-            "lightDirY": 0.85,
-            "lightDirZ": 0.08000000000000007,
-            "lightIntensity": 1.53,
-            "ambient": 0.45,
-            "innerColorR": 0.25,
-            "innerColorG": 0.72,
-            "innerColorB": 1,
-            "bgR": 0.08,
-            "bgG": 0.1,
-            "bgB": 0.18,
-            "cameraRoX": 0,
-            "cameraRoY": 0,
-            "cameraRoZ": 2.8,
-            "outerSteps": 60,
-            "innerSteps": 35,
-            "outerCenterX": -0.09999999999999987,
-            "outerCenterY": -0.19999999999999996,
-            "outerCenterZ": -0.09999999999999987,
-            "specularCookTorrance": 1
+            "mode": 1,
+            "bloomCenterX": -0.09999999999999987,
+            "bloomCenterY": -0.19999999999999996,
+            "sphereRadius": 1.8000000000000003,
+            "spotCount": 256,
+            "waveSpeed": 1.4,
+            "waveDetuneFreq": 2.6,
+            "waveDetuneAmp": 0.25,
+            "indexPhaseScale": 0.12,
+            "latticeSpinSpeed": 0.25,
+            "waveAmplitude": 0.18,
+            "spotSoftness": 0.08,
+            "classicSpotSharpness": 18,
+            "classicOuterGlowR": 0.2,
+            "classicOuterGlowG": 0.5,
+            "classicOuterGlowB": 0.95,
+            "classicInnerGlowR": 0.3,
+            "classicInnerGlowG": 0.75,
+            "classicInnerGlowB": 1,
+            "brightness": 1.4
           }
         },
         {
@@ -97,27 +68,6 @@
           "sourceNodeId": "node-1774034473062-m2uffp9ji",
           "sourcePort": "out",
           "targetNodeId": "node-1774034473062-n3kyve8kh",
-          "targetPort": "in"
-        },
-        {
-          "id": "conn-1774034478311-di7m1g1kc",
-          "sourceNodeId": "node-1774034473062-p8p1ltry7",
-          "sourcePort": "ro",
-          "targetNodeId": "node-1774034473062-m2uffp9ji",
-          "targetPort": "ro"
-        },
-        {
-          "id": "conn-1774034480771-yte4dex3z",
-          "sourceNodeId": "node-1774034473062-p8p1ltry7",
-          "sourcePort": "rd",
-          "targetNodeId": "node-1774034473062-m2uffp9ji",
-          "targetPort": "rd"
-        },
-        {
-          "id": "conn-1774034752780-gw5c8vi6x",
-          "sourceNodeId": "node-1774034473062-11slpn58q",
-          "sourcePort": "out",
-          "targetNodeId": "node-1774034473062-p8p1ltry7",
           "targetPort": "in"
         }
       ],

@@ -18,7 +18,7 @@
             "node:multiply",
             "node:noise",
             "node:hexagonal-grid",
-            "node:wave-patterns"
+            "node:stripes"
           ]
         }
       ],
@@ -70,7 +70,7 @@
       "examples": [
         "Connect to Noise, then Color Map, then Output to see a grayscale pattern.",
         "Feed into Translate or Scale to shift or zoom patterns.",
-        "Use with Polar Coords or Hexagonal Grid for radial or tiled effects."
+        "Use with Polar Coords or Hex Grid for radial or tiled effects."
       ],
       "advanced": "UV is normalized (0–1). Use Fragment Coords when you need pixel coordinates or aspect-ratio corrections; use Resolution with Divide for that."
     },
@@ -90,7 +90,7 @@
             "node:cosine",
             "node:multiply",
             "node:noise",
-            "node:wave-patterns",
+            "node:stripes",
             "node:scanlines",
             "node:particle-system"
           ]
@@ -209,7 +209,7 @@
           "description": "Horizontal oscillator value after stacks, rotation and offset.",
           "suggestedTargets": [
             "node:vortex",
-            "node:spherize",
+            "node:radial-uv-warp",
             "node:ripple",
             "node:add",
             "node:multiply"
@@ -221,7 +221,7 @@
           "description": "Vertical oscillator value after stacks, rotation and offset.",
           "suggestedTargets": [
             "node:vortex",
-            "node:spherize",
+            "node:radial-uv-warp",
             "node:ripple",
             "node:add",
             "node:multiply"
@@ -339,13 +339,13 @@
     "node:orbit-camera": {
       "title": "Orbit Camera",
       "titleType": "node",
-      "tagline": "Ray origin and direction from a time-driven orbit for 3D raymarching",
-      "description": "Outputs ray origin (ro) and ray direction (rd) from a camera that orbits around a target, driven by time. Parameters: orbit radius, speed, target position, and optional inclination (tilt). Connect Screen position (e.g. from UV Coords) for correct perspective; connect ro and rd to SDF or other raymarch nodes to share the same camera.",
+      "tagline": "Camera orbiting a target — feeds ro/rd into 3D SDF / raymarch nodes",
+      "description": "Outputs ray origin (ro) and ray direction (rd) from a camera that orbits a target, driven by time. Connect Screen position (e.g. from UV Coords) so each pixel gets the correct ray direction; without it every pixel shoots the same forward ray and the connected SDF collapses to a single dot. Speed can be negative to reverse the orbit, and Phase offsets the start angle so two cameras can orbit the same target out of sync. Connect ro and rd to nodes that expose ro/rd inputs (Box / Torus SDF, SDF Raymarch, Bokeh Point, …) to share this camera.",
       "inputs": [
         {
           "name": "in",
           "type": "vec2",
-          "description": "Screen position for per-pixel ray direction (e.g. UV or normalized device coords)",
+          "description": "Screen position for per-pixel ray direction. Should be connected — UV Coords or Fragment Coordinates work; without a connection rays don't vary per pixel and the result is a single dot.",
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
@@ -357,9 +357,11 @@
         {
           "name": "ro",
           "type": "vec3",
-          "description": "Ray origin (camera position)",
+          "description": "Ray origin (camera position on the orbit)",
           "suggestedTargets": [
-            "node:box-torus-sdf"
+            "node:box-torus-sdf",
+            "node:generic-raymarcher",
+            "node:bokeh-point"
           ]
         },
         {
@@ -367,13 +369,51 @@
           "type": "vec3",
           "description": "Ray direction (normalized, per fragment when Screen position is connected)",
           "suggestedTargets": [
-            "node:box-torus-sdf"
+            "node:box-torus-sdf",
+            "node:generic-raymarcher",
+            "node:bokeh-point"
           ]
         }
       ],
+      "parameters": [
+        {
+          "name": "Radius",
+          "description": "Orbit distance from the target — larger values pull the camera back. Combine with Target X/Y/Z to frame the scene."
+        },
+        {
+          "name": "Speed",
+          "description": "Orbit angular speed in radians per second. Negative reverses the spin; 0 freezes the camera (Phase still controls where it sits)."
+        },
+        {
+          "name": "Phase",
+          "description": "Start-angle offset in degrees. Use to offset two cameras orbiting the same target, or to park a frozen camera (Speed = 0) at a specific azimuth."
+        },
+        {
+          "name": "Target X",
+          "description": "World X of the look-at target the camera orbits around."
+        },
+        {
+          "name": "Target Y",
+          "description": "World Y of the look-at target."
+        },
+        {
+          "name": "Target Z",
+          "description": "World Z of the look-at target."
+        },
+        {
+          "name": "Tilt (rad)",
+          "description": "Inclination in radians (±π/2 ≈ ±1.57). 0 keeps the camera level on the XZ plane; positive tilts it up over the target. Approaching ±π/2 pushes the camera near the world-up basis and rays can become unstable — back off slightly if you see glitchy directions."
+        },
+        {
+          "name": "FOV",
+          "description": "Screen-spread multiplier applied to the per-pixel offset (1.0 is neutral). Larger widens the field; smaller narrows it. This is the inverse sense of Look-at Camera's Zoom (which is an image-plane distance) — both shape framing, but FOV grows wider as you turn it up while Zoom grows tighter."
+        }
+      ],
       "relatedItems": [
+        "node:look-at-camera",
         "node:box-torus-sdf",
-        "node:sphere-raymarch",
+        "node:generic-raymarcher",
+        "node:bokeh-point",
         "type:vec3"
       ],
       "setupExampleGraph": {
@@ -394,17 +434,17 @@
         ]
       },
       "examples": [
-        "Connect UV to in and ro/rd to an SDF or raymarch node for an orbiting 3D view.",
-        "Multiply orbit speed by Time for controllable rotation; adjust radius and target for framing.",
-        "Use with Color Map on the SDF output for a simple orbiting scene."
+        "Connect UV Coords → in, then ro/rd into an SDF or raymarch node for an orbiting 3D view.",
+        "Set Speed to 0 and use Phase to park the camera at a specific azimuth for a still render.",
+        "Use a negative Speed (and matching Phase offset) on a second Orbit Camera to make two objects counter-orbit the same target."
       ],
-      "advanced": "Orbit moves the camera around a target over time; use Look-at Camera when you want a fixed camera position and direction."
+      "advanced": "Orbit moves the camera around a target over time; use Look-at Camera when you want a fixed camera position and explicit forward direction. The orbit basis uses world up (0,1,0); near ±π/2 Tilt the camera approaches that axis and the right/up vectors degenerate — keep Tilt a touch under the limit if rays glitch. FOV here is a screen-spread multiplier (higher = wider) and is the inverse sense of Look-at Camera's Zoom (higher = narrower); both shape framing, just with opposite knob direction."
     },
     "node:look-at-camera": {
       "title": "Look-at Camera",
       "titleType": "node",
       "tagline": "Ray origin and direction from a fixed camera looking at a target (no orbit)",
-      "description": "Outputs ray origin (ro) and ray direction (rd) from a fixed camera position looking at a target. Use for drive-style or fixed-view 3D (e.g. bokeh lights, raymarching). Connect Screen position (e.g. UV Coords, or UV minus rain offset) for perspective. Parameters: position (vec3), lookat (vec3), zoom.",
+      "description": "Outputs ray origin (ro) and ray direction (rd) from a fixed camera position looking at a target. Use for drive-style or fixed-view 3D (e.g. bokeh lights, raymarching). Connect Screen position (e.g. UV Coords, or UV minus rain offset) for perspective. Position is the camera; Look-at target is the point it faces. Zoom moves the imaging plane forward along the view (focal-plane style distance): larger values usually feel more telephoto (narrower spread), smaller values wider; it is not magnify-style optical zoom.",
       "inputs": [
         {
           "name": "in",
@@ -437,6 +477,36 @@
             "node:bokeh-point",
             "node:drive-home-lights"
           ]
+        }
+      ],
+      "parameters": [
+        {
+          "name": "Position X",
+          "description": "Camera world X. Together with Position Y/Z, sets ray origin before look direction is built."
+        },
+        {
+          "name": "Position Y",
+          "description": "Camera world Y."
+        },
+        {
+          "name": "Position Z",
+          "description": "Camera world Z."
+        },
+        {
+          "name": "Look-at target X",
+          "description": "World X of the point the camera looks toward; forward is normalized from Position to this target."
+        },
+        {
+          "name": "Look-at target Y",
+          "description": "World Y of the look-at point."
+        },
+        {
+          "name": "Look-at target Z",
+          "description": "World Z of the look-at point."
+        },
+        {
+          "name": "Zoom",
+          "description": "Distance along the view axis from the camera to the plane where Screen position spreads into ray offsets. Larger values push that plane farther forward (typically narrower / more telephoto); smaller pulls it closer (wider cone). This is not magnify-style zoom—compare with Orbit Camera’s FOV control."
         }
       ],
       "relatedItems": [
@@ -467,7 +537,7 @@
         "Use with Rain Drops: subtract rain UV offset from UV, then feed into Look-at Camera for windshield effect.",
         "Often used with Bokeh Point or Drive Home Lights for drive-style scenes."
       ],
-      "advanced": "Look-at keeps the camera fixed; use Orbit Camera when you want the camera to move around a target over time."
+      "advanced": "Look-at keeps the camera fixed; use Orbit Camera when you want the camera to move around a target over time. Basis construction uses world up (0,1,0); when the camera’s forward direction is nearly parallel to that axis, rays can become unstable or degenerate—tilt Position or Look-at target slightly if you see glitchy directions. Larger Zoom moves the imaging plane farther along forward (usually a tighter field); combine it with Position and Look-at target for framing rather than expecting magnify-style optical zoom."
     },
     "node:rain-drops": {
       "title": "Rain Drops",
@@ -535,7 +605,7 @@
       "title": "Bokeh Point",
       "titleType": "node",
       "tagline": "Soft bokeh disc intensity for one 3D point light",
-      "description": "Outputs 0–1 intensity for a single 3D point as seen from a ray (ro, rd). Multiply by light color. Parameters: size, blur, inner falloff. Reference: Shadertoy The Drive Home.",
+      "description": "Outputs 0–1 intensity for a single 3D point as seen from a ray (ro, rd). Size is the world-space band from closest ray–point approach: smaller values need a tighter pass to light up; Blur only softens the outer edge. Multiply the output by light color. Inner falloff optionally darkens the disc center for a less flat core. Reference: Shadertoy The Drive Home.",
       "inputs": [
         {
           "name": "ro",
@@ -558,7 +628,7 @@
         {
           "name": "point",
           "type": "vec3",
-          "description": "3D point position. Connect Constant Vec3 or a 3D position node.",
+          "description": "Light position in 3D. Connect Constant Vec3 or any vec3 world-space position.",
           "suggestedSources": [
             "type:vec3",
             "node:constant-vec3"
@@ -569,12 +639,27 @@
         {
           "name": "out",
           "type": "float",
-          "description": "Bokeh intensity 0–1. Connect to Multiply (with color) or Mix, then to Final Output.",
+          "description": "Disc intensity 0–1 (not the Blur parameter). Connect to Multiply with a color, Color Map, Mix, or toward Final Output.",
           "suggestedTargets": [
             "node:multiply",
+            "node:color-map",
             "node:mix",
             "node:final-output"
           ]
+        }
+      ],
+      "parameters": [
+        {
+          "name": "Size",
+          "description": "World-space crossing band: based on the shortest distance from the ray line to the point (perpendicular distance). Larger values light up from farther passes; very small values need an almost direct hit."
+        },
+        {
+          "name": "Blur",
+          "description": "Edge softness of the disc (smoothstep range). Higher values spread the falloff over a wider distance band at the rim; does not change the peak center value."
+        },
+        {
+          "name": "Inner falloff",
+          "description": "When on, slightly darkens the center of the disc relative to the rim for a less flat highlight. When off, the core stays brighter and more uniform."
         }
       ],
       "setupExampleGraph": {
@@ -601,16 +686,58 @@
         "type:float"
       ],
       "examples": [
-        "Connect Look-at or Orbit Camera ro/rd, and a Constant Vec3 as the 3D point position; multiply output by a color and add to your scene.",
+        "Connect Look-at or Orbit Camera ro/rd, and a Constant Vec3 as the light position; multiply output by a color and add to your scene.",
         "Use several Bokeh Point nodes with different positions and colors for multiple lights.",
         "Feed the float output into Color Map or Multiply with a color, then add to Final Output or mix with background."
+      ]
+    },
+    "node:bokeh": {
+      "title": "Bokeh",
+      "titleType": "node",
+      "tagline": "Fullscreen post bokeh: iris highlights (WebGPU multipass before Final Output; inline stub when blended upstream)",
+      "description": "Not the same as **Bokeh Point** (3D disc on a ray). This node is a **post effect** on a vec4 color chain: **WebGPU** uses a **multipass** plan when it sits **directly before Final Output** (bright pass, shaped blur, recombine). If you wire it **into another node** (e.g. **Blend Color**), WebGPU uses the same **single-pass approximation** as the WebGL preview so the graph stays on WebGPU. **WebGL** always uses that lightweight luminance + angular iris modulation. Place before **Final Output** for full multipass quality, or upstream in a color chain for a quick effect.",
+      "inputs": [
+        {
+          "name": "in",
+          "type": "vec4",
+          "description": "Scene or graded color. Typical chain: … → Bokeh → Final Output.",
+          "suggestedSources": [
+            "node:color-map",
+            "node:color-grading",
+            "node:glow-bloom",
+            "node:mix"
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "vec4",
+          "description": "Combined color with bokeh highlights baked in (alpha preserved where supported).",
+          "suggestedTargets": [
+            "node:final-output",
+            "node:chromatic-aberration",
+            "node:color-grading"
+          ]
+        }
+      ],
+      "relatedItems": [
+        "node:bokeh-point",
+        "node:glow-bloom",
+        "node:blur",
+        "type:vec4"
+      ],
+      "examples": [
+        "Chain Color Map → Bokeh → Final Output when WebGPU builds the multipass iris blur.",
+        "Compare with **Bokeh Point** when you want a literal 3D light disc from ro/rd, not a 2D post bloom.",
+        "Raise Threshold then Intensity/Strength/Radius until only bright regions bloom; tune Blades + Rotation on WebGPU for aperture shape."
       ]
     },
     "node:drive-home-lights": {
       "title": "Drive Home Lights",
       "titleType": "node",
       "tagline": "Bokeh street, head, tail, and environment lights in one node",
-      "description": "Sums street lights, headlights, tail/brake lights, and environment lights as bokeh discs, and adds sky tint with two OKLCH colors (low and high along the ray). Ray elevation still controls how much sky you see (darker toward the horizon); the two colors only shape the tint within the lit sky. Parameters: sky low/high, sky strength, time scale, lane bias. Reference: Shadertoy The Drive Home.",
+      "description": "Outputs additive light color (not a full lit scene): street lights, headlights, tail and brake lights, and environment lights as soft bokeh discs, plus a sky tint built from two OKLCH colors. How much sky you see still follows ray elevation—looking toward the horizon stays darker; the low/high colors only tint the part of the sky that is already visible. Multiply or add with other colors as needed; combine with Look-at Camera (ro/rd) and Time. Reference: Shadertoy The Drive Home.",
       "inputs": [
         {
           "name": "ro",
@@ -652,6 +779,44 @@
           ]
         }
       ],
+      "parameters": [
+        {
+          "name": "Sky low L",
+          "description": "OKLCH lightness for the sky tint when the ray looks lower—pairs with the left swatch above."
+        },
+        {
+          "name": "Sky low C",
+          "description": "OKLCH chroma for the low-elevation sky tint (left swatch). Higher is more saturated."
+        },
+        {
+          "name": "Sky low H",
+          "description": "OKLCH hue (degrees) for the low-elevation sky tint (left swatch)."
+        },
+        {
+          "name": "Sky high L",
+          "description": "OKLCH lightness for the sky tint when the ray looks higher—pairs with the right swatch above."
+        },
+        {
+          "name": "Sky high C",
+          "description": "OKLCH chroma for the high-elevation sky tint (right swatch)."
+        },
+        {
+          "name": "Sky high H",
+          "description": "OKLCH hue (degrees) for the high-elevation sky tint (right swatch)."
+        },
+        {
+          "name": "Sky strength",
+          "description": "Scales how strong the sky tint contribution is on top of the bokeh lights. Does not replace the horizon darkening—elevation still controls how much sky appears."
+        },
+        {
+          "name": "Time scale",
+          "description": "Multiplies the connected time input before driving all motion (traffic, flicker, loops). Higher scrolls the drive faster."
+        },
+        {
+          "name": "Tail-light lanes",
+          "description": "Biases how tail lights pick a lane side from procedural noise—higher values favor one pattern of left/right spacing; lower values favor the opposite. Adjust for variety, not overall road position."
+        }
+      ],
       "setupExampleGraph": {
         "nodes": [
           { "id": "a", "type": "uv-coordinates" },
@@ -677,7 +842,7 @@
       "examples": [
         "Connect ro/rd from Look-at Camera and Time; plug output into Final Output or add with a sky gradient.",
         "Combine with Rain Drops: use (UV − rain offset) as the screen input to the same Look-at Camera for a rainy drive.",
-        "Use sky low/high to tint the visible sky (defaults match the classic single purple); darkness near the horizon comes from ray elevation, not a separate “black” color stop. Adjust strength, time scale, and lane bias to match the drive mood."
+        "Use sky low/high to tint the visible sky (defaults match the classic single purple); darkness near the horizon comes from ray elevation, not a separate “black” color stop. Adjust sky strength, time scale, and Tail-light lanes to match the drive mood."
       ]
     },
     "node:constant-float": {
@@ -779,7 +944,7 @@
       "examples": [
         "Set x, y, z and connect to Translate or Scale for 2D offset/scale; to Rotate for center; to UV-based nodes for fixed vec2.",
         "Use as a constant offset to Add with UV or other vec2 for shifted patterns.",
-        "Feed into Noise, Hexagonal Grid, or Wave Patterns as a fixed coordinate or scale input."
+        "Feed into Noise, Hex Grid, or Wave Patterns as a fixed coordinate or scale input."
       ]
     },
     "node:constant-vec3": {
@@ -1907,7 +2072,7 @@
         {
           "name": "t",
           "type": "float",
-          "description": "The blend factor (typically 0.0 to 1.0)",
+          "description": "Interpolation weight (shown as Mix on the node; typically 0.0 to 1.0)",
           "suggestedSources": [
             "type:float",
             "node:constant-float",
@@ -2075,7 +2240,7 @@
             "node:mix",
             "node:color-map",
             "node:gradient-mask",
-            "node:twist-distortion",
+            "node:vortex",
             "node:displace"
           ]
         }
@@ -2132,7 +2297,7 @@
             "node:add",
             "node:multiply",
             "node:mix",
-            "node:wave-patterns",
+            "node:stripes",
             "node:displace",
             "node:rotate"
           ]
@@ -2187,7 +2352,7 @@
             "node:add",
             "node:multiply",
             "node:mix",
-            "node:wave-patterns",
+            "node:stripes",
             "node:rotate",
             "node:vector-field"
           ]
@@ -3036,13 +3201,13 @@
     "node:blend-mode": {
       "title": "Blend Mode",
       "titleType": "node",
-      "tagline": "Ideal for combining two values using various blend modes like multiply, screen, overlay, and more",
-      "description": "Applies one of 12 different blending modes to combine a base value with a blend value. The blend modes include Normal (pass-through), Multiply, Screen, Overlay, Soft Light, Hard Light, Color Dodge, Color Burn, Linear Dodge (Add), Linear Burn, Difference, and Exclusion. Each mode produces a different visual effect when combining values. The opacity parameter controls how much of the blended result is mixed with the original base value, allowing for partial blending effects.",
+      "tagline": "Ideal for combining two float values with multiply, screen, overlay, and other blend modes",
+      "description": "Applies Photoshop-style blending to two scalar (float) signals—for example luminance, masks, or values you later feed through Color Map or OKLCH maps. Twelve modes are available: Normal (pass-through), Multiply, Screen, Overlay, Soft Light, Hard Light, Color Dodge, Color Burn, Linear Dodge (Add), Linear Burn, Difference, and Exclusion. Opacity mixes the blended result back toward the base. If the Background input is unwired, it reads as 0; if Blend is unwired, use the Blend value parameter in the panel.",
       "inputs": [
         {
           "name": "base",
           "type": "float",
-          "description": "The base value that will be blended with the blend input",
+          "description": "Background value to blend onto. When unwired, defaults to 0 (often reads as black after Color Map).",
           "suggestedSources": [
             "type:float",
             "node:color-map",
@@ -3054,7 +3219,7 @@
         {
           "name": "blend",
           "type": "float",
-          "description": "The value to blend with the base using the selected blend mode",
+          "description": "Foreground value blended over the base using the selected mode. When unwired, the Blend value parameter is used instead.",
           "suggestedSources": [
             "type:float",
             "node:color-map",
@@ -3068,8 +3233,9 @@
         {
           "name": "out",
           "type": "float",
-          "description": "The result of blending the base and blend inputs using the selected mode, mixed with the base according to the opacity parameter",
+          "description": "Blended float result, mixed toward the base by Opacity. Often chain to Color Map then Output, or to Mix/color grading.",
           "suggestedTargets": [
+            "node:color-map",
             "node:final-output",
             "node:mix",
             "node:color-grading"
@@ -3094,29 +3260,105 @@
       "relatedItems": [
         "type:float",
         "node:mix",
-        "node:lerp"
-      ]
+        "node:lerp",
+        "node:blend-color"
+      ],
+      "examples": [
+        "Connect two patterns or masks to Background and Blend, pick a mode, then lower Opacity for a subtle mix.",
+        "Chain UV → Noise → Blend (foreground) with a second source on Background; add Color Map → Output for color.",
+        "If Background is unwired, the blend runs against 0—expect a dark bias unless you drive Background or use Normal at full Opacity."
+      ],
+      "advanced": "For two full RGBA layers you wire yourself, use Blend ▸ Blend Color (same mode list, per-channel). Use this node when both operands are floats (e.g. before Color Map)."
+    },
+    "node:blend-color": {
+      "title": "Blend Color",
+      "titleType": "node",
+      "tagline": "Blend two RGBA colors with Photoshop-style modes, per channel—same semantics as Blend Mode but on vec4",
+      "description": "Takes Background and Blend as vec4 RGBA. Each RGB channel uses the selected blend mode with the same order as Blend Mode (Normal → Exclusion). Opacity interpolates blended RGB toward the Background RGB (not Porter–Duff composite). Alpha is interpolated between Background.a and Blend.a by the same Opacity (straight alpha semantics; not multiplied into RGB). When a port is unwired, it defaults to vec4(0.0)—same typed-zero convention as other vec4 inputs.",
+      "inputs": [
+        {
+          "name": "base",
+          "type": "vec4",
+          "description": "Background color",
+          "suggestedSources": [
+            "node:combine-vector",
+            "node:oklch-color",
+            "node:mix",
+            "node:blur",
+            "type:vec4"
+          ]
+        },
+        {
+          "name": "blend",
+          "type": "vec4",
+          "description": "Blend-layer color blended per channel onto Background",
+          "suggestedSources": [
+            "node:combine-vector",
+            "node:oklch-color",
+            "node:mix",
+            "type:vec4"
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "vec4",
+          "description": "Blended RGBA",
+          "suggestedTargets": [
+            "node:final-output",
+            "node:mix",
+            "node:color-grading",
+            "node:tone-mapping",
+            "node:blend-color"
+          ]
+        }
+      ],
+      "setupExampleGraph": {
+        "nodes": [
+          { "id": "bg", "type": "constant-vec4" },
+          { "id": "fg", "type": "constant-vec4" },
+          { "id": "b", "type": "blend-color" },
+          { "id": "out", "type": "final-output" }
+        ],
+        "connections": [
+          { "from": "bg", "fromPort": "out", "to": "b", "toPort": "base" },
+          { "from": "fg", "fromPort": "out", "to": "b", "toPort": "blend" },
+          { "from": "b", "fromPort": "out", "to": "out", "toPort": "in" }
+        ]
+      },
+      "relatedItems": [
+        "type:vec4",
+        "node:blend-mode",
+        "node:mix",
+        "node:constant-vec4"
+      ],
+      "examples": [
+        "Chain two color pipelines into Background and Blend, pick Overlay or Soft Light, then reduce Opacity for a tinted photo-style mix.",
+        "Use Normal with Opacity below 1 for a simpler linear RGB mix without per-channel Photoshop math."
+      ],
+      "advanced": "Modes match Blend Mode floats (0=Normal/pass channel, …, 11=Exclusion). This is linear channel math in the shader’s working space, not automated sRGB decode/encode."
     },
     "node:oklch-color-map-bezier": {
       "title": "Color Map Smooth",
       "titleType": "node",
-      "tagline": "Perfect for converting float values to RGB colors using OKLCH color space with smooth bezier curve interpolation",
-      "description": "Converts a float value (0-1) to an RGB color using the OKLCH color space with cubic bezier curve interpolation. This node provides smooth, customizable color transitions by allowing independent bezier curves for Lightness (L), Chroma (C), and Hue (H) components. The bezier curves control how each color component transitions from the start color to the end color, enabling complex color gradients with precise control over the interpolation curves. The result is converted from OKLCH to RGB for display.",
+      "tagline": "Map a 0–1 value to RGB through OKLCH with smooth easing on L, chroma (C), and hue (H) via independent cubic Bézier curves",
+      "description": "Converts a float value (0–1) to an RGB color using the OKLCH color space. Start and end colors are taken from the OKLCH Color (or compatible vec3) ports when wired; otherwise the panel lightness, chroma, and hue fields are used as L, C, and H endpoints. Separate cubic Bézier curves control easing for each dimension before conversion to RGB. Use Reverse hue to pick the complementary wrap direction across the hue ring when interpolating.",
       "inputs": [
         {
           "name": "in",
           "type": "float",
-          "description": "The input value (0-1) to map to a color"
+          "description": "The input value (0–1) to map to a color"
         },
         {
           "name": "startColor",
           "type": "vec3",
-          "description": "The starting OKLCH color (L, C, H components)"
+          "description": "Starting color as OKLCH in vec3.xyz = (Lightness 0–1, Chroma, Hue degrees)—for example OKLCH Color out; used when wired; sliders apply when unwired."
         },
         {
           "name": "endColor",
           "type": "vec3",
-          "description": "The ending OKLCH color (L, C, H components)"
+          "description": "Ending color as OKLCH in vec3.xyz = (Lightness 0–1, Chroma, Hue degrees)—for example OKLCH Color out; used when wired; sliders apply when unwired."
         },
         {
           "name": "lCurve",
@@ -3248,12 +3490,12 @@
       "title": "Color Map",
       "titleType": "node",
       "tagline": "Turns a single number (float) into a grayscale color so you can send it to the Output and see it on screen.",
-      "description": "Color Map takes one number (a float, usually between 0 and 1) and turns it into a grayscale color: 0 = black, 1 = white, values in between = gray. The Output node expects a color (vec3), so you need Color Map (or another color node) between a float pattern and the Output.",
+      "description": "Color Map takes one number (a float, usually between 0 and 1) and turns it into a grayscale color: 0 = black, 1 = white, values in between = gray. It does not add hue, saturation, or gradient stops—use OKLCH Color Map nodes for that. If Value is not connected, the port defaults to 0, so you get solid black until you wire a float in. The Output node expects a color (vec3), so you need Color Map (or another color node) between a float pattern and the Output.",
       "inputs": [
         {
           "name": "in",
           "type": "float",
-          "description": "A number (0–1 works best). Connect Noise, Sine, Smoothstep, or any float output.",
+          "description": "A number (0–1 works best). Connect Noise, Sine, Smoothstep, or any float output. Unconnected, the port uses 0 (black output).",
           "suggestedSources": [
             "type:float",
             "node:noise",
@@ -3333,8 +3575,8 @@
     "node:glow-bloom": {
       "title": "Glow",
       "titleType": "node",
-      "tagline": "Adds edge glow and bloom: bright areas above a threshold get a soft halo. Connect color into in, then to Output or more post-process.",
-      "description": "Adds edge glow and bloom effects to enhance existing elements by detecting bright areas above a threshold and applying an intensity-based glow. The effect works by identifying pixels that exceed the glow threshold, then amplifying them with a configurable intensity and strength. Connect Color Map (or Mix/Blend) output to in, then connect this node’s output to Final Output or to Edge Detection/Color Grading for a chain. This creates a soft, atmospheric glow around bright elements—neon, auras, or enhanced highlights. The glow radius parameter is reserved for future multi-pass implementations that would provide more accurate blur-based bloom.",
+      "tagline": "Bloom from bright passes: halo around highlights (full blur on WebGPU; fast preview elsewhere)",
+      "description": "**WebGPU** path: threshold masked bright pixels, blur them wide, then add back—a real-ish bloom spill. **WebGL preview**: bright-pass on **Rec.709 luminance** preserves hue, then Strength × a Radius-aware spread boost approximates softer bloom until multipass kicks in. Connect vec4 chains into **Color** toward **Final Output** or downstream grade.",
       "inputs": [
         {
           "name": "in",
@@ -3387,18 +3629,18 @@
         "Add glow after Mix or Blend to make bright blended areas bloom.",
         "Feed Glow output into Edge Detection or Color Grading for stylized looks."
       ],
-      "advanced": "Glow detects pixels above the threshold and adds a halo; intensity and strength control how much. For multi-pass blur-based bloom, the radius parameter is reserved for future use."
+      "advanced": "WebGPU consumes Radius in the Gaussian separable blur pass; preview paths lean on Threshold/Intensity/Strength with Radius as spread hint."
     },
     "node:blur": {
       "title": "Blur",
       "titleType": "node",
-      "tagline": "Ideal for creating depth of field, motion blur, and softening effects",
-      "description": "Applies blur effects to soften and smooth the input image. The node supports multiple blur types: Gaussian (uniform blur in all directions), directional (blur along a specific angle), and radial (blur radiating from a center point). The current implementation uses a simplified softening approximation since full blur requires texture sampling of neighboring pixels. The blur amount controls the intensity of the softening effect, while the radius parameter is reserved for future multi-pass implementations that would provide true blur with proper sampling.",
+      "tagline": "Gaussian / directional / radial separable blur (WebGPU)—WebGL previews with weighted luminance soften",
+      "description": "**WebGPU** treats this node like **Bokeh** and **Glow**: it uses a **real separable Gaussian** pass plan when your chain is … → **Blur** → **Final Output**. Wire **Blur into another node** (e.g. **Blend**, **Mix**, **Glow**) and WebGPU uses the same **single-pass approximation** as the WebGL preview so previews stay responsive. **WebGL** cannot sample neighborhoods: Amount turns the effect **on/off** (gates how much softened luminance mixes in), Radius scales blur strength once Amount is raised, Mode picks **Gaussian**, **Directional**, or **Radial**, and Direction / radial center tweak the approximation so it tracks the eventual WebGPU blur.",
       "inputs": [
         {
           "name": "in",
           "type": "vec4",
-          "description": "The input color to blur",
+          "description": "Scene or graded color you want softened. Typical: … → Color Map → Blur → Final Output.",
           "suggestedSources": [
             "node:glow-bloom",
             "node:color-map",
@@ -3411,7 +3653,7 @@
         {
           "name": "out",
           "type": "vec4",
-          "description": "The blurred color output",
+          "description": "Blurred RGB (Gaussian on WebGPU when directly before Final Output). Alpha preserved where supported.",
           "suggestedTargets": [
             "node:final-output",
             "node:glow-bloom",
@@ -3419,6 +3661,39 @@
           ]
         }
       ],
+      "parameters": [
+        {
+          "name": "Amount",
+          "description": "Blur mix: raise this to reveal blur. Matches the WebGPU pass blend toward blurred output—when Amount is 0 you see no blur even if Radius is high."
+        },
+        {
+          "name": "Radius",
+          "description": "How strong the blur is once Amount > 0. On WebGPU the kernel spread grows with Radius (pixels) times Amount."
+        },
+        {
+          "name": "Mode",
+          "description": "Gaussian blur in all directions, Directional streak along Angle, or Radial blur outward from radial center."
+        },
+        {
+          "name": "Direction",
+          "description": "Angle in degrees for Directional mode: controls streak direction relative to screen space."
+        },
+        {
+          "name": "Center X",
+          "description": "Horizontal offset from canvas center along UV (paired with Center Y): WebGPU radial mode samples toward point **0.5 + 0.5 × this** so (0,0) keeps the bloom center mid-frame."
+        },
+        {
+          "name": "Center Y",
+          "description": "Vertical offset like Center X—slide toward ±2 along each axis to move the radial focal point off-center."
+        }
+      ],
+      "examples": [
+        "Soften procedural noise before output: Noise → Color Map → Blur (Gaussian) → Final Output on WebGPU for true neighbor blur.",
+        "Directional mode + Direction for horizontal film streak or motion-blur vibes; dial Amount then Radius.",
+        "Radial mode: set Center slightly off-axis for asymmetric smear toward an edge focal point.",
+        "Chain Blur into Mix or Glow when you want a lighter inline blur—expect a softer preview match until you reconnect before Final Output."
+      ],
+      "advanced": "**Coordinate note (radial):** Center axes use the WGSL radial mapping **UV focal = (0.5, 0.5) + 0.5 × (Center X, Center Y)** inside 0–1 UV—roughly ±1 spans the plane from center toward edges; widen the Range if you deliberately overshoot.",
       "relatedItems": [
         "type:vec4",
         "node:glow-bloom",
@@ -3443,8 +3718,8 @@
     "node:edge-detection": {
       "title": "Edge Detection",
       "titleType": "node",
-      "tagline": "Use this to detect edges and create outline effects for structural definition and stylized rendering",
-      "description": "Detects edges in the input image and creates outline effects by identifying areas where the value crosses a threshold. The effect uses a threshold-based approach with smoothstep interpolation to create soft edge transitions. Edge width controls how gradual the edge detection is, while intensity and strength control the visual impact of the detected edges. This is useful for creating stylized outlines, enhancing structural definition, or creating cartoon-like rendering effects.",
+      "tagline": "Threshold ridge on luminance—not full Sobel / neighbor convolution",
+      "description": "Builds an **edge mask** from distance of **Rec.709 luminance** to **Threshold**, smoothed by **Width**, then mixes toward **Intensity** with **Strength**. Output **preserves saturation** by scaling RGB with the ridge factor. Useful for illustrative outlines where you want perceptual breaks, not convolution-accurate image edges.",
       "inputs": [
         {
           "name": "in",
@@ -3496,8 +3771,8 @@
     "node:chromatic-aberration": {
       "title": "Chromatic Aberration",
       "titleType": "node",
-      "tagline": "Perfect for creating stylized color fringing effects and lens distortion artifacts",
-      "description": "Separates RGB channels to create stylized color fringing effects that simulate chromatic aberration found in camera lenses. The effect shifts red and blue channels relative to the green channel based on distance from a center point and direction. This creates colorful fringes around edges, particularly useful for creating retro or glitch aesthetics. The strength controls the amount of separation, while the falloff parameter controls how the effect diminishes with distance from the center. The current implementation uses an approximation since full chromatic aberration requires texture sampling of RGB channels separately.",
+      "tagline": "Radial lens-style RGB tilt from center—Direction rotates the fringe axis",
+      "description": "**Screenspace modulation** (no per-channel UV resampling): from each pixel, boosts/cuts R/B along a radial vector projected onto **Direction** (degrees). **Strength** scales separation, **Falloff** damps farther from center, center offsets sit in normalized screen space—good for prismy edges or subtle lens quirks. Differs from **RGB Separation**, which biases channels with planar dot offsets.",
       "inputs": [
         {
           "name": "in",
@@ -3549,8 +3824,8 @@
     "node:color-grading": {
       "title": "Color Grading",
       "titleType": "node",
-      "tagline": "Ideal for fine control over color curves and levels for professional color adjustment",
-      "description": "Provides comprehensive color grading controls for final color adjustment, including separate RGB adjustments for shadows, midtones, and highlights. The node uses luminance masks to target different brightness ranges, letting you warm/cool shadows, shift midtones, and tint highlights independently. It also includes a levels system (input/output black/white + gamma) applied per channel for precise contrast and brightness control.",
+      "tagline": "Lift-style RGB vs luminance rails + Photoshop-like levels lift/gamma gains",
+      "description": "Shadows/Midtones/Highlights are **per-channel multiply masks** keyed off smooth luminance bands (not Bézier spline UI)—think lift/gamma without curve editors. **Levels** remap each channel independently (black/white in & out plus gamma exponent). Clamp-friendly for 0–1 chains; upstream HDR-ish values should be toned down first.",
       "inputs": [
         {
           "name": "in",
@@ -3607,8 +3882,8 @@
     "node:rgb-separation": {
       "title": "RGB Separation",
       "titleType": "node",
-      "tagline": "Use this for advanced RGB channel separation with independent X/Y offsets per channel for glitch effects",
-      "description": "Provides advanced RGB channel separation with independent X and Y offsets for each color channel (red, green, blue). This creates sophisticated glitch effects by shifting each channel in different directions, resulting in colorful separation artifacts. Unlike simple chromatic aberration, this node allows precise control over each channel's offset independently, enabling complex glitch patterns. The strength parameter controls the overall intensity of the separation effect. This is particularly effective for creating digital glitch aesthetics, VHS-style artifacts, or experimental visual effects.",
+      "tagline": "Glitch tint: planar dot-offset per RGB channel against aspect-correct screen coords",
+      "description": "Each channel scales by `1 + k * dot(p, channelOffset)` on **aspect-corrected** fragment space—**not** dragging UV lookups apart. Labels **Rx/Ry**, **Gx/Gy**, **Bx/By** are the per-axis weights; **Strength** scales **k**. Pairs nicely with CRT scanlines because it exaggerates fringe without resampling upstream textures differently per channel.",
       "inputs": [
         {
           "name": "in",
@@ -3657,15 +3932,15 @@
       },
       "examples": [
         "Connect Color Map or Glow → RGB Separation → Output for per-channel offset glitch or VHS-style artifacts.",
-        "Set different X/Y offsets per channel for complex separation; chain before or after Chromatic Aberration for layered color effects.",
+        "Set different Rx/Ry/Gx/Gy/Bx/By biases per channel; chain before or after Chromatic Aberration for layered color effects.",
         "Use strength to control intensity; combine with Scanlines for full retro display look."
       ]
     },
     "node:scanlines": {
       "title": "Scanlines",
       "titleType": "node",
-      "tagline": "Perfect for simulating CRT monitor artifacts and retro digital display effects",
-      "description": "Adds horizontal scanline overlay effects that simulate CRT monitor displays or digital display artifacts. The effect creates repeating horizontal lines across the image with configurable frequency (line spacing), thickness, and opacity. The scanlines can be static or animated with time-based scrolling for authentic retro aesthetics. This is ideal for creating nostalgic video game aesthetics, retro computing visuals, or adding vintage character to modern graphics. The time speed and offset parameters allow for animated scanline scrolling effects.",
+      "tagline": "CRT-style horizontal matte bars driven by sine wave density + optional scroll",
+      "description": "**Frequency** scales the sine phase along **aspect-correct Y** — higher reads as tighter stripes. Bars are hardened with **Thickness** then applied on **Rec.709 luminance** while **preserving saturation** via per-channel ratios. **Time speed** × (**time + Time offset**) scrolls stripes; intensity still keys off luminance unlike per-RGB CRT phosphor sims.",
       "inputs": [
         {
           "name": "in",
@@ -3796,13 +4071,13 @@
     "node:normal-mapping": {
       "title": "Normal Mapping",
       "titleType": "node",
-      "tagline": "Use this to simulate surface detail using normal mapping for added depth and texture",
-      "description": "Simulates surface detail and texture using normal mapping techniques. The node calculates surface normals from the input pattern and applies directional lighting to create the illusion of depth and three-dimensional surface detail. It uses a simplified gradient-based approximation to calculate normals, then applies lighting based on a configurable light direction. The normal scale controls the frequency of the surface detail, while strength controls how much the lighting effect influences the final output. This is useful for adding texture and depth to flat patterns, creating the appearance of embossed or engraved surfaces.",
+      "tagline": "Screenspace bumps from luminance + simple light (approximate embossed look)",
+      "description": "No height texture taps: derives a dome-like tangent from aspect-correct **XY** multiplied by **Scale**, with slope amplitude tied to Rec.709 **luminance** from the RGBA input. Applies a half-Lambert style term from **Lighting** knobs, mixes by **Strength**, then scales RGB preserving hue/saturation ratios. Useful for embossed highlights on fullscreen passes—not PBR tangent-space normals.",
       "inputs": [
         {
           "name": "in",
           "type": "vec4",
-          "description": "The input color to apply normal mapping to",
+          "description": "RGBA source; shading keys off luminance encoded in RGB",
           "suggestedSources": [
             "node:noise",
             "node:color-map",
@@ -3846,13 +4121,13 @@
     "node:lighting-shading": {
       "title": "Lighting",
       "titleType": "node",
-      "tagline": "Ideal for adding directional or point lighting to create depth and dimension",
-      "description": "Adds directional or point lighting to create depth and dimension in the scene. The node supports two light types: directional (parallel light rays from a specific direction, like sunlight) and point (radial light emanating from a specific position with distance-based falloff). It calculates surface normals from the input pattern and applies lighting calculations based on the light direction or position. Ambient lighting provides a base illumination level, while intensity controls the strength of the directional or point light. The light color can be customized to create warm or cool lighting effects. This is essential for creating three-dimensional appearance and depth in flat patterns.",
+      "tagline": "Screenspace Lambert-ish tint on HDR-ish luminance—not a physically lit mesh",
+      "description": "**Directional** derives a positional fake-normal (same scaffolding as Normal Mapping-lite) then Lambert against your light vector. **Point** mode returns inverse-square attenuation-only (no cosine term). Shading multiplies preserved RGB by **ambient + attenuation**, then scales by tinted **RGB** sliders. Interpret as stylized modulation on fullscreen color, not a complete PBR shading model.",
       "inputs": [
         {
           "name": "in",
           "type": "vec4",
-          "description": "The input color to apply lighting to",
+          "description": "RGBA color stream; computations use luminance-derived carriers",
           "suggestedSources": [
             "node:normal-mapping",
             "node:noise",
@@ -3991,7 +4266,7 @@
             "node:rotate",
             "node:noise",
             "node:hexagonal-grid",
-            "node:wave-patterns"
+            "node:stripes"
           ]
         }
       ],
@@ -4063,7 +4338,7 @@
           "suggestedTargets": [
             "node:rings",
             "node:kaleidoscope",
-            "node:twist-distortion",
+            "node:vortex",
             "node:arc-tangent-2",
             "node:length"
           ]
@@ -4163,66 +4438,6 @@
       ],
       "advanced": "Segments divide the circle; each segment is folded. Smooth Edge uses smoothstep around the mid-segment angle; use 0 for identical behavior to the legacy hard-fold kaleidoscope."
     },
-    "node:twist-distortion": {
-      "title": "Twist",
-      "titleType": "node",
-      "tagline": "Use this to apply rotational distortion around a center point, creating spiral and twist effects",
-      "description": "Applies rotational distortion (twist) around a specified center point, creating spiral and vortex effects. The twist amount varies based on distance from the center, with stronger effects near the center that fall off with distance. The node calculates the angle of each point relative to the center, adds a twist amount based on distance and strength parameters, then reconstructs the position. You can control the center point, twist strength, radius of effect, falloff rate, and optional time-based animation.",
-      "inputs": [
-        {
-          "name": "in",
-          "type": "vec2",
-          "description": "The input 2D coordinates to apply twist distortion to",
-          "suggestedSources": [
-            "type:vec2",
-            "node:uv-coordinates",
-            "node:polar-coordinates",
-            "node:rotate",
-            "node:displace"
-          ]
-        }
-      ],
-      "outputs": [
-        {
-          "name": "out",
-          "type": "vec2",
-          "description": "The twisted coordinates with rotational distortion applied",
-          "suggestedTargets": [
-            "node:noise",
-            "node:wave-patterns",
-            "node:color-map"
-          ]
-        }
-      ],
-      "relatedItems": [
-        "node:rotate",
-        "node:polar-coordinates",
-        "type:vec2",
-        "node:smoothstep",
-        "node:arc-tangent-2"
-      ],
-      "setupExampleGraph": {
-        "nodes": [
-          { "id": "a", "type": "uv-coordinates" },
-          { "id": "b", "type": "twist-distortion" },
-          { "id": "c", "type": "length" },
-          { "id": "d", "type": "color-map" },
-          { "id": "e", "type": "final-output" }
-        ],
-        "connections": [
-          { "from": "a", "fromPort": "out", "to": "b", "toPort": "in" },
-          { "from": "b", "fromPort": "out", "to": "c", "toPort": "in" },
-          { "from": "c", "fromPort": "out", "to": "d", "toPort": "in" },
-          { "from": "d", "fromPort": "out", "to": "e", "toPort": "in" }
-        ]
-      },
-      "examples": [
-        "Connect UV or Polar Coords → Twist → Noise (or Length) → Color Map for spiral and vortex effects.",
-        "Drive strength or center with Time for animated twist; use falloff to limit effect to a region.",
-        "Chain after Ripple or Vector Field for combined warping."
-      ],
-      "advanced": "Twist adds angle proportional to distance from center. Use Radius and Falloff to confine the effect; combine with Vortex for stronger spiral pull."
-    },
     "node:turbulence": {
       "title": "Turbulence",
       "titleType": "node",
@@ -4280,7 +4495,7 @@
         "Drive time speed with Time for animated turbulence; increase iterations for more complexity.",
         "Feed Turbulence output into Displace or another pattern for layered warping."
       ],
-      "advanced": "Multi-octave domain warping; each iteration samples noise at different scales. More iterations add detail but cost; use for heat haze, water, or abstract flow."
+      "advanced": "Multi-octave domain warping; each iteration samples noise at different scales. More iterations add detail but cost; use for heat haze, water, or abstract flow. Time Speed spans a wide range: low values give slow, subtle drift; higher values restore intense, grungy motion."
     },
     "node:vector-field": {
       "title": "Vector Field",
@@ -4344,11 +4559,11 @@
       ],
       "advanced": "Vector field offsets coordinates using trig-based directions. Use Radial Strength for distance-based effect; combine with Turbulence for layered distortion."
     },
-    "node:bulge-pinch": {
-      "title": "Bulge / Pinch",
+    "node:radial-uv-warp": {
+      "title": "Radial Warp",
       "titleType": "node",
-      "tagline": "Radial displacement from a center; positive strength bulges, negative pinches",
-      "description": "Applies radial displacement from a center point. Positive strength bulges coordinates outward (lens/magnify effect); negative strength pinches them inward. Radius and falloff control the extent and smoothness of the effect.",
+      "tagline": "Bulge/pinch, fisheye (lens), or spherize (hemisphere)—one node, pick a Mode",
+      "description": "Shared center (X/Y) plus a Mode selects the warp: **Bulge / pinch** (localized radial warp with radius and falloff), **Fisheye** (global lens barrel/pincushion with aspect correction), **Spherize** (rectangle-to-hemisphere for ball/planet-style mapping). Older graphs that used separate Bulge/Pinch, Fisheye, or Spherize nodes are not migrated—add this node instead.",
       "inputs": [
         {
           "name": "in",
@@ -4365,23 +4580,26 @@
         {
           "name": "out",
           "type": "vec2",
-          "description": "Distorted coordinates",
+          "description": "Warped coordinates",
           "suggestedTargets": [
             "node:noise",
             "node:color-map",
-            "node:scale"
+            "node:scale",
+            "node:chromatic-aberration",
+            "node:sphere-raymarch"
           ]
         }
       ],
       "relatedItems": [
-        "node:twist-distortion",
-        "node:fisheye",
-        "node:polar-coordinates"
+        "node:vortex",
+        "node:ripple",
+        "node:polar-coordinates",
+        "node:quad-warp"
       ],
       "setupExampleGraph": {
         "nodes": [
           { "id": "a", "type": "uv-coordinates" },
-          { "id": "b", "type": "bulge-pinch" },
+          { "id": "b", "type": "radial-uv-warp" },
           { "id": "c", "type": "length" },
           { "id": "d", "type": "color-map" },
           { "id": "e", "type": "final-output" }
@@ -4419,13 +4637,13 @@
           "suggestedTargets": [
             "node:noise",
             "node:color-map",
-            "node:twist-distortion"
+            "node:vortex"
           ]
         }
       ],
       "relatedItems": [
-        "node:wave-patterns",
-        "node:twist-distortion",
+        "node:stripes",
+        "node:vortex",
         "node:vector-field"
       ],
       "setupExampleGraph": {
@@ -4444,57 +4662,8 @@
         ]
       }
     },
-    "node:fisheye": {
-      "title": "Fisheye",
-      "titleType": "node",
-      "tagline": "Lens-style radial distortion; barrel or pincushion",
-      "description": "Applies lens-style radial distortion. Negative strength gives barrel (fisheye) distortion; positive gives pincushion. Center and aspect ratio are configurable.",
-      "inputs": [
-        {
-          "name": "in",
-          "type": "vec2",
-          "description": "Input coordinates",
-          "suggestedSources": [
-            "type:vec2",
-            "node:uv-coordinates",
-            "node:displace"
-          ]
-        }
-      ],
-      "outputs": [
-        {
-          "name": "out",
-          "type": "vec2",
-          "description": "Distorted coordinates",
-          "suggestedTargets": [
-            "node:chromatic-aberration",
-            "node:color-map",
-            "node:blur"
-          ]
-        }
-      ],
-      "relatedItems": [
-        "node:bulge-pinch",
-        "node:polar-coordinates"
-      ],
-      "setupExampleGraph": {
-        "nodes": [
-          { "id": "a", "type": "uv-coordinates" },
-          { "id": "b", "type": "fisheye" },
-          { "id": "c", "type": "length" },
-          { "id": "d", "type": "color-map" },
-          { "id": "e", "type": "final-output" }
-        ],
-        "connections": [
-          { "from": "a", "fromPort": "out", "to": "b", "toPort": "in" },
-          { "from": "b", "fromPort": "out", "to": "c", "toPort": "in" },
-          { "from": "c", "fromPort": "out", "to": "d", "toPort": "in" },
-          { "from": "d", "fromPort": "out", "to": "e", "toPort": "in" }
-        ]
-      }
-    },
     "node:mirror-flip": {
-      "title": "Mirror / Flip",
+      "title": "Flip",
       "titleType": "node",
       "tagline": "Flip coordinates horizontally and/or vertically",
       "description": "Flips input coordinates around an optional center. Enable Flip X and/or Flip Y for mirroring. Useful for symmetry and avoiding duplicate artwork.",
@@ -4542,7 +4711,7 @@
         ]
       },
       "examples": [
-        "Flip X and/or Y for mirror symmetry; connect UV → Mirror/Flip → pattern for reflected layout.",
+        "Flip X and/or Y for mirror symmetry; connect UV → Flip → pattern for reflected layout.",
         "Use with Kaleidoscope or tiling patterns to avoid drawing both sides of a symmetric design.",
         "Set center for flip-around-point instead of screen edges."
       ],
@@ -4568,11 +4737,13 @@
         {
           "name": "offset",
           "type": "vec2",
-          "description": "Displacement vector (Vector mode only). When disconnected, Offset X/Y parameters are used.",
+          "description": "Displacement vector (Vector mode only). When disconnected, Offset X/Y parameters are used. Connect another Distort node so the offset vector is independent from the coordinate chain wired into the UV input.",
           "suggestedSources": [
             "node:noise",
             "node:cubic-curl-noise",
-            "node:combine-vector"
+            "node:combine-vector",
+            "node:vortex",
+            "node:displace"
           ]
         },
         {
@@ -4600,8 +4771,8 @@
       ],
       "parameters": [
         {
-          "name": "Mode",
-          "description": "0 = Vector: in + offset × Scale. 1 = Directional: in + (cos Angle, sin Angle) × Amount × Scale."
+          "name": "Displacement",
+          "description": "Vector offset: in + offset × Scale. Directional: in + (cos Angle, sin Angle) × Amount × Scale."
         },
         {
           "name": "Scale",
@@ -4630,20 +4801,25 @@
       "setupExampleGraph": {
         "nodes": [
           { "id": "a", "type": "uv-coordinates" },
-          { "id": "b", "type": "displace" },
-          { "id": "c", "type": "length" },
-          { "id": "d", "type": "color-map" },
-          { "id": "e", "type": "final-output" }
+          { "id": "b", "type": "vortex" },
+          { "id": "c", "type": "vortex" },
+          { "id": "d", "type": "displace" },
+          { "id": "e", "type": "length" },
+          { "id": "f", "type": "color-map" },
+          { "id": "g", "type": "final-output" }
         ],
         "connections": [
           { "from": "a", "fromPort": "out", "to": "b", "toPort": "in" },
-          { "from": "a", "fromPort": "out", "to": "b", "toPort": "offset" },
-          { "from": "b", "fromPort": "out", "to": "c", "toPort": "in" },
-          { "from": "c", "fromPort": "out", "to": "d", "toPort": "in" },
-          { "from": "d", "fromPort": "out", "to": "e", "toPort": "in" }
+          { "from": "a", "fromPort": "out", "to": "c", "toPort": "in" },
+          { "from": "b", "fromPort": "out", "to": "d", "toPort": "in" },
+          { "from": "c", "fromPort": "out", "to": "d", "toPort": "offset" },
+          { "from": "d", "fromPort": "out", "to": "e", "toPort": "in" },
+          { "from": "e", "fromPort": "out", "to": "f", "toPort": "in" },
+          { "from": "f", "fromPort": "out", "to": "g", "toPort": "in" }
         ]
       },
       "examples": [
+        "Vector mode: UV → Vortex (radial pull 0) → Displace (UV input) and UV → Vortex → Displace (offset)—two independent distortions before combining (see Setup example).",
         "Vector mode: UV → Displace → Noise; leave offset disconnected and drag Offset X/Y to pan (old Translate workflow).",
         "Vector mode: connect Cubic Curl Noise or Combine Vector to offset for classic displacement.",
         "Directional mode: set Mode to 1, set Angle, connect a float to Amount for directional smear."
@@ -4653,8 +4829,8 @@
     "node:vortex": {
       "title": "Vortex",
       "titleType": "node",
-      "tagline": "Spiral pull toward center for drain/portal effects",
-      "description": "Pulls and rotates coordinates toward a center point, creating a spiral vortex. Strength, radius and falloff control the effect; optional time speed animates the spin.",
+      "tagline": "Spiral UV warp: rotate around a center; radial pull adds inward suction",
+      "description": "Pulls and rotates coordinates around a center. Strength, radius, and falloff shape the effect; Time Speed spins the pattern. Radial pull is 0–1: at 0, UV rotates without shrinking toward the center (classic twist); at 1 (default), coordinates spiral inward for drain/portal looks.",
       "inputs": [
         {
           "name": "in",
@@ -4675,13 +4851,13 @@
           "suggestedTargets": [
             "node:noise",
             "node:color-map",
-            "node:twist-distortion"
+            "node:displace"
           ]
         }
       ],
       "relatedItems": [
-        "node:twist-distortion",
-        "node:polar-coordinates"
+        "node:polar-coordinates",
+        "node:ripple"
       ],
       "setupExampleGraph": {
         "nodes": [
@@ -4701,63 +4877,9 @@
       "examples": [
         "Connect UV or Polar Coords → Vortex → Noise or Length → Color Map for drain or portal spin.",
         "Animate time speed for rotating vortex; tune radius and falloff to limit the spiral region.",
-        "Combine with Twist for stronger spiral, or with Ripple for spinning ripples."
+        "Set radial pull to 0 for rotation-only warp; combine with Ripple or chain two Vortex nodes for layered spirals."
       ],
-      "advanced": "Pulls coordinates toward center with rotation; strength and radius set the effect. Use for drain holes, portals, or spiral focus effects."
-    },
-    "node:spherize": {
-      "title": "Spherize",
-      "titleType": "node",
-      "tagline": "Map rectangle to hemisphere for 3D ball/planet effect",
-      "description": "Maps 2D coordinates onto a hemisphere so patterns wrap like a sphere. Center, radius and strength control the spherize amount.",
-      "inputs": [
-        {
-          "name": "in",
-          "type": "vec2",
-          "description": "Input coordinates",
-          "suggestedSources": [
-            "type:vec2",
-            "node:uv-coordinates"
-          ]
-        }
-      ],
-      "outputs": [
-        {
-          "name": "out",
-          "type": "vec2",
-          "description": "Spherized coordinates",
-          "suggestedTargets": [
-            "node:sphere-raymarch",
-            "node:color-map",
-            "node:lighting-shading"
-          ]
-        }
-      ],
-      "relatedItems": [
-        "node:sphere-raymarch",
-        "node:polar-coordinates"
-      ],
-      "setupExampleGraph": {
-        "nodes": [
-          { "id": "a", "type": "uv-coordinates" },
-          { "id": "b", "type": "spherize" },
-          { "id": "c", "type": "length" },
-          { "id": "d", "type": "color-map" },
-          { "id": "e", "type": "final-output" }
-        ],
-        "connections": [
-          { "from": "a", "fromPort": "out", "to": "b", "toPort": "in" },
-          { "from": "b", "fromPort": "out", "to": "c", "toPort": "in" },
-          { "from": "c", "fromPort": "out", "to": "d", "toPort": "in" },
-          { "from": "d", "fromPort": "out", "to": "e", "toPort": "in" }
-        ]
-      },
-      "examples": [
-        "Connect UV → Spherize → Length or pattern → Color Map for ball or planet-like wrapping.",
-        "Set center and radius to frame the hemisphere; strength controls how much the map bends.",
-        "Feed into Sphere Raymarch or Lighting/Shading for 3D-style presentation."
-      ],
-      "advanced": "Maps 2D to hemisphere; use for fake 3D spheres or globes. Center and radius define the circular region; strength controls curvature."
+      "advanced": "Radial pull scales the inward spiral squeeze; at 0 the warp is angular only. Strength and radius set how tight the swirl is."
     },
     "node:quad-warp": {
       "title": "Quad Warp",
@@ -4870,13 +4992,13 @@
     "node:infinite-zoom": {
       "title": "Infinite Zoom",
       "titleType": "node",
-      "tagline": "Scale and wrap for recursive zoom/tunnel effect",
-      "description": "Scales coordinates by a time-dependent factor and wraps them to create a repeating zoom/tunnel effect. Center, scale and time speed are configurable.",
+      "tagline": "Folded UV tunnel zoom — ping-pong loop or snap ramp then reset",
+      "description": "Uses scene time with Cycle length (seconds). Motion chooses Ping-pong loop (smooth zoom in then out each cycle), Snap zoom in (ramp from neutral to max zoom then jump back), or Snap zoom out (start zoomed in, ramp out, then jump back). Zoom step is a gentle per-layer multiplier (narrow range). Depth scales how far into the fold each cycle reaches. UVs are scaled, folded with fract into a repeating cell, then the center is reapplied. Legacy graphs with Scale / Time Speed migrate automatically.",
       "inputs": [
         {
           "name": "in",
           "type": "vec2",
-          "description": "Input coordinates",
+          "description": "Input UV",
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates"
@@ -5037,8 +5159,8 @@
     "node:warp-terrain": {
       "title": "Warp Terrain",
       "titleType": "node",
-      "tagline": "Domain-warped terrain/cloud from 2D value noise FBM with normals and shading (IQ Warp style)",
-      "description": "Produces an animated organic terrain or cloud pattern using domain-warped 2D value noise FBM with a rotation matrix, finite-difference normals, and simple shading. Based on Inigo Quilez's Warp tutorial. Parameters: Scale (terrain scale), Time Speed (animation), Vignette (edge darkening). Connect UV coordinates to the input; output is vec4 color ready for final output or further effects.",
+      "tagline": "Domain-warped neutral terrain/cloud from 2D value noise FBM with normals and shading (IQ Warp style)",
+      "description": "Produces an animated organic neutral terrain or cloud pattern using domain-warped 2D value noise FBM with a rotation matrix, finite-difference normals, and simple shading. Based on Inigo Quilez's Warp tutorial. Parameters: Terrain Scale, Time Speed and Time Offset (phase shift the warp without retiming the rest of the graph), Ridge and Bump. Connect UV coordinates to the input; output is vec4 color ready for final output or further effects.",
       "inputs": [
         {
           "name": "in",
@@ -5203,8 +5325,8 @@
     "node:triangle-grid": {
       "title": "Triangle Grid",
       "titleType": "node",
-      "tagline": "Regular triangular tiling with configurable edges and optional fill",
-      "description": "Creates a regular triangular grid by placing three families of lines at 0°, 60°, and 120°. You can control scale (cell size), line width, and intensity. Optionally enable fill to output alternating filled triangles instead of edges only. Ideal for geometric backgrounds, low-poly style, or tessellation effects when connected to a color map.",
+      "tagline": "Regular triangular tiling with configurable edges and edge-to-fill blend",
+      "description": "Creates a regular triangular grid by placing three families of lines at 0°, 60°, and 120°. Cell sets the size of one triangle in UV space (smaller = denser pattern, larger = fewer / bigger triangles), Line Width sets edge thickness, and Rotation orients the whole pattern. The Edge / Fill mix knob blends from line-only edges (0) to alternating filled triangles (1) — set it anywhere in between for a half-filled look. Intensity scales the final pattern (0 to 2× by default). **Projection:** UV (default) samples the pattern in 2D like most pattern nodes. **Infinite plane** casts a ray from the same fixed camera as the Grid node’s infinite-plane preset, intersects the plane defined by Plane Nx/Ny/Nz and Plane height, and evaluates the triangle pattern in the plane’s tangent space; **Plane tile scale** scales coordinates on that plane (like Grid’s tile scale). Ideal for geometric backgrounds, low-poly style, or tessellation effects when connected to a color map.",
       "inputs": [
         {
           "name": "in",
@@ -5222,7 +5344,7 @@
         {
           "name": "out",
           "type": "float",
-          "description": "The triangle grid pattern (0.0 to 1.0)",
+          "description": "The triangle grid pattern (0–1 by default; up to 2 when Intensity > 1)",
           "suggestedTargets": [
             "node:color-map",
             "node:mix",
@@ -5249,86 +5371,31 @@
         ]
       },
       "examples": [
-        "Connect UV → Triangle Grid → Color Map for low-poly or tessellation style; enable fill for solid triangles.",
+        "Connect UV → Triangle Grid → Color Map for low-poly or tessellation style; push Edge / Fill mix to 1 for solid alternating triangles.",
         "Use with Domain Repetition or Scale for tiled triangles; mix with Noise for organic edges.",
-        "Tune scale and line width for sharp edges or soft bands."
+        "Drop Edge / Fill mix to ~0.3 for a soft half-filled look that reads as both lines and fill at once.",
+        "Set Rotation to 30° to flip the dominant triangle orientation; tune Cell and Line Width for sharp edges or soft bands.",
+        "Set Projection to Infinite plane and tilt the plane normal for a perspective-like triangle field on screen (same ray setup as Grid’s infinite-plane pattern)."
       ],
-      "advanced": "Three line families at 0°, 60°, 120°; fill alternates triangle cells. Use for geometric backgrounds or as a mask source."
-    },
-    "node:spiral": {
-      "title": "Spiral",
-      "titleType": "node",
-      "tagline": "Spiral pattern with configurable density, rotation, arms, and thickness",
-      "description": "Generates a spiral pattern from a center point. Uses polar coordinates: spiral phase is derived from angle plus density times radius, with optional time phase for animation. You can set the number of arms, band thickness, and intensity. Ideal for galaxies, whirlpools, or decorative spiral effects when fed into a color map or mix node.",
-      "inputs": [
-        {
-          "name": "in",
-          "type": "vec2",
-          "description": "The input UV coordinates to generate the spiral from",
-          "suggestedSources": [
-            "type:vec2",
-            "node:uv-coordinates",
-            "node:polar-coordinates",
-            "node:displace"
-          ]
-        }
-      ],
-      "outputs": [
-        {
-          "name": "out",
-          "type": "float",
-          "description": "The spiral band pattern value (0.0 to 1.0 range)",
-          "suggestedTargets": [
-            "node:color-map",
-            "node:mix",
-            "node:smoothstep",
-            "node:gradient-mask"
-          ]
-        }
-      ],
-      "relatedItems": [
-        "node:rings",
-        "node:polar-coordinates",
-        "node:twist-distortion",
-        "type:vec2"
-      ],
-      "setupExampleGraph": {
-        "nodes": [
-          { "id": "a", "type": "uv-coordinates" },
-          { "id": "b", "type": "spiral" },
-          { "id": "c", "type": "color-map" },
-          { "id": "d", "type": "final-output" }
-        ],
-        "connections": [
-          { "from": "a", "fromPort": "out", "to": "b", "toPort": "in" },
-          { "from": "b", "fromPort": "out", "to": "c", "toPort": "in" },
-          { "from": "c", "fromPort": "out", "to": "d", "toPort": "in" }
-        ]
-      },
-      "examples": [
-        "Connect UV or Polar Coords → Spiral → Color Map for galaxy or whirlpool patterns.",
-        "Set arms and density for spiral count; animate time phase for rotating spiral.",
-        "Use with Mix or Gradient Mask for spiral-shaped masks or blended effects."
-      ],
-      "advanced": "Spiral phase is angle + density×radius; arms and thickness shape the bands. Use Polar Coords for clean radial spirals."
+      "advanced": "Three line families at 0°, 60°, 120°; Edge / Fill mix linearly blends the edge mask with the alternating cell parity. Infinite plane uses analytic ray–plane intersection (not iterative raymarching): rays miss or graze the plane yield no contribution. Use for geometric backgrounds or as a mask source."
     },
     "node:sphere-raymarch": {
-      "title": "Sphere Raymarch",
+      "title": "Raymarch Sphere",
       "titleType": "node",
-      "tagline": "Ideal for rendering 3D spheres using raymarching techniques for volumetric effects",
-      "description": "Renders 3D spheres using raymarching, a technique that marches rays through space to find intersections with the sphere surface. This creates volumetric, three-dimensional sphere shapes that can be positioned, scaled, and rotated in 3D space. The node calculates ray-sphere intersections and applies lighting and shading to create realistic 3D appearance. You can control the sphere's position, size, and rotation, as well as lighting parameters. This is essential for creating 3D geometric shapes in a 2D shader environment.",
+      "tagline": "Single-sphere ray march with vector-field distortion; outputs normalized glow (0–1)",
+      "description": "Marches a ray from a fixed viewpoint (origin at z≈3, direction from UV) through a warped distance field built around a sphere radius. A layered vector field distorts the march and drives the look; **Glow**, **Brightness**, and **Steps** control intensity, exposure, and quality. There are no separate position, rotation, lighting, or external camera inputs—use **SDF Raymarch** with Orbit Camera if you need ro/rd-driven 3D scenes. Feed **out** through Color Map or Mix to color the result.",
       "inputs": [
         {
           "name": "in",
           "type": "vec2",
-          "description": "The input UV coordinates to raymarch from"
+          "description": "UV driving the view ray direction (fixed camera; same pattern as other screen-space 3D helpers)"
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The raymarched sphere result (distance or surface value)"
+          "description": "Normalized glow / intensity in approximately 0–1 (not a raw SDF distance)"
         }
       ],
       "setupExampleGraph": {
@@ -5351,11 +5418,11 @@
         "node:normalize"
       ],
       "examples": [
-        "Connect Look-at Camera or Orbit Camera ro/rd to drive the ray; feed UV to the node input, then output to Color Map or Mix for shading.",
-        "Use for a single 3D sphere with volumetric feel; pair with other SDF nodes or Primitives for multi-shape scenes.",
-        "Animate position or scale via parameters or connected vec3 for moving or pulsing spheres."
+        "Connect UV Coordinates to **in**, then **out** → Color Map or Mix → Final Output for a quick glowing sphere look.",
+        "Raise **Steps** for smoother detail; tune **Field Speed** vs **Time Scale** (both multiply into motion—Field Speed is override-friendly for audio).",
+        "For scenes with custom cameras or multiple SDF shapes, use **SDF Raymarch** and wire Orbit Camera **ro**/**rd** plus a graph SDF; this node stays a self-contained single-shape glow."
       ],
-      "advanced": "Raymarching marches a ray step-by-step until it hits the sphere; the node uses a built-in sphere SDF. For multiple primitives (box, torus, etc.), use Primitives (box-torus-sdf) or Generic SDF Raymarcher with graph SDFs."
+      "advanced": "The march accumulates a cosine-weighted glow along the ray using a sphere-radius field plus vector-field terms (frequencies, harmonics, radial strength). Loop count is capped in shader; the **Steps** parameter clips how many iterations run. As an SDF source for SDF Raymarch, an adapter matches the standalone field (see WGSL/GRM notes)."
     },
     "node:spherical-fibonacci": {
       "title": "Spherical Fibonacci",
@@ -5445,7 +5512,7 @@
       "title": "Bloom Sphere",
       "titleType": "node",
       "tagline": "Sphere with evenly distributed soft spots that pulse in a wave, blue outer glow and reddish inner glow",
-      "description": "Renders a sphere covered in soft spots placed on a spherical Fibonacci lattice, with a time-based wave that modulates spot size. Uses analytic ray-sphere intersection and soft projected masks. Outer glow uses the blue color; inner (facing) areas use the red color. Bloom X/Y shift the sphere in screen space (NDC offset from center). Animation: wave phase (time offset), pattern scale (phase spacing along lattice index), lattice spin around vertical axis, optional second sine (detune frequency + mix) for richer motion. Connect UV to in; output is vec4 for final output or blending. Spot count, wave speed, and colors are adjustable. No temporal buffer; single-pass spatial effect.",
+      "description": "Renders a sphere covered in soft spots placed on a spherical Fibonacci lattice, with a time-based wave that modulates spot size. Uses analytic ray-sphere intersection and soft projected masks. Outer glow uses the Outer color; inner (facing) areas use the Inner color. Center X/Y shift the sphere in screen space (NDC offset from center). Animation: wave phase (time offset), wave spacing (phase spacing along lattice index), lattice spin around vertical axis, and an optional second sine (detune) for richer motion. Mode: Lattice Glow is the default look; Legacy Bloom matches older graphs. Connect UV to in; output is vec4 for final output or blending. Spot count is capped at 256 for predictable performance (single-pass; no temporal buffer).",
       "inputs": [
         {
           "name": "in",
@@ -5492,74 +5559,17 @@
       ],
       "examples": [
         "Connect UV to in; output goes to Final Output or Mix with a background (e.g. Sky Dome) for a full scene.",
-        "Adjust spot count and wave speed for denser or calmer pulse; use wave phase to sync in time, pattern scale for banded vs scrambled shimmer, spin speed to rotate the lattice, and detune for a second temporal frequency.",
-        "Use Bloom X/Y to move the sphere on the canvas without changing UV upstream.",
+        "Adjust spot count and wave speed for denser or calmer pulse; use wave phase to sync in time, wave spacing for banded vs scrambled shimmer, spin speed to rotate the lattice, and detune for a second temporal frequency.",
+        "Use Center X/Y to move the sphere on the canvas without changing UV upstream.",
         "Layer with other vec4 nodes (e.g. Blend Mode or Mix) for composite visuals without temporal buffer."
       ],
       "advanced": "Uses the same spherical Fibonacci lattice as the Spherical Fibonacci node for spot placement; analytic ray-sphere intersection keeps it single-pass. For modular reuse of the lattice elsewhere, use Spherical Fibonacci + Bloom Sphere."
     },
-    "node:hex-voxel": {
-      "title": "Hex Voxel",
-      "titleType": "node",
-      "tagline": "2D view over a 3D voxel field as hex-grid slices with layered composite and optional glow",
-      "description": "Renders a 3D voxel field as stacked hex-grid slices using a painter's-algorithm composite (front-to-back). Each slice is voxelized with an IQ-style hex coordinate system; a built-in 3D SDF is sampled at voxel coordinates. View orbit: Yaw (left/right) and Pitch (up/down) rotate the 3D scene so both axes are independent. Shape types: Boxy (rotating layered boxes), Sphere minus box, or Heightmap. Parameters control layers, zoom/pan, base color, edge darkening, glow, and light direction. Connect UV (e.g. from UV Coords); output is vec4 for final output or blending.",
-      "inputs": [
-        {
-          "name": "in",
-          "type": "vec2",
-          "description": "UV coordinates (e.g. from UV Coords)",
-          "suggestedSources": [
-            "type:vec2",
-            "node:uv-coordinates",
-            "node:displace",
-            "node:scale"
-          ]
-        }
-      ],
-      "outputs": [
-        {
-          "name": "out",
-          "type": "vec4",
-          "description": "RGBA color; connect to Final Output or blend with other nodes",
-          "suggestedTargets": [
-            "node:final-output",
-            "node:blend-mode",
-            "node:mix",
-            "node:glow-bloom"
-          ]
-        }
-      ],
-      "setupExampleGraph": {
-        "nodes": [
-          { "id": "a", "type": "uv-coordinates" },
-          { "id": "b", "type": "hex-voxel" },
-          { "id": "c", "type": "final-output" }
-        ],
-        "connections": [
-          { "from": "a", "fromPort": "out", "to": "b", "toPort": "in" },
-          { "from": "b", "fromPort": "out", "to": "c", "toPort": "in" }
-        ]
-      },
-      "relatedItems": [
-        "node:box-torus-sdf",
-        "node:sphere-raymarch",
-        "node:bloom-sphere",
-        "node:hexagonal-grid",
-        "type:vec2",
-        "type:vec4"
-      ],
-      "examples": [
-        "Connect UV to in; output to Final Output or Mix for a 3D voxel view with hex-grid slices and optional glow.",
-        "Use Yaw and Pitch to orbit the view; switch shape type (Boxy, Sphere minus box, Heightmap) for different voxel looks.",
-        "Layer with Color Map or Blend Mode for tinting; adjust layers and zoom for depth and scale."
-      ],
-      "advanced": "Uses a painter's-algorithm composite (front-to-back) and an IQ-style hex coordinate system; the built-in 3D SDF is sampled at voxel positions. View is independent on both axes (yaw/pitch)."
-    },
     "node:volume-rays": {
-      "title": "Volume Rays",
+      "title": "Cloud Fog",
       "titleType": "node",
-      "tagline": "Accumulates glow and density along the view ray using raymarching and 3D noise",
-      "description": "Marches a ray from the camera through the UV and accumulates density (3D value noise) along the ray to produce a volumetric glow. Camera position (X, Y, Z), yaw (left/right), and pitch (up/down) control the view; FOV Scale zooms in or widens the view. Control raymarch steps and step size, density scale, and output intensity. Ideal for fog, light shafts, or abstract volumetric effects.",
+      "tagline": "Raymarched volumetric fog/density mask with contrast, falloff, camera, and drift controls",
+      "description": "Marches a ray from the camera through the UV and accumulates layered 3D noise into a fog-like density mask. Use Threshold and Contrast to shape empty vs dense regions, Distance Falloff to keep the volume from washing out, Drift Speed for motion, and Intensity for the final mask strength. Camera position, yaw, pitch, and FOV Scale control the view. Best for abstract fog, nebula-like fields, atmosphere, or layered density masks; use Crepuscular Rays when you need source-based god rays over an image.",
       "inputs": [
         {
           "name": "in",
@@ -5577,7 +5587,7 @@
         {
           "name": "out",
           "type": "float",
-          "description": "Accumulated density/glow (float)",
+          "description": "Accumulated volumetric density mask (float)",
           "suggestedTargets": [
             "node:color-map",
             "node:mix",
@@ -5606,11 +5616,11 @@
         ]
       },
       "examples": [
-        "Connect UV → Volume Rays → Color Map for fog, light shafts, or volumetric glow.",
-        "Adjust camera yaw/pitch and FOV for view; tune density scale and steps for thickness.",
-        "Combine with Gradient or Noise for layered volumetric effects."
+        "Connect UV → Cloud Fog → Color Map for abstract fog, nebula, or atmospheric density.",
+        "Raise Threshold for more empty space; raise Contrast for sharper pockets of volume.",
+        "Combine with Gradient, Mix, or Multiply to layer drifting density over another pattern."
       ],
-      "advanced": "Raymarches through 3D noise to accumulate density; more steps add quality but cost. Use for god rays, fog, or abstract volume."
+      "advanced": "Raymarches through layered 3D noise and applies threshold, contrast, and distance falloff before accumulating density. More steps add depth and smoothness but cost more; smaller step sizes sample the volume more tightly."
     },
     "node:streak": {
       "title": "Streak",
@@ -5673,7 +5683,7 @@
       "title": "Shapes",
       "titleType": "node",
       "tagline": "Circle (or ellipse) and square (or rounded box) as SDF mask; aspect from size",
-      "description": "Outputs a 2D shape as a float mask. Shape modes: Circle/Ellipse, Square/Rounded Box, Superellipse, Regular Polygon, Capsule. Size is width and height; unequal width/height stretches shapes. Roundness only affects Square/Rounded Box. Polygon uses Sides; Rotation rotates the shape. Use center to position, softness for edge blur, and intensity to scale the output. Ideal for vignettes, panels, and composite shapes with mix or color-map.",
+      "description": "Outputs a 2D shape as a float mask. Shape modes: Circle/Ellipse, Square/Rounded Box, Superellipse, Regular Polygon, Capsule. Size is width and height; unequal width/height stretches shapes. Roundness only affects Square/Rounded Box. Polygon uses Sides; Rotation rotates the shape. Use center to position, softness for edge blur, and intensity to scale the output. Coordinate note: if you feed UV Coords (0–1), set Center to (0.5, 0.5) to place shapes in the middle; if you feed centered coordinates (around 0), leave Center at (0, 0). Ideal for vignettes, panels, and composite shapes with mix or color-map.",
       "inputs": [
         {
           "name": "in",
@@ -5727,10 +5737,10 @@
       "advanced": "SDF (signed distance function) gives a smooth mask: positive inside, negative outside. Circle vs Square and size control aspect; softness blurs the edge."
     },
     "node:star-shape-2d": {
-      "title": "Star",
+      "title": "Starflower",
       "titleType": "node",
       "tagline": "N-point star shape with inner/outer radius, rotation, and softness for masks and patterns.",
-      "description": "Outputs a 2D star as a float using an SDF. Style toggles between Star (radial profile) and Starburst (segment-like rays). You control the number of points, inner and outer radius, roundness, rotation (Star style), and softness. Connect UV (or translated coordinates) to the input; use the output with Color Map or Mix for badges, decorative shapes, or masks.",
+      "description": "Outputs a 2D star/flower mask as a float using an SDF. Mode toggles between Star (radial profile) and Starburst (segment-like rays). You control the number of points, inner and outer radius, roundness, rotation, softness, and intensity. Connect UV (or translated coordinates) to the input; use the output with Color Map or Mix for badges, decorative shapes, or masks.",
       "inputs": [
         {
           "name": "in",
@@ -5748,15 +5758,16 @@
         }
       ],
       "parameters": [
-        { "name": "Center X", "description": "Horizontal center of the star in UV space. 0.5 = center of screen; change to move the star left or right." },
-        { "name": "Center Y", "description": "Vertical center of the star in UV space. 0.5 = center of screen; change to move the star up or down." },
+        { "name": "Center X", "description": "Horizontal center offset. If your input is UV (0–1), 0.5 centers the star; if your input is centered coordinates (around 0), 0.0 centers it." },
+        { "name": "Center Y", "description": "Vertical center offset. If your input is UV (0–1), 0.5 centers the star; if your input is centered coordinates (around 0), 0.0 centers it." },
+        { "name": "Mode", "description": "Choose between Star (radial profile) and Starburst (ray/segment look)." },
         { "name": "Points", "description": "Number of star points (3–32). More points = spikier star; fewer = simpler shape." },
         { "name": "Inner Radius", "description": "Radius of the inner star points; smaller = pointier star, larger = rounder center." },
         { "name": "Outer Radius", "description": "Radius of the outer star tips. Larger = bigger star on screen." },
         { "name": "Roundness", "description": "Softens the inner corners (0 = sharp, 1 = round). Higher = smoother indent between points." },
-        { "name": "Rotation", "description": "Rotation angle of the star in degrees. Change to spin the star without moving its center." },
+        { "name": "Rotation", "description": "Rotation angle in degrees. Change to spin the star/starburst without moving its center." },
         { "name": "Softness", "description": "Edge softness of the shape. Higher = smoother transition from inside to outside; lower = crisper edge." },
-        { "name": "Intensity", "description": "Strength of the output value. Higher = brighter shape when connected to Color Map or Mix." }
+        { "name": "Intensity", "description": "Scales the output mask value. Higher = stronger mask when connected to Color Map or Mix." }
       ],
       "setupExampleGraph": {
         "nodes": [
@@ -5910,65 +5921,6 @@
       ],
       "advanced": "Same grid-and-jitter structure as Voronoi; distance metric (Euclidean, Manhattan, Chebyshev) changes cell shape. Use for scales, crystals, or abstract cells."
     },
-    "node:wave-patterns": {
-      "title": "Wave Patterns",
-      "titleType": "node",
-      "tagline": "Perfect for creating animated wave patterns with customizable frequency, amplitude, and direction",
-      "description": "Generates wave patterns using trigonometric functions (sine, cosine) to create repeating, oscillating patterns. The waves can be oriented in different directions, have configurable frequency (how many waves), amplitude (wave height), and can be animated over time. Multiple wave layers can be combined to create complex interference patterns. This is ideal for creating water effects, animated backgrounds, or any repeating wave-like patterns. The waves can be linear (traveling in one direction) or radial (expanding from a center point).",
-      "inputs": [
-        {
-          "name": "in",
-          "type": "vec2",
-          "description": "The input UV coordinates to generate waves from",
-          "suggestedSources": [
-            "type:vec2",
-            "node:uv-coordinates",
-            "node:displace",
-            "node:scale",
-            "node:time"
-          ]
-        }
-      ],
-      "outputs": [
-        {
-          "name": "out",
-          "type": "float",
-          "description": "The wave pattern value (typically -1.0 to 1.0 range)",
-          "suggestedTargets": [
-            "node:color-map",
-            "node:mix",
-            "node:smoothstep",
-            "node:displace",
-            "node:blending-modes"
-          ]
-        }
-      ],
-      "relatedItems": [
-        "node:sine",
-        "node:cosine",
-        "node:time",
-        "type:vec2"
-      ],
-      "setupExampleGraph": {
-        "nodes": [
-          { "id": "a", "type": "uv-coordinates" },
-          { "id": "b", "type": "wave-patterns" },
-          { "id": "c", "type": "color-map" },
-          { "id": "d", "type": "final-output" }
-        ],
-        "connections": [
-          { "from": "a", "fromPort": "out", "to": "b", "toPort": "in" },
-          { "from": "b", "fromPort": "out", "to": "c", "toPort": "in" },
-          { "from": "c", "fromPort": "out", "to": "d", "toPort": "in" }
-        ]
-      },
-      "examples": [
-        "Connect UV → Wave Patterns → Color Map for sine/cosine waves; animate with time for moving waves.",
-        "Use linear mode for directional waves or radial for circular; combine layers for interference.",
-        "Feed into Mix or Smoothstep for wave-based masks or distortion."
-      ],
-      "advanced": "Trig-based waves (sine/cosine); frequency and amplitude set count and strength. Use linear for stripes, radial for ripples from center."
-    },
     "node:flow-field-pattern": {
       "title": "Flow Field",
       "titleType": "node",
@@ -6029,13 +5981,13 @@
     "node:stripes": {
       "title": "Stripes",
       "titleType": "node",
-      "tagline": "Directional alternating bands with configurable angle, frequency, and sharp or soft edges",
-      "description": "Generates directional stripe patterns by rotating the input coordinates and creating alternating bands along one axis. Control the stripe angle (direction), frequency (number of bands), and sharpness (0 for soft gradients, 1 for hard edges). Optional phase and time speed allow animation when time is wired from the graph. Output is a float suitable for color map or mix.",
+      "tagline": "Directional waveshapes (sine/cos/triangle/square) with rotation, bands, motion, and an optional explicit time drive",
+      "description": "Rotates UVs and repeats a 1D waveform along that axis — sine/cosine for smooth waves, triangle or square for harder banding — then maps the result into 0–1 for color map or masking. Tune frequency/amplitude/intensity/wave shape, direction, phase, and timing. By default timeline time drives motion; optionally wire Time (or another float) into the dedicated time port.",
       "inputs": [
         {
           "name": "in",
           "type": "vec2",
-          "description": "The input UV coordinates to generate stripes from",
+          "description": "UV or other 2D coordinates to sample across the pattern.",
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates",
@@ -6043,23 +5995,36 @@
             "node:scale",
             "node:rotate"
           ]
+        },
+        {
+          "name": "time",
+          "type": "float",
+          "description": "Seconds (or another driver) multiplied by Time Speed; leave open for built-in wall-clock time.",
+          "suggestedSources": [
+            "type:float",
+            "node:time",
+            "node:multiply",
+            "node:mixed-wave-signal"
+          ]
         }
       ],
       "outputs": [
         {
           "name": "out",
           "type": "float",
-          "description": "The stripe pattern value (0.0 to 1.0)",
+          "description": "Pattern value in 0–1 for color mapping, mix, masks, or displacement.",
           "suggestedTargets": [
             "node:color-map",
             "node:mix",
             "node:smoothstep",
-            "node:gradient-mask"
+            "node:gradient-mask",
+            "node:displace"
           ]
         }
       ],
       "relatedItems": [
-        "node:wave-patterns",
+        "node:flow-field-pattern",
+        "node:volume-rays",
         "node:dots",
         "node:rings",
         "type:vec2"
@@ -6078,11 +6043,11 @@
         ]
       },
       "examples": [
-        "Connect UV → Stripes → Color Map for alternating bands; set angle and frequency for direction and count.",
-        "Use sharpness 0 for soft gradients, 1 for hard edges; animate phase with Time.",
-        "Combine with Wave Patterns or Dots via Mix for combined patterns."
+        "Connect UV → Stripes → Color Map; switch wave type between sine/square/triangle for soft motion vs hard bands.",
+        "Wire Time → Stripes.time for explicit control; tweak phase speed vs time speed.",
+        "Layer with Cloud Fog or Flow Field via Mix for fog + banding combos."
       ],
-      "advanced": "Rotates coords then repeats along one axis; sharpness controls edge softness. Use for zebra stripes, scanlines, or directional bands."
+      "advanced": "Same engine as the former wave-patterns node: direction rotates the marching axis; frequency and amplitude set band count and contrast; square/triangle approximate older hard-edge stripe looks."
     },
     "node:dots": {
       "title": "Dots",
@@ -6140,62 +6105,6 @@
         "Soften falloff for blurred dots or use with Mix for spot patterns."
       ],
       "advanced": "Seamless grid of circular dots; spacing and radius set layout. Use for fabric, bubbles, or regular spot patterns."
-    },
-    "node:reaction-diffusion": {
-      "title": "Reaction-Diffusion",
-      "titleType": "node",
-      "tagline": "Gray-Scott-inspired cell and spot pattern (single-pass approximation)",
-      "description": "Generates an R-D-like cell/spot pattern using Gray-Scott equations with a spot-based seed and 1–5 steps per pixel (single-pass). Feed and Kill (0.01–0.15), Diff A (0.2–4) and Diff B (0.05–1.5) use wider ranges for exploration. Time speed 0–5 scales animation linearly; Grain adds variation. True R-D requires many iterations; this approximates the look. Output float 0–1 for color map or mix.",
-      "inputs": [
-        {
-          "name": "in",
-          "type": "vec2",
-          "description": "The input UV coordinates to sample the pattern",
-          "suggestedSources": [
-            "type:vec2",
-            "node:uv-coordinates",
-            "node:displace",
-            "node:scale"
-          ]
-        }
-      ],
-      "outputs": [
-        {
-          "name": "out",
-          "type": "float",
-          "description": "The pattern value (0.0 to 1.0)",
-          "suggestedTargets": [
-            "node:color-map",
-            "node:mix",
-            "node:gradient-mask"
-          ]
-        }
-      ],
-      "relatedItems": [
-        "node:voronoi-noise",
-        "node:noise",
-        "node:gradient",
-        "type:vec2"
-      ],
-      "setupExampleGraph": {
-        "nodes": [
-          { "id": "a", "type": "uv-coordinates" },
-          { "id": "b", "type": "reaction-diffusion" },
-          { "id": "c", "type": "color-map" },
-          { "id": "d", "type": "final-output" }
-        ],
-        "connections": [
-          { "from": "a", "fromPort": "out", "to": "b", "toPort": "in" },
-          { "from": "b", "fromPort": "out", "to": "c", "toPort": "in" },
-          { "from": "c", "fromPort": "out", "to": "d", "toPort": "in" }
-        ]
-      },
-      "examples": [
-        "Connect UV → Reaction-Diffusion → Color Map for Gray-Scott-style cells or spots; tune Feed/Kill and Diff.",
-        "Animate with time speed for evolving patterns; add Grain for variation.",
-        "Single-pass approximation; use for organic cells or spotted textures."
-      ],
-      "advanced": "Gray-Scott R-D with limited steps per pixel; true R-D needs many iterations. Feed/Kill and diffusion rates control spot vs stripe vs labyrinth."
     },
     "node:gradient": {
       "title": "Gradient",
@@ -6333,14 +6242,14 @@
             "node:swizzle",
             "node:color-map",
             "node:mix",
-            "node:blending-modes"
+            "node:blend-mode"
           ]
         }
       ],
       "relatedItems": [
         "node:hash32",
         "node:voronoi-noise",
-        "node:wave-patterns",
+        "node:stripes",
         "type:vec4",
         "type:vec2"
       ],
@@ -6358,7 +6267,7 @@
       "examples": [
         "Connect UV → Disco Pattern → Final Output (or Mix) for diamond/cell pattern with per-cell color.",
         "Output RGB is hash color per cell, A is diamond edge; use with Blend Mode or Swizzle for variation.",
-        "Combine with Voronoi or Wave Patterns for layered disco or retro looks."
+        "Combine with Voronoi or Stripes for layered disco or retro looks."
       ],
       "advanced": "Per-cell hash gives stable color per diamond; alpha gives edge. Use for disco, confetti, or cell-based color without full Voronoi."
     },
@@ -6395,7 +6304,8 @@
         }
       ],
       "relatedItems": [
-        "node:sunbeams",
+        "node:stripes",
+        "node:volume-rays",
         "node:crepuscular-rays",
         "node:rings",
         "node:polar-coordinates",
@@ -6417,125 +6327,70 @@
       "examples": [
         "Connect UV → Radial Rays → Color Map or Mix for sunburst or starburst; set count and spread.",
         "Use with Polar Coords for radial layout; tune width and falloff for sharp or soft rays.",
-        "Combine with Sunbeams or Crepuscular Rays for layered light effects."
+        "Combine with Stripes, Cloud Fog, or Crepuscular Rays for layered light-looking effects."
       ],
       "advanced": "N rays from a center; spread can be full circle or arc. Use for sunbursts, starbursts, or radial masks."
-    },
-    "node:sunbeams": {
-      "title": "Sunbeams",
-      "titleType": "node",
-      "tagline": "Directional beams at an angle for light streaks and god-ray style effects",
-      "description": "Produces directional parallel beams at a configurable angle. Control beam count, spread (frequency along the perpendicular axis), width, softness, and intensity. Output is a float for blending. Use with mix or multiply for sunbeam overlays and directional light streaks.",
-      "inputs": [
-        {
-          "name": "in",
-          "type": "vec2",
-          "description": "Input 2D coordinates (e.g. UV)",
-          "suggestedSources": [
-            "type:vec2",
-            "node:uv-coordinates",
-            "node:displace",
-            "node:scale"
-          ]
-        }
-      ],
-      "outputs": [
-        {
-          "name": "out",
-          "type": "float",
-          "description": "Beam pattern value (0.0 to 1.0)",
-          "suggestedTargets": [
-            "node:color-map",
-            "node:mix",
-            "node:multiply",
-            "node:blend-mode"
-          ]
-        }
-      ],
-      "relatedItems": [
-        "node:radial-rays",
-        "node:crepuscular-rays",
-        "node:gradient",
-        "node:streak",
-        "type:vec2"
-      ],
-      "setupExampleGraph": {
-        "nodes": [
-          { "id": "a", "type": "uv-coordinates" },
-          { "id": "b", "type": "sunbeams" },
-          { "id": "c", "type": "color-map" },
-          { "id": "d", "type": "final-output" }
-        ],
-        "connections": [
-          { "from": "a", "fromPort": "out", "to": "b", "toPort": "in" },
-          { "from": "b", "fromPort": "out", "to": "c", "toPort": "in" },
-          { "from": "c", "fromPort": "out", "to": "d", "toPort": "in" }
-        ]
-      },
-      "examples": [
-        "Connect UV → Sunbeams → Mix for directional light streaks; set angle and beam count.",
-        "Use with Blend Mode or Multiply for god-ray overlay on existing content.",
-        "Tune width and softness for thin or broad beams."
-      ],
-      "advanced": "Parallel beams at one angle; use for directional sunbeams. For rays from a point use Radial Rays or Crepuscular Rays."
     },
     "node:crepuscular-rays": {
       "title": "Crepuscular Rays",
       "titleType": "node",
-      "tagline": "Atmospheric rays from a source point with distance falloff",
-      "description": "Generates crepuscular (atmospheric) rays from a source point. Rays radiate from the source with configurable count, spread, and width. Distance falloff attenuates the rays with distance from the source (1/(1 + dist*k)), giving a natural volumetric look. Animation: rotation speed (turns per second) and rotation offset (phase in turns) for continuous rotating rays. Ideal for sun-through-clouds and god-ray effects.",
+      "tagline": "Additive light shafts from a movable source weighted by upstream luminance",
+      "description": "**Post effect**: takes **RGBA color**, derives a procedural ray umbrella in fullscreen UV (`0–1`), multiplies shafts by upstream **luminance**, and adds back tinted light. Controls mirror **Radial Rays**: count/spread/width/intensity plus distance attenuation `(1/(1 + dist·falloff))`. **Rotation speed** (turns/s) × time + offset spins the wedge. **WebGPU** emits a radial sweep pass-plan when routed `… → crepuscular-rays → final-output`; **WebGL** uses inline additive blend on color.",
       "inputs": [
         {
           "name": "in",
-          "type": "vec2",
-          "description": "Input 2D coordinates (e.g. UV)",
+          "type": "vec4",
+          "description": "Scene color feeding both mask (luminance) and RGB add",
           "suggestedSources": [
-            "type:vec2",
-            "node:uv-coordinates",
-            "node:displace",
-            "node:scale"
+            "node:color-map",
+            "node:glow-bloom",
+            "node:mix",
+            "node:blend-mode"
           ]
         }
       ],
       "outputs": [
         {
           "name": "out",
-          "type": "float",
-          "description": "Ray pattern value with distance falloff (0.0 to 1.0)",
+          "type": "vec4",
+          "description": "Input RGB plus additive shafts; alpha forwarded from upstream",
           "suggestedTargets": [
-            "node:color-map",
-            "node:mix",
-            "node:multiply",
-            "node:blend-mode"
+            "node:final-output",
+            "node:color-grading",
+            "node:chromatic-aberration",
+            "node:glow-bloom"
           ]
         }
       ],
       "relatedItems": [
+        "node:glow-bloom",
+        "node:blur",
+        "node:bokeh",
         "node:radial-rays",
-        "node:sunbeams",
-        "node:gradient",
-        "node:rings",
-        "type:vec2"
+        "node:volume-rays",
+        "type:vec4"
       ],
       "setupExampleGraph": {
         "nodes": [
           { "id": "a", "type": "uv-coordinates" },
-          { "id": "b", "type": "crepuscular-rays" },
+          { "id": "b", "type": "noise" },
           { "id": "c", "type": "color-map" },
-          { "id": "d", "type": "final-output" }
+          { "id": "d", "type": "crepuscular-rays" },
+          { "id": "e", "type": "final-output" }
         ],
         "connections": [
           { "from": "a", "fromPort": "out", "to": "b", "toPort": "in" },
           { "from": "b", "fromPort": "out", "to": "c", "toPort": "in" },
-          { "from": "c", "fromPort": "out", "to": "d", "toPort": "in" }
+          { "from": "c", "fromPort": "out", "to": "d", "toPort": "in" },
+          { "from": "d", "fromPort": "out", "to": "e", "toPort": "in" }
         ]
       },
       "examples": [
-        "Connect UV → Crepuscular Rays → Color Map or Mix for rays from a source point with distance falloff.",
-        "Set source position for origin; tune count, spread, and falloff for volumetric look.",
-        "Animate rotation speed for rotating rays; use for sun-through-clouds or god rays."
+        "Treat like Glow: graded color → **Crepuscular Rays** → **Final Output**; bright regions seed stronger shafts.",
+        "Place **Source X/Y** in normalized UV space (+Y up in graph mental model aligns with fullscreen UV conventions).",
+        "Animate **rotation speed** for spinning god rays; lower **spread** gives sun-through-slit beams."
       ],
-      "advanced": "Rays from a point with 1/(1+dist*k) falloff for natural attenuation. Use for atmospheric rays; rotation animates the ray direction."
+      "advanced": "Downstream compilers differ: fullscreen WebGPU may promote this to GPU sweep passes; previews keep single-pass additive modulation."
     },
     "node:gradient-mask": {
       "title": "Gradient Mask",
@@ -6576,7 +6431,7 @@
       ]
     },
     "node:hexagonal-grid": {
-      "title": "Hexagons",
+      "title": "Hex Grid",
       "titleType": "node",
       "tagline": "Perfect for creating hexagonal grid patterns for tiling, cellular structures, or game board layouts",
       "description": "Generates a seamless, regular hexagonal tiling pattern. Control the cell size, the gap (margin) between cells, and a per-cell rotation (rotates each hexagon’s shape without rotating the grid). A separate grid rotation rotates the overall tiling, and intensity controls the output strength.",
@@ -6626,22 +6481,22 @@
         ]
       },
       "examples": [
-        "Connect UV → Hexagonal Grid → Color Map for honeycomb or tiled hexagons; tune cell size and gap.",
+        "Connect UV → Hex Grid → Color Map for honeycomb or tiled hexagons; tune cell size and gap.",
         "Use with Domain Repetition or Scale for more tiles; per-cell rotation for twisted hexes.",
         "Combine with Noise or Rings via Mix for organic or radial hex patterns."
       ],
       "advanced": "Seamless hex tiling; gap sets margin between cells. Grid rotation and per-cell rotation give layout variety. Use for game boards, cells, or tessellation."
     },
     "node:hex-prism-sdf": {
-      "title": "Hex 3D",
+      "title": "Hex Prism SDF",
       "titleType": "node",
-      "tagline": "3D SDF primitive: extruded hexagon for raymarching",
-      "description": "Outputs a signed distance field (SDF) for a hex prism (extruded hexagon). Connect a vec3 position (e.g. from a raymarcher); the output is a float SDF suitable for the generic raymarcher or repeated-hex-prism-sdf. Hex radius controls the cross-section size; half height controls the extrusion. Reference: Shadertoy hex-prism raymarch.",
+      "tagline": "Extruded hexagon SDF for raymarching",
+      "description": "Signed distance to a hex prism. When out feeds SDF Raymarch sdf, the march evaluates distance along each ray—you usually leave Position unwired. For direct use, wire vec3 Position. Hex radius sets cross-section size; half height sets half the extrusion length along Z before Pos offset. Float out suits SDF Raymarch, Repeated Hex Prism SDF, or effects downstream.",
       "inputs": [
         {
           "name": "position",
           "type": "vec3",
-          "description": "3D position to evaluate the SDF at (e.g. raymarch sample point)",
+          "description": "3D sample point. Unwired with SDF Raymarch sdf: the march supplies p. Wire for standalone sampling or Constant Vec3 experiments.",
           "suggestedSources": [
             "type:vec3",
             "node:constant-vec3"
@@ -6690,22 +6545,22 @@
         "node:constant-vec3"
       ],
       "examples": [
-        "Connect this node's out to Generic SDF Raymarcher sdf; connect Orbit Camera ro/rd and UV to the raymarcher for a single hex prism.",
-        "Typical use: Camera ro/rd and UV → Generic SDF Raymarcher; this node (position from raymarcher) → raymarcher sdf → Color Map.",
-        "Use hex radius and half-height to shape the prism; feed into Repeated 3D Hex for an infinite grid of hex prisms."
+        "Connect out → SDF Raymarch sdf; Orbit Camera ro/rd and UV → raymarcher for a single prism—leave Position unwired.",
+        "Camera ro/rd and UV → SDF Raymarch; Hex Prism SDF → sdf → Color Map.",
+        "Tune hex radius and half height for profile; chain into Repeated Hex Prism SDF for an infinite prism grid."
       ],
-      "advanced": "Output is a signed distance to the hex prism (extruded hexagon). The raymarcher evaluates this at each step; position is in world space. For tiling, use Repeated 3D Hex instead."
+      "advanced": "Extrusion axis is Z in shape space before Pos offset. Raymarch uses world-space steps. For seamless tiling prefer Repeated Hex Prism SDF."
     },
     "node:repeated-hex-prism-sdf": {
-      "title": "Repeated 3D Hex",
+      "title": "Repeated Hex Prism SDF",
       "titleType": "node",
       "tagline": "3D SDF: infinite grid of hex prisms for raymarching",
-      "description": "Outputs a signed distance field (SDF) for an infinite 3D grid of hex prisms. Uses domain repetition (mod(p, spacing) - 0.5*spacing) then the hex prism SDF. Connect a vec3 position (e.g. from the generic raymarcher); the output is a float SDF. Parameters: spacing X/Y/Z, hex radius, half-height. Reference: Shadertoy hex-prism raymarch.",
+      "description": "Infinite lattice of hex prisms as a float **SDF**. When **out** feeds **SDF Raymarch**’s **`sdf`** port, each march step evaluates distance at that step’s ray sample—the marcher injects sample **Position** for you (`p` → this node); you do **not** run a separate wire into **Position** (the setup-example graph wires only sdf). For offline tests or graphs without SDF Raymarch, wire **Position** yourself (e.g. **Constant Vec3**). Cells repeat per axis via `mod` with offsets from **Spacing X/Y/Z**, then standard hex prism distance; tweak **Hex radius** and **Half height** plus spacing. Classic touchstone: Shadertoy hex-prism raymarch.",
       "inputs": [
         {
           "name": "position",
           "type": "vec3",
-          "description": "3D position to evaluate the SDF at (e.g. raymarch sample point)",
+          "description": "3D sample point. With **SDF Raymarch sdf** wired from this node’s **out**, leave unwired—the march passes each step’s position automatically. Otherwise wire explicitly (Constant Vec3, etc.).",
           "suggestedSources": [
             "type:vec3",
             "node:constant-vec3"
@@ -6751,10 +6606,16 @@
         "node:box-torus-sdf",
         "type:vec3",
         "node:constant-vec3"
-      ]
+      ],
+      "examples": [
+        "UV → Orbit Camera; **Repeated Hex Prism SDF** **out** → **SDF Raymarch** **sdf** (screen UV + camera ro/rd into the marcher); **Position** stays unwired—then **Color Map** → **Final Output**.",
+        "Tune **Spacing** vs **Hex radius**: too-large radius overlaps neighboring cells or swallows the lattice; asymmetric **Spacing X/Y/Z** is axis-aligned repetition, not a strict 2D honeycomb tiling in XY.",
+        "Animate or audio-drive **spacing**/**hex radius** (see preset sdf-raymarcher-hex-audio) against **SDF Raymarch** glow or color passes."
+      ],
+      "advanced": "Same prism orientation family as **Hex Prism SDF** (extrusion along Z inside each repeated cell before any manual Pos offsets). Unequal spacing stretches the lattice on each axis independently. Avoid parameters where **Hex radius** is a large fraction of the relevant cross-section spacing—distance fields get harsh and marching can behave poorly at cell seams."
     },
     "node:particle-system": {
-      "title": "Particle System",
+      "title": "Speckle Grain",
       "titleType": "node",
       "tagline": "Perfect for creating animated particle effects with configurable movement, size, and behavior",
       "description": "Generates animated particle systems that create dynamic, moving particle effects. Each particle has position, velocity, size, and lifetime properties that evolve over time. The particles can be rendered as points, circles, or other shapes, and can interact with forces, boundaries, or other particles. The system supports configurable particle count, spawn rate, initial velocity, gravity, and various behaviors. This is ideal for creating effects like sparks, smoke, rain, or any collection of moving elements.",
@@ -6791,7 +6652,7 @@
         ]
       },
       "examples": [
-        "Connect UV → Particle System → Color Map for animated particles; drive with Time for motion.",
+        "Connect UV → Speckle Grain → Color Map for animated particles; drive with Time for motion.",
         "Tune count, size, and behavior for sparks, rain, or abstract motion.",
         "Combine with Distance or other patterns for particle density or masking."
       ],
@@ -6838,8 +6699,8 @@
     "node:box-torus-sdf": {
       "title": "Primitives",
       "titleType": "node",
-      "tagline": "3D primitives (box, torus, capsule, cylinder, cone, round cone, octahedron, icosahedron) using signed distance fields and raymarching",
-      "description": "Renders 3D primitives using signed distance fields (SDF) with raymarching. Shape types: 0=Box, 1=Torus, 2=Capsule, 3=Cylinder (capped; radius X, half-height Y), 4=Cone (height Y, base radius X, top radius Z), 5=Round cone (base X, tip radius Z, height Y), 6=Octahedron (scale X), 7=Icosahedron (scale X). All share Position, Size, Rotation, and Appearance (glow, raymarch steps). Lighting supports directional or point light with optional shadows. Specular group: enable Cook-Torrance (GGX + Fresnel) for PBR-style specular; Roughness and F0 control the look. Optional Ray origin and Ray direction: when connected (e.g. from Orbit Camera), the node uses that camera; when unconnected, uses the built-in fixed camera.",
+      "tagline": "3D SDF primitives and raymarching — listed in the palette as Primitives (node id box-torus-sdf)",
+      "description": "Renders 3D primitives using signed distance fields (SDF) with raymarching. In the palette this node is named Primitives; searches and docs may refer to it as box-torus-sdf. Shape types: 0=Box, 1=Torus, 2=Capsule, 3=Cylinder (capped; radius X, half-height Y), 4=Cone (height Y, base radius X, top radius Z), 5=Round cone (base X, tip radius Z, height Y), 6=Octahedron (scale X), 7=Icosahedron (scale X). All share Position (X/Y/Z), Size, Rotation, and Appearance (glow strength, raymarch steps). Output is lit grayscale shading (depth factor plus optional glow term, multiplied by lighting), not a raw signed distance. Where the ray misses geometry the output stays at zero; the glow term is evaluated only on a surface hit. Lighting supports directional or point light with optional shadows. Specular group: enable Cook-Torrance (GGX + Fresnel) for PBR-style specular; Roughness and F0 control the look. Optional Ray origin and Ray direction: when connected (e.g. from Orbit Camera), the node uses that camera; when unconnected, Ro X/Y/Z under Camera set the built-in ray origin and UV drives the default perspective ray direction.",
       "inputs": [
         {
           "name": "in",
@@ -6867,7 +6728,7 @@
         {
           "name": "out",
           "type": "float",
-          "description": "The SDF raymarched shape result (signed distance value)"
+          "description": "Lit grayscale shading: surface lighting (and optional Cook-Torrance specular) combined with a depth-based factor plus the Glow parameter’s contribution along the ray. Zero when the ray misses the shape."
         }
       ],
       "setupExampleGraph": {
@@ -6897,16 +6758,17 @@
       ],
       "examples": [
         "Connect Look-at Camera or Orbit Camera ro/rd to ro/rd inputs; connect UV to in, then output to Color Map or Final Output.",
+        "Without Orbit Camera, open the Camera section and adjust Ro X/Y/Z to dolly the built-in view.",
         "Switch shape type (Box, Torus, Capsule, Cylinder, Cone, Octahedron, Icosahedron) for different primitives; use Size and Rotation to pose.",
         "Enable Cook-Torrance in Specular for PBR-style reflections; add directional or point light and optional shadows."
       ],
-      "advanced": "When ro/rd are unconnected, the node uses a built-in fixed camera. For consistent camera across multiple 3D nodes, connect one Orbit Camera or Look-at Camera to all. SDF combination order (if you later combine with other SDFs) affects which shape is in front."
+      "advanced": "When Ray origin / Ray direction inputs are unconnected, Ro X/Y/Z (Camera section) set the built-in ray origin and UV builds a perspective ray direction. For a shared rig across multiple 3D nodes, connect one Orbit Camera or Look-at Camera to all. SDF combination order (if you later combine with other SDFs) affects which shape is in front."
     },
     "node:glass-shell": {
       "title": "Glass Shell",
       "titleType": "node",
       "tagline": "Refractive glass shell: outer SDF → refract → inner SDF → shade; object inside glass effect",
-      "description": "Two-stage raymarch: march outer SDF (sphere, box, or icosahedron), at hit refract the ray with IOR, then march inner SDF (sphere, box, or smooth blend). Shades the inner hit with diffuse and optional Cook-Torrance specular, or uses background color if inner ray misses. Adds outer specular on the glass surface. Output is vec4 for Final Output or blending. Optional ro/rd inputs: connect Orbit Camera for shared camera; when unconnected, uses built-in camera (Ro X/Y/Z).",
+      "description": "Two-stage raymarch: march outer SDF (sphere, box, or icosahedron), at hit refract the ray with IOR, then march inner SDF (sphere, box, or smooth sphere-plus-box blend). Shades the inner hit with diffuse and optional microfacet specular (Cook-Torrance), or uses the background OKLCH color (converted to linear RGB in-shader) if the refracted ray misses the inner shell. Inner albedo uses the same OKLCH picker + L/C/H sliders as Skydome. Adds outer highlights on the glass. Output is RGBA vec4—alpha is 0 where the outer shell is missed (transparent for blending) and 1 on hits. Optional ro/rd inputs: connect Orbit Camera for a shared rig; when ro is unwired, use Fallback ray origin (Ray origin X/Y/Z parameters). Smooth blend (inner) applies only when inner shape is Sphere + box (smooth).",
       "inputs": [
         {
           "name": "in",
@@ -6922,7 +6784,7 @@
         {
           "name": "ro",
           "type": "vec3",
-          "description": "Ray origin (camera position); when unconnected, uses Ro X/Y/Z parameters",
+          "description": "Ray origin (camera position); when unconnected, uses Ray origin X/Y/Z under Fallback ray origin",
           "suggestedSources": [
             "node:orbit-camera"
           ]
@@ -6948,6 +6810,12 @@
             "node:glow-bloom"
           ]
         }
+      ],
+      "examples": [
+        "Connect UV Coordinates to in and Orbit Camera ro/rd for a draggable view; use the color pickers for Inner and Background OKLCH, then plug out into Blend or Final Output.",
+        "If refracted rays miss the inner surface, shading uses the Background color—you will still see outer glass highlights.",
+        "Set inner shape to Sphere + box (smooth) to reveal Smooth blend (inner); other inner shapes hide that knob because it does nothing.",
+        "Turn off Physics for a simpler Phong-style highlight on inner and outer surfaces."
       ],
       "setupExampleGraph": {
         "nodes": [
@@ -6977,12 +6845,12 @@
       "title": "Radial Repeat SDF",
       "titleType": "node",
       "tagline": "3D SDF primitive: concentric spherical shells for Shadertoy-style raymarching",
-      "description": "Outputs a signed distance field (SDF) for concentric spherical shells: abs(mod(length(p), period) - halfPeriod). Connect a vec3 position (e.g. from a raymarcher or 3D position node); the output is a float SDF suitable for the generic raymarcher or other SDF composition. Period controls the spacing between shells; half period sets the shell thickness. Composable primitive for building raymarched scenes.",
+      "description": "Radial shells in 3D SDF space—concentric spheres you can feed into **SDF Raymarch** or mix with other distances. **Shell spacing** is the radial distance between repeats (same role as the old **Period** control). **Ring phase** is **0–1** inside each spacing: the radial offset to the shell peak is **phase × spacing** (so phase **0.5** with spacing **1** matches a half-spacing offset). Legacy graphs with **Period** / **Half period** migrate to **Shell spacing** / **Ring phase** (phase = half period ÷ period, clamped to 0–1). Formula: abs(mod(length(p), shellSpacing) - ringPhase × shellSpacing). When **SDF** (this node’s float out) drives **SDF Raymarch** **sdf**, the raymarcher evaluates this node at each march step and supplies **Position** for you—no extra **Position** wire unless you want a manual offset or use this node outside that path.",
       "inputs": [
         {
           "name": "position",
           "type": "vec3",
-          "description": "3D position to evaluate the SDF at (e.g. raymarch sample point)",
+          "description": "3D sample point. When this node’s **SDF** out is wired to **SDF Raymarch** **sdf**, the march step position is supplied automatically. Connect **Position** yourself for standalone graphs, constants, or explicit offsets.",
           "suggestedSources": [
             "type:vec3",
             "node:constant-vec3"
@@ -7023,6 +6891,7 @@
       },
       "relatedItems": [
         "node:generic-raymarcher",
+        "node:repeated-hex-prism-sdf",
         "node:box-torus-sdf",
         "node:sphere-raymarch",
         "type:vec3",
@@ -7032,13 +6901,13 @@
     "node:kifs-sdf": {
       "title": "KIFS SDF",
       "titleType": "node",
-      "tagline": "3D Kaleidoscopic IFS SDF for Larval-style fractals and raymarching",
-      "description": "Outputs a signed distance field from a 3D Kaleidoscopic IFS (KIFS): iterative fold (abs), scale, offset, and rotation. Connect the position input to the generic raymarcher (SDF port); when orbit camera ro/rd are supported, use them for Larval-style camera. Parameters: scale, offset, rotation axis and angle, iterations, sphere radius.",
+      "tagline": "Fold–scale–offset–rotate IFS distance for Larval-style raymarching",
+      "description": "Signed distance from a 3D Kaleidoscopic IFS: absolute fold, then scale, offset, and rotate each iteration. Wire out → SDF Raymarch sdf; SDF Raymarch supplies Position at each march step—add Orbit Camera ro and rd for Larval-style camera motion. Rotation axis X/Y/Z is normalized in-shader; angle is radians on the sliders. Minimum scale is 1 so each iteration expands the folded domain like usual KIFS; Core radius trims the iterated point with an inner sphere. Distance is approximate like other iterated folds—increase raymarch steps or tighten safety on SDF Raymarch if surfaces band or leak.",
       "inputs": [
         {
           "name": "position",
           "type": "vec3",
-          "description": "3D position to evaluate the SDF at (e.g. raymarch sample point)",
+          "description": "3D sample position, typically from SDF Raymarch when this node feeds sdf",
           "suggestedSources": [
             "type:vec3",
             "node:constant-vec3"
@@ -7049,7 +6918,7 @@
         {
           "name": "out",
           "type": "float",
-          "description": "Signed distance from the KIFS fractal",
+          "description": "Signed distance estimate to the KIFS surface",
           "suggestedTargets": [
             "node:generic-raymarcher",
             "node:mix",
@@ -7094,7 +6963,7 @@
         {
           "name": "position",
           "type": "vec3",
-          "description": "3D sample position (from Generic SDF Raymarcher when connected as SDF)",
+          "description": "3D sample position (from SDF Raymarch when connected as SDF)",
           "suggestedSources": [
             "type:vec3",
             "node:constant-vec3"
@@ -7144,13 +7013,13 @@
     "node:menger-sponge-sdf": {
       "title": "Menger Sponge SDF",
       "titleType": "node",
-      "tagline": "Classic Menger-style 3D fractal SDF for the generic raymarcher",
-      "description": "Signed distance to a Menger sponge–style fractal (recursive 3×3×3 void cuts in a cube). Connect the position input implicitly via the Generic SDF Raymarcher: wire this node’s float output to the raymarcher’s sdf port; the raymarcher supplies sample positions. Parameters: iterations (1–5), domain scale, wall thickness, 3D offset, axis–angle rotation, DE scale (advanced, lowers distance for safer sphere tracing). Float parameters support timeline automation and audio bands per project rules; iterations is fixed at compile time like KIFS.",
+      "tagline": "Classic Menger-style 3D fractal SDF for the SDF Raymarch",
+      "description": "Signed distance to a Menger sponge–style fractal: recursive **3×3×3 void cuts** in a cube. Wire **out** → **SDF Raymarch** **sdf**; wire **Position** from the raymarcher’s sample positions or use **Fallback pos** sliders when it is unwired. **Rot axis X/Y/Z** choose the rotation axis together — the shader normalizes; **Angle rad** is radians. **DE scale** multiplies distance into the marcher: higher enlarges ray steps for speed at more risk through holes; lower is tighter and safer on thin sponge. Float parameters support timeline automation and audio bands; iterations 1–5 are fixed at compile time like similar fractal nodes.",
       "inputs": [
         {
           "name": "position",
           "type": "vec3",
-          "description": "3D position to evaluate the SDF (from raymarcher when connected; otherwise Pos X/Y/Z)",
+          "description": "3D sample point from the raymarcher **Position** connection when wired; otherwise **Fallback pos** X/Y/Z.",
           "suggestedSources": [
             "type:vec3",
             "node:constant-vec3"
@@ -7192,6 +7061,8 @@
       "relatedItems": [
         "node:generic-raymarcher",
         "node:kifs-sdf",
+        "node:sierpinski-tetra-sdf",
+        "node:mandelbox-sdf",
         "node:orbit-camera",
         "type:vec3"
       ]
@@ -7199,13 +7070,13 @@
     "node:sierpinski-tetra-sdf": {
       "title": "Sierpinski Tetra SDF",
       "titleType": "node",
-      "tagline": "Tetrahedral IFS SDF with triangular lacunarity for the generic raymarcher",
-      "description": "Signed distance field for a **Sierpinski tetrahedron–style** IFS: **tetrahedral symmetry folds** (Knighty / Klems wedge) then **scale** and **offset** each iteration, with optional **axis–angle pre-rotation**. The inner primitive is a **scaled sphere** in iterated space (KIFS-style), **not** a full `sdTetrahedron` shell—tune **Core radius** and **DE bias** under Advanced. Connect **out** to the Generic SDF Raymarcher **sdf** port. **Float** parameters (scale, offset, rotation, core radius, DE bias, position overrides) support timeline automation and audio; **Iterations** is a capped int (no audio), same policy as KIFS / Menger.",
+      "tagline": "Tetrahedral IFS SDF with triangular lacunarity for the SDF Raymarch",
+      "description": "Signed distance field for a **Sierpinski tetrahedron–style** IFS: **tetrahedral symmetry folds**, Knighty / Klems wedge, then **IFS scale** and **offset** each iteration. **IFS scale** is the per-iteration contraction factor, not an overall zoom. Optional **axis–angle pre-rotation**: axis is normalized in the shader; **Angle rad** is radians. Inner primitive is a **scaled sphere** in iterated space, KIFS-style, **not** a full `sdTetrahedron` shell—tune **Core radius** and **DE bias** under Advanced. Higher **Iterations** increases raymarch cost with the SDF Raymarch. Connect **out** to the SDF Raymarch **sdf** port. **Float** parameters support timeline automation and audio where marked; **Iterations** is a capped int, no audio, same policy as KIFS / Menger.",
       "inputs": [
         {
           "name": "position",
           "type": "vec3",
-          "description": "3D position to evaluate the SDF (from raymarcher when connected; otherwise Pos X/Y/Z)",
+          "description": "3D sample position. When wired, use the raymarcher sample; when unwired, **Pos X**, **Pos Y**, **Pos Z** under Manual position.",
           "suggestedSources": [
             "type:vec3",
             "node:constant-vec3"
@@ -7216,7 +7087,7 @@
         {
           "name": "out",
           "type": "float",
-          "description": "Signed distance to the fractal surface (sphere-core DE)",
+          "description": "Signed distance to the fractal surface; sphere-core estimate.",
           "suggestedTargets": [
             "node:generic-raymarcher",
             "node:mix",
@@ -7254,10 +7125,10 @@
       ]
     },
     "node:julia-slab-sdf": {
-      "title": "Julia slab SDF",
+      "title": "Julia Slab SDF",
       "titleType": "node",
       "tagline": "2D Julia escape field in a thin 3D slab (not Mandelbulb topology)",
-      "description": "Outputs a signed distance field from a **2D quadratic Julia** iteration **z ← z² + c** on **XY** (scaled), using an **exterior distance estimate** when |z| exceeds the escape radius: **0.5·log(max(|z|,ε))·|z| / |dz/dz0|**, then combines with a **slab** around **z = 0** via **max(|z₃| − halfThickness, d_fractal)** so the visible surface is a thin band with fractal boundary detail. **Not** a 3D Mandelbulb or orbital Julia in vec4. Connect **position** to the Generic SDF Raymarcher path and wire **out** to the raymarcher **sdf** port. Float parameters (**Julia c.x / c.y**, **XY scale**, **slab half-thickness**, **escape radius**) support timeline automation and audio where marked; **max iterations** is an int (no audio) to keep preview cost predictable—raise it only when needed.",
+      "description": "Outputs a signed distance field from a **2D quadratic Julia** iteration **z ← z² + c** on **XY** (scaled), using an **exterior distance estimate** when |z| exceeds the escape radius: **0.5·log(max(|z|,ε))·|z| / |dz/dz0|**, then combines with a **slab** around **z = 0** via **max(|z₃| − halfThickness, d_fractal)** so the visible surface is a thin band with fractal boundary detail. **Not** a 3D Mandelbulb or orbital Julia in vec4. Connect **position** into the **SDF Raymarch** chain and wire **out** → **sdf**. Float parameters (**Julia c.x / c.y**, **XY scale**, **slab half-thickness**, **escape radius**) support timeline automation and audio where marked; **max iterations** is an int (no audio) to keep preview cost predictable—raise it only when needed.",
       "inputs": [
         {
           "name": "position",
@@ -7314,13 +7185,13 @@
     "node:mandelbulb-sdf": {
       "title": "Mandelbulb SDF",
       "titleType": "node",
-      "tagline": "Classic Mandelbulb distance field for the generic SDF raymarcher",
-      "description": "Triplex (spherical-coordinate) Mandelbulb iteration with a clamped distance-estimation step. Connect the distance output to the Generic Raymarcher SDF port; the raymarcher supplies world position at each step. Parameters: Power and Iterations shape the fractal (higher iterations cost more per step—raise Raymarcher Steps if you raise iterations). Bailout and DE fudge live under Advanced: they change the DE scale; animating them quickly often causes flicker or shimmering. Hybrid mix blends the DE estimate with a simple outer sphere for stability when dialed up. Power is an integer (no audio/animation by default) to avoid stepped pops when automating.",
+      "tagline": "Classic Mandelbulb distance field for **SDF Raymarch**",
+      "description": "Triplex Mandelbulb iteration with a clamped distance-estimation step. Wire **out** to **sdf** on **SDF Raymarch**. **Power** is an integer **2–24** with no audio or animation—it shapes the fractal without stepped automation pops; values above ~12 often need more **Steps** on **SDF Raymarch** alongside higher **Iterations**. **Bailout** and **DE fudge** under **Advanced DE** rescale the estimate—fast automation there often flickers. **Sphere blend** mixes DE with a simple outer sphere cap for stability at some cost to fidelity.",
       "inputs": [
         {
           "name": "position",
           "type": "vec3",
-          "description": "Sample position (from raymarcher evaluation point p when wired through the SDF chain)",
+          "description": "Sample position on the raymarch SDF chain, usually the marching evaluation point",
           "suggestedSources": [
             "type:vec3",
             "node:constant-vec3"
@@ -7360,20 +7231,23 @@
         ]
       },
       "relatedItems": [
+        "node:displacement-3d",
         "node:generic-raymarcher",
         "node:julia-slab-sdf",
         "node:kifs-sdf",
+        "node:mandelbox-sdf",
         "node:menger-sponge-sdf",
         "node:orbit-camera",
         "type:vec3"
       ],
-      "advanced": "Strong warning: fast automation or audio on Bailout or DE fudge tends to flicker because the DE field is not Lipschitz-continuous under those moves. Prefer slow sweeps or small ranges. If the preview noise increases, lower Iterations first, then increase Raymarcher Steps on the raymarcher node."
+      "advanced": "Strong warning: fast automation or audio on **Bailout** or **DE fudge** tends to flicker because the distance field is not tame under those moves. Prefer slow sweeps or small ranges. If the preview gets noisy, lower **Iterations** first, then raise **Steps** on **SDF Raymarch**. **Sphere blend** is the stability lever when the DE field gets harsh."
     },
     "node:ether-sdf": {
       "title": "Ether SDF",
       "titleType": "node",
       "tagline": "3D SDF for Ether-fork style volumetric blobs: time-rotated domain and layered sine",
-      "description": "Outputs a signed distance field (SDF) for the Ether-fork style effect: time-based 3D rotations (XZ and XY planes) and a composite formula (radial term plus layered sine). Connect to Generic SDF Raymarcher as the SDF input. Parameters: Rotate XZ/XY, Time Speed/Offset, Scale, Wobble Speed, Sine Amp, Position X/Y/Z. Position shifts the Ether field in 3D space (center offset), even when used as the raymarcher SDF. Set Time Speed to 0 to freeze the effect. Reference: Shadertoy ltfXzj (Ether by nimitz).",
+      "description": "Outputs a signed distance field (SDF) for the Ether-fork style effect: time-based 3D rotations (XZ and XY planes) and a composite formula (radial term plus layered sine). Connect to SDF Raymarch as the SDF input. Parameters: Rotate XZ/XY, Time Speed/Offset, Scale, Wobble Speed, Sine Amp; Pos X/Y/Z (center); Breathe amt/speed (Z-only bob). Set Time Speed to 0 to freeze. Reference: Shadertoy ltfXzj (Ether by nimitz).",
+      "advanced": "Very high Scale, Sine Amp, or Wobble Speed—or fast automation/audio on them—can make the march noisier; ease values or raise **Steps** on **SDF Raymarch**.",
       "inputs": [
         {
           "name": "position",
@@ -7482,15 +7356,15 @@
       ]
     },
     "node:generic-raymarcher": {
-      "title": "Generic SDF Raymarcher",
+      "title": "SDF Raymarch",
       "titleType": "node",
-      "tagline": "Raymarch a scene using an SDF from the graph (vec3 → float); optional ro/rd and hit color output",
-      "description": "Raymarch loop that uses a graph-derived SDF. Connect a node with vec3 position in and float out (e.g. Repeated Hex Prism SDF, Radial Repeat SDF) to the SDF input. Optionally connect Orbit Camera (or other) ro/rd for custom camera; optionally 3D Displacement. Output out (float) is glow; optional output color (vec3) is hit-position color with step-count fog (black on miss). Parameters: steps, glow, brightness; camera Ro X/Y/Z when ro/rd unconnected. Float parameters on SDF and displacement nodes used by generic-raymarcher now honor parameter input connections and automation with the same precedence rules as other nodes: automation lanes first, then parameter inputs (combined using the parameter's input mode), then uniforms or default values.",
+      "tagline": "Graph SDF raymarch: **Glow** reads stylized along the ray; **Color** is hit tint with fog. Optional camera and displacement.",
+      "description": "Marches rays through an SDF you connect to **sdf** — float distance from nodes with a **Position** input, e.g. Repeated Hex Prism SDF, Radial Repeat SDF, Ether SDF. The march loop passes the current sample **Position** into that subgraph each step, so you usually wire only **sdf** from the SDF primitive. Feed **Screen position**, often UV Coords via Orbit Camera, so each pixel gets its own ray. **Glow** is an emissive-style scalar along the march, not lit PBR; use **Color** or downstream grading for readable surface color. Optionally wire **Displacement** and camera **ro**/**rd**. On **WebGPU** (MVP preview), if **sdf** is unwired or the connected SDF node is not in the supported allow-list, **Glow** and **Color** are zero (black)—there is no implicit fallback distance.",
       "inputs": [
         {
           "name": "in",
           "type": "vec2",
-          "description": "UV or screen-space coordinates (used for default ray direction when rd unconnected)",
+          "description": "Screen position per pixel, e.g. UV Coords; feeds the default ray direction when **rd** is unconnected.",
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates"
@@ -7499,12 +7373,14 @@
         {
           "name": "sdf",
           "type": "float",
-          "description": "SDF from the graph; evaluated at each raymarch step",
+          "description": "Graph SDF distance; evaluated each march step at the displaced sample position.",
           "suggestedSources": [
+            "node:hex-prism-sdf",
             "node:repeated-hex-prism-sdf",
             "node:radial-repeat-sdf",
             "node:kifs-sdf",
             "node:mandelbox-sdf",
+            "node:mandelbulb-sdf",
             "node:menger-sponge-sdf",
             "node:sierpinski-tetra-sdf",
             "node:julia-slab-sdf",
@@ -7522,7 +7398,7 @@
         {
           "name": "ro",
           "type": "vec3",
-          "description": "Ray origin (e.g. from Orbit Camera); when unconnected uses Camera Ro X/Y/Z params",
+          "description": "Ray origin, e.g. from Orbit Camera; when unconnected, **Origin X/Y/Z** apply.",
           "suggestedSources": [
             "node:orbit-camera",
             "node:look-at-camera"
@@ -7531,7 +7407,7 @@
         {
           "name": "rd",
           "type": "vec3",
-          "description": "Ray direction (e.g. from Orbit Camera); when unconnected uses UV-based direction",
+          "description": "Unit ray direction, e.g. from Orbit Camera; when unconnected, derived from **Screen position** as forward rays with z = -1.",
           "suggestedSources": [
             "node:orbit-camera",
             "node:look-at-camera"
@@ -7542,7 +7418,7 @@
         {
           "name": "out",
           "type": "float",
-          "description": "Raymarched result (glow/intensity)",
+          "description": "Stylized **Glow** along the ray — ethereal or volumetric modulation, not a classic depth buffer.",
           "suggestedTargets": [
             "node:mix",
             "node:color-map",
@@ -7552,12 +7428,38 @@
         {
           "name": "color",
           "type": "vec3",
-          "description": "Hit color with depth fog (position-based RGB minus step count); vec3(0) on miss",
+          "description": "Hit color with depth fog: position-based RGB minus step count; zero on miss.",
           "suggestedTargets": [
             "node:final-output",
             "node:mix",
             "node:color-map"
           ]
+        }
+      ],
+      "parameters": [
+        {
+          "name": "Steps",
+          "description": "March iterations — trades quality against cost. Higher = tighter captures / fewer halos; clamped between 16 and 200 in the shader. Not automatable: use the slider so preview cost stays predictable."
+        },
+        {
+          "name": "Glow",
+          "description": "Scales the emissive-style scalar along the ray. Often pairs with **Color Map**, **Brightness**, or **Mix**."
+        },
+        {
+          "name": "Brightness",
+          "description": "Exposure multiplier stacked with Glow for the scalar output."
+        },
+        {
+          "name": "Origin X",
+          "description": "Fallback ray origin X when **ro** is unplugged."
+        },
+        {
+          "name": "Origin Y",
+          "description": "Fallback ray origin Y when **ro** is unplugged."
+        },
+        {
+          "name": "Origin Z",
+          "description": "Fallback ray origin Z when **ro** is unplugged."
         }
       ],
       "setupExampleGraph": {
@@ -7579,6 +7481,7 @@
           { "from": "e", "fromPort": "out", "to": "f", "toPort": "in" }
         ]
       },
+      "advanced": "Upstream SDF/displacement subgraphs obey the usual parameter precedence: timeline automation when armed, then parameter-port inputs respecting each input mode, then fixed slider/uniform defaults.",
       "relatedItems": [
         "node:orbit-camera",
         "node:repeated-hex-prism-sdf",
@@ -7588,59 +7491,11 @@
         "node:sphere-raymarch"
       ]
     },
-    "node:cylinder-cone": {
-      "title": "Cylinder & Cone",
-      "titleType": "node",
-      "tagline": "3D cylinder and cone primitives using signed distance fields and raymarching",
-      "description": "Renders 3D cylinder and cone shapes using signed distance fields (SDF) with raymarching. Choose Cylinder (radius and height) or Cone (base radius and height). Position, size, and rotation groups match the SDF node pattern. Use UV as input; output is a float suitable for mix, color-map, or final output. Ideal for pillars, cones, and rounded 3D primitives in a 2D shader.",
-      "inputs": [
-        {
-          "name": "in",
-          "type": "vec2",
-          "description": "Input UV coordinates to raymarch from",
-          "suggestedSources": [
-            "type:vec2",
-            "node:uv-coordinates"
-          ]
-        }
-      ],
-      "outputs": [
-        {
-          "name": "out",
-          "type": "float",
-          "description": "SDF raymarched result (distance-based value with glow)",
-          "suggestedTargets": [
-            "node:mix",
-            "node:color-map",
-            "node:final-output"
-          ]
-        }
-      ],
-      "setupExampleGraph": {
-        "nodes": [
-          { "id": "a", "type": "uv-coordinates" },
-          { "id": "b", "type": "cylinder-cone" },
-          { "id": "c", "type": "color-map" },
-          { "id": "d", "type": "final-output" }
-        ],
-        "connections": [
-          { "from": "a", "fromPort": "out", "to": "b", "toPort": "in" },
-          { "from": "b", "fromPort": "out", "to": "c", "toPort": "in" },
-          { "from": "c", "fromPort": "out", "to": "d", "toPort": "in" }
-        ]
-      },
-      "relatedItems": [
-        "node:box-torus-sdf",
-        "node:sphere-raymarch",
-        "type:vec2",
-        "node:normalize"
-      ]
-    },
     "node:iridescent-tunnel": {
       "title": "Iridescent Tunnel",
       "titleType": "node",
       "tagline": "Volumetric raymarched infinite cylinders in 3D repeated, warped space with view-dependent iridescent coloring",
-      "description": "Renders an infinite tunnel of repeating cylinders in 3D space with warp, Z-rotation, and soft volumetric accumulation. View-dependent iridescent coloring gives a shifting hue based on viewing angle. Parameters: repetition scale (cell size), tube size, warp frequency and strength, camera speed, rotation speed, raymarch steps, density, and iridescence mix and color shift. Connect UV to in; output is vec4 for Final Output or blending with mix/blend-mode.",
+      "description": "Renders an infinite tunnel of repeating cylinders in 3D space with warp, Z-rotation, and soft volumetric accumulation. Center X/Y use the same space as your UV input: with UV Coordinates (symmetric screen space around the middle), defaults keep the focal point centered; lower min / raise max on the sliders to pan farther in any direction, including farther past the corners. View-dependent iridescent coloring mixes two OKLCH-picked colors based on viewing angle (Color A / Color B). Parameters: center, colors (OKLCH), repetition scale (cell size), tube radius, warp frequency and strength, camera speed, rotation, zoom (field of view), raymarch steps, density, iridescence mix and color shift. Connect UV to in; output is vec4 RGBA for blending with Mix or Blend mode. Wiring straight into Final Output uses RGB only (alpha is dropped there), matching typical fullscreen output—use Blend/Mix nodes if you need the stored alpha.",
       "inputs": [
         {
           "name": "in",
@@ -7658,7 +7513,7 @@
         {
           "name": "out",
           "type": "vec4",
-          "description": "RGBA color; connect to Final Output or blend with other nodes",
+          "description": "RGBA color; connect to Final Output for fullscreen (RGB only; alpha discarded) or to Mix / Blend mode to combine with other layers",
           "suggestedTargets": [
             "node:final-output",
             "node:blend-mode",
@@ -7680,17 +7535,17 @@
       },
       "relatedItems": [
         "node:sphere-raymarch",
-        "node:cylinder-cone",
+        "node:box-torus-sdf",
         "node:volume-rays",
         "type:vec2",
         "type:vec4"
       ]
     },
     "node:inflated-icosahedron": {
-      "title": "Inflated Icosahedron",
+      "title": "Icosahedron",
       "titleType": "node",
       "tagline": "Raymarched 3D inflated icosahedron with domain folding, twist, per-face palette, soft shadows and lighting",
-      "description": "Renders a raymarched 3D inflated icosahedron with icosahedron domain folding (knighty), twist around the nearest vertex (tdhooper), optional 3D polar repetition for seamless looping, per-face IQ-style palette coloring, soft shadows, ambient occlusion, and full lighting. Connect Screen position (e.g. UV Coords) to in; optionally connect Orbit Camera ro/rd to share camera. Output is vec3 RGB for Final Output or color nodes.",
+      "description": "Renders a raymarched 3D inflated icosahedron with icosahedron domain folding (knighty), twist around the nearest vertex (tdhooper), optional 3D polar repetition for seamless looping, per-face IQ-style palette coloring, soft shadows, ambient occlusion, and lighting. **Look:** Palette hue shifts the face rainbow; shape size scales the SDF; light angle spins the key light around the vertical axis; contrast adjusts shaded midtones. **Background** (collapsible): inner/outer OKLCH color pickers define the screen-space gradient and gradient radius sets how far from center the blend reaches. Connect Screen position (e.g. UV Coords) to in; optionally connect camera ro/rd. Output is vec3 RGB.",
       "inputs": [
         {
           "name": "in",
@@ -7756,9 +7611,9 @@
       ]
     },
     "node:iterated-inversion": {
-      "title": "Iterated Inversion",
+      "title": "Spotlight",
       "titleType": "node",
-      "tagline": "Orbiting circle inversions with twist and gaussian blob accumulation for organic flowing blobs",
+      "tagline": "Orbiting circle folds with twist—stack soft tinted blobs into flowing organic color",
       "description": "Runs an internal loop of circle inversions around an orbiting center with angle twist, accumulating gaussian blobs into a vec3 color. Based on the \"Inversion 2\" effect (Inigo Quilez, Shadertoy 4t3SzN). Uses aspect-correct UV so circles stay round. Parameters: iterations, time speed, twist, orbit radius, scale (zoom); appearance: blob strength, sharpness, exposure; color: hue offset, hue spread, hue angle. Connect UV to in; output to Final Output or Color Grading.",
       "inputs": [
         {
@@ -7858,15 +7713,15 @@
       "examples": [
         "Connect UV to in; output to Color Map or Mix for 3D metaballs (soft blobs that merge where fields overlap).",
         "Use with Orbit Camera or built-in orbit; adjust blob count, radius, threshold, and orbit radius for shape and motion.",
-        "Feed output to Color Map or Mix for shading; layer with Primitives or Sphere Raymarch for mixed 3D scenes."
+        "Feed output to Color Map or Mix for shading; layer with Primitives or Raymarch Sphere for mixed 3D scenes."
       ],
       "advanced": "Metaball surface is where the sum of blob influence fields exceeds a threshold; blobs orbit the scene center. More blobs (2–6) and higher raymarch steps improve quality at higher cost."
     },
     "node:sky-dome": {
-      "title": "Sky / Dome",
+      "title": "Skydome",
       "titleType": "node",
-      "tagline": "Procedural sky dome with zenith/horizon gradient and optional sun disc for backgrounds",
-      "description": "Outputs a procedural sky as vec4 (RGBA) suitable for use behind raymarched 3D scenes. Sky color is blended from horizon to zenith; an optional sun disc is added when the view ray is close to the sun direction. Use Sky group to set zenith and horizon RGB and horizon sharpness; use Sun group to set direction (X,Y,Z), radius (radians), and intensity. Connect UV (e.g. from UV Coords) to in; connect out to mix, final output, or blend-mode nodes.",
+      "tagline": "Procedural sky dome with zenith/horizon gradient, optional sun disc, and a virtual camera (FOV, yaw, pitch, roll)",
+      "description": "Outputs a procedural sky as vec4 (RGBA) suitable for use behind raymarched 3D scenes. Sky color is blended from horizon to zenith; an optional sun disc is added when the view ray is close to the sun direction. Use Sky group to set zenith and horizon as OKLCH colors (click the swatches for the picker, or edit L/C/H directly) and horizon softness; Sun group sets direction (Dir X/Y/Z), radius (radians), and intensity; View group sets the virtual camera — FOV (degrees), yaw/pitch (XY pad: pan and tilt), and roll. Connect UV (e.g. from UV Coords) to in; connect out to mix, final output, or blend-mode nodes.",
       "inputs": [
         {
           "name": "in",
@@ -7888,7 +7743,7 @@
           "suggestedTargets": [
             "node:mix",
             "node:final-output",
-            "node:blending-modes"
+            "node:blend-color"
           ]
         }
       ],
@@ -7910,51 +7765,12 @@
         "type:vec4"
       ],
       "examples": [
-        "Connect UV to in; output to Mix or Final Output as background behind raymarched 3D (e.g. Primitives, Sphere Raymarch, Generic SDF Raymarcher).",
-        "Set zenith and horizon colors in Sky group; add a sun disc with Sun direction and radius for a full sky look.",
+        "Connect UV to in; output to Mix or Final Output as background behind raymarched 3D (e.g. Primitives, Raymarch Sphere, SDF Raymarch).",
+        "Click the Sky swatches to open the OKLCH color picker (or tweak L/C/H knobs directly); add a sun disc with Sun direction and radius for a full sky look.",
+        "Use the View group to frame the sky: FOV widens or narrows the dome, the Yaw/Pitch pad pans and tilts the virtual camera, and Roll cants the horizon — useful for matching the camera of a 3D scene mixed underneath.",
         "Use as the second input to Mix with 3D node output (e.g. box-torus-sdf) so the sky shows where the ray misses geometry."
       ],
-      "advanced": "Sky ray direction is derived from UV (same convention as 3D raymarch cameras). Sun disc is drawn when the view ray is close to the sun direction; intensity and radius control size and brightness."
-    },
-    "node:blending-modes": {
-      "title": "Blending Modes",
-      "titleType": "node",
-      "tagline": "Ideal for combining elements using various blend modes like multiply, screen, overlay, and more",
-      "description": "Applies blending modes to combine two color inputs, similar to layer blending in image editing software. The node supports multiple blend modes including Normal, Multiply, Screen, Overlay, Soft Light, Hard Light, Color Dodge, Color Burn, and more. Each mode produces different visual effects when combining colors. The blend can be controlled by opacity, and the blend source can come from the second input, a constant value, noise, or wave patterns. This is essential for creating complex compositing effects and layering multiple elements together.",
-      "inputs": [
-        {
-          "name": "in",
-          "type": "vec4",
-          "description": "The base color to blend with the blend input"
-        }
-      ],
-      "outputs": [
-        {
-          "name": "out",
-          "type": "vec4",
-          "description": "The blended color result"
-        }
-      ],
-      "relatedItems": [
-        "node:blend-mode",
-        "node:mix",
-        "type:vec4"
-      ],
-      "setupExampleGraph": {
-        "nodes": [
-          { "id": "a", "type": "uv-coordinates" },
-          { "id": "b", "type": "noise" },
-          { "id": "c", "type": "color-map" },
-          { "id": "d", "type": "blending-modes" },
-          { "id": "e", "type": "final-output" }
-        ],
-        "connections": [
-          { "from": "a", "fromPort": "out", "to": "b", "toPort": "in" },
-          { "from": "b", "fromPort": "out", "to": "c", "toPort": "in" },
-          { "from": "c", "fromPort": "out", "to": "d", "toPort": "in" },
-          { "from": "d", "fromPort": "out", "to": "e", "toPort": "in" }
-        ]
-      }
+      "advanced": "Sky ray direction is derived from UV with an adjustable virtual camera. The default FOV of 90° reproduces the legacy fixed projection (uv*2-1, -1.0); shrinking FOV zooms in, widening it shows more of the dome. Yaw rotates around vertical, pitch tilts around horizontal, and roll rotates around the forward axis (applied as roll → pitch → yaw). Horizon softness widens the horizon→zenith blend band. Sun disc is drawn when the view ray is close to the sun direction; intensity and radius (radians) control brightness and size. Colors are stored in OKLCH for perceptually uniform editing and tween better than raw RGB."
     },
     "node:block-displacement": {
       "title": "Block Displacement",
@@ -8019,6 +7835,8 @@
           "suggestedTargets": [
             "node:select",
             "node:mix",
+            "node:mask-composite-float",
+            "node:mask-composite-vec3",
             "node:step",
             "node:gradient-mask"
           ]
@@ -8041,13 +7859,16 @@
       },
       "relatedItems": [
         "node:select",
+        "node:mask-composite-float",
+        "node:mask-composite-vec3",
         "node:step",
         "type:float"
       ],
       "examples": [
         "Compare Noise or Distance to a threshold (e.g. equal, greater) for binary masks.",
         "Use output as condition for Select to pick one of two values.",
-        "Drive Mix factor or gradient mask from comparison (1.0 or 0.0)."
+        "Drive Mix factor or gradient mask from comparison (1.0 or 0.0).",
+        "Feed Mask BW or Mask Color mask inputs for sharp region splits (1.0 or 0.0)."
       ],
       "advanced": "Output is 1.0 when condition true, 0.0 otherwise. For smooth transitions use Smoothstep; for hard edges use Step."
     },
@@ -8101,6 +7922,8 @@
             "node:mix",
             "node:color-map",
             "node:final-output",
+            "node:mask-composite-float",
+            "node:mask-composite-vec3",
             "node:gradient-mask"
           ]
         }
@@ -8124,15 +7947,23 @@
       },
       "relatedItems": [
         "node:compare",
+        "node:mask-composite-float",
+        "node:mask-composite-vec3",
         "node:mix",
         "type:float"
-      ]
+      ],
+      "examples": [
+        "Wire Compare or Step into Condition for hard branching between two floats or colors.",
+        "Choose between two Color Map outputs for a simple A/B look.",
+        "Use panel If true / If false when ports are unwired; connect If true / If false to override with graph values."
+      ],
+      "advanced": "Condition treats values above 0.5 as true. For grayscale masks near 0.5, small changes can flip the branch—use Smoothstep or clamp if you need stability."
     },
     "node:mask-composite-float": {
       "title": "Mask BW",
       "titleType": "node",
       "tagline": "Composites foreground over background using a float mask; dark areas show background, bright areas show foreground.",
-      "description": "Blends two float values (background and foreground) using a mask. Where the mask is dark (low values), the background appears; where it is bright (high values), the foreground appears. Connect a float mask (e.g. from Noise, Step, or Smoothstep) to the mask input, and set or connect the background and foreground values. Useful for masking patterns, blending values, or driving mix factors.",
+      "description": "Blends two float values (background and foreground) using a mask. Where the mask is dark (low values), the background appears; where it is bright (high values), the foreground appears. Port order matches mix(background, foreground, mask): Background, then Mask, then Foreground. Connect a float mask (e.g. from Noise, Step, or Smoothstep) to the mask input, and set or connect the background and foreground values. Useful for masking patterns, blending values, or driving mix factors.",
       "inputs": [
         {
           "name": "bg",
@@ -8144,7 +7975,7 @@
           "name": "mask",
           "type": "float",
           "description": "Mask value 0–1: dark = bg, bright = fg",
-          "suggestedSources": ["type:float", "node:noise", "node:step", "node:smoothstep"]
+          "suggestedSources": ["type:float", "node:noise", "node:step", "node:smoothstep", "node:compare", "node:select"]
         },
         {
           "name": "fg",
@@ -8183,13 +8014,13 @@
           { "from": "n5", "fromPort": "out", "to": "n6", "toPort": "in" }
         ]
       },
-      "relatedItems": ["node:mask-composite-vec3", "node:compare", "node:mix", "type:float"]
+      "relatedItems": ["node:mask-composite-vec3", "node:compare", "node:select", "node:mix", "type:float"]
     },
     "node:mask-composite-vec3": {
       "title": "Mask Color",
       "titleType": "node",
       "tagline": "Composites colored foreground over colored background using a float mask.",
-      "description": "Blends two colors (vec3 background and foreground) using a mask. Dark mask areas show the background color; bright areas show the foreground. Connect the output of Color Map or another color source to bg and fg, and a float mask to the mask input. Ideal for combining two color layers or applying masks to colored results.",
+      "description": "Blends two colors (vec3 background and foreground) using a mask. Dark mask areas show the background color; bright areas show the foreground. Background and foreground must be wired from other nodes (there are no default color parameters—only Mask has a panel value when unwired). Connect Color Map or other vec3 sources to bg and fg, and a float mask to the mask input. Ideal for combining two color layers or applying masks to colored results.",
       "inputs": [
         {
           "name": "bg",
@@ -8201,7 +8032,7 @@
           "name": "mask",
           "type": "float",
           "description": "Mask 0–1: dark = bg, bright = fg",
-          "suggestedSources": ["type:float", "node:noise", "node:step", "node:smoothstep"]
+          "suggestedSources": ["type:float", "node:noise", "node:step", "node:smoothstep", "node:compare", "node:select"]
         },
         {
           "name": "fg",
@@ -8236,7 +8067,7 @@
           { "from": "n4", "fromPort": "out", "to": "n5", "toPort": "in" }
         ]
       },
-      "relatedItems": ["node:mask-composite-float", "node:color-map", "node:mix", "type:vec3"]
+      "relatedItems": ["node:mask-composite-float", "node:compare", "node:select", "node:color-map", "node:mix", "type:vec3"]
     },
     "node:one-minus": {
       "title": "One Minus",
@@ -8613,7 +8444,7 @@
         {
           "name": "t",
           "type": "float",
-          "description": "The blend factor (typically 0.0 to 1.0)",
+          "description": "Interpolation weight (shown as Mix on the node; typically 0.0 to 1.0)",
           "suggestedSources": [
             "type:float",
             "node:smoothstep",
@@ -8932,6 +8763,16 @@
         "type:float",
         "node:fragment-coordinates"
       ],
+      "parameters": [
+        {
+          "name": "Strength",
+          "description": "Scales the Bayer noise amplitude before clamping onto the incoming float lane."
+        },
+        {
+          "name": "Pixel Size",
+          "description": "Divisor applied to centered fragment coordinates before Bayer indexing—**pixels per Bayer macro-cell** across the framebuffer (same units as `fragCoord`; raise it to enlarge the checker on screen)."
+        }
+      ],
       "setupExampleGraph": {
         "nodes": [
           { "id": "a", "type": "uv-coordinates" },
@@ -8955,8 +8796,8 @@
     "node:tone-mapping": {
       "title": "Tone Mapping",
       "titleType": "node",
-      "tagline": "Perfect for adjusting exposure, contrast, and saturation for final color correction",
-      "description": "Applies tone mapping adjustments to color values, including exposure (brightness), contrast, and saturation. Exposure multiplies the color values to adjust overall brightness. Contrast centers the values around 0.5 and scales them to increase or decrease contrast. Saturation adjusts color intensity by mixing the color with its luminance (grayscale version). These adjustments are essential for final color correction and achieving the desired look. Tone mapping is typically applied near the end of the rendering pipeline to fine-tune the final appearance.",
+      "tagline": "Exposure × contrast pivot × saturation clamped to linear 0–1",
+      "description": "**Exposure** multiplies RGB, **Contrast** pivots mid-gray at 0.5, **Saturation** lerps RGB toward luminance weighted like Rec.709. Output is clamped to **linear 0–1** (`clamp`), so wildly HDR upstream values flatten—pair with deliberate scaling or earlier OKLCH/grade nodes if you routinely exceed 1.0 intentionally.",
       "inputs": [
         {
           "name": "in",

@@ -7,7 +7,7 @@ import type { NodeSpec } from '../../types/nodeSpec';
  */
 export const rainDropsNodeSpec: NodeSpec = {
   id: 'rain-drops',
-  category: 'Patterns',
+  category: 'Distort',
   displayName: 'Rain Drops',
   description:
     'Procedural rain drops on glass: outputs a vec2 UV offset. Subtract from UV and feed to camera for windshield distortion. Uses tiled cells, sawtooth motion, and trails (reference: Shadertoy The Drive Home).',

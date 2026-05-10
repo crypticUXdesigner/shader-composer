@@ -26,40 +26,26 @@
       },
       {
         "id": "node-1771634652219-z42n3i88z",
-        "type": "fisheye",
+        "type": "radial-uv-warp",
         "position": {
           "x": -1426,
           "y": -431
         },
         "parameters": {
-          "fisheyeCenterX": 0,
-          "fisheyeCenterY": 0.20000000000000018,
+          "warpMode": 1,
+          "warpCenterX": 0,
+          "warpCenterY": 0.20000000000000018,
+          "bulgeStrength": 0.5,
+          "bulgeRadius": 1,
+          "bulgeFalloff": 1,
           "fisheyeStrength": -1,
-          "fisheyeAspect": 1.08
+          "fisheyeAspect": 1.08,
+          "spherizeRadius": 1,
+          "spherizeStrength": 1
         },
         "parameterInputModes": {
           "fisheyeStrength": "multiply",
-          "fisheyeCenterY": "multiply"
-        }
-      },
-      {
-        "id": "node-1771634652219-yhkfgad9a",
-        "type": "reaction-diffusion",
-        "position": {
-          "x": 1379,
-          "y": -280
-        },
-        "parameters": {
-          "feedRate": 0.15,
-          "killRate": 0.15,
-          "diffusionA": 4,
-          "diffusionB": 1.5,
-          "scale": 34.8,
-          "steps": 1,
-          "timeSpeed": 5,
-          "timeOffset": 0,
-          "intensity": 1.01,
-          "grainAmount": 0.01
+          "warpCenterY": "multiply"
         }
       },
       {
@@ -92,20 +78,26 @@
       },
       {
         "id": "node-1771634652219-qaas2zqjh",
-        "type": "fisheye",
+        "type": "radial-uv-warp",
         "position": {
           "x": -649,
           "y": -431
         },
         "parameters": {
-          "fisheyeCenterX": 0,
-          "fisheyeCenterY": -0.5,
+          "warpMode": 1,
+          "warpCenterX": 0,
+          "warpCenterY": -0.5,
+          "bulgeStrength": 0.5,
+          "bulgeRadius": 1,
+          "bulgeFalloff": 1,
           "fisheyeStrength": -1,
-          "fisheyeAspect": 1
+          "fisheyeAspect": 1,
+          "spherizeRadius": 1,
+          "spherizeStrength": 1
         },
         "parameterInputModes": {
           "fisheyeStrength": "multiply",
-          "fisheyeCenterY": "multiply"
+          "warpCenterY": "multiply"
         }
       }
     ],
@@ -125,15 +117,8 @@
         "targetPort": "time"
       },
       {
-        "id": "conn-1771634652219-b3jfdctro",
-        "sourceNodeId": "node-1771634652219-xkw1giqvs",
-        "sourcePort": "out",
-        "targetNodeId": "node-1771634652219-yhkfgad9a",
-        "targetPort": "in"
-      },
-      {
         "id": "conn-1771634652219-6r7tdg2x2",
-        "sourceNodeId": "node-1771634652219-yhkfgad9a",
+        "sourceNodeId": "node-1771634652219-xkw1giqvs",
         "sourcePort": "out",
         "targetNodeId": "node-1771634652219-xecqt40l7",
         "targetPort": "in"
@@ -157,7 +142,7 @@
         "sourceNodeId": "audio-signal:remap-remap-f8d4035a-7a6a-45fc-b12f-84d45779dc37",
         "sourcePort": "out",
         "targetNodeId": "node-1771634652219-z42n3i88z",
-        "targetParameter": "fisheyeCenterY"
+        "targetParameter": "warpCenterY"
       },
       {
         "id": "conn-1771635138462-97by79c64",
@@ -178,7 +163,7 @@
         "sourceNodeId": "audio-signal:remap-remap-f8d4035a-7a6a-45fc-b12f-84d45779dc37",
         "sourcePort": "out",
         "targetNodeId": "node-1771634652219-qaas2zqjh",
-        "targetParameter": "fisheyeCenterY"
+        "targetParameter": "warpCenterY"
       }
     ],
     "viewState": {

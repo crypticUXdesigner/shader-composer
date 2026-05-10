@@ -19,6 +19,7 @@ Context: **`AGENTS.md`**, **`core/project-conventions.mdc`** (immutable graph, u
 | CI / Pages green | `/prepare-commit` (`npm run verify:pages`) |
 | Post-project QA pass | `/review-project` |
 | Architecture findings → maybe WPs | `/review-architecture` |
+| Structured pass on one shader node (impl + UX) | `/review-node` |
 | Performance findings → maybe WPs | `/review-performance` |
 | Capture investigated bug | `/write-bug` |
 | Close loop on `docs/bug/` report | `/review-bug` |

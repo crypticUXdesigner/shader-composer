@@ -67,8 +67,12 @@
   const allTypes = $derived.by(() => {
     const set = new Set<string>();
     for (const spec of nodeSpecs) {
-      for (const input of spec.inputs) set.add(input.type);
-      for (const output of spec.outputs) set.add(output.type);
+      for (const input of spec.inputs) {
+        if (input.type !== 'any') set.add(input.type);
+      }
+      for (const output of spec.outputs) {
+        if (output.type !== 'any') set.add(output.type);
+      }
     }
     return Array.from(set).sort();
   });
@@ -88,9 +92,12 @@
 
     if (selectedTypes.size > 0) {
       filtered = filtered.filter((spec) => {
+        const hasAnyPort =
+          spec.inputs.some((i) => i.type === 'any') ||
+          spec.outputs.some((o) => o.type === 'any');
         const hasInputType = spec.inputs.some((i) => selectedTypes.has(i.type));
         const hasOutputType = spec.outputs.some((o) => selectedTypes.has(o.type));
-        return hasInputType || hasOutputType;
+        return hasAnyPort || hasInputType || hasOutputType;
       });
     }
 

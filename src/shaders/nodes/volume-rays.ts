@@ -3,9 +3,9 @@ import type { NodeSpec } from '../../types/nodeSpec';
 export const volumeRaysNodeSpec: NodeSpec = {
   id: 'volume-rays',
   category: 'Patterns',
-  displayName: 'Volume Rays',
-  description: 'Accumulates glow/density along the view ray using raymarching and 3D noise',
-  icon: 'glow',
+  displayName: 'Cloud Fog',
+  description: 'Volumetric fog/density mask with raymarched 3D noise, camera controls, falloff, contrast, and drift',
+  icon: 'cloud',
   inputs: [
     {
       name: 'in',
@@ -17,7 +17,7 @@ export const volumeRaysNodeSpec: NodeSpec = {
     {
       name: 'out',
       type: 'float',
-      label: 'Color'
+      label: 'Density'
     }
   ],
   parameters: {
@@ -43,7 +43,31 @@ export const volumeRaysNodeSpec: NodeSpec = {
       min: 0.5,
       max: 10.0,
       step: 0.1,
-      label: 'Density Scale'
+      label: 'Noise Scale'
+    },
+    volumeThreshold: {
+      type: 'float',
+      default: 0.42,
+      min: 0.0,
+      max: 1.0,
+      step: 0.01,
+      label: 'Threshold'
+    },
+    volumeContrast: {
+      type: 'float',
+      default: 2.5,
+      min: 0.25,
+      max: 8.0,
+      step: 0.05,
+      label: 'Contrast'
+    },
+    volumeFalloff: {
+      type: 'float',
+      default: 0.12,
+      min: 0.0,
+      max: 1.0,
+      step: 0.01,
+      label: 'Distance Falloff'
     },
     volumeIntensity: {
       type: 'float',
@@ -52,6 +76,15 @@ export const volumeRaysNodeSpec: NodeSpec = {
       max: 3.0,
       step: 0.01,
       label: 'Intensity'
+    },
+    volumeTimeSpeed: {
+      type: 'float',
+      default: 0.2,
+      min: -2.0,
+      max: 2.0,
+      step: 0.001,
+      label: 'Drift Speed',
+      knobPolarity: 'two-sided'
     },
     cameraPosX: {
       type: 'float',
@@ -102,6 +135,66 @@ export const volumeRaysNodeSpec: NodeSpec = {
       label: 'FOV Scale'
     }
   },
+  parameterGroups: [
+    {
+      id: 'volume-density',
+      label: 'Density',
+      parameters: ['volumeDensityScale', 'volumeThreshold', 'volumeContrast', 'volumeFalloff'],
+      collapsible: true,
+      defaultCollapsed: false
+    },
+    {
+      id: 'volume-quality',
+      label: 'Raymarch',
+      parameters: ['volumeSteps', 'volumeStepSize'],
+      collapsible: true,
+      defaultCollapsed: false
+    },
+    {
+      id: 'volume-camera',
+      label: 'Camera',
+      parameters: ['cameraPosX', 'cameraPosY', 'cameraPosZ', 'cameraYaw', 'cameraPitch', 'cameraFovScale'],
+      collapsible: true,
+      defaultCollapsed: false
+    },
+    {
+      id: 'volume-output',
+      label: 'Output',
+      parameters: ['volumeIntensity', 'volumeTimeSpeed'],
+      collapsible: true,
+      defaultCollapsed: false
+    }
+  ],
+  parameterLayout: {
+    minColumns: 2,
+    elements: [
+      {
+        type: 'grid',
+        label: 'Density',
+        parameters: ['volumeDensityScale', 'volumeThreshold', 'volumeContrast', 'volumeFalloff'],
+        layout: { columns: 2 }
+      },
+      {
+        type: 'grid',
+        label: 'Raymarch',
+        parameters: ['volumeSteps', 'volumeStepSize'],
+        layout: { columns: 2 }
+      },
+      {
+        type: 'grid',
+        label: 'Camera',
+        parameters: ['cameraPosX', 'cameraPosY', 'cameraPosZ', 'cameraYaw', 'cameraPitch', 'cameraFovScale'],
+        parameterUI: { cameraPosX: 'coords', cameraPosY: 'coords' },
+        layout: { columns: 2, coordsSpan: 2 }
+      },
+      {
+        type: 'grid',
+        label: 'Output',
+        parameters: ['volumeIntensity', 'volumeTimeSpeed'],
+        layout: { columns: 2 }
+      }
+    ]
+  },
   functions: `
 float hash11(float n) {
   return fract(sin(n) * 43758.5453);
@@ -127,6 +220,14 @@ float vnoise3(vec3 p) {
   float y1 = mix(x01, x11, w.y);
   return mix(y0, y1, w.z);
 }
+
+float volumeRaysFbm(vec3 p) {
+  float value = 0.0;
+  value += 0.55 * vnoise3(p);
+  value += 0.30 * vnoise3(p * 2.07 + vec3(17.1, 3.7, 11.3));
+  value += 0.15 * vnoise3(p * 4.03 + vec3(5.4, 19.2, 2.8));
+  return value;
+}
 `,
   mainCode: `
   float yaw = $param.cameraYaw;
@@ -140,18 +241,25 @@ float vnoise3(vec3 p) {
   vec3 ro = vec3($param.cameraPosX, $param.cameraPosY, $param.cameraPosZ);
   float stepSize = $param.volumeStepSize;
   float densityScale = $param.volumeDensityScale;
+  float threshold = $param.volumeThreshold;
+  float contrast = max($param.volumeContrast, 0.001);
+  float falloff = $param.volumeFalloff;
   int steps = int(clamp(float($param.volumeSteps), 8.0, 128.0));
   float acc = 0.0;
   float z = 0.0;
   for (int i = 0; i < 128; i++) {
     if (i >= steps) break;
     vec3 pos = ro + z * rd;
-    float dens = vnoise3(pos * densityScale + vec3(0.0, 0.0, $time * 0.2)) * 0.5 + 0.5;
-    acc += dens * stepSize;
+    vec3 drift = vec3(0.0, 0.0, $time * $param.volumeTimeSpeed);
+    float cloud = volumeRaysFbm(pos * densityScale + drift);
+    float edgeWidth = max(0.02, 1.0 / contrast);
+    float dens = smoothstep(threshold, threshold + edgeWidth, cloud);
+    float distanceFade = exp(-z * falloff);
+    acc += dens * stepSize * distanceFade;
     z += stepSize;
     if (z > 20.0) break;
   }
-  float norm = clamp(acc * 0.15, 0.0, 1.0);
+  float norm = clamp(1.0 - exp(-acc * 0.75), 0.0, 1.0);
   $output.out += norm * $param.volumeIntensity;
 `
 };

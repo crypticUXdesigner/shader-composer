@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShaderNoice — WebGPU golden parity harness</title>
+</head>
+<body>
+  <main style="font-family:system-ui,sans-serif;padding:1rem 1.25rem;max-width:42rem;line-height:1.5;">
+    <h1 style="font-size:1rem;font-weight:600;margin:0 0 0.75rem;">WebGPU golden parity harness</h1>
+    <p style="margin:0 0 1rem;color:#444;">
+      Compares WebGL and WebGPU for fixed MVP graphs.
+      The <strong>test</strong> is running that comparison: use <strong>Run parity</strong> below (or the Console). This page only shows instructions until you run it.
+    </p>
+
+    <div id="webgpu-golden-ui" style="margin:1rem 0;padding:1rem;background:#f4f4f7;border-radius:8px;border:1px solid #dcdce4;"></div>
+
+    <ol style="margin:0;padding-left:1.35rem;">
+      <li>Serve via Vite: <code>npm run dev</code> or <code>npm run preview</code> (app <code>base</code> is <code>/ShaderNoice/</code>).</li>
+      <li>Open this page under that base, e.g. <code>http://localhost:3000/ShaderNoice/webgpu-golden-harness.html</code> (port may differ).</li>
+      <li>Click <strong>Run parity (all fixtures)</strong> above, or in the Console: <code>await window.__webgpuGolden.runAll()</code>. If the API is missing, check Console/Network for a failed script (wrong path or <code>file://</code>).</li>
+    </ol>
+
+    <p style="margin:1rem 0 0;font-size:0.85rem;color:#555;">
+      <strong>Notes:</strong>
+      Without <code>await</code> you only see a pending <code>Promise</code>.
+      <code>window.__webgpuGolden?.runAll()</code> returns <code>undefined</code> if the harness did not load; use <code>__WEBGPU_GOLDEN_READY</code> to verify.
+      Headless/scripted runs: <code>npm run test:webgpu-golden</code>.
+    </p>
+  </main>
+
+  <!-- Relative to this document URL so `/ShaderNoice/` base works (absolute `/src/...` skips base and breaks in some setups). -->
+  <script type="module" src="./src/validation/webgpuGoldenHarnessMain.ts"></script>
+</body>
+</html>

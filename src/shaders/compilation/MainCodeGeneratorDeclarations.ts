@@ -17,18 +17,24 @@ export function getOutputInitialValue(type: string, _nodeType: string): string {
 /**
  * Build variable declarations and validate that all referenced variables are declared.
  * Used by MainCodeGenerator.generateMainCode.
+ *
+ * `activeNodeIds`, when provided, restricts declarations to nodes that will actually emit
+ * code. This is used by the per-node Power feature to ensure bypassed nodes contribute no GPU
+ * code at all (no dead variable declarations for nodes dropped from the execution order).
  */
 export function buildVariableDeclarations(
   graph: NodeGraph,
   nodeSpecs: Map<string, NodeSpec>,
   variableNames: Map<string, Map<string, string>>,
   getOutputInitialValueFn: (type: string, nodeType: string) => string,
-  effectiveNodeSpecsById?: Map<string, NodeSpec>
+  effectiveNodeSpecsById?: Map<string, NodeSpec>,
+  activeNodeIds?: ReadonlySet<string>
 ): { variableDeclarations: string[]; declaredVars: Set<string> } {
   const variableDeclarations: string[] = [];
   const declaredVars = new Set<string>();
 
   for (const node of graph.nodes) {
+    if (activeNodeIds && !activeNodeIds.has(node.id)) continue;
     const nodeSpec = effectiveNodeSpecsById?.get(node.id) ?? nodeSpecs.get(node.type);
     if (!nodeSpec) continue;
 

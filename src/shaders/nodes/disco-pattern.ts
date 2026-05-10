@@ -9,7 +9,8 @@ export const discoPatternNodeSpec: NodeSpec = {
   id: 'disco-pattern',
   category: 'Patterns',
   displayName: 'Disco Pattern',
-  description: 'Diamond-grid pattern with per-cell hash color (RGB) and edge term (alpha). Output vec4 for layering with multiply; use .rgb to Final Output or Color Map.',
+  description:
+    'Diamond-grid pattern with per-cell hash color (RGB) and edge term (alpha). Useful as vec4 for multiply layers. Wiring straight to Output uses RGB only—the edge stays in alpha; use Mix, Blend Mode, or masks to expose it.',
   icon: 'dots',
   inputs: [
     { name: 'in', type: 'vec2', label: 'UV' }
@@ -32,16 +33,18 @@ export const discoPatternNodeSpec: NodeSpec = {
       min: -10.0,
       max: 10.0,
       step: 0.01,
-      label: 'Phase X',
-      knobPolarity: 'two-sided' },
+      label: 'Offset X',
+      knobPolarity: 'two-sided'
+    },
     phaseOffsetY: {
       type: 'float',
       default: 0.0,
       min: -10.0,
       max: 10.0,
       step: 0.01,
-      label: 'Phase Y',
-      knobPolarity: 'two-sided' }
+      label: 'Offset Y',
+      knobPolarity: 'two-sided'
+    }
   },
   parameterLayout: {
     elements: [

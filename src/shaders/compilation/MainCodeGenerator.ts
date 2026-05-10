@@ -79,12 +79,16 @@ export class MainCodeGenerator {
     functionNameMap: Map<string, Map<string, string>> = new Map(),
     effectiveNodeSpecsById?: Map<string, NodeSpec>
   ): { variableDeclarations: string; mainCode: string; genericRaymarcherSdfFunctions: string } {
+    // Per-node Power: restrict variable declarations to nodes still in `executionOrder` so
+    // bypassed nodes contribute no dead `vec3 node_x_y = vec3(0.0);` declarations.
+    const activeNodeIds = new Set(executionOrder);
     const { variableDeclarations: declLines } = buildVariableDeclarations(
       graph,
       this.nodeSpecs,
       variableNames,
       getOutputInitialValue,
-      effectiveNodeSpecsById
+      effectiveNodeSpecsById,
+      activeNodeIds
     );
     const variableDeclarations = declLines.join('\n');
     const mainCode: string[] = [];
@@ -147,9 +151,10 @@ export class MainCodeGenerator {
   generateFinalColorVariable(
     graph: NodeGraph,
     finalOutputNode: NodeInstance | null,
-    variableNames: Map<string, Map<string, string>>
+    variableNames: Map<string, Map<string, string>>,
+    effectiveNodeSpecsById?: Map<string, NodeSpec>
   ): string {
-    return generateFinalColorVariableImpl(graph, finalOutputNode, variableNames, this.nodeSpecs);
+    return generateFinalColorVariableImpl(graph, finalOutputNode, variableNames, this.nodeSpecs, effectiveNodeSpecsById);
   }
 
   generateAutomationFunctions(graph: NodeGraph, executionOrder: string[]): string {

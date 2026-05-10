@@ -2,14 +2,19 @@ import type { NodeSpec } from '../../types/nodeSpec';
 
 /**
  * Orbit camera: outputs ray origin (ro) and ray direction (rd) for 3D raymarching,
- * driven by time and optional inclination. Consumable by box-torus-sdf, sphere-raymarch,
- * and future glass shell / raymarch nodes.
+ * driven by time and optional inclination. Consumable by box-torus-sdf, generic-raymarcher,
+ * and similar nodes that expose ro/rd inputs (not standalone Raymarch Sphere, which uses fixed UV rays).
+ *
+ * Note on FOV vs Look-at Camera's Zoom: orbit-camera uses a screen-spread multiplier
+ * (higher = wider field) while look-at-camera uses an image-plane distance (higher = narrower).
+ * The label/center hint reflects 1.0 as the "neutral" value here.
  */
 export const orbitCameraNodeSpec: NodeSpec = {
   id: 'orbit-camera',
   category: 'Inputs',
   displayName: 'Orbit Camera',
-  description: 'Outputs ray origin (ro) and ray direction (rd) from a time-driven orbit around a target for 3D raymarching',
+  description:
+    'Camera orbiting a target — outputs ro/rd for 3D SDF / raymarch nodes. Connect Screen position (e.g. UV Coords) so each pixel gets the correct ray; without it every pixel shoots the same forward ray and the scene collapses to a single dot.',
   icon: 'focus',
   inputs: [
     {
@@ -34,57 +39,73 @@ export const orbitCameraNodeSpec: NodeSpec = {
     orbitSpeed: {
       type: 'float',
       default: 0.5,
-      min: 0.0,
+      min: -3.0,
       max: 3.0,
       step: 0.05,
-      label: 'Speed'
+      label: 'Speed',
+      knobPolarity: 'two-sided'
+    },
+    phase: {
+      type: 'float',
+      default: 0.0,
+      min: -180.0,
+      max: 180.0,
+      step: 1.0,
+      label: 'Phase',
+      knobPolarity: 'two-sided'
     },
     targetX: {
       type: 'float',
       default: 0.0,
-      min: -5.0,
-      max: 5.0,
+      min: -20.0,
+      max: 20.0,
       step: 0.1,
       label: 'Target X',
-      knobPolarity: 'two-sided' },
+      knobPolarity: 'two-sided'
+    },
     targetY: {
       type: 'float',
       default: 0.0,
-      min: -5.0,
-      max: 5.0,
+      min: -20.0,
+      max: 20.0,
       step: 0.1,
       label: 'Target Y',
-      knobPolarity: 'two-sided' },
+      knobPolarity: 'two-sided'
+    },
     targetZ: {
       type: 'float',
       default: 0.0,
-      min: -5.0,
-      max: 5.0,
+      min: -20.0,
+      max: 20.0,
       step: 0.1,
       label: 'Target Z',
-      knobPolarity: 'two-sided' },
+      knobPolarity: 'two-sided'
+    },
     inclination: {
       type: 'float',
       default: 0.0,
       min: -1.57,
       max: 1.57,
       step: 0.05,
-      label: 'Inclination',
-      knobPolarity: 'two-sided' },
+      label: 'Tilt (rad)',
+      knobPolarity: 'two-sided'
+    },
     fovScale: {
       type: 'float',
       default: 1.0,
       min: 0.2,
       max: 3.0,
       step: 0.05,
-      label: 'FOV'
+      label: 'FOV',
+      knobCenter: 1.0,
+      knobPolarity: 'two-sided'
     }
   },
   parameterGroups: [
     {
       id: 'orbit',
       label: 'Orbit',
-      parameters: ['orbitRadius', 'orbitSpeed'],
+      parameters: ['orbitRadius', 'orbitSpeed', 'phase'],
       collapsible: true,
       defaultCollapsed: false
     },
@@ -96,18 +117,11 @@ export const orbitCameraNodeSpec: NodeSpec = {
       defaultCollapsed: false
     },
     {
-      id: 'tilt',
-      label: 'Tilt',
-      parameters: ['inclination'],
-      collapsible: true,
-      defaultCollapsed: true
-    },
-    {
       id: 'view',
       label: 'View',
-      parameters: ['fovScale'],
+      parameters: ['inclination', 'fovScale'],
       collapsible: true,
-      defaultCollapsed: true
+      defaultCollapsed: false
     }
   ],
   parameterLayout: {
@@ -115,8 +129,8 @@ export const orbitCameraNodeSpec: NodeSpec = {
       {
         type: 'grid',
         label: 'Orbit',
-        parameters: ['orbitRadius', 'orbitSpeed'],
-        layout: { columns: 2 }
+        parameters: ['orbitRadius', 'orbitSpeed', 'phase'],
+        layout: { columns: 3 }
       },
       {
         type: 'grid',
@@ -126,21 +140,15 @@ export const orbitCameraNodeSpec: NodeSpec = {
       },
       {
         type: 'grid',
-        label: 'Tilt',
-        parameters: ['inclination'],
-        layout: { columns: 1 }
-      },
-      {
-        type: 'grid',
         label: 'View',
-        parameters: ['fovScale'],
-        layout: { columns: 1 }
+        parameters: ['inclination', 'fovScale'],
+        layout: { columns: 2 }
       }
     ]
   },
   mainCode: `
   vec3 target = vec3($param.targetX, $param.targetY, $param.targetZ);
-  float angle = $time * $param.orbitSpeed;
+  float angle = $time * $param.orbitSpeed + radians($param.phase);
   float r = $param.orbitRadius;
   float inc = $param.inclination;
   // Orbit in XZ plane; tilt by inclination (rotate around X)

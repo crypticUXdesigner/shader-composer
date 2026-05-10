@@ -18,3 +18,6 @@ docs/_NOTES.md
 
 *storybook.log
 storybook-static
+
+# WebGPU golden harness failure diffs (opt-in script)
+webgpu-golden-diff/

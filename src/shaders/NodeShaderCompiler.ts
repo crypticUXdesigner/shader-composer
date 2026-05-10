@@ -1,6 +1,6 @@
 import type { NodeGraph } from '../data-model/types';
 import type { NodeSpec } from '../types/nodeSpec';
-import type { CompilationResult } from '../runtime/types';
+import type { CompilationResult, CompileTargetOptions, RenderBackendKind } from '../runtime/types';
 import type { AudioSetup } from '../data-model/audioSetupTypes';
 import { getVirtualNodeIdsFromAudioSetup } from '../utils/virtualNodes';
 import { GraphValidator } from './compilation/GraphValidator';
@@ -10,8 +10,10 @@ import { VariableNameGenerator } from './compilation/VariableNameGenerator';
 import { UniformGenerator } from './compilation/UniformGenerator';
 import { FunctionGenerator } from './compilation/FunctionGenerator';
 import { MainCodeGenerator } from './compilation/MainCodeGenerator';
-import { computePreviewDependencyMask } from './compilation/previewDependencyMask';
+import { computePreviewDependencyMask, computePreviewDependencyMaskForWgslMvp } from './compilation/previewDependencyMask';
 import { computeEffectiveNodeSpecs } from './compilation/effectiveNodeSpecs';
+import { compileWgslMvp } from './compilation/WgslMvpCompiler';
+import { buildCompileGraphView, filterExecutionOrderForBypass } from './compilation/CompileGraphView';
 import {
   audioNodesFirst as audioNodesFirstHelper,
   isAudioNode as isAudioNodeHelper,
@@ -21,6 +23,16 @@ import {
   generateParameterCombination as generateParameterCombinationHelper,
   generateSwizzleCode as generateSwizzleCodeHelper
 } from './compilation/NodeShaderCompilerHelpers';
+
+function computeParamLayout(uniforms: CompilationResult['uniforms']): CompilationResult['paramLayout'] {
+  const keys = uniforms.map((u) => `${u.nodeId}.${u.paramName}`);
+  keys.sort();
+  const out: Record<string, number> = {};
+  for (let i = 0; i < keys.length; i++) {
+    out[keys[i] as string] = i;
+  }
+  return out;
+}
 
 /**
  * True if `prev` appears in order as a subsequence of `next` (same relative order for all previous nodes).
@@ -101,8 +113,15 @@ export class NodeShaderCompiler {
     graph: NodeGraph,
     previousResult: CompilationResult | null,
     affectedNodeIds: Set<string>,
-    audioSetup?: AudioSetup | null
+    audioSetup?: AudioSetup | null,
+    options?: CompileTargetOptions
   ): CompilationResult | null {
+    const targetBackend: RenderBackendKind = options?.backend ?? 'webgl';
+    if (targetBackend === 'webgpu') {
+      // MVP: keep WebGPU compilation deterministic; skip incremental.
+      return null;
+    }
+
     if (!previousResult) {
       // No previous result - must do full compilation
       return null;
@@ -201,25 +220,34 @@ export class NodeShaderCompiler {
         return null;
       }
 
-      // Step 5: Generate shader (full graph; incremental path skips redundant graph validation only above)
-      // Generate variable names
-      const variableNames = this.variableNameGenerator.generateVariableNames(graph);
-      
-      // Generate uniform names (incl. panel audio)
-      const uniformNames = this.uniformGenerator.generateUniformNameMapping(graph, audioSetup ?? null);
-      
-      // Collect functions
-      let { functions, functionNameMap } = this.functionGenerator.collectAndDeduplicateFunctions(
-      graph,
-      uniformNames,
-      variableNames,
-      executionOrder
-    );
-      
-      // Generate main code (includes generic-raymarcher SDF function code)
-      const { variableDeclarations, mainCode, genericRaymarcherSdfFunctions } = this.mainCodeGenerator.generateMainCode(
-        graph,
+      // Per-node Power view (mirrors `compile`). Toggling `bypassed` typically changes the
+      // execution-order length, which fails the subsequence guard above and forces a full compile;
+      // building the view here keeps the incremental path correct in the rare cases it does run
+      // (e.g. parameter changes on a graph that already has a stable bypass set).
+      const compileGraphView = buildCompileGraphView(graph, this.nodeSpecs);
+      const compileGraph: NodeGraph =
+        compileGraphView.compileConnections === graph.connections
+          ? graph
+          : { ...graph, connections: compileGraphView.compileConnections };
+      const compileExecutionOrder = filterExecutionOrderForBypass(
         executionOrder,
+        compileGraphView.bypassedNodeIds
+      );
+
+      const variableNames = this.variableNameGenerator.generateVariableNames(graph);
+
+      const uniformNames = this.uniformGenerator.generateUniformNameMapping(compileGraph, audioSetup ?? null);
+
+      let { functions, functionNameMap } = this.functionGenerator.collectAndDeduplicateFunctions(
+        compileGraph,
+        uniformNames,
+        variableNames,
+        compileExecutionOrder
+      );
+
+      const { variableDeclarations, mainCode, genericRaymarcherSdfFunctions } = this.mainCodeGenerator.generateMainCode(
+        compileGraph,
+        compileExecutionOrder,
         variableNames,
         uniformNames,
         functionNameMap,
@@ -228,20 +256,15 @@ export class NodeShaderCompiler {
       if (genericRaymarcherSdfFunctions) {
         functions = functions ? `${functions}\n\n${genericRaymarcherSdfFunctions}` : genericRaymarcherSdfFunctions;
       }
-      
-      // Find final output node
-      const finalOutputNode = this.mainCodeGenerator.findFinalOutputNode(graph, executionOrder);
-      
-      // Generate final color variable
-      const finalColorVar = this.mainCodeGenerator.generateFinalColorVariable(graph, finalOutputNode, variableNames);
-      
-      // Track which uniforms are actually used
+
+      const finalOutputNode = this.mainCodeGenerator.findFinalOutputNode(compileGraph, compileExecutionOrder);
+
+      const finalColorVar = this.mainCodeGenerator.generateFinalColorVariable(compileGraph, finalOutputNode, variableNames);
+
       const usedUniforms = this.uniformGenerator.findUsedUniforms(mainCode + '\n' + variableDeclarations, functions, uniformNames);
-      
-      // Generate uniform metadata (incl. panel audio)
+
       const uniforms = this.uniformGenerator.generateUniformMetadata(graph, uniformNames, usedUniforms, audioSetup ?? null);
-      
-      // Check for disconnected nodes (warnings)
+
       const connectedNodes = new Set<string>();
       for (const conn of graph.connections) {
         connectedNodes.add(conn.sourceNodeId);
@@ -252,27 +275,30 @@ export class NodeShaderCompiler {
           warnings.push(`[WARNING] Node '${node.id}' (${node.type}) has no connections`);
         }
       }
-      
-      // Assemble shader (include automation eval functions when graph has automation).
-      const automationFunctions = this.mainCodeGenerator.generateAutomationFunctions(graph, executionOrder);
+
+      const automationFunctions = this.mainCodeGenerator.generateAutomationFunctions(graph, compileExecutionOrder);
       const shaderCode = this.mainCodeGenerator.assembleShader(functions, uniforms, variableDeclarations, mainCode, finalColorVar, automationFunctions);
-      
+
       return {
+        backend: 'webgl',
+        supported: true,
+        code: shaderCode,
         shaderCode,
         uniforms,
         metadata: {
           warnings,
           errors: [],
-          executionOrder,
+          executionOrder: compileExecutionOrder,
           finalOutputNodeId: finalOutputNode?.id || null,
           previewDependencies: computePreviewDependencyMask(
-            graph,
+            compileGraph,
             uniforms,
             shaderCode,
             this.nodeSpecs,
             audioSetup
           )
-        }
+        },
+        paramLayout: computeParamLayout(uniforms),
       };
       
     } catch (error) {
@@ -286,7 +312,8 @@ export class NodeShaderCompiler {
    * Compile a node graph into GLSL shader code
    * @param audioSetup - Optional panel audio setup for audio-derived uniforms (bands/remappers/files).
    */
-  compile(graph: NodeGraph, audioSetup?: AudioSetup | null): CompilationResult {
+  compile(graph: NodeGraph, audioSetup?: AudioSetup | null, options?: CompileTargetOptions): CompilationResult {
+    const targetBackend: RenderBackendKind = options?.backend ?? 'webgl';
     const errors: string[] = [];
     const warnings: string[] = [];
     const executionOrder: string[] = [];
@@ -302,6 +329,9 @@ export class NodeShaderCompiler {
       );
       
       return {
+        backend: 'webgl',
+        supported: true,
+        code: emptyShader,
         shaderCode: emptyShader,
         uniforms: [],
         metadata: {
@@ -316,7 +346,8 @@ export class NodeShaderCompiler {
             this.nodeSpecs,
             audioSetup
           )
-        }
+        },
+        paramLayout: {},
       };
     }
 
@@ -327,6 +358,9 @@ export class NodeShaderCompiler {
     this.graphValidator.validateGraph(graph, errors, warnings, validSourceNodeIds);
     if (errors.length > 0) {
       return {
+        backend: 'webgl',
+        supported: true,
+        code: '',
         shaderCode: '',
         uniforms: [],
         metadata: {
@@ -334,7 +368,8 @@ export class NodeShaderCompiler {
           errors,
           executionOrder: [],
           finalOutputNodeId: null
-        }
+        },
+        paramLayout: {},
       };
     }
 
@@ -346,6 +381,9 @@ export class NodeShaderCompiler {
     } catch (error) {
       errors.push(`[ERROR] Circular Dependency: ${error instanceof Error ? error.message : 'Graph contains cycles'}`);
       return {
+        backend: 'webgl',
+        supported: true,
+        code: '',
         shaderCode: '',
         uniforms: [],
         metadata: {
@@ -353,18 +391,36 @@ export class NodeShaderCompiler {
           errors,
           executionOrder: [],
           finalOutputNodeId: null
-        }
+        },
+        paramLayout: {},
       };
     }
 
     // Step 2.5: Effective node specs (type-polymorphic nodes like select)
     const effectiveNodeSpecsById = computeEffectiveNodeSpecs(graph, executionOrder, this.nodeSpecs);
 
+    // Step 2.6: Per-node Power view. Drops Rule B outgoing wires + rewrites Rule A wires to the
+    // bypassed node's primary upstream so consumers point past the bypassed node. Also yields the
+    // set of bypassed node ids to filter out of the compiled `executionOrder`. Type validation
+    // still runs on the original graph so untouched type errors keep their original framing.
+    const compileGraphView = buildCompileGraphView(graph, this.nodeSpecs);
+    const compileGraph: NodeGraph =
+      compileGraphView.compileConnections === graph.connections
+        ? graph
+        : { ...graph, connections: compileGraphView.compileConnections };
+    const compileExecutionOrder = filterExecutionOrderForBypass(
+      executionOrder,
+      compileGraphView.bypassedNodeIds
+    );
+
     // Step 3: Type validation
     const typeErrors = this.typeValidator.validateTypes(graph, effectiveNodeSpecsById);
     if (typeErrors.length > 0) {
       errors.push(...typeErrors);
       return {
+        backend: 'webgl',
+        supported: true,
+        code: '',
         shaderCode: '',
         uniforms: [],
         metadata: {
@@ -372,28 +428,82 @@ export class NodeShaderCompiler {
           errors,
           executionOrder,
           finalOutputNodeId: null
+        },
+        paramLayout: {},
+      };
+    }
+
+    // Task 04: WGSL MVP subset (explicit, no GLSL→WGSL transpilation).
+    if (targetBackend === 'webgpu') {
+      const finalOutputNode = this.mainCodeGenerator.findFinalOutputNode(compileGraph, compileExecutionOrder);
+      if (!finalOutputNode) {
+        return {
+          backend: 'webgpu',
+          supported: false,
+          unsupportedReasons: ['missing final-output node'],
+          code: '',
+          shaderCode: '',
+          uniforms: [],
+          metadata: { warnings, errors: [], executionOrder: compileExecutionOrder, finalOutputNodeId: null },
+          paramLayout: {},
+          resources: [],
+        };
+      }
+
+      const wgslResult = compileWgslMvp(
+        compileGraph,
+        this.nodeSpecs,
+        compileExecutionOrder,
+        finalOutputNode.id,
+        audioSetup ?? null
+      );
+      if (!wgslResult.supported) return wgslResult;
+      // Pass-plan variants may provide their own dependency snapshot (e.g. iterative simulations that
+      // must keep rendering even without explicit time nodes in the graph).
+      const providedDeps = wgslResult.metadata.previewDependencies;
+      return {
+        ...wgslResult,
+        metadata: {
+          ...wgslResult.metadata,
+          previewDependencies:
+            providedDeps ??
+            computePreviewDependencyMaskForWgslMvp(
+              compileGraph,
+              wgslResult.uniforms,
+              wgslResult.code,
+              this.nodeSpecs,
+              audioSetup ?? null,
+              wgslResult.metadata.finalOutputNodeId
+            )
         }
       };
     }
 
-    // Step 4: Generate variable names
+    // Step 4: Generate variable names (declared for every node — bypassed nodes' variables are
+    // simply unused in main code, which the GLSL compiler strips).
     const variableNames = this.variableNameGenerator.generateVariableNames(graph);
 
-    // Step 5: Generate uniform names (incl. panel audio bands from audioSetup)
-    const uniformNames = this.uniformGenerator.generateUniformNameMapping(graph, audioSetup ?? null);
+    // Step 5: Generate uniform names. Pass `compileGraph` so the parameter-wire `isConnected`
+    // check sees the bypass-aware connection set: a wire from a bypassed source is dropped, and
+    // the consumer's parameter falls back to its own default uniform.
+    const uniformNames = this.uniformGenerator.generateUniformNameMapping(compileGraph, audioSetup ?? null);
 
-    // Step 6: Collect functions (with uniform placeholders replaced)
+    // Step 6: Collect functions for the nodes that will actually emit code. Filter to
+    // `compileExecutionOrder` so bypassed nodes' helper functions and uniform placeholders never
+    // make it into the final shader.
     let { functions, functionNameMap } = this.functionGenerator.collectAndDeduplicateFunctions(
-      graph,
+      compileGraph,
       uniformNames,
       variableNames,
-      executionOrder
+      compileExecutionOrder
     );
 
-    // Step 7: Generate main code (returns variable declarations, main code, and generic-raymarcher SDF functions)
+    // Step 7: Generate main code (returns variable declarations, main code, and generic-raymarcher SDF functions).
+    // Uses `compileGraph` (filtered connections) and `compileExecutionOrder` (bypassed nodes
+    // dropped) so the emitted code follows the two Power rules from `_OVERVIEW.md`.
     const { variableDeclarations, mainCode, genericRaymarcherSdfFunctions } = this.mainCodeGenerator.generateMainCode(
-      graph,
-      executionOrder,
+      compileGraph,
+      compileExecutionOrder,
       variableNames,
       uniformNames,
       functionNameMap,
@@ -404,18 +514,26 @@ export class NodeShaderCompiler {
     }
 
     // Step 8: Find final output node
-    const finalOutputNode = this.mainCodeGenerator.findFinalOutputNode(graph, executionOrder);
+    const finalOutputNode = this.mainCodeGenerator.findFinalOutputNode(compileGraph, compileExecutionOrder);
 
     // Step 9: Generate final color variable
-    const finalColorVar = this.mainCodeGenerator.generateFinalColorVariable(graph, finalOutputNode, variableNames);
+    const finalColorVar = this.mainCodeGenerator.generateFinalColorVariable(
+      compileGraph,
+      finalOutputNode,
+      variableNames,
+      effectiveNodeSpecsById
+    );
 
     // Step 10: Track which uniforms are actually used in the shader code
     const usedUniforms = this.uniformGenerator.findUsedUniforms(mainCode + '\n' + variableDeclarations, functions, uniformNames);
 
-    // Step 11: Generate uniform metadata (only for used uniforms; incl. panel audio)
+    // Step 11: Generate uniform metadata (only for used uniforms; incl. panel audio).
+    // Uses `graph` so audio-side uniforms (file primary uniforms, etc.) keep their full view.
     const uniforms = this.uniformGenerator.generateUniformMetadata(graph, uniformNames, usedUniforms, audioSetup ?? null);
 
-    // Step 12: Check for disconnected nodes (warnings)
+    // Step 12: Check for disconnected nodes (warnings).
+    // Reads `graph.connections` (the full set) so a bypassed wire is still considered "connected"
+    // for warning purposes; "no connections" warnings are about authoring, not compile output.
     const connectedNodes = new Set<string>();
     for (const conn of graph.connections) {
       connectedNodes.add(conn.sourceNodeId);
@@ -428,25 +546,32 @@ export class NodeShaderCompiler {
     }
 
     // Step 13: Assemble shader (include automation eval functions when graph has automation).
-    const automationFunctions = this.mainCodeGenerator.generateAutomationFunctions(graph, executionOrder);
+    // Automation iterates `graph` directly (lanes are full-graph metadata) and is not affected by
+    // Power: a bypassed node still owns its automation lanes, the lane evaluator just emits dead
+    // GLSL for any lane whose node never runs.
+    const automationFunctions = this.mainCodeGenerator.generateAutomationFunctions(graph, compileExecutionOrder);
     const shaderCode = this.mainCodeGenerator.assembleShader(functions, uniforms, variableDeclarations, mainCode, finalColorVar, automationFunctions);
 
     return {
+      backend: 'webgl',
+      supported: true,
+      code: shaderCode,
       shaderCode,
       uniforms,
       metadata: {
         warnings,
         errors: [],
-        executionOrder,
+        executionOrder: compileExecutionOrder,
         finalOutputNodeId: finalOutputNode?.id || null,
         previewDependencies: computePreviewDependencyMask(
-          graph,
+          compileGraph,
           uniforms,
           shaderCode,
           this.nodeSpecs,
           audioSetup
         )
-      }
+      },
+      paramLayout: computeParamLayout(uniforms),
     };
   }
 

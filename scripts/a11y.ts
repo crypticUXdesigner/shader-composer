@@ -15,9 +15,51 @@ import * as path from 'node:path';
 const BASE_PATH = '/ShaderNoice/';
 const WAIT_MS = 300;
 const WAIT_MAX_ATTEMPTS = 100;
+const DEFAULT_PORT_TIMEOUT_MS = 30_000;
 
 /** Match "Local:   http://localhost:4173/..." or "➜  Local:   http://localhost:4177/ShaderNoice/" */
 const LOCAL_URL_RE = /Local:\s*https?:\/\/[^:\s]+:(\d+)/;
+const ANY_URL_RE = /https?:\/\/[^:\s]+:(\d+)\//;
+
+function getPortTimeoutMs(): number {
+  const raw = process.env.PREVIEW_PORT_TIMEOUT_MS?.trim();
+  if (!raw) return DEFAULT_PORT_TIMEOUT_MS;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : DEFAULT_PORT_TIMEOUT_MS;
+}
+
+function attachPortSniffer(preview: ReturnType<typeof spawn>): {
+  getPort: () => number | null;
+  getRecentOutput: () => string;
+} {
+  let resolvedPort: number | null = null;
+  let recentOutput = '';
+  const MAX_RECENT = 16_000;
+
+  const ingest = (chunk: Buffer): void => {
+    const text = chunk.toString();
+    recentOutput += text;
+    if (recentOutput.length > MAX_RECENT) recentOutput = recentOutput.slice(-MAX_RECENT);
+
+    // Vite output can be chunked mid-line (especially on Windows), so match against
+    // the accumulated tail buffer instead of only the current chunk.
+    const mLocal = recentOutput.match(LOCAL_URL_RE);
+    if (mLocal) {
+      resolvedPort = parseInt(mLocal[1], 10);
+      return;
+    }
+    const mAny = recentOutput.match(ANY_URL_RE);
+    if (mAny) resolvedPort = parseInt(mAny[1], 10);
+  };
+
+  preview.stdout?.on('data', ingest);
+  preview.stderr?.on('data', ingest);
+
+  return {
+    getPort: () => resolvedPort,
+    getRecentOutput: () => recentOutput,
+  };
+}
 
 function waitForUrl(url: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -149,25 +191,25 @@ async function main(): Promise<void> {
     exit(1);
   });
 
-  let resolvedPort: number | null = null;
-  preview.stdout?.on('data', (chunk: Buffer) => {
-    const line = chunk.toString();
-    const m = line.match(LOCAL_URL_RE);
-    if (m) resolvedPort = parseInt(m[1], 10);
-  });
+  const { getPort, getRecentOutput } = attachPortSniffer(preview);
 
-  preview.stderr?.on('data', (chunk: Buffer) => {
-    const line = chunk.toString().trim();
-    if (line && !line.includes('ExperimentalWarning')) process.stderr.write(chunk);
-  });
-
-  // Wait until we see the Local URL in stdout, then wait for that port
-  for (let i = 0; i < WAIT_MAX_ATTEMPTS; i++) {
-    if (resolvedPort != null) break;
+  // Wait until we see the Local URL in stdout/stderr, then wait for that port
+  const portTimeoutMs = getPortTimeoutMs();
+  const deadline = Date.now() + portTimeoutMs;
+  while (Date.now() < deadline) {
+    const port = getPort();
+    if (port != null) break;
     await new Promise((r) => setTimeout(r, WAIT_MS));
   }
+  const resolvedPort = getPort();
   if (resolvedPort == null) {
-    console.error('Preview server did not report a port in time.');
+    console.error(`Preview server did not report a port in time (timeout ${portTimeoutMs}ms).`);
+    const out = getRecentOutput().trim();
+    if (out) {
+      console.error('\n--- preview output (tail) ---\n');
+      console.error(out);
+      console.error('\n--- end preview output ---\n');
+    }
     exit(1);
   }
 

@@ -25,6 +25,10 @@ import { AudioParameterHandler } from './runtime/AudioParameterHandler';
 import { RuntimePlaybackHandler } from './runtime/RuntimePlaybackHandler';
 import { SyntheticTransport } from './timeline/SyntheticTransport';
 import { isRuntimeOnlyParameter } from '../utils/runtimeOnlyParams';
+import {
+  applyRadialPulseSpawnUniforms,
+  clearRadialPulseSpawnArmingState
+} from './audio/radialPulsePreviewSpawn';
 
 /** Callback when playlist advances (e.g. on track end or next); app updates store and calls setAudioSetup + playPrimary. */
 export type OnPlaylistAdvance = (nextState: { currentIndex: number }) => void;
@@ -93,6 +97,13 @@ export class RuntimeManager implements Disposable {
     // Before the first render of a new shader instance, push audio uniforms so the first frame is correct.
     this.compilationManager.setOnBeforeFirstRender((instance) => {
       this.audioParameterHandler.updateAudioUniforms(instance, this.currentGraph, { forcePushAll: true });
+      applyRadialPulseSpawnUniforms({
+        graph: this.currentGraph,
+        shaderInstance: instance,
+        shaderTime: instance.getTime(),
+        audioSetup: this.currentAudioSetup,
+        getAnalyzerNodeState: (id) => this.audioManager.getAnalyzerNodeState(id)
+      });
     });
 
     // Start periodic cleanup (every 30 seconds)
@@ -141,6 +152,7 @@ export class RuntimeManager implements Disposable {
    * onto the new shader instance (e.g. so paused preview shows current time). No-op by default.
    */
   syncTimeAfterRecompile(): void {
+    clearRadialPulseSpawnArmingState();
     this.timeManager.markDirty(this.renderer, 'compilation');
   }
 
@@ -288,12 +300,27 @@ export class RuntimeManager implements Disposable {
       time,
       shaderInstance,
       this.renderer,
-      (si) => this.audioParameterHandler.updateAudioUniforms(si, this.currentGraph),
+      (si) => {
+        this.audioParameterHandler.updateAudioUniforms(si, this.currentGraph);
+        applyRadialPulseSpawnUniforms({
+          graph: this.currentGraph,
+          shaderInstance: si,
+          shaderTime: time,
+          audioSetup: this.currentAudioSetup,
+          getAnalyzerNodeState: (id) => this.audioManager.getAnalyzerNodeState(id)
+        });
+      },
       {
         previewDependencies: this.compilationManager.getPreviewDependencyMask(),
         timelinePlaying: !!timelineState?.isPlaying
       }
     );
+
+    // Resize/layout can mark Renderer dirty without touching TimeManager; paused + stable time skips
+    // updateTime()'s render. Mirror post-recompile: flush once whenever the renderer still owes a present.
+    if (this.renderer.needsPresentationFlush?.()) {
+      this.renderer.render();
+    }
   }
 
   /**
@@ -301,6 +328,13 @@ export class RuntimeManager implements Disposable {
    */
   markDirty(reason: string): void {
     this.timeManager.markDirty(this.renderer, reason);
+  }
+
+  /** Sync shader framebuffer to preview canvas layout (view mode / panel edge). */
+  notifyPreviewLayoutChanged(): void {
+    this.renderer.notifyPreviewLayoutChanged?.();
+    this.markDirty('resize');
+    this.renderIfDirty();
   }
   
   /**
@@ -452,6 +486,7 @@ export class RuntimeManager implements Disposable {
    * Cleans up in reverse order of creation (dependencies before dependents).
    */
   destroy(): void {
+    clearRadialPulseSpawnArmingState();
     // Stop periodic cleanup first
     this.audioManager.stopPeriodicCleanup();
     

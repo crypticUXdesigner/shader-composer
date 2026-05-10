@@ -98,7 +98,7 @@ export const shapes2dNodeSpec: NodeSpec = {
       type: 'float',
       default: 0.02,
       min: 0.0,
-      max: 0.5,
+      max: 2.0,
       step: 0.001,
       label: 'Softness'
     },
@@ -145,34 +145,46 @@ export const shapes2dNodeSpec: NodeSpec = {
     elements: [
       {
         type: 'grid',
-        parameters: [
-          'shapeType',
-          'sizeX',
-          'sizeY',
-          'centerX',
-          'centerY',
-          'roundness',
-          'rotation',
-          'polygonSides',
-          'superPower',
-          'softness',
-          'intensity'
-        ],
-        parameterUI: { sizeX: 'coords', sizeY: 'coords', centerX: 'coords', centerY: 'coords' },
+        parameters: ['shapeType', 'sizeX', 'sizeY', 'centerX', 'centerY', 'rotation', 'softness', 'intensity'],
+        parameterUI: {
+          shapeType: 'enum',
+          sizeX: 'coords',
+          sizeY: 'coords',
+          centerX: 'coords',
+          centerY: 'coords',
+        },
         layout: {
           columns: 2,
           coordsSpan: 2,
           coordsOrigin: { sizeX: 'bottom-left', centerX: 'center' },
           parameterSpan: {
             shapeType: 2,
-            roundness: 2,
             rotation: 2,
-            polygonSides: 2,
-            superPower: 2,
-            softness: 2,
-            intensity: 2
+            // softness + intensity are intentionally 1-col so they can sit side-by-side
           }
         }
+      }
+      ,
+      {
+        type: 'grid',
+        visibleWhen: { parameter: 'shapeType', equals: 1 },
+        label: 'Rounded Box',
+        parameters: ['roundness'],
+        layout: { columns: 2, parameterSpan: { roundness: 2 } }
+      },
+      {
+        type: 'grid',
+        visibleWhen: { parameter: 'shapeType', equals: 2 },
+        label: 'Superellipse',
+        parameters: ['superPower'],
+        layout: { columns: 2, parameterSpan: { superPower: 2 } }
+      },
+      {
+        type: 'grid',
+        visibleWhen: { parameter: 'shapeType', equals: 3 },
+        label: 'Polygon',
+        parameters: ['polygonSides'],
+        layout: { columns: 2, parameterSpan: { polygonSides: 2 } }
       }
     ]
   },

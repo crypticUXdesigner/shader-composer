@@ -11,6 +11,7 @@ import { UIElementManager } from './UIElementManager';
 import { HitTestManager } from './HitTestManager';
 import { NodeRenderer } from '../NodeRenderer';
 import { getCSSVariableAsNumber } from '../../../utils/cssTokens';
+import { getHeaderMainContentBoundsCanvas } from '../../../utils/nodeHeaderGeometry';
 import { snapParameterValue } from '../../../utils/parameterValueCalculator';
 import type { DropdownMenuItem, SignalSelectPayload } from '../../../types/editor';
 
@@ -170,7 +171,8 @@ export class OverlayManager {
     
     // Calculate label position (same as in renderHeader)
     const groupHeight = iconBoxHeight + iconBoxNameSpacing + nameSize;
-    const iconBoxY = node.position.y + (headerHeight - groupHeight) / 2;
+    const { mainTop, mainHeight } = getHeaderMainContentBoundsCanvas(node.position.y, headerHeight, spec);
+    const iconBoxY = mainTop + (mainHeight - groupHeight) / 2;
     const nameY = iconBoxY + iconBoxHeight + iconBoxNameSpacing;
     const iconX = node.position.x + metrics.width / 2;
     

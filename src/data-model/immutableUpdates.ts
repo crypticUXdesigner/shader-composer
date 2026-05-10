@@ -19,10 +19,12 @@ import type {
   AutomationLane,
   AutomationRegion,
 } from './types';
-import type { ParameterInputMode } from '../types/nodeSpec';
+import type { ParameterInputMode, ParameterSpec } from '../types/nodeSpec';
 import type { NodeSpecification } from './validationTypes';
 import { validateConnection } from './validationConnection';
-import { getConnectionTargetKey } from './connectionUtils';
+import { getConnectionTargetKey, isPortConnection } from './connectionUtils';
+import { getUpstreamOutputType } from './connectionWireTypes';
+import { generateConnectionId, getConnectionIds } from './utils';
 
 /**
  * Creates a deep copy of a node instance.
@@ -84,22 +86,82 @@ export function addNode(graph: NodeGraph, node: NodeInstance): NodeGraph {
   };
 }
 
+export interface RemoveNodeOptions {
+  /**
+   * When provided, deleting a node with exactly one incoming and one outgoing connection
+   * may add a direct wire from upstream to downstream when the removed node's output
+   * port type matches the incoming wire's source type (passthrough).
+   */
+  nodeSpecs?: NodeSpecification[];
+}
+
+function removeNodeStripOnly(graph: NodeGraph, nodeId: string): NodeGraph {
+  return {
+    ...graph,
+    nodes: graph.nodes.filter((n) => n.id !== nodeId),
+    connections: graph.connections.filter(
+      (c) => c.sourceNodeId !== nodeId && c.targetNodeId !== nodeId
+    ),
+  };
+}
+
 /**
  * Removes a node from the graph, returning a new graph instance.
  * Also removes all connections involving this node.
- * 
+ *
+ * With `options.nodeSpecs`, a single linear chain through the removed node may be
+ * reconnected across the gap when wire types match (see `RemoveNodeOptions`).
+ *
  * @param graph - The graph to update
  * @param nodeId - The ID of the node to remove
- * @returns New graph with the node and its connections removed
+ * @returns New graph with the node removed (and optionally a bridge connection)
  */
-export function removeNode(graph: NodeGraph, nodeId: string): NodeGraph {
-  return {
-    ...graph,
-    nodes: graph.nodes.filter(n => n.id !== nodeId),
-    connections: graph.connections.filter(
-      c => c.sourceNodeId !== nodeId && c.targetNodeId !== nodeId
-    ),
+export function removeNode(graph: NodeGraph, nodeId: string, options?: RemoveNodeOptions): NodeGraph {
+  const specs = options?.nodeSpecs;
+  if (!specs?.length) {
+    return removeNodeStripOnly(graph, nodeId);
+  }
+
+  const incoming = graph.connections.filter((c) => c.targetNodeId === nodeId);
+  const outgoing = graph.connections.filter((c) => c.sourceNodeId === nodeId);
+
+  if (incoming.length !== 1 || outgoing.length !== 1) {
+    return removeNodeStripOnly(graph, nodeId);
+  }
+
+  const connIn = incoming[0];
+  const connOut = outgoing[0];
+
+  const removedNode = graph.nodes.find((n) => n.id === nodeId);
+  if (!removedNode) {
+    return removeNodeStripOnly(graph, nodeId);
+  }
+
+  const removedSpec = specs.find((s) => s.id === removedNode.type);
+  const bOutType = removedSpec?.outputs?.find((o) => o.name === connOut.sourcePort)?.type;
+  const upstreamType = getUpstreamOutputType(graph, connIn, specs);
+
+  if (!upstreamType || !bOutType || upstreamType !== bOutType) {
+    return removeNodeStripOnly(graph, nodeId);
+  }
+
+  const graphWithoutNode = removeNodeStripOnly(graph, nodeId);
+
+  const bridgeConn: Connection = {
+    id: generateConnectionId(getConnectionIds(graphWithoutNode)),
+    sourceNodeId: connIn.sourceNodeId,
+    sourcePort: connIn.sourcePort,
+    targetNodeId: connOut.targetNodeId,
+    ...(isPortConnection(connOut)
+      ? { targetPort: connOut.targetPort! }
+      : { targetParameter: connOut.targetParameter! }),
   };
+
+  const result = addConnectionWithValidation(graphWithoutNode, bridgeConn, specs, { replaceExisting: true });
+  if (result.errors.length > 0) {
+    return graphWithoutNode;
+  }
+  return result.graph;
 }
 
 /**
@@ -202,6 +264,34 @@ export function updateNodeParameterInputMode(
 }
 
 /**
+ * Resets a node's stored parameters and per-parameter input modes to match a freshly added
+ * instance of the node's type (every `ParameterSpec.default`; same keys as palette add).
+ *
+ * Clears optional `parameterInputModes` so wired signal combination uses spec defaults again.
+ *
+ * @param graph - Graph to update
+ * @param nodeId - Node to reset
+ * @param parameterSpecs - `NodeSpec.parameters` for `node.type`
+ */
+export function resetNodeParametersToDefaults(
+  graph: NodeGraph,
+  nodeId: string,
+  parameterSpecs: Record<string, ParameterSpec>
+): NodeGraph {
+  return updateNode(graph, nodeId, (node) => {
+    const parameters: Record<string, ParameterValue> = {};
+    for (const [paramName, paramSpec] of Object.entries(parameterSpecs)) {
+      parameters[paramName] = paramSpec.default;
+    }
+    const { parameterInputModes: _omitModes, ...rest } = node;
+    return {
+      ...rest,
+      parameters,
+    };
+  });
+}
+
+/**
  * Updates a node's label, returning a new graph instance.
  * 
  * @param graph - The graph to update
@@ -222,6 +312,30 @@ export function updateNodeLabel(
     return {
       ...node,
       label,
+    };
+  });
+}
+
+/**
+ * Sets whether the node's Power / bypass state is active (`bypassed`).
+ * When `bypassed` is false, the field is omitted so serialization matches graphs that never used Power.
+ */
+export function setNodeBypassed(
+  graph: NodeGraph,
+  nodeId: string,
+  bypassed: boolean
+): NodeGraph {
+  return updateNode(graph, nodeId, (node) => {
+    if (!bypassed) {
+      if (node.bypassed === undefined) {
+        return node;
+      }
+      const { bypassed: _, ...rest } = node;
+      return rest;
+    }
+    return {
+      ...node,
+      bypassed: true,
     };
   });
 }

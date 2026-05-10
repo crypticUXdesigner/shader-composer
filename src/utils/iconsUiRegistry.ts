@@ -84,7 +84,8 @@ export type IconName =
   | 'user'
   | 'sign-out'
   | 'graph-undo'
-  | 'graph-redo';
+  | 'graph-redo'
+  | 'arrow-u-up-left';
 
 /** IconName → Phosphor icon name (kebab-case) */
 export const iconNameMap: Record<IconName, string> = {
@@ -170,4 +171,5 @@ export const iconNameMap: Record<IconName, string> = {
   'sign-out': 'sign-out',
   'graph-undo': 'arrow-counter-clockwise',
   'graph-redo': 'arrow-clockwise',
+  'arrow-u-up-left': 'arrow-u-up-left',
 };

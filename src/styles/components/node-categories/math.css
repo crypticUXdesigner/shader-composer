@@ -295,16 +295,3 @@
   --param-control-bg-active: var(--color-orange-70);
 }
 
-/* Shiny: use header print color as ring accent */
-.node.math.shiny {
-  --node-shiny-ring-color: var(--node-header-print-math);
-}
-
-.node.math.functions.shiny {
-  --node-shiny-ring-color: var(--node-header-print-math-functions);
-}
-
-.node.math.advanced.shiny {
-  --node-shiny-ring-color: var(--node-header-print-math-advanced);
-}
-

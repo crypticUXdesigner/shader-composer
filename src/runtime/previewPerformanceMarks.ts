@@ -44,10 +44,25 @@ export const PreviewPerfMark = {
 /** Main-thread counters (no per-frame allocation); for DevTools / future debug API. */
 export const previewPerfCounters = {
   previewFrameCommits: 0,
-  compileRequests: 0
+  compileRequests: 0,
+  // Task 12: WebGPU perf counters (best-effort; dev overlay).
+  webgpuShaderModuleCreates: 0,
+  webgpuShaderModuleCacheHits: 0,
+  webgpuRenderPipelineCreates: 0,
+  webgpuRenderPipelineCacheHits: 0,
+  /** LRU evictions (oldest WGSL previews dropped) once cache exceeds WEBGPU_PREVIEW_CACHE_MAX_MODULES */
+  webgpuShaderPipelineCacheEvictions: 0
 };
 
 export function previewPerfResetCounters(): void {
   previewPerfCounters.previewFrameCommits = 0;
   previewPerfCounters.compileRequests = 0;
+  previewPerfCounters.webgpuShaderModuleCreates = 0;
+  previewPerfCounters.webgpuShaderModuleCacheHits = 0;
+  previewPerfCounters.webgpuRenderPipelineCreates = 0;
+  previewPerfCounters.webgpuRenderPipelineCacheHits = 0;
+  previewPerfCounters.webgpuShaderPipelineCacheEvictions = 0;
 }
+
+/** Max WGSL fullscreen preview shader+pipeline pairs retained per preview WebGpuRenderBackend session. */
+export const WEBGPU_PREVIEW_CACHE_MAX_MODULES = 64;

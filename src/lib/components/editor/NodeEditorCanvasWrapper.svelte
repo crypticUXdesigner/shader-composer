@@ -257,6 +257,22 @@
     }
   }
 
+  /** Double-click node body → Patch tool with node chosen; next click on a cable commits (or Esc). */
+  function beginPatchIntoFromNodeDoubleClick(nodeId: string): void {
+    graphStore.setActiveTool('patch');
+    graphStore.setPatchInsertNodePick(nodeId);
+    graphStore.setPatchWirePick(null);
+    apiProp?.setActiveTool?.('patch');
+    graphStore.updateViewState({ selectedNodeIds: [nodeId] });
+    liveViewState = {
+      ...liveViewState,
+      selectedNodeIds: [nodeId],
+    };
+    canvasInstance?.setSelectionFromDOM?.([nodeId]);
+    canvasInstance?.requestRender?.();
+    callbacks.onSelectionChanged?.([nodeId]);
+  }
+
   /** Exit Patch tool: Cursor, clear picks, dismiss prompt toast. */
   function exitPatchMode(): void {
     canvasInstance?.clearConnectionSelectionFromDOM?.();
@@ -325,7 +341,7 @@
     const wire = patchWireConnectionId;
     const node = patchInsertNodeId;
     if (wire != null && node == null) return 'Click a node...';
-    if (wire == null && node != null) return 'Click a cable...';
+    if (wire == null && node != null) return 'Select the cable...';
     return 'Click a cable or node...';
   });
 
@@ -456,6 +472,12 @@
   /**
    * Single parameter-change path: update store, call app callback (await if thenable),
    * then sync canvas view state, setGraph, and requestRender so paint happens after runtime sync.
+   *
+   * Push `setGraph` immediately after the store update (before awaiting `onParameterChanged`).
+   * The app callback is async (runtime parameter sync); if we only setGraph after `await`,
+   * Svelte can re-render DomNodeLayer with new parameters while `getNodeMetrics` still serves
+   * stale heights — e.g. triangle-grid hiding the Infinite plane section but keeping the old
+   * min-height until runtime finishes.
    */
   async function handleParameterChange(
     nodeId: string,
@@ -464,6 +486,10 @@
     canvas: NodeEditorCanvas | null
   ): Promise<void> {
     graphStore.updateNodeParameter(nodeId, paramName, value);
+    if (canvas) {
+      syncViewStateFromCanvas(canvas);
+      canvas.setGraph(graphStore.graph);
+    }
     const result = callbacks.onParameterChanged?.(
       nodeId,
       paramName,
@@ -478,6 +504,7 @@
       canvas.setGraph(graphStore.graph);
       canvas.requestRender();
     }
+    notifyGraphChanged();
   }
 
   // View state sync from canvas (for DOM layer transform)
@@ -643,7 +670,13 @@
           callbacks.onSelectionChanged?.(ids);
           return;
         }
-        const newSelectedIds = nodeId ? [nodeId] : [];
+        const currentSelectedIds = graphStore.viewState.selectedNodeIds ?? [];
+        const newSelectedIds =
+          nodeId && currentSelectedIds.length === 1 && currentSelectedIds[0] === nodeId
+            ? []
+            : nodeId
+              ? [nodeId]
+              : [];
         graphStore.updateViewState({ selectedNodeIds: newSelectedIds });
         syncViewStateFromCanvas(canvas);
         callbacks.onSelectionChanged?.(newSelectedIds);
@@ -664,7 +697,7 @@
       onConnectionSelected: () => {},
       onNodeDeleted: (nodeId) => {
         syncViewStateFromCanvas(canvas);
-        graphStore.removeNode(nodeId);
+        graphStore.removeNode(nodeId, validationSpecs);
         notifyGraphChanged();
       },
       onConnectionDeleted: (connectionId) => {
@@ -924,6 +957,7 @@
   ></div>
   <DomNodeLayer
     landedNodeId={landedNodeId}
+    patchInsertNodeId={patchInsertNodeId}
     graph={graph}
     nodeSpecs={nodeSpecs}
     audioSetup={graphStore.audioSetup}
@@ -963,7 +997,13 @@
         graphStore.updateViewState({ selectedNodeIds: newIds });
         callbacks.onSelectionChanged?.(newIds);
       } else {
-        newIds = nodeId ? [nodeId] : [];
+        const currentSelectedIds = graphStore.viewState.selectedNodeIds ?? [];
+        newIds =
+          nodeId && currentSelectedIds.length === 1 && currentSelectedIds[0] === nodeId
+            ? []
+            : nodeId
+              ? [nodeId]
+              : [];
         graphStore.updateViewState({ selectedNodeIds: newIds });
         callbacks.onSelectionChanged?.(newIds);
       }
@@ -984,12 +1024,21 @@
       notifyGraphChanged();
     }}
     onParameterChange={(nodeId, paramName, value) => {
-      handleParameterChange(nodeId, paramName, value, canvasInstance);
-      notifyGraphChanged();
+      void handleParameterChange(nodeId, paramName, value, canvasInstance);
     }}
     onNodeContextMenu={(nodeId, clientX, clientY) => {
       const node = graph.nodes.find((n) => n.id === nodeId);
       if (node) callbacks.onNodeContextMenu?.(clientX, clientY, nodeId, node.type);
+    }}
+    onPatchIntoDoubleClick={beginPatchIntoFromNodeDoubleClick}
+    onNodePowerToggle={(nodeId, bypassed) => {
+      // Keep camera stable: power toggles are graph edits, but should never change pan/zoom.
+      // Sync from canvas first so graph.viewState is current, and preserve view state on apply.
+      if (canvasInstance) syncViewStateFromCanvas(canvasInstance);
+      graphStore.setNodeBypassed(nodeId, bypassed);
+      notifyGraphChanged();
+      canvasInstance?.setGraph?.(graphStore.graph, { preserveViewState: true });
+      canvasInstance?.requestRender?.();
     }}
   />
 

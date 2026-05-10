@@ -4,7 +4,8 @@ export const sphereRaymarchNodeSpec: NodeSpec = {
   id: 'sphere-raymarch',
   category: 'Shapes',
   displayName: 'Raymarch Sphere',
-  description: '3D sphere rendered using raymarching technique with vector field distortion and glow effects',
+  description:
+    'Screen-space ray march toward a distorted sphere: built-in camera, vector-field warping, and a normalized glow output (0–1)',
   icon: 'sphere',
   inputs: [
     {
@@ -53,7 +54,7 @@ export const sphereRaymarchNodeSpec: NodeSpec = {
       min: 20.0,
       max: 200.0,
       step: 1.0,
-      label: 'Raymarch'
+      label: 'Steps'
     },
     vectorFieldFrequencyX: {
       type: 'float',
@@ -117,7 +118,7 @@ export const sphereRaymarchNodeSpec: NodeSpec = {
       min: 0.0,
       max: 0.2,
       step: 0.01,
-      label: 'Distance'
+      label: 'Field Influence'
     },
     vectorFieldSpeed: {
       type: 'float',
@@ -125,7 +126,7 @@ export const sphereRaymarchNodeSpec: NodeSpec = {
       min: 0.0,
       max: 2.0,
       step: 0.1,
-      label: 'Speed',
+      label: 'Field Speed',
       inputMode: 'override'
     },
     animationSpeed: {
@@ -134,7 +135,7 @@ export const sphereRaymarchNodeSpec: NodeSpec = {
       min: 0.0,
       max: 2.0,
       step: 0.1,
-      label: 'Speed'
+      label: 'Time Scale'
     }
   },
   parameterGroups: [

@@ -76,6 +76,52 @@ describe('migrateBloomSphereColors', () => {
     expect(c2.targetParameter).toBe('innerC');
   });
 
+  it('rewrites bloom-sphere legacy mode RGB params (classicOuterGlow/InnerGlow) to OKLCH', () => {
+    const graph: NodeGraph = {
+      id: 'g1',
+      name: 'Test',
+      version: '2.0',
+      nodes: [
+        {
+          id: 'b1',
+          type: 'bloom-sphere',
+          position: { x: 0, y: 0 },
+          parameters: {
+            classicOuterGlowR: 0.2,
+            classicOuterGlowG: 0.4,
+            classicOuterGlowB: 0.9,
+            classicInnerGlowR: 0.9,
+            classicInnerGlowG: 0.2,
+            classicInnerGlowB: 0.2,
+          },
+        },
+      ],
+      connections: [],
+      metadata: {},
+      viewState: { zoom: 1, panX: 0, panY: 0, selectedNodeIds: [] },
+    };
+
+    const out = migrateBloomSphereColors(graph);
+    const outNode = out.nodes.find((n) => n.id === 'b1')!;
+
+    expect(outNode.parameters).not.toHaveProperty('classicOuterGlowR');
+    expect(outNode.parameters).not.toHaveProperty('classicOuterGlowG');
+    expect(outNode.parameters).not.toHaveProperty('classicOuterGlowB');
+    expect(outNode.parameters).not.toHaveProperty('classicInnerGlowR');
+    expect(outNode.parameters).not.toHaveProperty('classicInnerGlowG');
+    expect(outNode.parameters).not.toHaveProperty('classicInnerGlowB');
+
+    const expectedOuter = linearRgbToOklch(0.2, 0.4, 0.9);
+    expect(outNode.parameters.outerL as number).toBeCloseTo(expectedOuter.l, 5);
+    expect(outNode.parameters.outerC as number).toBeCloseTo(expectedOuter.c, 5);
+    expect(outNode.parameters.outerH as number).toBeCloseTo(expectedOuter.h, 5);
+
+    const expectedInner = linearRgbToOklch(0.9, 0.2, 0.2);
+    expect(outNode.parameters.innerL as number).toBeCloseTo(expectedInner.l, 5);
+    expect(outNode.parameters.innerC as number).toBeCloseTo(expectedInner.c, 5);
+    expect(outNode.parameters.innerH as number).toBeCloseTo(expectedInner.h, 5);
+  });
+
   it('returns unchanged graph when no legacy bloom-sphere color params exist', () => {
     const graph: NodeGraph = {
       id: 'g1',

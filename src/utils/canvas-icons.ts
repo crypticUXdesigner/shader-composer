@@ -51,6 +51,7 @@ const iconAliases: Record<string, CanonicalIconId> = {
   'circle-dotted': canonicalId('circle-dashed', 'line'),
   'square': canonicalId('square', 'line'),
   'star': canonicalId('star', 'line'),
+  'flower': canonicalId('flower', 'line'),
   'square-rounded-corners': canonicalId('square', 'line'),
   'rectangle': canonicalId('rectangle', 'line'),
   'hexagon': canonicalId('hexagon', 'line'),
@@ -62,9 +63,10 @@ const iconAliases: Record<string, CanonicalIconId> = {
   'ring': canonicalId('circle', 'line'),
   'rings': canonicalId('circle', 'line'),
   'infinity': canonicalId('infinity', 'line'),
-  'sparkles-2': canonicalId('sparkles', 'line'),
+  'sparkles-2': canonicalId('sparkle', 'line'),
   'circle-dashed': canonicalId('circle-dashed', 'line'),
   'car': canonicalId('headlights', 'line'),
+  'headlights': canonicalId('headlights', 'line'),
   'droplets': canonicalId('drop', 'line'),
 
   // Patterns & grids
@@ -75,6 +77,7 @@ const iconAliases: Record<string, CanonicalIconId> = {
   'noise': canonicalId('dots-nine', 'line'),
   'particle': canonicalId('dots-nine', 'line'),
   'cell': canonicalId('squares-four', 'line'),
+  'cloud': canonicalId('cloud', 'line'),
   'curly-loop': canonicalId('infinity', 'line'),
   'hexagons': canonicalId('hexagon', 'line'),
   'dots': canonicalId('dot', 'line'),
@@ -123,6 +126,7 @@ const iconAliases: Record<string, CanonicalIconId> = {
 
   // Vectors & geometry
   'arrow-right': canonicalId('arrow-right', 'line'),
+  'arrow-square-right': canonicalId('arrow-square-right', 'line'),
   'arrow-down': canonicalId('arrow-down', 'line'),
   'arrow-up': canonicalId('arrow-up', 'line'),
   'arrows-left-right': canonicalId('arrows-left-right', 'line'),
@@ -195,10 +199,12 @@ const iconAliases: Record<string, CanonicalIconId> = {
   'blend-mode': canonicalId('circles-four', 'line'),
   'sparkles': canonicalId('sparkle', 'filled'),
   'light': canonicalId('lightbulb', 'filled'),
+  'lightbulb': canonicalId('lightbulb', 'line'),
   'ruler': canonicalId('ruler', 'line'),
   'tone-curve': canonicalId('chart-line', 'line'),
   'select': canonicalId('selection', 'line'),
   'compare': canonicalId('columns', 'line'),
+  'columns-plus-right': canonicalId('columns-plus-right', 'line'),
   'mask': canonicalId('frame-corners', 'line'),
 
   // Utility operations
@@ -237,6 +243,7 @@ const iconAliases: Record<string, CanonicalIconId> = {
   'disco-ball': canonicalId('disco-ball', 'line'),
   'disc': canonicalId('disc', 'line'),
   'dna': canonicalId('dna', 'line'),
+  'drop-half': canonicalId('drop-half', 'line'),
   'drone': canonicalId('drone', 'line'),
   'equalizer': canonicalId('equalizer', 'line'),
   'fan': canonicalId('fan', 'line'),
@@ -279,6 +286,7 @@ const iconAliases: Record<string, CanonicalIconId> = {
   'spinner-ball': canonicalId('spinner-ball', 'line'),
   'star-of-david': canonicalId('star-of-david', 'line'),
   'sticker': canonicalId('sticker', 'line'),
+  'subtract-square': canonicalId('subtract-square', 'line'),
   'swap': canonicalId('swap', 'line'),
   'target': canonicalId('target', 'line'),
   'tennis-ball': canonicalId('tennis-ball', 'line'),
@@ -294,6 +302,7 @@ const iconAliases: Record<string, CanonicalIconId> = {
   'volleyball': canonicalId('volleyball', 'line'),
   'wall': canonicalId('wall', 'line'),
   'washing-machine': canonicalId('washing-machine', 'line'),
+  'wrench': canonicalId('wrench', 'line'),
   'yarn': canonicalId('yarn', 'line'),
   'yin-yang': canonicalId('yin-yang', 'line'),
 };

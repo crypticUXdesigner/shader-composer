@@ -28,6 +28,10 @@
 --node-bg-selected-end: var(--color-blue-40);
 --node-border: #ffffff4e;
 --node-border-selected: #ffffff99;
+/* Patch tool: node chosen for insert — distinct from selection (next step: pick cable) */
+--node-border-patch-insert: var(--color-teal-110);
+--node-patch-insert-ring-width: 5px;
+--node-box-shadow-patch-insert: 0 4px 14px rgba(92, 210, 157, 0.28);
 --node-border-width: 1px;
 --node-border-width-selected: 6px;
 --node-border-offset-selected: 6px;
@@ -48,25 +52,32 @@
 --node-shadow-color: rgba(0, 0, 0, 0.15);
 --node-shadow-color-selected-rgba: rgba(68, 72, 191, 0.3);
 
-/* Shiny nodes: shared intensity tokens (colors can be overridden per category) */
+/*
+ * Shiny (discovery accent): warm amber ring + glow — never reads like selection,
+ * which is near-white rim + blue lift (--node-border-selected / --color-blue-60).
+ * Patch-into cue stays teal (--node-border-patch-insert).
+ */
 --node-shiny-ring-width: 3px;
---node-shiny-glow-radius: 18px;
---node-shiny-ring-color: rgba(255, 255, 255, 0.9);
---node-shiny-glow-color: rgba(255, 255, 255, 0.35);
+--node-shiny-glow-radius: 22px;
+--node-shiny-ring-color: var(--color-orange-100);
+--node-shiny-glow-color: color-mix(in srgb, var(--color-orange-100) 44%, transparent);
+/* Selected + shiny: extra outer halo while keeping primary selection rim */
+--node-shiny-selected-outer-glow-radius: 34px;
+--node-shiny-selected-outer-glow: color-mix(in srgb, var(--color-orange-100) 38%, transparent);
 
-/* Node panel shiny cards: shared intensity tokens */
+/* Node panel shiny cards: same accent, toned for compact cards */
 --panel-node-shiny-ring-width: 2px;
---panel-node-shiny-glow-radius: 12px;
---panel-node-shiny-ring-color: rgba(255, 255, 255, 0.8);
---panel-node-shiny-glow-color: rgba(255, 255, 255, 0.3);
+--panel-node-shiny-glow-radius: 14px;
+--panel-node-shiny-ring-color: var(--color-orange-100);
+--panel-node-shiny-glow-color: color-mix(in srgb, var(--color-orange-100) 38%, transparent);
 --panel-shiny-border-radius-adjust: 0px;
 
 /* === 3. NODE — HEADER (HeaderFlexboxLayout, DomNodeLayer, NodeHeader.svelte) === */
 
 /* Header content: padding, min-height, icon, name */
---node-header-padding: 36px; /* General header inset — inputs and outputs react to this */
+--node-header-padding: 18px 36px 24px 36px; /* General header inset — inputs and outputs react to this */
 --node-header-logo-padding: 60px; /* Padding around icon box + label (center part only) */
---node-header-min-height: 200px;
+--node-header-min-height: 240px;
 --node-header-icon-size: 60px;
 --node-header-name-size: var(--text-xl);
 --node-header-name-weight: 600;
@@ -108,6 +119,9 @@
 --node-header-input-port-spacing: var(--scale-11); /* 54px */
 --node-header-port-row-height: 28px; /* Height per port row (port dot + type label + name label) */
 --node-header-port-label-color: var(--color-gray-110);
+
+/* Power strip (optional row above inputs | logo | outputs); must match HeaderFlexboxLayout + nodeHeaderGeometry */
+--node-header-power-strip-height: 36px;
 
 /* Legacy/alias (referenced by DOM or older code) */
 --node-header-bg: var(--color-gray-50);

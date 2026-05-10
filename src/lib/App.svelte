@@ -11,6 +11,7 @@
   import { RuntimeMessageDispatcher } from '../runtime/RuntimeMessageDispatcher';
   import { WaveformService } from '../runtime';
   import { WebGLContextError } from '../runtime/errors';
+  import type { RenderBackendMode } from '../runtime/renderBackends/renderBackendTypes';
   import { nodeSystemSpecs } from '../shaders/nodes/index';
   import { listPresets, loadPresetFromJson, downloadGraphAsJsonFile } from '../utils/presetManager';
   import { toValidationSpecs } from '../utils/nodeSpecUtils';
@@ -754,6 +755,28 @@
     }
   }
 
+  function parseUrlRenderBackendOverride(): RenderBackendMode | undefined {
+    if (typeof window === 'undefined') return undefined;
+    try {
+      const raw = new URLSearchParams(window.location.search).get('renderBackend')?.trim().toLowerCase();
+      if (!raw) return undefined;
+      if (raw === 'auto' || raw === 'webgpu' || raw === 'webgl') return raw;
+      return undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  function parseUrlPreviewOverlayEnabled(): boolean {
+    if (typeof window === 'undefined') return false;
+    try {
+      const raw = new URLSearchParams(window.location.search).get('previewOverlay')?.trim().toLowerCase();
+      return raw === '1' || raw === 'true' || raw === 'yes';
+    } catch {
+      return false;
+    }
+  }
+
   function stripProjectQueryFromUrl(): void {
     if (typeof window === 'undefined') return;
     try {
@@ -1388,7 +1411,10 @@
 
       let rm: Awaited<ReturnType<typeof createRuntimeManager>>;
       try {
-        rm = await createRuntimeManager(previewCanvas, comp, globalErrorHandler, nodeSpecsMap);
+        const renderBackend = parseUrlRenderBackendOverride();
+        rm = renderBackend
+          ? await createRuntimeManager(previewCanvas, comp, globalErrorHandler, nodeSpecsMap, { renderBackend })
+          : await createRuntimeManager(previewCanvas, comp, globalErrorHandler, nodeSpecsMap);
         if (cancelled) return;
         runtimeManager = rm;
         runtimeDispatcher = new RuntimeMessageDispatcher(rm);
@@ -1412,6 +1438,11 @@
 
       rm.setOnContextLost(() => stopAnimation());
       rm.setOnAppContextRestored(() => startAnimation());
+
+      if (import.meta.env.DEV && parseUrlPreviewOverlayEnabled()) {
+        (window as unknown as { __previewSchedulerDebug?: { enableOverlay: (enabled: boolean) => void } })
+          .__previewSchedulerDebug?.enableOverlay(true);
+      }
 
       undoRedoManager = new UndoRedoManager();
       graphStore.setGraphChangedListener((g) => {
@@ -1738,6 +1769,9 @@
     onLayoutBlockingOverlaysChange={(blocked) => {
       layoutBlockingCanvasShortcuts = blocked;
     }}
+    onPreviewGeometryCommit={() => {
+      runtimeManager?.notifyPreviewLayoutChanged();
+    }}
     callbacks={{
       onDownloadPreset: handleDownloadPreset,
       onExport: handleExport,
@@ -1975,8 +2009,15 @@
       openHelpForNodeType(nodeType);
     }}
     onCopyNodeName={(nodeType) => navigator.clipboard.writeText(nodeType).catch(() => {})}
+    onResetParameters={(nodeId, nodeType) => {
+      const spec = nodeSpecsMap.get(nodeType);
+      if (!spec) return;
+      graphStore.resetNodeParametersToDefaults(nodeId, spec.parameters);
+      void runtimeManager?.setGraph(graphStore.graph);
+      canvasApi?.requestRender();
+    }}
     onRemove={(nodeId) => {
-      graphStore.removeNode(nodeId);
+      graphStore.removeNode(nodeId, toValidationSpecs(nodeSpecs));
       runtimeManager?.setGraph(graphStore.graph);
       canvasApi?.requestRender();
     }}
@@ -2009,7 +2050,10 @@
     x={canvasColorPickerX}
     y={canvasColorPickerY}
     value={canvasColorPickerValue}
-    onChange={(l, c, h) => canvasColorPickerOnApply?.(l, c, h)}
+    onChange={(l, c, h) => {
+      canvasColorPickerValue = { l, c, h };
+      canvasColorPickerOnApply?.(l, c, h);
+    }}
     onClose={() => {
       canvasColorPickerVisible = false;
       canvasColorPickerOnApply = null;

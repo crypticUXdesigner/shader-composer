@@ -160,9 +160,14 @@ export class ParameterLayoutManager {
         fullMetrics
       );
       
-      // Validate height before storing
+      // Validate height before storing.
+      // Note: a height of exactly 0 is legitimate — element renderers (e.g. GridElement)
+      // return 0 for sections hidden by `visibleWhen`. We pass that through so
+      // BodyFlexboxLayout collapses the slot without consuming gap.
       const height = tempMetrics?.height;
-      if (height === undefined || height === null || !isFinite(height) || height <= 0) {
+      if (height === 0) {
+        slotHeights.set(element, 0);
+      } else if (height === undefined || height === null || !isFinite(height) || height < 0) {
         console.warn(`Invalid height calculated for element ${i} (type: ${element.type}), height: ${height}. Using minimum height.`);
         slotHeights.set(element, 20); // Minimum height fallback
       } else {
@@ -195,15 +200,21 @@ export class ParameterLayoutManager {
         continue;
       }
       
+      // Hidden sections collapse to a zero-height slot. Skip metrics emission
+      // entirely; nothing should render and parameter positions are not needed.
+      if (slotLayout.height === 0) {
+        continue;
+      }
+
       // Calculate startY relative to body start (for element renderer)
       // Validate slotLayout has valid properties before using it
-      if (slotLayout.y === undefined || slotLayout.y === null || 
+      if (slotLayout.y === undefined || slotLayout.y === null ||
           slotLayout.x === undefined || slotLayout.x === null ||
           slotLayout.width === undefined || slotLayout.width === null ||
           slotLayout.height === undefined || slotLayout.height === null ||
           !isFinite(slotLayout.x) || !isFinite(slotLayout.y) ||
           !isFinite(slotLayout.width) || !isFinite(slotLayout.height) ||
-          slotLayout.width <= 0 || slotLayout.height <= 0) {
+          slotLayout.width <= 0 || slotLayout.height < 0) {
         console.warn(`Invalid slot layout for element ${i}, skipping metrics calculation`);
         continue;
       }

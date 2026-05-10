@@ -211,10 +211,17 @@ export function findFinalOutputNode(
   if (outputNodes.length === 1) return outputNodes[0];
 
   if (outputNodes.length > 1) {
+    // Prefer a final-output node that is actually wired up (disambiguation when multiple exist).
+    const wiredOutputs = outputNodes.filter((n) =>
+      graph.connections.some((c) => c.targetNodeId === n.id && c.targetPort === 'in')
+    );
+    if (wiredOutputs.length === 1) return wiredOutputs[0];
+
+    const candidates = wiredOutputs.length ? wiredOutputs : outputNodes;
     const outgoingConnections = new Set(graph.connections.map(c => c.sourceNodeId));
-    const leaf = outputNodes.find(n => !outgoingConnections.has(n.id));
+    const leaf = candidates.find(n => !outgoingConnections.has(n.id));
     if (leaf) return leaf;
-    return outputNodes.sort((a, b) =>
+    return candidates.sort((a, b) =>
       executionOrder.indexOf(b.id) - executionOrder.indexOf(a.id)
     )[0];
   }
@@ -237,7 +244,8 @@ export function generateFinalColorVariable(
   graph: NodeGraph,
   finalOutputNode: NodeInstance | null,
   variableNames: Map<string, Map<string, string>>,
-  nodeSpecs: Map<string, NodeSpec>
+  nodeSpecs: Map<string, NodeSpec>,
+  effectiveNodeSpecsById?: Map<string, NodeSpec>
 ): string {
   if (!finalOutputNode) {
     const executionOrder = Array.from(variableNames.keys());
@@ -248,7 +256,7 @@ export function generateFinalColorVariable(
       const firstOutput = Array.from(outputVars.values())[0];
       const node = graph.nodes.find(n => n.id === nodeId);
       if (!node) continue;
-      const nodeSpec = nodeSpecs.get(node.type);
+      const nodeSpec = effectiveNodeSpecsById?.get(node.id) ?? nodeSpecs.get(node.type);
       const firstOutputPort = nodeSpec?.outputs[0];
       if (firstOutputPort) {
         if (firstOutputPort.type === 'vec4') return `${firstOutput}.rgb`;
@@ -260,7 +268,7 @@ export function generateFinalColorVariable(
     return 'vec3(0.0)';
   }
 
-  const finalOutputSpec = nodeSpecs.get(finalOutputNode.type);
+  const finalOutputSpec = effectiveNodeSpecsById?.get(finalOutputNode.id) ?? nodeSpecs.get(finalOutputNode.type);
   if (finalOutputSpec?.id === 'final-output') {
     const inputConnection = graph.connections.find(
       conn => conn.targetNodeId === finalOutputNode.id && conn.targetPort === 'in'
@@ -268,7 +276,7 @@ export function generateFinalColorVariable(
     if (inputConnection) {
       const sourceNode = graph.nodes.find(n => n.id === inputConnection.sourceNodeId);
       if (sourceNode) {
-        const sourceSpec = nodeSpecs.get(sourceNode.type);
+        const sourceSpec = effectiveNodeSpecsById?.get(sourceNode.id) ?? nodeSpecs.get(sourceNode.type);
         if (sourceSpec) {
           const sourceOutput = sourceSpec.outputs.find(o => o.name === inputConnection.sourcePort);
           const sourceVarName = variableNames.get(inputConnection.sourceNodeId)?.get(inputConnection.sourcePort);
@@ -288,7 +296,7 @@ export function generateFinalColorVariable(
   if (!outputVars) return 'vec3(0.0)';
   const firstOutput = Array.from(outputVars.values())[0];
   if (firstOutput) {
-    const nodeSpec = nodeSpecs.get(finalOutputNode.type);
+    const nodeSpec = effectiveNodeSpecsById?.get(finalOutputNode.id) ?? nodeSpecs.get(finalOutputNode.type);
     const firstOutputPort = nodeSpec?.outputs[0];
     if (firstOutputPort) {
       if (firstOutputPort.type === 'vec4') return `${firstOutput}.rgb`;

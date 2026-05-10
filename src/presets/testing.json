@@ -25,60 +25,37 @@
           "parameters": {}
         },
         {
-          "id": "node-1771960456689-mop9l9gmg",
-          "type": "ether-sdf",
+          "id": "node-testing-noise",
+          "type": "noise",
           "position": {
-            "x": -434,
-            "y": -431
+            "x": -424,
+            "y": -457
           },
           "parameters": {
-            "rotSpeedXZ": 0,
-            "rotSpeedXY": 0,
-            "scale": 4.85,
-            "wobbleSpeed": 0,
-            "sineAmp": 8,
-            "positionX": 0,
-            "positionY": 0,
-            "positionZ": 0
-          }
-        },
-        {
-          "id": "node-1771960480419-78n611geg",
-          "type": "generic-raymarcher",
-          "position": {
-            "x": 719,
-            "y": -735
-          },
-          "parameters": {
-            "raymarchSteps": 200,
-            "glowIntensity": 0,
-            "brightness": 0,
-            "cameraRoX": 0,
-            "cameraRoY": 0,
-            "cameraRoZ": 0
+            "noiseMode": 2,
+            "noiseScale": 3,
+            "noiseOctaves": 4,
+            "noiseLacunarity": 1.18,
+            "noiseGain": 0.5,
+            "noiseTimeSpeed": 0.2,
+            "noiseTimeOffset": 0,
+            "noiseIntensity": 1
           }
         }
       ],
       "connections": [
         {
           "id": "conn-1771960484642-rnx97fega",
-          "sourceNodeId": "node-1771960456689-mop9l9gmg",
+          "sourceNodeId": "node-testing-noise",
           "sourcePort": "out",
-          "targetNodeId": "node-1771960480419-78n611geg",
-          "targetPort": "sdf"
-        },
-        {
-          "id": "conn-1771960491122-10sypn7c6",
-          "sourceNodeId": "node-1771960411888-wzf5vzu5z",
-          "sourcePort": "out",
-          "targetNodeId": "node-1771960480419-78n611geg",
+          "targetNodeId": "node-1771960411888-n727a1btd",
           "targetPort": "in"
         },
         {
           "id": "conn-1771960498831-gcsrml449",
-          "sourceNodeId": "node-1771960480419-78n611geg",
-          "sourcePort": "color",
-          "targetNodeId": "node-1771960411888-n727a1btd",
+          "sourceNodeId": "node-1771960411888-wzf5vzu5z",
+          "sourcePort": "out",
+          "targetNodeId": "node-testing-noise",
           "targetPort": "in"
         }
       ],

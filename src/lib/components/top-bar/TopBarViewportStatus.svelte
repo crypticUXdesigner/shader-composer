@@ -3,6 +3,7 @@
    * Top bar right section: FPS, zoom, help.
    */
   import { Button, ButtonGroup, IconSvg } from '../ui';
+  import { createStrictDoubleClickHandler } from '../../utils/strictDoubleClick';
 
   interface Props {
     zoomPercent: number;
@@ -41,6 +42,12 @@
     isEditingZoom = false;
   }
 
+  const strictZoomEditing = createStrictDoubleClickHandler((e: MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    startZoomEditing();
+  });
+
   function commitZoomEditing() {
     const raw = Number.parseFloat(zoomEditText);
     if (!Number.isFinite(raw)) {
@@ -63,11 +70,7 @@
       size="sm"
       mode="both"
       title="Zoom — double-click to edit"
-      ondblclick={(e: MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        startZoomEditing();
-      }}
+      onclick={strictZoomEditing}
     >
       <IconSvg name="zoom-in" variant="filled" />
       {#if isEditingZoom}
@@ -94,7 +97,6 @@
             }
           }}
           onclick={(e: MouseEvent) => e.stopPropagation()}
-          ondblclick={(e: MouseEvent) => e.stopPropagation()}
         />
         <span class="top-bar-zoom-suffix">%</span>
       {:else}

@@ -9,12 +9,30 @@
  * for detailed change information when needed.
  */
 
-import type { NodeGraph } from '../../data-model/types';
+import type { NodeGraph, NodeInstance } from '../../data-model/types';
 import { parametersEqual, connectionsEqual } from '../../runtime/utils/deepEquals';
 import type { ChangeDetectionResult, ChangeDetectionOptions } from './types';
 import { ChangeType } from './types';
 import { GraphAnalyzer } from '../../shaders/compilation/GraphAnalyzer';
 import { automationEqual, automationOnlyRegionTimesDiffer } from './automationComparison';
+
+function parameterInputModesEqual(
+  a: NodeInstance['parameterInputModes'],
+  b: NodeInstance['parameterInputModes'],
+): boolean {
+  const keys = new Set([
+    ...Object.keys(a ?? {}),
+    ...Object.keys(b ?? {}),
+  ]);
+  for (const key of keys) {
+    const va = key in (a ?? {}) ? a![key] : undefined;
+    const vb = key in (b ?? {}) ? b![key] : undefined;
+    if (va !== vb) {
+      return false;
+    }
+  }
+  return true;
+}
 
 /**
  * Graph Change Detector
@@ -119,6 +137,15 @@ export class GraphChangeDetector {
       if (!parametersEqual(oldNode.parameters, newNode.parameters)) {
         return false;
       }
+      if (!parameterInputModesEqual(oldNode.parameterInputModes, newNode.parameterInputModes)) {
+        return false;
+      }
+      // Per-node Power: toggling `bypassed` is a structural change for the compiler (different
+      // execution order + different connection view). Treat it as not-only-position so the
+      // runtime triggers a recompile via the existing structure-change path.
+      if ((oldNode.bypassed ?? false) !== (newNode.bypassed ?? false)) {
+        return false;
+      }
     }
 
     // Check if connections changed
@@ -150,6 +177,10 @@ export class GraphChangeDetector {
     for (const newNode of newGraph.nodes) {
       const oldNode = oldNodesById.get(newNode.id);
       if (!oldNode || oldNode.type !== newNode.type || !parametersEqual(oldNode.parameters, newNode.parameters)) {
+        return false;
+      }
+      // Per-node Power: bypass toggle is structural, not just a timing tweak.
+      if ((oldNode.bypassed ?? false) !== (newNode.bypassed ?? false)) {
         return false;
       }
     }
@@ -324,7 +355,7 @@ export class GraphChangeDetector {
       }
     }
 
-    // Find changed nodes (type or parameters)
+    // Find changed nodes (type, parameters, or bypassed)
     for (const newNode of newGraph.nodes) {
       const oldNode = oldNodesById.get(newNode.id);
       if (!oldNode) continue; // Already handled as added
@@ -338,6 +369,14 @@ export class GraphChangeDetector {
 
       if (!parametersEqual(oldNode.parameters, newNode.parameters)) {
         result.isParametersChanged = true;
+        nodeChanged = true;
+      }
+
+      // Per-node Power: bypass toggle is a structural change (drops or restores GPU code).
+      // Mark the node + the graph as structurally changed so downstream consumers recompile
+      // and re-derive affected dependents.
+      if ((oldNode.bypassed ?? false) !== (newNode.bypassed ?? false)) {
+        result.isStructureChanged = true;
         nodeChanged = true;
       }
 

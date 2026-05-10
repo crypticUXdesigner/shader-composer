@@ -35,7 +35,8 @@ export interface PresetInfo {
 export async function listPresets(): Promise<PresetInfo[]> {
   // Use import.meta.glob to get all preset files
   // This works because Vite bundles JSON files from src/ as modules
-  const presetModules = import.meta.glob('/src/presets/*.json', { eager: false });
+  // Use a relative glob so Rollup/Vite resolve consistently across platforms (Windows paths included).
+  const presetModules = import.meta.glob('../presets/*.json', { eager: false });
   
   const presets: PresetInfo[] = [];
   
@@ -90,7 +91,7 @@ export async function loadPreset(
   });
 
   try {
-    const presetModules = import.meta.glob('/src/presets/*.json', { eager: false });
+    const presetModules = import.meta.glob('../presets/*.json', { eager: false });
     // Vite glob keys may be with or without leading slash depending on env; match by suffix
     const presetPath = Object.keys(presetModules).find((k) => k.endsWith(`/${presetName}.json`));
 

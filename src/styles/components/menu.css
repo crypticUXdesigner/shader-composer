@@ -12,13 +12,15 @@
   max-height: var(--menu-max-height);
   overflow-x: hidden;
   overflow-y: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
 
-  &::-webkit-scrollbar {
-    width: 0;
-    height: 0;
-    display: none;
+  .menu-wrapper-inner {
+    /* Layout */
+    display: flex;
+    flex-direction: column;
+    gap: var(--pd-2xs);
+
+    /* Box model */
+    padding: var(--pd-2xs);
   }
 
   .menu-item {

@@ -8,7 +8,8 @@ export const toneMappingNodeSpec: NodeSpec = {
   id: 'tone-mapping',
   category: 'Effects',
   displayName: 'Tone Mapping',
-  description: 'Applies tone mapping adjustments (exposure, contrast, saturation) to color',
+  description:
+    'Quick grade: exposure multiplier, midpoint contrast pivot, saturation vs gray (rec.709 luma weights). Outputs clamped 0–1 linear RGB.',
   icon: 'contrast-2',
   inputs: [
     { name: 'in', type: 'vec3', label: 'Color' }

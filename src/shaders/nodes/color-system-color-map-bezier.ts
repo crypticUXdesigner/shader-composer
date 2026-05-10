@@ -8,8 +8,9 @@ export const oklchColorMapBezierNodeSpec: NodeSpec = {
   id: 'oklch-color-map-bezier',
   category: 'Blend',
   displayName: 'Color Map Smooth',
-  description: 'Converts float value to RGB color using OKLCH color space with cubic bezier curve interpolation',
-  icon: 'ease-in-out-control-points',
+  description:
+    'Maps a clamped scalar through OKLCH with per-channel Bézier easing; wired start/end vec3 ports (OKLCH) override the panel sliders',
+  icon: 'color-swatch',
   inputs: [
     { name: 'in', type: 'float', label: 'Value' },
     { name: 'startColor', type: 'vec3', fallbackParameter: 'startColorL,startColorC,startColorH', label: 'Start color' },
@@ -22,19 +23,12 @@ export const oklchColorMapBezierNodeSpec: NodeSpec = {
     { name: 'out', type: 'vec3', label: 'Color' }
   ],
   parameters: {
-    stops: {
-      type: 'int',
-      default: 10,
-      min: 2,
-      max: 50,
-      label: 'Stops'
-    },
-    startColorL: { type: 'float', default: 0.5, min: 0.0, max: 1.0, step: 0.01, label: 'Start Light' },
-    startColorC: { type: 'float', default: 0.1, min: 0.0, max: 0.4, step: 0.01, label: 'Start Chroma' },
-    startColorH: { type: 'float', default: 0.0, min: 0.0, max: 360.0, step: 1.0, label: 'Start Hue' },
-    endColorL: { type: 'float', default: 0.9, min: 0.0, max: 1.0, step: 0.01, label: 'End Light' },
-    endColorC: { type: 'float', default: 0.1, min: 0.0, max: 0.4, step: 0.01, label: 'End Chroma' },
-    endColorH: { type: 'float', default: 180.0, min: 0.0, max: 360.0, step: 1.0, label: 'End Hue' },
+    startColorL: { type: 'float', default: 0.5, min: 0.0, max: 1.0, step: 0.001, label: 'Start Light' },
+    startColorC: { type: 'float', default: 0.1, min: 0.0, max: 0.4, step: 0.001, label: 'Start Chroma' },
+    startColorH: { type: 'float', default: 0.0, min: 0.0, max: 360.0, step: 0.001, label: 'Start Hue' },
+    endColorL: { type: 'float', default: 0.9, min: 0.0, max: 1.0, step: 0.001, label: 'End Light' },
+    endColorC: { type: 'float', default: 0.1, min: 0.0, max: 0.4, step: 0.001, label: 'End Chroma' },
+    endColorH: { type: 'float', default: 180.0, min: 0.0, max: 360.0, step: 0.001, label: 'End Hue' },
     lCurveX1: { type: 'float', default: 0.0, min: 0.0, max: 1.0, step: 0.01 },
     lCurveY1: { type: 'float', default: 0.0, min: 0.0, max: 1.0, step: 0.01 },
     lCurveX2: { type: 'float', default: 1.0, min: 0.0, max: 1.0, step: 0.01 },
@@ -59,7 +53,6 @@ export const oklchColorMapBezierNodeSpec: NodeSpec = {
     ],
     elements: [
       { type: 'color-map-preview', mode: 'smooth' },
-      { type: 'grid', parameters: ['stops', 'reverseHue'], layout: { columns: 3, parameterSpan: { stops: 2 } } },
       { type: 'color-picker-row', label: 'Colors', pickers: [['startColorL', 'startColorC', 'startColorH'], ['endColorL', 'endColorC', 'endColorH']] },
       { type: 'grid', parameters: ['startColorL', 'startColorC', 'startColorH'], parameterUI: { startColorL: 'input', startColorC: 'input', startColorH: 'input' }, layout: { columns: 3 } },
       { type: 'grid', parameters: ['endColorL', 'endColorC', 'endColorH'], parameterUI: { endColorL: 'input', endColorC: 'input', endColorH: 'input' }, layout: { columns: 3 } },
@@ -109,10 +102,10 @@ export const oklchColorMapBezierNodeSpec: NodeSpec = {
     float lT = cubicBezier(value, $input.lCurve);
     float cT = cubicBezier(value, $input.cCurve);
     float hT = cubicBezier(value, $input.hCurve);
-    float l = mix($param.startColorL, $param.endColorL, lT);
-    float c = mix($param.startColorC, $param.endColorC, cT);
-    float startH = $param.startColorH;
-    float endH = $param.endColorH;
+    float l = mix($input.startColor.x, $input.endColor.x, lT);
+    float c = mix($input.startColor.y, $input.endColor.y, cT);
+    float startH = $input.startColor.z;
+    float endH = $input.endColor.z;
     float adjustedEndH;
     if ($param.reverseHue > 0) {
       adjustedEndH = (endH > startH) ? endH - 360.0 : endH;

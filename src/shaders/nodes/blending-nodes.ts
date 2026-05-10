@@ -4,57 +4,8 @@ import type { NodeSpec } from '../../types/nodeSpec';
  * Blending Nodes
  */
 
-export const blendModeNodeSpec: NodeSpec = {
-  id: 'blend-mode',
-  category: 'Blend',
-  displayName: 'Blend Mode',
-  description: 'Applies blending mode between two values',
-  icon: 'blend-mode',
-  inputs: [
-    { name: 'base', type: 'float', label: 'Background' },
-    { name: 'blend', type: 'float', fallbackParameter: 'blend', label: 'Blend' }
-  ],
-  outputs: [
-    { name: 'out', type: 'float', label: 'Result' }
-  ],
-  parameters: {
-    mode: {
-      type: 'int',
-      default: 0,
-      min: 0,
-      max: 11,
-      label: 'Blend Mode'
-    },
-    opacity: {
-      type: 'float',
-      default: 1.0,
-      min: 0.0,
-      max: 1.0,
-      step: 0.01,
-      label: 'Opacity'
-    },
-    blend: {
-      type: 'float',
-      default: 0.5,
-      min: 0.0,
-      max: 1.0,
-      step: 0.01,
-      label: 'Blend'
-    }
-  },
-  parameterLayout: {
-    elements: [
-      {
-        type: 'grid',
-        parameters: ['mode', 'opacity', 'blend'],
-        layout: {
-          columns: 2,
-          parameterSpan: { mode: 2 }
-        }
-      }
-    ]
-  },
-  functions: `
+/** Photoshop-style scalar blend primitives (shared by Blend Mode and Blend Color). */
+export const BLEND_MODE_PHOTOSHOP_FLOAT_GLSL = `
     float blendMultiply(float base, float blend) {
       return base * blend;
     }
@@ -120,9 +71,115 @@ export const blendModeNodeSpec: NodeSpec = {
       else if (mode == 11) return blendExclusion(base, blend);
       else return base;
     }
-  `,
+  `;
+
+export const blendModeNodeSpec: NodeSpec = {
+  id: 'blend-mode',
+  category: 'Blend',
+  displayName: 'Blend Mode',
+  description:
+    'Blends two scalar (float) values with Photoshop-style modes—use on luminance or masks, then Color Map for RGB',
+  inputs: [
+    { name: 'base', type: 'float', label: 'Background' },
+    { name: 'blend', type: 'float', fallbackParameter: 'blend', label: 'Blend' }
+  ],
+  outputs: [
+    { name: 'out', type: 'float', label: 'Result' }
+  ],
+  parameters: {
+    mode: {
+      type: 'int',
+      default: 0,
+      min: 0,
+      max: 11,
+      label: 'Blend Mode'
+    },
+    opacity: {
+      type: 'float',
+      default: 1.0,
+      min: 0.0,
+      max: 1.0,
+      step: 0.01,
+      label: 'Opacity'
+    },
+    blend: {
+      type: 'float',
+      default: 0.5,
+      min: 0.0,
+      max: 1.0,
+      step: 0.01,
+      label: 'Blend value'
+    }
+  },
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['mode', 'opacity', 'blend'],
+        layout: {
+          columns: 2,
+          parameterSpan: { mode: 2 }
+        }
+      }
+    ]
+  },
+  functions: BLEND_MODE_PHOTOSHOP_FLOAT_GLSL,
   mainCode: `
     float blended = applyBlendMode($input.base, $input.blend, $param.mode);
     $output.out = mix($input.base, blended, $param.opacity);
+  `
+};
+
+/** Per-channel blend of two RGBA colors; same mode index order as Blend Mode (float). */
+export const blendColorNodeSpec: NodeSpec = {
+  id: 'blend-color',
+  category: 'Blend',
+  displayName: 'Blend Color',
+  description:
+    'Blends two RGBA colors with the same Photoshop-style modes as Blend Mode, applied per channel; alpha is mixed separately by Opacity',
+  icon: 'blend-mode',
+  inputs: [
+    { name: 'base', type: 'vec4', label: 'Background' },
+    { name: 'blend', type: 'vec4', label: 'Blend' }
+  ],
+  outputs: [{ name: 'out', type: 'vec4', label: 'Color' }],
+  parameters: {
+    mode: {
+      type: 'int',
+      default: 0,
+      min: 0,
+      max: 11,
+      label: 'Blend Mode'
+    },
+    opacity: {
+      type: 'float',
+      default: 1.0,
+      min: 0.0,
+      max: 1.0,
+      step: 0.01,
+      label: 'Opacity'
+    }
+  },
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['mode', 'opacity'],
+        layout: { columns: 2 }
+      }
+    ]
+  },
+  functions: BLEND_MODE_PHOTOSHOP_FLOAT_GLSL,
+  mainCode: `
+    vec4 baseColor = $input.base;
+    vec4 blendLayer = $input.blend;
+    vec3 blended = vec3(
+      applyBlendMode(baseColor.r, blendLayer.r, $param.mode),
+      applyBlendMode(baseColor.g, blendLayer.g, $param.mode),
+      applyBlendMode(baseColor.b, blendLayer.b, $param.mode)
+    );
+    vec3 rgb = mix(baseColor.rgb, blended, $param.opacity);
+    float alpha = mix(baseColor.a, blendLayer.a, $param.opacity);
+    $output.out = vec4(rgb, alpha);
   `
 };

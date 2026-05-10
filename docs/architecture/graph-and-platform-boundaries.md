@@ -6,7 +6,7 @@ The **node graph** (nodes, connections, view state, automation metadata) is owne
 
 ## Graph ownership and immutability
 
-- **Types** — `NodeGraph`, `NodeInstance`, `Connection`, `ParameterValue`, etc. live in [`src/data-model/types.ts`](../../src/data-model/types.ts). [`src/types/nodeGraph.ts`](../../src/types/nodeGraph.ts) re-exports those types and narrows file-format shapes; it is not a second graph implementation.
+- **Types** — `NodeGraph`, `NodeInstance`, `Connection`, `ParameterValue`, etc. live in [`src/data-model/types.ts`](../../src/data-model/types.ts). [`src/types/nodeGraph.ts`](../../src/types/nodeGraph.ts) re-exports those types and narrows file-format shapes; it is not a second graph implementation. Optional **`bypassed?: boolean`** on **`NodeInstance`** records per-node Power (serialized like other node fields); the compiler interprets it at compile time—the runtime does not simulate bypass separately from the shader (see [`docs/implementation/node-power/_OVERVIEW.md`](../implementation/node-power/_OVERVIEW.md)).
 - **Updates** — Pure updaters in [`src/data-model/immutableUpdates.ts`](../../src/data-model/immutableUpdates.ts) (`updateNodeParameter`, `addNode`, `removeConnection`, …) return a **new** graph reference.
 - **Store** — [`src/lib/stores/graphStore.svelte.ts`](../../src/lib/stores/graphStore.svelte.ts) holds `$state` for the graph and audio setup; actions call immutable updaters then assign `graph = …`.
 

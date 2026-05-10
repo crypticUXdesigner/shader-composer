@@ -32,12 +32,24 @@
       .sort((a, b) => a.value - b.value)
   );
 
-  const currentLabel = $derived(options[value] ?? String(value));
+  /** Coerce floats (automation/audio) onto integer enum indices so lookups and dropdown selection work. */
+  const coercedValue = $derived.by(() => {
+    const keys = entries.map((e) => e.value);
+    if (keys.length === 0) return value;
+    const lo = keys[0]!;
+    const hi = keys[keys.length - 1]!;
+    if (!Number.isFinite(value)) return lo;
+    let r = Math.round(Math.min(hi, Math.max(lo, value)));
+    if (keys.includes(r)) return r;
+    return keys.reduce((best, k) => (Math.abs(k - value) < Math.abs(best - value) ? k : best));
+  });
+
+  const currentLabel = $derived(options[coercedValue] ?? String(coercedValue));
 
   const menuItems = $derived(
     entries.map((e) => ({
       label: e.label,
-      selected: e.value === value,
+      selected: e.value === coercedValue,
       action: () => {
         onChange?.(e.value);
         onCommit?.(e.value);

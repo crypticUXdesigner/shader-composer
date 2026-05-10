@@ -561,25 +561,4 @@
   .node-panel-item[data-display-mode="grid"].sdf-2d[data-category="sdf"] {
     background: radial-gradient(ellipse 200% 150% at 50% 15%, var(--node-header-bg-sdf-2d), var(--node-header-bg-sdf));
   }
-
-  /* Shiny: category-aware ring color (panel) */
-  .node-panel-item.shiny[data-category="inputs"] { --panel-node-shiny-ring-color: var(--node-header-print-inputs); }
-  .node-panel-item.shiny.system-input[data-category="inputs"] { --panel-node-shiny-ring-color: var(--node-header-print-inputs-system); }
-  .node-panel-item.shiny[data-category="patterns"] { --panel-node-shiny-ring-color: var(--node-header-print-patterns); }
-  .node-panel-item.shiny.structured[data-category="patterns"] { --panel-node-shiny-ring-color: var(--node-header-print-patterns-structured); }
-  .node-panel-item.shiny[data-category="shapes"] { --panel-node-shiny-ring-color: var(--node-header-print-shapes); }
-  .node-panel-item.shiny.derived[data-category="shapes"] { --panel-node-shiny-ring-color: var(--node-header-print-shapes-derived); }
-  .node-panel-item.shiny[data-category="math"] { --panel-node-shiny-ring-color: var(--node-header-print-math); }
-  .node-panel-item.shiny.functions[data-category="math"] { --panel-node-shiny-ring-color: var(--node-header-print-math-functions); }
-  .node-panel-item.shiny.advanced[data-category="math"] { --panel-node-shiny-ring-color: var(--node-header-print-math-advanced); }
-  .node-panel-item.shiny[data-category="utilities"] { --panel-node-shiny-ring-color: var(--node-header-print-utilities); }
-  .node-panel-item.shiny[data-category="distort"] { --panel-node-shiny-ring-color: var(--node-header-print-distort); }
-  .node-panel-item.shiny.warp[data-category="distort"] { --panel-node-shiny-ring-color: var(--node-header-print-distort-warp); }
-  .node-panel-item.shiny[data-category="blend"] { --panel-node-shiny-ring-color: var(--node-header-print-blend); }
-  .node-panel-item.shiny[data-category="mask"] { --panel-node-shiny-ring-color: var(--node-header-print-mask); }
-  .node-panel-item.shiny[data-category="effects"] { --panel-node-shiny-ring-color: var(--node-header-print-effects); }
-  .node-panel-item.shiny.stylize[data-category="effects"] { --panel-node-shiny-ring-color: var(--node-header-print-effects-stylize); }
-  .node-panel-item.shiny[data-category="output"] { --panel-node-shiny-ring-color: var(--node-header-print-output); }
-  .node-panel-item.shiny[data-category="audio"] { --panel-node-shiny-ring-color: var(--node-header-print-audio); }
-  .node-panel-item.shiny[data-category="sdf"] { --panel-node-shiny-ring-color: var(--node-header-print-sdf); }
 </style>

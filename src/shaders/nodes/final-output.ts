@@ -14,8 +14,9 @@ export const finalOutputNodeSpec: NodeSpec = {
   inputs: [
     {
       name: 'in',
-      type: 'vec3',  // Accepts vec3 (use color-map node before this for float inputs)
-      label: 'Color'
+      type: 'vec3', // Accepts vec3 (use color-map node before this for float inputs)
+      label: 'Color',
+      hideHeaderLabel: true
     }
   ],
   outputs: [],  // Terminal node - no outputs

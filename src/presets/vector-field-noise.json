@@ -91,16 +91,22 @@
       },
       {
         "id": "node-1772315686039-tg3wy4ksb",
-        "type": "fisheye",
+        "type": "radial-uv-warp",
         "position": {
           "x": -542,
           "y": -140
         },
         "parameters": {
-          "fisheyeCenterX": 0,
-          "fisheyeCenterY": 0,
+          "warpMode": 1,
+          "warpCenterX": 0,
+          "warpCenterY": 0,
+          "bulgeStrength": 0.5,
+          "bulgeRadius": 1,
+          "bulgeFalloff": 1,
           "fisheyeStrength": -1,
-          "fisheyeAspect": 1
+          "fisheyeAspect": 1,
+          "spherizeRadius": 1,
+          "spherizeStrength": 1
         },
         "parameterInputModes": {
           "fisheyeStrength": "multiply"
@@ -108,16 +114,22 @@
       },
       {
         "id": "node-1772315686039-aagwd6mdk",
-        "type": "fisheye",
+        "type": "radial-uv-warp",
         "position": {
           "x": 262,
           "y": -150
         },
         "parameters": {
-          "fisheyeCenterX": 0,
-          "fisheyeCenterY": 0,
+          "warpMode": 1,
+          "warpCenterX": 0,
+          "warpCenterY": 0,
+          "bulgeStrength": 0.5,
+          "bulgeRadius": 1,
+          "bulgeFalloff": 1,
           "fisheyeStrength": -0.56,
-          "fisheyeAspect": 1
+          "fisheyeAspect": 1,
+          "spherizeRadius": 1,
+          "spherizeStrength": 1
         },
         "parameterInputModes": {
           "fisheyeStrength": "multiply"

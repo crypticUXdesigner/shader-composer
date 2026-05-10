@@ -1,15 +1,17 @@
 <script lang="ts">
   /**
    * NodeHeader
-   * Icon, label (double-click to edit). Drag handle for node drag.
+   * Icon, label (double-click the label text to edit). Drag handle for node drag.
    * Output ports are positioned to align with the connection layer.
    * Input ports: port -> type -> name. Output ports: name -> type -> port.
    */
 
-  import { NodeIconSvg } from '../ui';
+  import { IconSvg, NodeIconSvg } from '../ui';
   import { getNodeIcon, isRedundantOutputLabel } from '../../../utils/nodeSpecUtils';
   import type { NodeSpec, PortSpec } from '../../../types/nodeSpec';
   import type { PortPosition } from './types';
+  import { nodeSupportsPower } from '../../../shaders/nodePower';
+  import { createStrictDoubleClickHandler } from '../../utils/strictDoubleClick';
 
   /** Short display labels for port types (matches ParamPort/RenderingUtils) */
   const PORT_TYPE_LABELS: Record<string, string> = {
@@ -41,6 +43,10 @@
     inputPortPositions?: Map<string, PortPosition>;
     outputPortPositions?: Map<string, PortPosition>;
     nodePosition: { x: number; y: number };
+    nodeId: string;
+    /** Present when this node type supports Power (see `nodeSupportsPower`). */
+    bypassed?: boolean;
+    onPowerToggle?: (nodeId: string, nextBypassed: boolean) => void;
     onLabelChange: (label: string | undefined) => void;
     onDragStart: (clientX: number, clientY: number, shiftKey: boolean) => void;
     onHeaderPortPointerDown?: (screenX: number, screenY: number, pointerId?: number) => void;
@@ -53,6 +59,9 @@
     inputPortPositions,
     outputPortPositions,
     nodePosition,
+    nodeId,
+    bypassed = false,
+    onPowerToggle,
     onLabelChange,
     onDragStart,
     onHeaderPortPointerDown,
@@ -64,11 +73,36 @@
 
   const displayLabel = $derived(label || spec.displayName);
 
-  function handleDoubleClick() {
+  const supportsPower = $derived(nodeSupportsPower(spec));
+  const isBypassed = $derived(bypassed === true);
+  const powerHelp = $derived(
+    isBypassed ? 'Power — node is bypassed' : 'Power — bypass this node'
+  );
+
+  function handlePowerClick(e: MouseEvent) {
+    e.stopPropagation();
+    onPowerToggle?.(nodeId, !isBypassed);
+  }
+
+  function handlePowerMouseDownCapture(e: MouseEvent) {
+    // Wrapper installs a capture-phase mousedown listener for connection hit-testing/forwarding.
+    // Stop here so canvas gestures don't interpret this UI click as background interaction.
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  function handlePowerPointerDown(e: PointerEvent) {
+    e.stopPropagation();
+  }
+
+  function beginLabelEdit(e: MouseEvent) {
+    e.stopPropagation();
     isEditing = true;
     editValue = displayLabel;
     requestAnimationFrame(() => inputEl?.focus());
   }
+
+  const labelStrictDoubleClick = createStrictDoubleClickHandler((e: MouseEvent) => beginLabelEdit(e));
 
   function commitEdit() {
     isEditing = false;
@@ -103,31 +137,52 @@
   role="presentation"
   style="height: {headerHeight}px; min-height: {headerHeight}px;"
 >
-  <div
-    class="drag-area"
-    role="button"
-    tabindex="-1"
-    ondblclick={handleDoubleClick}
-    onpointerdown={handlePointerDown}
-  >
-    <div class="icon-box">
-      <NodeIconSvg identifier={getNodeIcon(spec)} class="header-icon" />
+  {#if supportsPower}
+    <div class="power-row">
+      <button
+        type="button"
+        class="power-toggle"
+        aria-pressed={isBypassed}
+        aria-label={powerHelp}
+        title={powerHelp}
+        onmousedowncapture={handlePowerMouseDownCapture}
+        onclick={handlePowerClick}
+        onpointerdown={handlePowerPointerDown}
+      >
+        <IconSvg name="power" class="power-icon {isBypassed ? 'is-dimmed' : ''}" />
+      </button>
     </div>
-    <div class="label">
-      {#if isEditing}
-        <input
-          bind:this={inputEl}
-          bind:value={editValue}
-          class="label-input"
-          onblur={commitEdit}
-          onkeydown={handleKeydown}
-          onclick={(e) => e.stopPropagation()}
-          ondblclick={(e) => e.stopPropagation()}
-        />
-      {:else}
-        <span class="label-text">{displayLabel}</span>
-      {/if}
+  {/if}
+  <div class="header-columns">
+    <div class="header-col header-col-inputs" aria-hidden="true"></div>
+    <div class="header-col header-col-center">
+      <div
+        class="drag-area"
+        role="button"
+        tabindex="-1"
+        onpointerdown={handlePointerDown}
+      >
+        <div class="icon-box">
+          <NodeIconSvg identifier={getNodeIcon(spec)} class="header-icon" />
+        </div>
+        <div class="label">
+          {#if isEditing}
+            <input
+              bind:this={inputEl}
+              bind:value={editValue}
+              class="label-input"
+              onblur={commitEdit}
+              onkeydown={handleKeydown}
+              onclick={(e) => e.stopPropagation()}
+              ondblclick={(e) => e.stopPropagation()}
+            />
+          {:else}
+            <span class="label-text" onclick={labelStrictDoubleClick}>{displayLabel}</span>
+          {/if}
+        </div>
+      </div>
     </div>
+    <div class="header-col header-col-outputs" aria-hidden="true"></div>
   </div>
   {#if inputPortPositions && spec.inputs.length > 0}
     <div class="inputs" role="group" aria-label="Input ports">
@@ -145,7 +200,9 @@
           >
             <span class="dot"></span>
             <span class="type-chip">{getTypeLabel(port)}</span>
-            <span class="name-chip">{getNameLabel(port)}</span>
+            {#if !port.hideHeaderLabel}
+              <span class="name-chip">{getNameLabel(port)}</span>
+            {/if}
           </button>
         {/if}
       {/each}
@@ -184,8 +241,8 @@
     /* Layout */
     position: relative;
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column;
+    align-items: stretch;
 
     /* Box model */
     min-height: var(--node-header-min-height);
@@ -194,6 +251,94 @@
 
     /* Visual */
     background: transparent;
+
+    .power-row {
+      flex: 0 0 var(--node-header-power-strip-height);
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      justify-content: center;
+      width: 100%;
+      min-width: 0;
+      height: var(--size-lg);
+      margin-top: -12px;
+
+
+      /* Keep strip height for canvas metrics, but visually bias upward. */
+      padding: 0 0 24px 0;
+      z-index: 3;
+      pointer-events: auto;
+    }
+
+    .header-columns {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      flex: 1 1 auto;
+      min-height: 0;
+      width: 100%;
+      min-width: 0;
+    }
+
+    .header-col-inputs,
+    .header-col-outputs {
+      flex-shrink: 0;
+      width: var(--node-port-size);
+    }
+
+    .header-col-center {
+      flex: 1 1 auto;
+      min-width: 0;
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: stretch;
+    }
+
+    .power-toggle {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+      padding: var(--port-type-padding-vertical) var(--port-type-padding-horizontal);
+      border: none;
+      border-radius: var(--port-type-bg-radius);
+      background-color: rgba(255,255,255,0.07);
+      color: var(--node-header-name-color);
+      cursor: default;
+      font-size: var(--text-xl);
+      line-height: 1;
+      height: var(--size-md);
+
+      &:focus {
+        outline: none;
+      }
+
+      &:focus-visible {
+        outline: 2px solid var(--color-blue-90);
+        outline-offset: var(--pd-2xs);
+      }
+
+      &:hover {
+        background-color: rgba(255,255,255,0.1);
+      }
+
+      :global(.power-icon) {
+        display: inline-flex;
+      }
+
+      :global(.power-icon svg) {
+        width: 1.2em;
+        height: 1.2em;
+        min-width: 0;
+        min-height: 0;
+      }
+
+      :global(.power-icon.is-dimmed svg) {
+        color: var(--color-blue-110);
+      }
+    }
 
     .drag-area {
       /* Layout */
@@ -291,6 +436,7 @@
       /* Layout */
       position: absolute;
       inset: 0;
+      z-index: 1;
 
       /* Other */
       pointer-events: none;

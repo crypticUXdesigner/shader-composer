@@ -139,7 +139,7 @@
           "turbulenceScale": 1,
           "turbulenceStrength": 0.025,
           "turbulenceIterations": 3,
-          "turbulenceTimeSpeed": 1,
+          "turbulenceTimeSpeed": 10,
           "turbulenceTimeOffset": 0
         },
         "parameterInputModes": {

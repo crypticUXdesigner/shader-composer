@@ -1,7 +1,7 @@
 /**
  * Migration Testing Script
  * 
- * Verifies that all 27 converted nodes are properly registered and functional.
+ * Verifies that all converted migration nodes are properly registered and functional.
  * Tests compilation, node availability, and integration with presets.
  */
 
@@ -15,14 +15,14 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Expected 26 converted nodes (from migration work packages; fbm-value-noise removed, merged into fbm-noise)
+// Expected converted nodes (from migration work packages; fbm-value-noise removed, merged into fbm-noise)
 const EXPECTED_CONVERTED_NODES = [
   // Work Package 01: Pattern/Noise/Shape (11 nodes)
   'fbm-noise',
   'simplex-noise',
   'voronoi-noise',
   'rings',
-  'wave-patterns',
+  'stripes',
   'hexagonal-grid',
   'particle-system',
   'sphere-raymarch',
@@ -34,10 +34,10 @@ const EXPECTED_CONVERTED_NODES = [
   'polar-coordinates',
   'vector-field',
   'turbulence',
-  'twist-distortion',
+  'vortex',
   'kaleidoscope',
   
-  // Work Package 02B: Effect/Post-Processing (10 nodes)
+  // Work Package 02B: Effect/Post-Processing (9 nodes)
   'blur',
   'glow-bloom',
   'edge-detection',
@@ -46,8 +46,7 @@ const EXPECTED_CONVERTED_NODES = [
   'scanlines',
   'color-grading',
   'normal-mapping',
-  'lighting-shading',
-  'blending-modes'
+  'lighting-shading'
 ];
 
 interface TestResult {
@@ -116,11 +115,10 @@ function testNodeCategories() {
   
   // Note: Categories may differ from original - check actual categories
   const categoryMap: Record<string, string[]> = {
-    'Patterns': ['fbm-noise', 'simplex-noise', 'voronoi-noise', 'rings', 'wave-patterns', 'hexagonal-grid', 'particle-system'],
+    'Patterns': ['fbm-noise', 'simplex-noise', 'voronoi-noise', 'rings', 'stripes', 'hexagonal-grid', 'particle-system'],
     'Shapes': ['sphere-raymarch', 'box-torus-sdf', 'fractal', 'plane-grid', 'normal-mapping', 'lighting-shading'], // normal-mapping and lighting-shading are in Shapes
-    'Distort': ['polar-coordinates', 'vector-field', 'turbulence', 'twist-distortion', 'kaleidoscope'],
-    'Effects': ['blur', 'glow-bloom', 'edge-detection', 'chromatic-aberration', 'rgb-separation', 'scanlines', 'color-grading'],
-    'Blend': ['blending-modes'] // blending-modes is in Blend category
+    'Distort': ['polar-coordinates', 'vector-field', 'turbulence', 'vortex', 'kaleidoscope'],
+    'Effects': ['blur', 'glow-bloom', 'edge-detection', 'chromatic-aberration', 'rgb-separation', 'scanlines', 'color-grading']
   };
   
   let categoryIssues = 0;

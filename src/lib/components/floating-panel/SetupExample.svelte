@@ -39,7 +39,9 @@
 
     .quick-graph {
       max-width: 100%;
+      max-height: min(280px, 50vh);
       overflow-x: auto;
+      overflow-y: auto;
       min-height: 0;
     }
   }

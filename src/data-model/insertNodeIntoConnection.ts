@@ -6,9 +6,10 @@
 import type { NodeGraph, Connection } from './types';
 import type { NodeSpecification } from './validationTypes';
 import { removeConnection, addConnectionWithValidation } from './immutableUpdates';
-import { isPortConnection, isParameterConnection } from './connectionUtils';
+import { isPortConnection } from './connectionUtils';
 import { generateUUID } from './utils';
 import { canConvertShaderPortTypes } from '../utils/shaderPortTypes';
+import { getDownstreamExpectedInputType, getUpstreamOutputType } from './connectionWireTypes';
 
 export type InsertNodeIntoConnectionErrorCode =
   | 'connection_not_found'
@@ -29,40 +30,6 @@ function inputPortOccupied(graph: NodeGraph, nodeId: string, portName: string): 
 /** True if this node already has at least one outgoing connection from `portName`. */
 function outputPortOccupied(graph: NodeGraph, nodeId: string, portName: string): boolean {
   return graph.connections.some((c) => c.sourceNodeId === nodeId && c.sourcePort === portName);
-}
-
-function getUpstreamOutputType(
-  graph: NodeGraph,
-  conn: Connection,
-  specs: NodeSpecification[]
-): string | undefined {
-  const src = graph.nodes.find((n) => n.id === conn.sourceNodeId);
-  if (!src && conn.sourceNodeId.startsWith('audio-signal:')) {
-    return conn.sourcePort === 'out' ? 'float' : undefined;
-  }
-  const srcSpec = src ? specs.find((s) => s.id === src.type) : undefined;
-  if (!srcSpec) return undefined;
-  const outSpec = srcSpec.outputs?.find((o) => o.name === conn.sourcePort);
-  return outSpec?.type;
-}
-
-function getDownstreamExpectedInputType(
-  graph: NodeGraph,
-  conn: Connection,
-  specs: NodeSpecification[]
-): string | undefined {
-  const tgt = graph.nodes.find((n) => n.id === conn.targetNodeId);
-  const tgtSpec = tgt ? specs.find((s) => s.id === tgt.type) : undefined;
-  if (!tgtSpec) return undefined;
-  if (isPortConnection(conn) && conn.targetPort) {
-    const inp = tgtSpec.inputs?.find((i) => i.name === conn.targetPort);
-    return inp?.type;
-  }
-  if (isParameterConnection(conn) && conn.targetParameter) {
-    const p = tgtSpec.parameters?.[conn.targetParameter];
-    if (p?.type === 'float' || p?.type === 'int') return p.type;
-  }
-  return undefined;
 }
 
 /**

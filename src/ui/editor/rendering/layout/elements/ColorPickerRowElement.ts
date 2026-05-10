@@ -10,6 +10,7 @@ import type { NodeSpec, LayoutElement, ColorPickerRowElement as ColorPickerRowEl
 import type { NodeRenderMetrics } from '../../../NodeRenderer';
 import type { LayoutElementRenderer, ElementMetrics } from '../LayoutElementRenderer';
 import { getCSSVariableAsNumber, getCategoryVariableAsNumber } from '../../../../../utils/cssTokens';
+import { layoutSectionVisible } from '../../../../../utils/parameterVisibility';
 
 const ROW_GAP = 8;
 
@@ -30,6 +31,18 @@ export class ColorPickerRowElementRenderer implements LayoutElementRenderer {
     startY: number,
     metrics: NodeRenderMetrics
   ): ElementMetrics {
+    if (!layoutSectionVisible(element.visibleWhen, node, spec)) {
+      return {
+        x: node.position.x,
+        y: node.position.y + metrics.headerHeight + startY,
+        width: availableWidth,
+        height: 0,
+        parameterGridPositions: new Map(),
+        colorPickerSwatchRects: [],
+        colorMapRowButtonRects: []
+      };
+    }
+
     const category = spec.category;
     const gridPadding = category != null
       ? getCategoryVariableAsNumber('node-body-padding', category, 18)

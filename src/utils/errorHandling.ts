@@ -264,10 +264,17 @@ class DefaultErrorHandler implements ErrorHandler {
         timestamp: error.timestamp
       }
     );
-    // Log individual error details when present (e.g. shader compilation errors)
+    // Log individual error details when present (e.g. shader compilation errors).
+    // Match the parent severity so an `info` notice (e.g. "Switching to WebGL fallback...")
+    // doesn't surface its details as red `console.error` lines, which previously made benign
+    // recoverable fallbacks look like hard failures.
     if (error.details && error.details.length > 0) {
+      const detailLogger =
+        error.severity === 'info' ? console.log :
+        error.severity === 'warning' ? console.warn :
+        console.error;
       error.details.forEach((detail, i) => {
-        console.error(`  [${i + 1}] ${detail}`);
+        detailLogger(`  [${i + 1}] ${detail}`);
       });
     }
     

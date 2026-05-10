@@ -382,6 +382,8 @@
 --card-display-bg: var(--color-gray-60);
 --card-display-border: var(--color-gray-60);
 --card-display-radius: var(--radius-sm);
+/* Vertical gap between stacked regions (graph ↔ inputs rows, spectrum ↔ scale ↔ inputs, …) */
+--card-display-gap: var(--pd-sm);
 
 /* Level 3: Graph (visual area, e.g. spectrum-with-slider, slider-row) */
 --display-graph-bg: var(--color-gray-40);

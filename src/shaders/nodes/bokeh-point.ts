@@ -10,14 +10,14 @@ export const bokehPointNodeSpec: NodeSpec = {
   category: 'Shapes',
   displayName: 'Bokeh Point',
   description:
-    'Soft bokeh disc intensity for a single 3D point: ray origin, ray direction, and point position. Output 0–1; multiply by light color. Reference: Shadertoy The Drive Home.',
+    'Soft bokeh disc intensity for a single 3D point: ray origin, ray direction, and light position. Size sets the world-space crossing band (closest approach of the ray to the point); Blur softens the disc edge. Output 0–1; multiply by light color. Reference: Shadertoy The Drive Home.',
   icon: 'circle-dotted',
   inputs: [
     { name: 'ro', type: 'vec3', label: 'Ray origin' },
     { name: 'rd', type: 'vec3', label: 'Ray direction' },
-    { name: 'point', type: 'vec3', label: 'Point' }
+    { name: 'point', type: 'vec3', label: 'Light position' }
   ],
-  outputs: [{ name: 'out', type: 'float', label: 'Blur' }],
+  outputs: [{ name: 'out', type: 'float', label: 'Intensity' }],
   parameters: {
     size: {
       type: 'float',

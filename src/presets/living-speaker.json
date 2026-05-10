@@ -26,57 +26,46 @@
       },
       {
         "id": "node-1771635766318-4qpef4y6b",
-        "type": "fisheye",
+        "type": "radial-uv-warp",
         "position": {
           "x": -649,
           "y": -431
         },
         "parameters": {
-          "fisheyeCenterX": 0.30000000000000027,
-          "fisheyeCenterY": 0,
+          "warpMode": 1,
+          "warpCenterX": 0.30000000000000027,
+          "warpCenterY": 0,
+          "bulgeStrength": 0.5,
+          "bulgeRadius": 1,
+          "bulgeFalloff": 1,
           "fisheyeStrength": -0.040000000000000036,
-          "fisheyeAspect": 1
+          "fisheyeAspect": 1,
+          "spherizeRadius": 1,
+          "spherizeStrength": 1
         },
         "parameterInputModes": {
           "fisheyeStrength": "multiply",
-          "fisheyeCenterX": "multiply"
-        }
-      },
-      {
-        "id": "node-1771635766318-0as0htlbs",
-        "type": "reaction-diffusion",
-        "position": {
-          "x": 1856,
-          "y": -405
-        },
-        "parameters": {
-          "feedRate": 0.15,
-          "killRate": 0.15,
-          "diffusionA": 4,
-          "diffusionB": 1.5,
-          "scale": 80.4,
-          "steps": 5,
-          "timeSpeed": 5,
-          "timeOffset": 0,
-          "intensity": 2,
-          "grainAmount": 0.72
-        },
-        "parameterInputModes": {
-          "intensity": "multiply"
+          "warpCenterX": "multiply"
         }
       },
       {
         "id": "node-1771635766318-idfiwqco9",
-        "type": "fisheye",
+        "type": "radial-uv-warp",
         "position": {
           "x": 132,
           "y": -424
         },
         "parameters": {
-          "fisheyeCenterX": 0,
-          "fisheyeCenterY": 0,
+          "warpMode": 1,
+          "warpCenterX": 0,
+          "warpCenterY": 0,
+          "bulgeStrength": 0.5,
+          "bulgeRadius": 1,
+          "bulgeFalloff": 1,
           "fisheyeStrength": -1,
-          "fisheyeAspect": 1
+          "fisheyeAspect": 1,
+          "spherizeRadius": 1,
+          "spherizeStrength": 1
         },
         "parameterInputModes": {
           "fisheyeStrength": "multiply"
@@ -90,7 +79,6 @@
           "y": -450
         },
         "parameters": {
-          "stops": 10,
           "startColorL": 0.3565486181082561,
           "startColorC": 0.1010445192965417,
           "startColorH": 323.9921989823269,
@@ -117,17 +105,22 @@
       },
       {
         "id": "node-1771635766318-ighj9oi2a",
-        "type": "bulge-pinch",
+        "type": "radial-uv-warp",
         "position": {
           "x": 990,
           "y": -293
         },
         "parameters": {
-          "bulgeCenterX": 0,
-          "bulgeCenterY": 0,
+          "warpMode": 0,
+          "warpCenterX": 0,
+          "warpCenterY": 0,
           "bulgeStrength": 2,
           "bulgeRadius": 3.48,
-          "bulgeFalloff": 5
+          "bulgeFalloff": 5,
+          "fisheyeStrength": -0.3,
+          "fisheyeAspect": 1,
+          "spherizeRadius": 1,
+          "spherizeStrength": 1
         },
         "parameterInputModes": {
           "bulgeStrength": "multiply",
@@ -151,15 +144,8 @@
         "targetPort": "in"
       },
       {
-        "id": "conn-1771635766318-l8wsw23kc",
-        "sourceNodeId": "audio-signal:remap-remap-9ef1ad23-feb5-491e-8bb7-f809befcc3f9",
-        "sourcePort": "out",
-        "targetNodeId": "node-1771635766318-0as0htlbs",
-        "targetParameter": "intensity"
-      },
-      {
         "id": "conn-1771635766318-csa8kndue",
-        "sourceNodeId": "node-1771635766318-0as0htlbs",
+        "sourceNodeId": "node-1771635766318-ighj9oi2a",
         "sourcePort": "out",
         "targetNodeId": "node-1771635766318-4fj2gofj6",
         "targetPort": "in"
@@ -176,13 +162,6 @@
         "sourceNodeId": "node-1771635766318-idfiwqco9",
         "sourcePort": "out",
         "targetNodeId": "node-1771635766318-ighj9oi2a",
-        "targetPort": "in"
-      },
-      {
-        "id": "conn-1771635766318-dd7sogbzy",
-        "sourceNodeId": "node-1771635766318-ighj9oi2a",
-        "sourcePort": "out",
-        "targetNodeId": "node-1771635766318-0as0htlbs",
         "targetPort": "in"
       },
       {

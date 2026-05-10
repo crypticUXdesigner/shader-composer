@@ -10,4 +10,34 @@ describe('getParameterEnumMappings', () => {
     expect(m![2]).toBe('Product');
     expect(m![3]).toBe('Max |·|');
   });
+
+  it('maps triangle-grid triProjection to UV / infinite plane labels', () => {
+    const m = getParameterEnumMappings('triangle-grid', 'triProjection');
+    expect(m).not.toBeNull();
+    expect(m![0]).toBe('Infinite plane');
+    expect(m![1]).toBe('UV');
+  });
+
+  it('maps radial-uv-warp warpMode to mode labels', () => {
+    const m = getParameterEnumMappings('radial-uv-warp', 'warpMode');
+    expect(m).not.toBeNull();
+    expect(m![0]).toBe('Bulge / pinch');
+    expect(m![1]).toBe('Fisheye (lens)');
+    expect(m![2]).toBe('Spherize (hemisphere)');
+  });
+
+  it('maps displace displaceMode to vector vs directional labels', () => {
+    const m = getParameterEnumMappings('displace', 'displaceMode');
+    expect(m).not.toBeNull();
+    expect(m![0]).toBe('Vector offset');
+    expect(m![1]).toBe('Directional');
+  });
+
+  it('maps infinite-zoom infiniteZoomMotion to ping-pong vs snap labels', () => {
+    const m = getParameterEnumMappings('infinite-zoom', 'infiniteZoomMotion');
+    expect(m).not.toBeNull();
+    expect(m![0]).toBe('Ping-pong loop');
+    expect(m![1]).toBe('Snap zoom in');
+    expect(m![2]).toBe('Snap zoom out');
+  });
 });

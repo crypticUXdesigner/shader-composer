@@ -47,7 +47,7 @@ export const flowFieldPatternNodeSpec: NodeSpec = {
       default: 1.0,
       min: 0.0,
       max: 20.0,
-      step: 0.01,
+      step: 0.001,
       label: 'Time Speed'
     },
     flowTimeOffset: {
@@ -55,7 +55,7 @@ export const flowFieldPatternNodeSpec: NodeSpec = {
       default: 0.0,
       min: -100.0,
       max: 100.0,
-      step: 0.05,
+      step: 0.001,
       label: 'Time Offset',
       knobPolarity: 'two-sided' },
     flowOctaves: {

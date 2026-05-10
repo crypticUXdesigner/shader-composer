@@ -5,21 +5,27 @@
  * This enables better testability and reduces coupling between components.
  */
 
-import { Renderer } from './Renderer';
 import { AudioManager } from './AudioManager';
 import { CompilationManager } from './CompilationManager';
 import { RuntimeManager } from './RuntimeManager';
-import { installPreviewSchedulerDebugGlobal } from './PreviewScheduler';
+import { getPreviewScheduler, installPreviewSchedulerDebugGlobal } from './PreviewScheduler';
+import { selectRenderBackend } from './renderBackends/selectRenderBackend';
+import type { IRenderBackend } from './renderBackends/IRenderBackend';
+import type { RenderBackendMode } from './renderBackends/renderBackendTypes';
 import type { ShaderCompiler, IRenderer, IAudioManager, ICompilationManager } from './types';
 import type { NodeSpec } from '../types';
 
 /**
- * Create a Renderer instance.
+ * Create a render backend instance (Task 01 seam).
  * @param canvas - HTML canvas element for rendering
- * @returns Renderer instance
+ * @returns Render backend instance
  */
-export function createRenderer(canvas: HTMLCanvasElement): IRenderer {
-  return new Renderer(canvas);
+export function createRenderBackend(
+  canvas: HTMLCanvasElement,
+  mode: RenderBackendMode,
+  errorHandler?: import('../utils/errorHandling').ErrorHandler
+): IRenderBackend {
+  return selectRenderBackend(canvas, mode, errorHandler);
 }
 
 /**
@@ -41,13 +47,13 @@ export function createAudioManager(errorHandler?: import('../utils/errorHandling
  */
 export function createCompilationManager(
   compiler: ShaderCompiler,
-  renderer: IRenderer,
+  renderer: IRenderBackend,
   errorHandler?: import('../utils/errorHandling').ErrorHandler,
   worker: Worker | null = null
 ): ICompilationManager {
   const cm = new CompilationManager(
     compiler,
-    renderer as Renderer, // Type assertion needed because CompilationManager expects concrete Renderer
+    renderer,
     errorHandler
   );
   if (worker !== null) {
@@ -106,13 +112,20 @@ export function createRuntimeManager(
   canvas: HTMLCanvasElement,
   compiler: ShaderCompiler,
   errorHandler?: import('../utils/errorHandling').ErrorHandler,
-  nodeSpecsForWorker?: Map<string, NodeSpec> | Record<string, NodeSpec>
+  nodeSpecsForWorker?: Map<string, NodeSpec> | Record<string, NodeSpec>,
+  options?: {
+    renderBackend?: RenderBackendMode;
+  }
 ): RuntimeManager | Promise<RuntimeManager> {
-  const renderer = createRenderer(canvas);
+  const renderBackend = createRenderBackend(canvas, options?.renderBackend ?? 'auto', errorHandler);
+  getPreviewScheduler().setRenderBackendSelection?.(renderBackend.selection);
+
+  // Keep default behavior identical: runtime still consumes the legacy renderer surface.
+  const renderer = renderBackend as unknown as IRenderer;
   const audioManager = createAudioManager(errorHandler);
 
   if (nodeSpecsForWorker == null) {
-    const compilationManager = createCompilationManager(compiler, renderer, errorHandler);
+    const compilationManager = createCompilationManager(compiler, renderBackend, errorHandler);
     const rm = new RuntimeManager(renderer, audioManager, compilationManager, errorHandler);
     installPreviewSchedulerDebugGlobal();
     return rm;
@@ -128,7 +141,7 @@ export function createRuntimeManager(
       nodeSpecsForWorker instanceof Map ? Object.fromEntries(nodeSpecsForWorker) : nodeSpecsForWorker;
     worker.postMessage({ type: 'init', nodeSpecs: nodeSpecsObj });
     await waitForWorkerInited(worker);
-    const compilationManager = createCompilationManager(compiler, renderer, errorHandler, worker);
+    const compilationManager = createCompilationManager(compiler, renderBackend, errorHandler, worker);
     const rm = new RuntimeManager(renderer, audioManager, compilationManager, errorHandler);
     installPreviewSchedulerDebugGlobal();
     return rm;

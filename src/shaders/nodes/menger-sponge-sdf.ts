@@ -10,7 +10,7 @@ export const mengerSpongeSdfNodeSpec: NodeSpec = {
   category: 'SDF',
   displayName: 'Menger Sponge SDF',
   description:
-    '3D Menger sponge–style signed distance: iterative 3×3×3 void cuts in a cube. Connect position from the generic raymarcher; tune iterations, domain scale, wall thickness, offset, and rotation. Use DE scale (advanced) to relax sphere-tracing steps if needed.',
+    '3D Menger sponge–style signed distance: iterative 3×3×3 void cuts in a cube. Connect **Position** from SDF Raymarch; tune iterations, domain scale, wall thickness, offset, and rotation. Advanced **DE scale** multiplies the distance returned to the marcher — higher values enlarge each ray step for speed; lower is safer through thin lattice.',
   icon: 'grid',
   inputs: [
     {
@@ -24,7 +24,7 @@ export const mengerSpongeSdfNodeSpec: NodeSpec = {
     {
       name: 'out',
       type: 'float',
-      label: 'Distance'
+      label: 'SDF'
     }
   ],
   parameters: {
@@ -97,7 +97,7 @@ export const mengerSpongeSdfNodeSpec: NodeSpec = {
       min: -5.0,
       max: 5.0,
       step: 0.1,
-      label: 'Axis X',
+      label: 'Rot axis X',
       supportsAnimation: true,
       supportsAudio: true,
       knobPolarity: 'two-sided'
@@ -108,7 +108,7 @@ export const mengerSpongeSdfNodeSpec: NodeSpec = {
       min: -5.0,
       max: 5.0,
       step: 0.1,
-      label: 'Axis Y',
+      label: 'Rot axis Y',
       supportsAnimation: true,
       supportsAudio: true,
       knobPolarity: 'two-sided'
@@ -119,7 +119,7 @@ export const mengerSpongeSdfNodeSpec: NodeSpec = {
       min: -5.0,
       max: 5.0,
       step: 0.1,
-      label: 'Axis Z',
+      label: 'Rot axis Z',
       supportsAnimation: true,
       supportsAudio: true,
       knobPolarity: 'two-sided'
@@ -130,7 +130,7 @@ export const mengerSpongeSdfNodeSpec: NodeSpec = {
       min: -6.28,
       max: 6.28,
       step: 0.05,
-      label: 'Angle',
+      label: 'Angle rad',
       supportsAnimation: true,
       supportsAudio: true,
       knobPolarity: 'two-sided'
@@ -199,14 +199,14 @@ export const mengerSpongeSdfNodeSpec: NodeSpec = {
     },
     {
       id: 'rotation',
-      label: 'Rotation',
+      label: 'Rotate',
       parameters: ['rotationAxisX', 'rotationAxisY', 'rotationAxisZ', 'rotationAngle'],
       collapsible: true,
       defaultCollapsed: false
     },
     {
       id: 'position',
-      label: 'Position (when unconnected)',
+      label: 'Fallback pos',
       parameters: ['positionX', 'positionY', 'positionZ'],
       collapsible: true,
       defaultCollapsed: true
@@ -234,13 +234,13 @@ export const mengerSpongeSdfNodeSpec: NodeSpec = {
       },
       {
         type: 'grid',
-        label: 'Rotation',
+        label: 'Rotate',
         parameters: ['rotationAxisX', 'rotationAxisY', 'rotationAxisZ', 'rotationAngle'],
         layout: { columns: 2 }
       },
       {
         type: 'grid',
-        label: 'Position',
+        label: 'Fallback pos',
         parameters: ['positionX', 'positionY', 'positionZ'],
         layout: { columns: 3 }
       },

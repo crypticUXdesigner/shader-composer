@@ -16,7 +16,9 @@ import {
   updateNodePosition,
   updateNodeParameter,
   updateNodeParameterInputMode,
+  resetNodeParametersToDefaults,
   updateNodeLabel,
+  setNodeBypassed,
   addNode,
   removeNode,
   addConnection,
@@ -24,7 +26,8 @@ import {
   updateViewState,
 } from '../../data-model/immutableUpdates';
 import type { NodeInstance } from '../../data-model/types';
-import type { ParameterInputMode } from '../../types/nodeSpec';
+import type { NodeSpecification } from '../../data-model/validationTypes';
+import type { ParameterInputMode, ParameterSpec } from '../../types/nodeSpec';
 import type { ToolType } from '../../types/editor';
 import { appToastStore } from './appToastStore';
 
@@ -112,8 +115,21 @@ function updateNodeParameterInputModeAction(
   graphChangedListener?.(graph);
 }
 
+function resetNodeParametersToDefaultsAction(
+  nodeId: string,
+  parameterSpecs: Record<string, ParameterSpec>
+): void {
+  graph = resetNodeParametersToDefaults(graph, nodeId, parameterSpecs);
+  graphChangedListener?.(graph);
+}
+
 function updateNodeLabelAction(nodeId: string, label: string | undefined): void {
   graph = updateNodeLabel(graph, nodeId, label);
+  graphChangedListener?.(graph);
+}
+
+function setNodeBypassedAction(nodeId: string, bypassed: boolean): void {
+  graph = setNodeBypassed(graph, nodeId, bypassed);
   graphChangedListener?.(graph);
 }
 
@@ -122,8 +138,12 @@ function addNodeAction(node: NodeInstance): void {
   graphChangedListener?.(graph);
 }
 
-function removeNodeAction(nodeId: string): void {
-  graph = removeNode(graph, nodeId);
+function removeNodeAction(nodeId: string, nodeSpecs?: NodeSpecification[]): void {
+  graph = removeNode(
+    graph,
+    nodeId,
+    nodeSpecs && nodeSpecs.length > 0 ? { nodeSpecs } : undefined
+  );
   graphChangedListener?.(graph);
 }
 
@@ -225,7 +245,9 @@ export const graphStore = {
   updateNodePosition: updateNodePositionAction,
   updateNodeParameter: updateNodeParameterAction,
   updateNodeParameterInputMode: updateNodeParameterInputModeAction,
+  resetNodeParametersToDefaults: resetNodeParametersToDefaultsAction,
   updateNodeLabel: updateNodeLabelAction,
+  setNodeBypassed: setNodeBypassedAction,
   addNode: addNodeAction,
   removeNode: removeNodeAction,
   addConnection: addConnectionAction,

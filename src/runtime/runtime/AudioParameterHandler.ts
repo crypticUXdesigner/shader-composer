@@ -6,7 +6,7 @@
  */
 
 import type { IAudioManager } from '../types';
-import type { ShaderInstance } from '../ShaderInstance';
+import type { PreviewProgramInstance } from '../types';
 import type { NodeGraph } from '../../data-model/types';
 import type { ErrorHandler } from '../../utils/errorHandling';
 import { globalErrorHandler } from '../../utils/errorHandling';
@@ -100,7 +100,7 @@ export class AudioParameterHandler {
    * @param options.forcePushAll - When true, push every uniform (e.g. before first render of a new instance)
    */
   updateAudioUniforms(
-    shaderInstance: ShaderInstance,
+    shaderInstance: PreviewProgramInstance,
     graph: NodeGraph | null,
     options?: { forcePushAll?: boolean }
   ): void {
@@ -110,18 +110,7 @@ export class AudioParameterHandler {
       },
       (updates: Array<{ nodeId: string; paramName: string; value: number }>) => {
         // Use batch update method if available (more efficient)
-        if (shaderInstance.setParameters) {
-          shaderInstance.setParameters(updates);
-        } else {
-          // Fallback: update individually
-          for (const update of updates) {
-            shaderInstance.setAudioUniform(
-              update.nodeId,
-              update.paramName,
-              update.value
-            );
-          }
-        }
+        shaderInstance.setParameters(updates);
       },
       graph, // Pass graph context for connection checking
       options?.forcePushAll

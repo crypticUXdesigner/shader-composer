@@ -9,9 +9,9 @@ import type { NodeSpec } from '../../types/nodeSpec';
 export const repeatedHexPrismSdfNodeSpec: NodeSpec = {
   id: 'repeated-hex-prism-sdf',
   category: 'SDF',
-  displayName: 'Repeated 3D Hex',
+  displayName: 'Repeated Hex Prism SDF',
   description:
-    '3D SDF for an infinite grid of hex prisms. Domain repetition: mod(p, spacing) - 0.5*spacing then hex prism SDF. Connect a vec3 position (e.g. from raymarcher); output is a float SDF. Parameters: spacing (X,Y,Z), hex radius, half-height.',
+    'Infinite hex-prism lattice as a float SDF for raymarching: spacing X/Y/Z set each axis repeat period (mod-style tiling); hex radius and half height define the prism inside each cell. Wire Position when sampling standalone; when out feeds SDF Raymarch sdf, the march supplies sample points each step—leave Position unwired.',
   icon: 'hexagon',
   inputs: [
     {
@@ -25,7 +25,7 @@ export const repeatedHexPrismSdfNodeSpec: NodeSpec = {
     {
       name: 'out',
       type: 'float',
-      label: 'Distance'
+      label: 'SDF'
     }
   ],
   parameters: {

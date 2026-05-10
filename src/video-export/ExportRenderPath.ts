@@ -31,6 +31,14 @@ export interface ExportRenderPathResult {
    * Sets uTime, uTimelineTime (from frameState.timelineTime), applies frameState.uniformUpdates, draws, returns canvas.
    */
   renderFrame(frameIndex: number, frameState: FrameAudioState): HTMLCanvasElement | OffscreenCanvas;
+  /**
+   * Optional async rendering hook for backends that require explicit GPU synchronization.
+   * When present, callers should prefer this over `renderFrame`.
+   */
+  renderFrameAsync?: (
+    frameIndex: number,
+    frameState: FrameAudioState
+  ) => Promise<HTMLCanvasElement | OffscreenCanvas>;
   /** Canvas at export resolution (width x height). Same reference every frame. */
   getCanvas(): HTMLCanvasElement | OffscreenCanvas;
   /** Release WebGL and shader resources. Call when export is done or cancelled. */
@@ -133,14 +141,35 @@ function createExportRenderPathImpl(
     return canvas;
   }
 
+  async function renderFrameAsync(
+    frameIndex: number,
+    frameState: FrameAudioState
+  ): Promise<HTMLCanvasElement | OffscreenCanvas> {
+    return renderFrame(frameIndex, frameState);
+  }
+
   function dispose(): void {
     if (disposed) return;
     shaderInstance.destroy();
+    try {
+      const lose = glContext.getExtension('WEBGL_lose_context') as { loseContext?: () => void } | null;
+      lose?.loseContext?.();
+    } catch {
+      // best-effort cleanup; ignore
+    }
+    try {
+      // Encourage release of GPU resources eagerly in harness/export churn scenarios.
+      canvas.width = 1;
+      canvas.height = 1;
+    } catch {
+      // ignore
+    }
     disposed = true;
   }
 
   return {
     renderFrame,
+    renderFrameAsync,
     getCanvas: () => canvas,
     dispose,
   };

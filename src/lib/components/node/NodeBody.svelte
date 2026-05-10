@@ -31,6 +31,7 @@
   import type { NodeSpec, ParameterSpec, ParameterUISelection, ParameterInputMode } from '../../../types/nodeSpec';
   import type { AudioSetup } from '../../../data-model/audioSetupTypes';
   import type { IAudioManager } from '../../../runtime/types';
+  import { layoutSectionVisible } from '../../../utils/parameterVisibility';
 
   interface Props {
     nodeId: string;
@@ -237,6 +238,7 @@
   <div class="content">
     {#each layoutElements as element}
       {#if element.type === 'grid'}
+        {#if layoutSectionVisible(element.visibleWhen, node, spec)}
         {@const gridEl = element}
         {@const headerToggle = gridEl.headerToggleParameter}
         {@const headerToggleSpec = headerToggle ? spec.parameters[headerToggle] : undefined}
@@ -298,6 +300,7 @@
           class:grid-cols-1={typeof gridCols === 'number' && gridCols === 1}
           class:grid-cols-2={typeof gridCols === 'number' && gridCols === 2}
           class:grid-cols-3={typeof gridCols === 'number' && gridCols === 3}
+          class:grid-cols-4={typeof gridCols === 'number' && gridCols === 4}
           data-explicit-cols={typeof gridCols === 'number' ? String(gridCols) : undefined}
           use:paramGridCols
         >
@@ -321,6 +324,8 @@
                   ? (rawOrigin[paramName] ?? 'center')
                   : (rawOrigin ?? 'center')}
                 {#if paramY && spec.parameters[paramY]}
+                  {@const displacementAnchor =
+                    gridEl.layout?.coordsDisplacementAnchor?.[paramName] ?? undefined}
                   <CoordPadCell
                     {nodeId}
                     {node}
@@ -328,6 +333,7 @@
                     paramX={paramName}
                     paramY={paramY}
                     {coordsOrigin}
+                    {displacementAnchor}
                     {graph}
                     {audioSetup}
                     {nodeSpecs}
@@ -501,6 +507,7 @@
           {/if}
         {/each}
         </div>
+        {/if}
       {:else if element.type === 'auto-grid'}
         {@const params = Object.keys(spec.parameters)}
         <div class="param-grid" use:paramGridCols>
@@ -773,72 +780,74 @@
           />
         </div>
       {:else if element.type === 'color-picker-row'}
-        {@const [startParams, endParams] = element.pickers}
-        {#if element.label}
-          <div class="group-header group-header-with-actions">
-            <span class="group-header-label">{element.label}</span>
-            <div class="group-header-actions">
-              <Button
-                variant="secondary"
-                size="sm"
-                class="group-header-btn"
-                onclick={() => {
-                  const sL = getParamValue(startParams[0]);
-                  const sC = getParamValue(startParams[1]);
-                  const sH = getParamValue(startParams[2]);
-                  const eL = getParamValue(endParams[0]);
-                  const eC = getParamValue(endParams[1]);
-                  const eH = getParamValue(endParams[2]);
-                  onParameterChange(startParams[0], eL);
-                  onParameterChange(startParams[1], eC);
-                  onParameterChange(startParams[2], eH);
-                  onParameterChange(endParams[0], sL);
-                  onParameterChange(endParams[1], sC);
-                  onParameterChange(endParams[2], sH);
-                }}
-              >
-                Swap Colors
-              </Button>
-              {#if spec.parameters?.reverseHue != null}
-                {@const rev = getParamValue('reverseHue')}
+        {#if layoutSectionVisible(element.visibleWhen, node, spec)}
+          {@const [startParams, endParams] = element.pickers}
+          {#if element.label}
+            <div class="group-header group-header-with-actions">
+              <span class="group-header-label">{element.label}</span>
+              <div class="group-header-actions">
                 <Button
                   variant="secondary"
                   size="sm"
-                  class="group-header-btn group-header-btn-toggle {rev > 0 ? 'is-active' : ''}"
-                  onclick={() => onParameterChange('reverseHue', rev > 0 ? 0 : 1)}
+                  class="group-header-btn"
+                  onclick={() => {
+                    const sL = getParamValue(startParams[0]);
+                    const sC = getParamValue(startParams[1]);
+                    const sH = getParamValue(startParams[2]);
+                    const eL = getParamValue(endParams[0]);
+                    const eC = getParamValue(endParams[1]);
+                    const eH = getParamValue(endParams[2]);
+                    onParameterChange(startParams[0], eL);
+                    onParameterChange(startParams[1], eC);
+                    onParameterChange(startParams[2], eH);
+                    onParameterChange(endParams[0], sL);
+                    onParameterChange(endParams[1], sC);
+                    onParameterChange(endParams[2], sH);
+                  }}
                 >
-                  Reverse Hue
+                  Swap Colors
                 </Button>
-              {/if}
+                {#if spec.parameters?.reverseHue != null}
+                  {@const rev = getParamValue('reverseHue')}
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    class="group-header-btn group-header-btn-toggle {rev > 0 ? 'is-active' : ''}"
+                    onclick={() => onParameterChange('reverseHue', rev > 0 ? 0 : 1)}
+                  >
+                    Reverse Hue
+                  </Button>
+                {/if}
+              </div>
             </div>
+          {/if}
+          {@const startColor = {
+            l: getParamValue(startParams[0]),
+            c: getParamValue(startParams[1]),
+            h: getParamValue(startParams[2])
+          }}
+          {@const endColor = {
+            l: getParamValue(endParams[0]),
+            c: getParamValue(endParams[1]),
+            h: getParamValue(endParams[2])
+          }}
+          <div class="element color-picker-row-wrap">
+            <ColorPickerRow
+              startColor={startColor}
+              endColor={endColor}
+              onStartColorClick={(sx, sy) => showColorPicker(startColor, sx, sy, (l, c, h) => {
+                onParameterChange(startParams[0], l);
+                onParameterChange(startParams[1], c);
+                onParameterChange(startParams[2], h);
+              })}
+              onEndColorClick={(sx, sy) => showColorPicker(endColor, sx, sy, (l, c, h) => {
+                onParameterChange(endParams[0], l);
+                onParameterChange(endParams[1], c);
+                onParameterChange(endParams[2], h);
+              })}
+            />
           </div>
         {/if}
-        {@const startColor = {
-          l: getParamValue(startParams[0]),
-          c: getParamValue(startParams[1]),
-          h: getParamValue(startParams[2])
-        }}
-        {@const endColor = {
-          l: getParamValue(endParams[0]),
-          c: getParamValue(endParams[1]),
-          h: getParamValue(endParams[2])
-        }}
-        <div class="element color-picker-row-wrap">
-          <ColorPickerRow
-            startColor={startColor}
-            endColor={endColor}
-            onStartColorClick={(sx, sy) => showColorPicker(startColor, sx, sy, (l, c, h) => {
-              onParameterChange(startParams[0], l);
-              onParameterChange(startParams[1], c);
-              onParameterChange(startParams[2], h);
-            })}
-            onEndColorClick={(sx, sy) => showColorPicker(endColor, sx, sy, (l, c, h) => {
-              onParameterChange(endParams[0], l);
-              onParameterChange(endParams[1], c);
-              onParameterChange(endParams[2], h);
-            })}
-          />
-        </div>
       {:else if element.type === 'color-picker-row-with-ports'}
         {@const [startParams, endParams] = element.pickers}
         {@const startColor = {
@@ -1051,6 +1060,29 @@
         &.grid-cols-3 {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
+
+          :global(.param-cell) {
+            flex: unset;
+            min-width: 0;
+          }
+
+          :global(.param-cell.span-2-cols) {
+            grid-column: span 2;
+            flex: unset;
+            min-width: 0;
+          }
+
+          :global(.param-cell.span-3-cols) {
+            grid-column: span 3;
+            flex: unset;
+            min-width: 0;
+          }
+        }
+
+        /* 4-column grid: consistent row rhythm for pose / spec strips */
+        &.grid-cols-4 {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
 
           :global(.param-cell) {
             flex: unset;
