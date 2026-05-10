@@ -9,7 +9,9 @@
  */
 
 /** Exact parameter names that are runtime-only (no shader uniform) per node type. */
-const RUNTIME_ONLY_EXACT: Record<string, Set<string>> = {};
+const RUNTIME_ONLY_EXACT: Record<string, Set<string>> = {
+  'radial-pulse': new Set(['pulseDrive', 'pulseRiseThreshold', 'pulseFallThreshold'])
+};
 
 /**
  * Regex patterns for runtime-only params.

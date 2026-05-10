@@ -3,21 +3,21 @@ import type { NodeSpec } from '../../types/nodeSpec';
 export const hexagonalGridNodeSpec: NodeSpec = {
   id: 'hexagonal-grid',
   category: 'Patterns',
-  displayName: 'Hexagons',
-  description: 'Creates hexagonal tiling patterns for structured, geometric backgrounds',
+  displayName: 'Hex Grid',
+  description: 'Honeycomb / hexagonal tiling for structured, geometric backgrounds',
   icon: 'hexagons',
   inputs: [
     {
       name: 'in',
       type: 'vec2',
-      label: 'UV'
+      label: 'Position'
     }
   ],
   outputs: [
     {
       name: 'out',
       type: 'float',
-      label: 'Value'
+      label: 'Pattern'
     }
   ],
   parameters: {
@@ -43,7 +43,7 @@ export const hexagonalGridNodeSpec: NodeSpec = {
       min: 0.0,
       max: 360.0,
       step: 1.0,
-      label: 'Rotation'
+      label: 'Shape rotation'
     },
     hexSizeVariation: {
       type: 'float',
@@ -59,7 +59,7 @@ export const hexagonalGridNodeSpec: NodeSpec = {
       min: 0,
       max: 16,
       step: 1,
-      label: 'Steps'
+      label: 'Size bands'
     },
     hexVariationAnimationSpeed: {
       type: 'float',
@@ -67,7 +67,7 @@ export const hexagonalGridNodeSpec: NodeSpec = {
       min: 0.0,
       max: 10.0,
       step: 0.01,
-      label: 'Rate'
+      label: 'Var. speed'
     },
     hexRotation: {
       type: 'float',
@@ -75,7 +75,7 @@ export const hexagonalGridNodeSpec: NodeSpec = {
       min: 0.0,
       max: 360.0,
       step: 1.0,
-      label: 'Rotation'
+      label: 'Pattern rotation'
     },
     hexIntensity: {
       type: 'float',
@@ -147,7 +147,7 @@ export const hexagonalGridNodeSpec: NodeSpec = {
       min: 0.0,
       max: 20.0,
       step: 0.01,
-      label: 'Speed'
+      label: 'Pulse speed'
     },
     hexPulseDepth: {
       type: 'float',
@@ -155,7 +155,7 @@ export const hexagonalGridNodeSpec: NodeSpec = {
       min: 0.0,
       max: 2.0,
       step: 0.01,
-      label: 'Depth'
+      label: 'Pulse depth'
     },
     hexPulseVariationImpact: {
       type: 'float',
@@ -163,7 +163,7 @@ export const hexagonalGridNodeSpec: NodeSpec = {
       min: 0.0,
       max: 1.0,
       step: 0.01,
-      label: 'Impact'
+      label: 'Pulse var. mix'
     },
     hexWaveDirection: {
       type: 'float',
@@ -171,7 +171,7 @@ export const hexagonalGridNodeSpec: NodeSpec = {
       min: 0.0,
       max: 360.0,
       step: 1.0,
-      label: 'Direction'
+      label: 'Wave direction'
     },
     hexWaveFrequency: {
       type: 'float',
@@ -179,7 +179,7 @@ export const hexagonalGridNodeSpec: NodeSpec = {
       min: 0.0,
       max: 40.0,
       step: 0.01,
-      label: 'Frequency'
+      label: 'Wave frequency'
     },
     hexWaveSpeed: {
       type: 'float',
@@ -187,7 +187,7 @@ export const hexagonalGridNodeSpec: NodeSpec = {
       min: 0.0,
       max: 20.0,
       step: 0.01,
-      label: 'Speed'
+      label: 'Wave speed'
     },
     hexWaveDepth: {
       type: 'float',
@@ -195,7 +195,7 @@ export const hexagonalGridNodeSpec: NodeSpec = {
       min: 0.0,
       max: 2.0,
       step: 0.01,
-      label: 'Depth'
+      label: 'Wave depth'
     },
     hexWaveVariationImpact: {
       type: 'float',
@@ -203,7 +203,7 @@ export const hexagonalGridNodeSpec: NodeSpec = {
       min: 0.0,
       max: 1.0,
       step: 0.01,
-      label: 'Impact'
+      label: 'Wave var. mix'
     }
   },
   parameterGroups: [
@@ -238,14 +238,20 @@ export const hexagonalGridNodeSpec: NodeSpec = {
     {
       id: 'hex-pulse',
       label: 'Pulse',
-      parameters: ['hexPulseDepth', 'hexPulseSpeed', 'hexPulseVariationImpact'],
+      parameters: ['hexPulseSpeed', 'hexPulseDepth', 'hexPulseVariationImpact'],
       collapsible: true,
       defaultCollapsed: true
     },
     {
       id: 'hex-wave',
       label: 'Wave',
-      parameters: ['hexWaveDepth', 'hexWaveFrequency', 'hexWaveDirection', 'hexWaveSpeed', 'hexWaveVariationImpact'],
+      parameters: [
+        'hexWaveDirection',
+        'hexWaveFrequency',
+        'hexWaveSpeed',
+        'hexWaveDepth',
+        'hexWaveVariationImpact'
+      ],
       collapsible: true,
       defaultCollapsed: true
     }

@@ -147,11 +147,12 @@ describe('presetManager scenario tests', () => {
     expect(loadResult.graph).not.toBeNull();
     const graphAfterLoad = loadResult.graph!;
 
-    const raymarcherNode = graphAfterLoad.nodes.find((n) => n.type === 'generic-raymarcher');
-    expect(raymarcherNode).toBeDefined();
-    const nodeId = raymarcherNode!.id;
-    const paramName = 'brightness';
-    const originalValue = raymarcherNode!.parameters[paramName] ?? 0;
+    // testing.json is intentionally lightweight; pick a stable node+param to exercise undo behavior.
+    const noiseNode = graphAfterLoad.nodes.find((n) => n.type === 'noise');
+    expect(noiseNode).toBeDefined();
+    const nodeId = noiseNode!.id;
+    const paramName = 'noiseIntensity';
+    const originalValue = noiseNode!.parameters[paramName] ?? 0;
 
     const undoManager = new UndoRedoManager();
     undoManager.clear();
@@ -193,10 +194,11 @@ describe('presetManager scenario tests', () => {
     expect(loadResult.graph).not.toBeNull();
     const graphAfterLoad = loadResult.graph!;
 
-    const raymarcherNode = graphAfterLoad.nodes.find((n) => n.type === 'generic-raymarcher');
-    expect(raymarcherNode).toBeDefined();
-    const nodeId = raymarcherNode!.id;
-    const paramName = 'brightness';
+    // testing.json is intentionally lightweight; pick a stable node+param to exercise undo/redo behavior.
+    const noiseNode = graphAfterLoad.nodes.find((n) => n.type === 'noise');
+    expect(noiseNode).toBeDefined();
+    const nodeId = noiseNode!.id;
+    const paramName = 'noiseIntensity';
     const editedValue = 0.5;
 
     const undoManager = new UndoRedoManager();

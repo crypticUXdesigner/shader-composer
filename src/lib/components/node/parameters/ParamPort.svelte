@@ -1,5 +1,6 @@
 <script lang="ts">
   import { IconSvg } from '../../ui';
+  import { createStrictDoubleClickHandler } from '../../../utils/strictDoubleClick';
   export type ParamPortState = 'default' | 'graph-connected' | 'audio-connected';
 
   interface Props {
@@ -16,7 +17,7 @@
     showSignalName?: boolean;
     /** Start connection drag from port */
     onPointerDown?: (e: PointerEvent) => void;
-    /** Open connection menu (signal picker); DOM uses dblclick (MouseEvent). */
+    /** Open connection menu (signal picker); strict double-click (MouseEvent). */
     onDoubleClick?: (e: MouseEvent) => void;
     disabled?: boolean;
     class?: string;
@@ -70,10 +71,15 @@
     onPointerDown?.(e);
   }
 
-  function handleDoubleClick(e: MouseEvent) {
+  function handleStrictDoubleClickOpen(e: MouseEvent) {
     if (disabled) return;
+    e.stopPropagation();
     onDoubleClick?.(e);
   }
+
+  const strictPortDoubleClick = createStrictDoubleClickHandler((e: MouseEvent) =>
+    handleStrictDoubleClickOpen(e)
+  );
 </script>
 
 <button
@@ -87,7 +93,7 @@
   data-param-name={paramName}
   data-state={state}
   onpointerdown={handlePointerDown}
-  ondblclick={handleDoubleClick}
+  onclick={strictPortDoubleClick}
   aria-label={getAriaLabel()}
   aria-disabled={disabled}
   title={getTooltipText()}

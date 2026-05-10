@@ -110,7 +110,17 @@ export const quadWarpNodeSpec: NodeSpec = {
           quadCorner3X: 'coords',
           quadCorner3Y: 'coords'
         },
-        layout: { columns: 2, coordsSpan: 2, coordsOrigin: 'bottom-left' }
+        layout: {
+          columns: 2,
+          coordsSpan: 2,
+          coordsOrigin: 'bottom-left',
+          coordsDisplacementAnchor: {
+            quadCorner0X: { x: 0.0, y: 0.0 },
+            quadCorner1X: { x: 1.0, y: 0.0 },
+            quadCorner2X: { x: 0.0, y: 1.0 },
+            quadCorner3X: { x: 1.0, y: 1.0 }
+          }
+        }
       }
     ]
   },

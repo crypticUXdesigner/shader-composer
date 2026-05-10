@@ -24,6 +24,7 @@ import {
   createBaseSignalBinding,
 } from '../data-model/signals';
 import { getInputValue } from './parameterValueCalculatorInput';
+import { snapParameterValue as snapParameterValueInternal } from './parameterValueCalculatorSnap';
 
 export { snapParameterValue } from './parameterValueCalculatorSnap';
 export {
@@ -150,6 +151,12 @@ export function computeEffectiveParameterValue(
     return Math.max(min, Math.min(max, value));
   };
 
+  /** Int params must end up integers so enum UI / GLSL `int` uniforms stay consistent after automation/audio. */
+  const finalizeDiscrete = (value: number): number => {
+    const clamped = clampToRange(value);
+    return paramSpec.type === 'int' ? snapParameterValueInternal(clamped, paramSpec) : clamped;
+  };
+
   const configNum: number = USE_SIGNAL_MODEL
     ? evaluateConfigFromSignalBindings(
         buildParameterSignalBindings({
@@ -167,7 +174,7 @@ export function computeEffectiveParameterValue(
   );
 
   if (!connection) {
-    return clampToRange(configNum);
+    return finalizeDiscrete(configNum);
   }
 
   const inputMode: ParameterInputMode =
@@ -178,19 +185,19 @@ export function computeEffectiveParameterValue(
   const inputValue = getInputValue(connection, graph, nodeSpecs, audioManager);
 
   if (inputValue === null) {
-    return clampToRange(configNum);
+    return finalizeDiscrete(configNum);
   }
 
   switch (inputMode) {
     case 'override':
-      return clampToRange(inputValue);
+      return finalizeDiscrete(inputValue);
     case 'add':
-      return clampToRange(configNum + inputValue);
+      return finalizeDiscrete(configNum + inputValue);
     case 'subtract':
-      return clampToRange(configNum - inputValue);
+      return finalizeDiscrete(configNum - inputValue);
     case 'multiply':
-      return clampToRange(configNum * inputValue);
+      return finalizeDiscrete(configNum * inputValue);
     default:
-      return clampToRange(inputValue);
+      return finalizeDiscrete(inputValue);
   }
 }

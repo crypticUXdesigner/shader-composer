@@ -20,7 +20,7 @@ export const oklchColorNodeSpec: NodeSpec = {
       default: 0.5,
       min: 0.0,
       max: 1.0,
-      step: 0.01,
+      step: 0.001,
       label: 'Lightness'
     },
     c: {
@@ -28,7 +28,7 @@ export const oklchColorNodeSpec: NodeSpec = {
       default: 0.1,
       min: 0.0,
       max: 0.4,
-      step: 0.01,
+      step: 0.001,
       label: 'Chroma'
     },
     h: {
@@ -36,7 +36,7 @@ export const oklchColorNodeSpec: NodeSpec = {
       default: 0.0,
       min: 0.0,
       max: 360.0,
-      step: 1.0,
+      step: 0.001,
       label: 'Hue'
     }
   },

@@ -82,7 +82,7 @@ export const metaballsNodeSpec: NodeSpec = {
       default: 0.5,
       min: 0.0,
       max: 3.0,
-      step: 0.05,
+      step: 0.001,
       label: 'Orbit Speed'
     },
     timeOffset: {
@@ -90,7 +90,7 @@ export const metaballsNodeSpec: NodeSpec = {
       default: 0.0,
       min: -10.0,
       max: 10.0,
-      step: 0.1,
+      step: 0.001,
       label: 'Offset',
       knobPolarity: 'two-sided' },
     raymarchSteps: {
@@ -170,9 +170,10 @@ export const metaballsNodeSpec: NodeSpec = {
     ]
   },
   functions: `
-// Blob center: orbit around scene center with phase per blob
-vec3 metaballCenter(int i, vec3 center, float orbitRadius, float t) {
-  float phase = float(i) * 6.28318530718 / 6.0;
+// Blob centers: evenly spaced around full orbit regardless of blob count
+vec3 metaballCenter(int i, vec3 center, float orbitRadius, float t, int blobCount) {
+  float n = float(max(blobCount, 1));
+  float phase = float(i) * 6.28318530718 / n;
   float a = t + phase;
   return center + orbitRadius * vec3(cos(a), sin(a), 0.0);
 }
@@ -183,7 +184,7 @@ float metaballField(vec3 p, vec3 center, float orbitRadius, float blobRadius, fl
   float sum = 0.0;
   for (int i = 0; i < 6; i++) {
     if (i >= blobCount) break;
-    vec3 c = metaballCenter(i, center, orbitRadius, t);
+    vec3 c = metaballCenter(i, center, orbitRadius, t, blobCount);
     vec3 d = p - c;
     float d2 = dot(d, d) + 1e-6;
     sum += r2 / d2;
@@ -197,7 +198,7 @@ vec3 metaballGradient(vec3 p, vec3 center, float orbitRadius, float blobRadius, 
   vec3 grad = vec3(0.0);
   for (int i = 0; i < 6; i++) {
     if (i >= blobCount) break;
-    vec3 c = metaballCenter(i, center, orbitRadius, t);
+    vec3 c = metaballCenter(i, center, orbitRadius, t, blobCount);
     vec3 d = p - c;
     float d2 = dot(d, d) + 1e-6;
     grad -= 2.0 * r2 * d / (d2 * d2);

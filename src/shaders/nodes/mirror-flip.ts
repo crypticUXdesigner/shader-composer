@@ -3,7 +3,7 @@ import type { NodeSpec } from '../../types/nodeSpec';
 export const mirrorFlipNodeSpec: NodeSpec = {
   id: 'mirror-flip',
   category: 'Distort',
-  displayName: 'Mirror / Flip',
+  displayName: 'Flip',
   icon: 'flip-horizontal',
   description: 'Flip coordinates horizontally and/or vertically',
   inputs: [
@@ -55,7 +55,7 @@ export const mirrorFlipNodeSpec: NodeSpec = {
   parameterGroups: [
     {
       id: 'mirror-main',
-      label: 'Mirror / Flip',
+      label: 'Flip',
       parameters: ['mirrorFlipX', 'mirrorFlipY'],
       collapsible: false,
       defaultCollapsed: false

@@ -10,7 +10,7 @@ export const mandelbulbSdfNodeSpec: NodeSpec = {
   category: 'SDF',
   displayName: 'Mandelbulb SDF',
   description:
-    'Escape-time Mandelbulb-style SDF via triplex iteration and analytic distance estimation. Connect position from the generic raymarcher path (evaluated at each march step). DE tuning (bailout, de fudge) is sensitive: animate gently to avoid flicker. If the surface breaks up, lower iterations or raise raymarch steps before pushing power.',
+    'Escape-time Mandelbulb-style SDF via triplex iteration and analytic distance estimation. Connect position from the generic raymarcher path at each march step. Bailout, DE fudge, and sphere blend are touchy—animate gently to limit flicker. If the surface breaks up, lower iterations or raise raymarch steps before raising power.',
   icon: 'sphere',
   inputs: [
     {
@@ -24,7 +24,7 @@ export const mandelbulbSdfNodeSpec: NodeSpec = {
     {
       name: 'out',
       type: 'float',
-      label: 'Distance'
+      label: 'SDF'
     }
   ],
   parameters: {
@@ -32,7 +32,7 @@ export const mandelbulbSdfNodeSpec: NodeSpec = {
       type: 'int',
       default: 8,
       min: 2,
-      max: 12,
+      max: 24,
       step: 1,
       label: 'Power',
       supportsAnimation: false,
@@ -76,7 +76,7 @@ export const mandelbulbSdfNodeSpec: NodeSpec = {
       min: 0.0,
       max: 1.0,
       step: 0.01,
-      label: 'Hybrid mix',
+      label: 'Sphere blend',
       supportsAnimation: true,
       supportsAudio: true,
       knobPolarity: 'one-sided'
@@ -87,7 +87,7 @@ export const mandelbulbSdfNodeSpec: NodeSpec = {
       min: -5.0,
       max: 5.0,
       step: 0.1,
-      label: 'Pos X',
+      label: 'Offset X',
       inputMode: 'override',
       supportsAnimation: true,
       supportsAudio: true,
@@ -99,7 +99,7 @@ export const mandelbulbSdfNodeSpec: NodeSpec = {
       min: -5.0,
       max: 5.0,
       step: 0.1,
-      label: 'Pos Y',
+      label: 'Offset Y',
       inputMode: 'override',
       supportsAnimation: true,
       supportsAudio: true,
@@ -111,7 +111,7 @@ export const mandelbulbSdfNodeSpec: NodeSpec = {
       min: -5.0,
       max: 5.0,
       step: 0.1,
-      label: 'Pos Z',
+      label: 'Offset Z',
       inputMode: 'override',
       supportsAnimation: true,
       supportsAudio: true,
@@ -128,14 +128,14 @@ export const mandelbulbSdfNodeSpec: NodeSpec = {
     },
     {
       id: 'advanced',
-      label: 'Advanced (DE / stability)',
+      label: 'Advanced DE',
       parameters: ['bailout', 'deFudge', 'hybridMix'],
       collapsible: true,
       defaultCollapsed: true
     },
     {
       id: 'position',
-      label: 'Position (when unconnected)',
+      label: 'Position fallback',
       parameters: ['positionX', 'positionY', 'positionZ'],
       collapsible: true,
       defaultCollapsed: true
@@ -150,13 +150,13 @@ export const mandelbulbSdfNodeSpec: NodeSpec = {
       },
       {
         type: 'grid',
-        label: 'Advanced',
+        label: 'Advanced DE',
         parameters: ['bailout', 'deFudge', 'hybridMix'],
         layout: { columns: 3 }
       },
       {
         type: 'grid',
-        label: 'Position',
+        label: 'Offset',
         parameters: ['positionX', 'positionY', 'positionZ'],
         layout: { columns: 3 }
       }

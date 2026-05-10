@@ -6,7 +6,8 @@ export const boxTorusSdfNodeSpec: NodeSpec = {
   category: 'Shapes',
   displayName: 'Primitives',
   icon: 'box',
-  description: '3D geometric primitives (box, torus, capsule, cylinder, cone, round cone, octahedron, icosahedron) using raymarching',
+  description:
+    '3D geometric primitives (box, torus, capsule, cylinder, cone, round cone, octahedron, icosahedron) via SDF raymarching; float output is lit shading (not raw distance). Palette name Primitives.',
   inputs: [
     {
       name: 'in',
@@ -30,7 +31,7 @@ export const boxTorusSdfNodeSpec: NodeSpec = {
     {
       name: 'out',
       type: 'float',
-      label: 'Glow'
+      label: 'Shading'
     }
   ],
   parameters: {
@@ -133,13 +134,13 @@ export const boxTorusSdfNodeSpec: NodeSpec = {
       step: 1,
       label: 'Raymarch'
     },
-    lightType: {
+    mode: {
       type: 'int',
       default: 0,
       min: 0,
       max: 1,
       step: 1,
-      label: 'Light Type'
+      label: 'Mode'
     },
     lightDirX: {
       type: 'float',
@@ -268,6 +269,7 @@ export const boxTorusSdfNodeSpec: NodeSpec = {
       max: 10.0,
       step: 0.1,
       label: 'Ro X',
+      inputMode: 'override',
       knobPolarity: 'two-sided' },
     cameraRoY: {
       type: 'float',
@@ -276,6 +278,7 @@ export const boxTorusSdfNodeSpec: NodeSpec = {
       max: 10.0,
       step: 0.1,
       label: 'Ro Y',
+      inputMode: 'override',
       knobPolarity: 'two-sided' },
     cameraRoZ: {
       type: 'float',
@@ -284,6 +287,7 @@ export const boxTorusSdfNodeSpec: NodeSpec = {
       max: 10.0,
       step: 0.1,
       label: 'Ro Z',
+      inputMode: 'override',
       knobPolarity: 'two-sided' }
   },
   parameterGroups: [
@@ -318,7 +322,7 @@ export const boxTorusSdfNodeSpec: NodeSpec = {
     {
       id: 'light-main',
       label: 'Lighting',
-      parameters: ['lightType', 'lightIntensity', 'lightAmbient'],
+      parameters: ['mode', 'lightIntensity', 'lightAmbient'],
       collapsible: true,
       defaultCollapsed: false
     },
@@ -349,6 +353,13 @@ export const boxTorusSdfNodeSpec: NodeSpec = {
       parameters: ['specularCookTorrance', 'specularRoughness', 'specularF0'],
       collapsible: true,
       defaultCollapsed: true
+    },
+    {
+      id: 'camera-fallback',
+      label: 'Camera (when ro/rd unconnected)',
+      parameters: ['cameraRoX', 'cameraRoY', 'cameraRoZ'],
+      collapsible: true,
+      defaultCollapsed: true
     }
   ],
   parameterLayout: {
@@ -374,7 +385,7 @@ export const boxTorusSdfNodeSpec: NodeSpec = {
       {
         type: 'grid',
         label: 'Lighting',
-        parameters: ['lightType', 'lightAmbient', 'lightIntensity'],
+        parameters: ['mode', 'lightAmbient', 'lightIntensity'],
         layout: { columns: 3 }
       },
       {
@@ -399,6 +410,12 @@ export const boxTorusSdfNodeSpec: NodeSpec = {
         type: 'grid',
         label: 'Specular',
         parameters: ['specularCookTorrance', 'specularRoughness', 'specularF0'],
+        layout: { columns: 3 }
+      },
+      {
+        type: 'grid',
+        label: 'Camera',
+        parameters: ['cameraRoX', 'cameraRoY', 'cameraRoZ'],
         layout: { columns: 3 }
       }
     ]
@@ -465,20 +482,19 @@ float sdOctahedron(vec3 p, float s) {
   return length(vec3(q.x, q.y - s + k, q.z - k));
 }
 
-// Icosahedron: scale s (exact SDF via symmetry fold; s clamped to avoid degenerate)
-float sdIcosahedron(vec3 p, float s) {
-  const float phi = (1.0 + sqrt(5.0)) / 2.0;
-  float scale = max(s, 0.01);
-  p = abs(p);
-  float t = 0.0;
-  for (int i = 0; i < 3; i++) {
-    if (p.x < p.y) p.xy = p.yx;
-    if (p.x < p.z) p.xz = p.zx;
-    p = p * phi - scale * phi;
-    p.xy = -p.yx;
-    t += 1.0;
-  }
-  return length(p) * pow(phi, -t);
+// Icosahedron: radius from Size X — exact Euclidean SDF (octant symmetry + face planes).
+// Matches LYGIA icosahedronSDF; sphere-marching-safe (unlike fold-only approximations).
+float sdIcosahedron(vec3 p, float radius) {
+  const float ICO_Q = 2.61803398875;
+  float r = max(radius, 0.01);
+  vec3 n1 = normalize(vec3(ICO_Q, 1.0, 0.0));
+  vec3 n2 = vec3(0.57735026919);
+  vec3 ap = abs(p / r);
+  float a = dot(ap, n1);
+  float b = dot(ap, n1.zxy);
+  float c = dot(ap, n1.yzx);
+  float d = dot(ap, n2) - n1.x;
+  return max(max(max(a, b), c) - n1.x, d) * r;
 }
 
 // Rotate point around X axis
@@ -544,7 +560,7 @@ float sceneSDF(vec3 p) {
   else if ($param.primitiveType == 6) {
     d = sdOctahedron(transformedP, $param.primitiveSizeX);
   }
-  // Icosahedron: scale X (clamped inside sdIcosahedron)
+  // Icosahedron: radius = Size X
   else if ($param.primitiveType == 7) {
     d = sdIcosahedron(transformedP, $param.primitiveSizeX);
   }
@@ -634,7 +650,7 @@ ${COOK_TORRANCE_SPECULAR_GLSL}
     float lighting = $param.lightAmbient;
     float shadow = 1.0;
     vec3 L = vec3(0.0, 0.0, 1.0);
-    if ($param.lightType == 0) {
+    if ($param.mode == 0) {
       vec3 lightDir = vec3($param.lightDirX, $param.lightDirY, $param.lightDirZ);
       float len = length(lightDir);
       if (len > 0.001) {

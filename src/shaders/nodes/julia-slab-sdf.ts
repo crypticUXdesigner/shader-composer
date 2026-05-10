@@ -10,7 +10,7 @@ import type { NodeSpec } from '../../types/nodeSpec';
 export const juliaSlabSdfNodeSpec: NodeSpec = {
   id: 'julia-slab-sdf',
   category: 'SDF',
-  displayName: 'Julia slab SDF',
+  displayName: 'Julia Slab SDF',
   description:
     'Low-cost **2D Julia (or Mandelbrot-style) escape field** mapped to a **thin 3D slab** around z = 0: iterates z ← z² + c on scaled **XY**, uses an exterior **distance estimate** when |z| passes the escape radius, then combines with **|z₃| − halfThickness** via `max` (slab ∩ exterior field). This is **not** a Mandelbulb or full 3D escape-time surface. Defaults keep iteration count modest for smooth previews when c or scale is automated or audio-driven.',
   icon: 'sparkles-2',
@@ -26,7 +26,7 @@ export const juliaSlabSdfNodeSpec: NodeSpec = {
     {
       name: 'out',
       type: 'float',
-      label: 'Distance'
+      label: 'SDF'
     }
   ],
   parameters: {

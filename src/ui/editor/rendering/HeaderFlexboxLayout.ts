@@ -10,6 +10,7 @@ import type { NodeSpec } from '../../../types/nodeSpec';
 import { FlexboxLayoutEngine } from './layout/flexbox/FlexboxLayoutEngine';
 import type { FlexboxProperties, FlexItem, FlexboxLayoutResult, LayoutResult } from './layout/flexbox/FlexboxTypes';
 import { getCSSVariableAsNumber } from '../../../utils/cssTokens';
+import { getHeaderPowerStripHeightForSpec } from '../../../utils/nodeHeaderGeometry';
 
 export interface HeaderLayout {
   container: LayoutResult;
@@ -102,11 +103,16 @@ export class HeaderFlexboxLayout {
       outputsHeight = outputsLayout.container.height;
     }
     
-    // Header height is max of all nested containers + padding
+    // Header height is max of all nested containers + padding (+ optional power strip row)
     const maxNestedHeight = Math.max(inputsHeight, logoHeight, outputsHeight);
     const headerMinHeight = getCSSVariableAsNumber('node-header-min-height', 140);
-    const headerHeight = Math.max(headerMinHeight, maxNestedHeight + headerPadding * 2);
-    
+    const powerStripHeight = getHeaderPowerStripHeightForSpec(spec);
+    const headerHeight = Math.max(
+      headerMinHeight,
+      powerStripHeight + maxNestedHeight + headerPadding * 2
+    );
+    const mainRowHeight = headerHeight - headerPadding * 2 - powerStripHeight;
+
     // Now calculate header row layout with known dimensions
     const headerItems: FlexItem[] = [];
     
@@ -115,7 +121,7 @@ export class HeaderFlexboxLayout {
         id: 'inputs',
         properties: {
           width: inputsWidth,
-          height: headerHeight - headerPadding * 2
+          height: mainRowHeight
         }
       });
     }
@@ -124,7 +130,7 @@ export class HeaderFlexboxLayout {
       id: 'logo',
       properties: {
         width: logoWidth,
-        height: headerHeight - headerPadding * 2
+        height: mainRowHeight
       }
     });
     
@@ -133,17 +139,17 @@ export class HeaderFlexboxLayout {
         id: 'outputs',
         properties: {
           width: outputsWidth,
-          height: headerHeight - headerPadding * 2
+          height: mainRowHeight
         }
       });
     }
     
-    // Calculate header row layout
+    // Main header row (inputs | logo | outputs) sits below optional power strip
     const headerRowLayout = this.flexboxEngine.calculateLayout(
       nodeX + headerPadding,
-      nodeY + headerPadding,
+      nodeY + headerPadding + powerStripHeight,
       nodeWidth - headerPadding * 2,
-      headerHeight - headerPadding * 2,
+      mainRowHeight,
       headerProps,
       headerItems
     );

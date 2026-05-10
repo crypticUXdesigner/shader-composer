@@ -18,6 +18,7 @@ Nodes are graph building blocks; each exposes parameters the user can set or con
 - **Edit color and enum on canvas** — Color: picker; on canvas, popover/overlay (e.g. LCH); apply on confirm or live. Enum: dropdown; on canvas, overlay dropdown. Overlays bridged to DOM so they render above canvas and receive focus.
 - **Choose file for file parameters** — e.g. audio: “choose file” opens file picker; chosen file loads and parameter/audio setup updates; preview may pause during dialog.
 - **Rely on clear data model** — Values stored in graph (`node.parameters`); effective value = graph + connections + input mode + audio/timeline at runtime. Parameter UI from spec; custom layout elements for specific types (e.g. bezier row, color map preview).
+- **Power off a node to A/B its effect** — Eligible nodes (transforms, effects, generators, patterns, shapes/SDFs, blend, color-related inputs and utilities in those families) show a **Power** control in the header. When “off,” the node is skipped in compilation: if it could pass its main input through unchanged, it does; otherwise downstream nodes behave as if nothing were wired from it and use their usual defaults. Math, utility, masking-control, and output nodes do not offer Power. The setting is saved with the graph and comes back after reload.
 
 ## 4. Key Flows
 

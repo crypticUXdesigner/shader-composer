@@ -142,12 +142,14 @@ export class ParameterConnectionLayerRenderer implements LayerRenderer {
     // Virtual node source - no visual node; use fixed anchor to the left of target.
     let sourcePos: { x: number; y: number };
     let sourceSpec: NodeSpec | undefined;
+    let sourceBypassed = false;
     if (isVirtualNodeId(conn.sourceNodeId)) {
       sourcePos = { x: targetPos.x - 150, y: targetPos.y };
       sourceSpec = { id: 'audio-signal', outputs: [{ name: 'out', type: 'float' }] } as NodeSpec;
     } else {
       const sourceNode = graph.nodes.find(n => n.id === conn.sourceNodeId);
       if (!sourceNode) return;
+      sourceBypassed = sourceNode.bypassed === true;
       sourceSpec = this.context.nodeSpecs.get(sourceNode.type);
       const sourceMetrics = this.context.nodeMetrics.get(sourceNode.id);
       if (!sourceSpec || !sourceMetrics) return;
@@ -199,12 +201,15 @@ export class ParameterConnectionLayerRenderer implements LayerRenderer {
     const connectionOpacity = isSelected
       ? getCSSVariableAsNumber('connection-opacity-selected', 1.0)
       : getCSSVariableAsNumber('connection-opacity', 0.8);
-    
+    const bypassSourceDim = sourceBypassed
+      ? getCSSVariableAsNumber('opacity-disabled', 0.5)
+      : 1;
+
     // Reset canvas state to ensure clean rendering
     ctx.setLineDash([]);
     ctx.strokeStyle = connectionColor;
     ctx.lineWidth = connectionWidth;
-    ctx.globalAlpha = connectionOpacity;
+    ctx.globalAlpha = connectionOpacity * bypassSourceDim;
     
     ctx.stroke(path);
 

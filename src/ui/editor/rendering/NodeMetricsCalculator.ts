@@ -7,13 +7,32 @@
  */
 
 import type { NodeInstance } from '../../../data-model/types';
-import type { NodeSpec, ParameterSpec } from '../../../types/nodeSpec';
+import type { NodeSpec, ParameterSpec, LayoutElement } from '../../../types/nodeSpec';
 import type { NodeRenderMetrics } from '../NodeRenderer';
 import { getCSSVariableAsNumber, getCategoryVariableAsNumber } from '../../../utils/cssTokens';
 import { ParameterLayoutManager } from './layout/ParameterLayoutManager';
 import type { ElementMetrics } from './layout/LayoutElementRenderer';
 import { HeaderFlexboxLayout } from './HeaderFlexboxLayout';
 import { autoGenerateLayout } from '../../../utils/layoutMigration';
+
+/**
+ * Parameter names that appear in `GridElement.visibleWhen` for this spec.
+ * Their stored values must be part of the metrics cache key — otherwise toggling
+ * a section (e.g. triangle-grid Projection, plane-grid Pattern) reuses stale height.
+ */
+function getVisibleWhenDriverParameterNames(spec: NodeSpec): Set<string> {
+  const names = new Set<string>();
+  for (const el of spec.parameterLayout?.elements ?? []) {
+    if (!isGridLayoutElement(el)) continue;
+    const p = el.visibleWhen?.parameter;
+    if (p) names.add(p);
+  }
+  return names;
+}
+
+function isGridLayoutElement(el: LayoutElement): el is LayoutElement & { type: 'grid'; visibleWhen?: { parameter: string; equals: number } } {
+  return el.type === 'grid';
+}
 
 /**
  * Check if a parameter change affects layout
@@ -134,10 +153,19 @@ export class NodeMetricsCalculator {
     spec: NodeSpec
   ): Record<string, unknown> {
     const layoutParams: Record<string, unknown> = {};
-    
+    const visibleWhenDrivers = getVisibleWhenDriverParameterNames(spec);
+
     // Include parameter structure (which parameters exist, their types, array lengths)
     // but not their values for simple types
     for (const [paramName, paramSpec] of Object.entries(spec.parameters)) {
+      if (visibleWhenDrivers.has(paramName)) {
+        const raw = node.parameters[paramName];
+        const fallback =
+          typeof paramSpec.default === 'number' && Number.isFinite(paramSpec.default) ? paramSpec.default : 0;
+        layoutParams[paramName] =
+          typeof raw === 'number' && Number.isFinite(raw) ? raw : fallback;
+        continue;
+      }
       if (this.isLayoutAffectingParameter(paramName, paramSpec, node, spec)) {
         // Include parameter value if it affects layout (e.g., array length)
         layoutParams[paramName] = node.parameters[paramName];

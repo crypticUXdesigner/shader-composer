@@ -11,10 +11,12 @@ import type { NodeGraph } from '../data-model/types';
 import type { AudioSetup } from '../data-model/audioSetupTypes';
 import { getPrimaryFileId } from '../data-model/audioSetupTypes';
 import type { ShaderCompiler } from '../runtime/types';
+import { globalErrorHandler } from '../utils/errorHandling';
 import { createOfflineAudioProvider } from './OfflineAudioProvider';
 import { createExportRenderPath } from './ExportRenderPath';
 import { WebCodecsVideoExporter, isSupported } from './WebCodecsVideoExporter';
 import type { FrameAudioState } from './OfflineAudioProvider';
+import { createWebGpuVideoExportRenderPath } from './WebGpuVideoExportRenderPath';
 import type { StreamTargetChunk } from 'mediabunny';
 import {
   MAX_EXPORT_FRAMES,
@@ -303,12 +305,43 @@ export async function runVideoExportFlow(options: VideoExportOrchestratorOptions
     ? createOfflineAudioProvider(audioSetup, primaryNodeId, buffer!, sampleRate, frameRate, startSeconds, maxFrames)
     : null;
 
-  const renderPath = createExportRenderPath(graph, compiler, audioSetup, {
-    width,
-    height,
-    frameRate,
-    startTimeSeconds: startSeconds,
-  });
+  const renderPathConfig = { width, height, frameRate, startTimeSeconds: startSeconds };
+
+  // Prefer WebGPU when available and the graph is WGSL-supported; otherwise fall back to the existing WebGL export path.
+  type RenderFrameAsync = NonNullable<ReturnType<typeof createExportRenderPath>['renderFrameAsync']>;
+  let usingWebGpu = false;
+  let renderPath = createExportRenderPath(graph, compiler, audioSetup, renderPathConfig);
+  let webgpuAsyncRender: RenderFrameAsync | null = null;
+
+  try {
+    const wg = await createWebGpuVideoExportRenderPath(graph, compiler, audioSetup, renderPathConfig);
+    if (wg.ok) {
+      usingWebGpu = true;
+      renderPath.dispose();
+      renderPath = wg.path;
+      webgpuAsyncRender = wg.path.renderFrameAsync ?? null;
+      if (!webgpuAsyncRender) {
+        usingWebGpu = false;
+        renderPath.dispose();
+        renderPath = createExportRenderPath(graph, compiler, audioSetup, renderPathConfig);
+        globalErrorHandler.report('runtime', 'warning', 'WebGPU video export unavailable; falling back to WebGL export.', {
+          context: { webgpuVideoExport: { reason: 'missing.renderFrameAsync' } },
+        });
+      }
+    } else {
+      const detail = wg.compilation?.unsupportedReasons?.join('; ') ?? wg.reason;
+      globalErrorHandler.report('runtime', 'warning', 'WebGPU video export unavailable; falling back to WebGL export.', {
+        context: { webgpuVideoExport: { reason: wg.reason, detail } },
+        originalError: wg.error,
+      });
+    }
+  } catch (err) {
+    const e = err instanceof Error ? err : new Error('WebGPU video export init failed', { cause: err });
+    globalErrorHandler.report('runtime', 'warning', 'WebGPU video export failed to initialize; falling back to WebGL export.', {
+      context: { webgpuVideoExport: { reason: 'exception' } },
+      originalError: e,
+    });
+  }
 
   const slicedAudioBuffer = hasAudio && buffer ? sliceAudioBuffer(buffer, startSeconds, endSeconds) : undefined;
   const exporter = WebCodecsVideoExporter.create({
@@ -346,7 +379,30 @@ export async function runVideoExportFlow(options: VideoExportOrchestratorOptions
       const frameState: FrameAudioState = offlineProvider
         ? offlineProvider.getFrameState(frameIndex)
         : { channelSamples: [], uniformUpdates: [], timelineTime: frameIndex / frameRate };
-      const canvas = renderPath.renderFrame(frameIndex, frameState);
+
+      let canvas: HTMLCanvasElement | OffscreenCanvas;
+      if (usingWebGpu && webgpuAsyncRender) {
+        try {
+          canvas = await webgpuAsyncRender(frameIndex, frameState);
+        } catch (err) {
+          const e = err instanceof Error ? err : new Error('WebGPU renderFrame failed', { cause: err });
+          globalErrorHandler.report('runtime', 'warning', 'WebGPU video export failed; switching to WebGL export for remaining frames.', {
+            context: { webgpuVideoExport: { reason: 'renderFrame.failed', frameIndex } },
+            originalError: e,
+          });
+          usingWebGpu = false;
+          webgpuAsyncRender = null;
+          try {
+            renderPath.dispose();
+          } catch {
+            // ignore
+          }
+          renderPath = createExportRenderPath(graph, compiler, audioSetup, renderPathConfig);
+          canvas = renderPath.renderFrame(frameIndex, frameState);
+        }
+      } else {
+        canvas = renderPath.renderFrame(frameIndex, frameState);
+      }
       const timestampSeconds = frameIndex / frameRate;
       // Audio is encoded as a full track up-front; per-frame channel samples are still computed
       // for offline analysis + uniform updates.

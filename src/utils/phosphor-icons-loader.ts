@@ -13,8 +13,7 @@ type PhosphorPathNode = ['path', { d: string }];
 type PhosphorIconData = PhosphorPathNode[];
 type PhosphorIconsMap = Record<string, PhosphorIconData>;
 
-// Resolve via project-relative paths so Vitest/node get real file URLs (root `/...?url`
-// becomes invalid `file:///name` under the test runner).
+// Project-relative `public/` assets (works in Vite dev/build and Vitest; avoid root `/…` URLs in tests).
 import phosphorNodesRegularUrl from '../../public/phosphor-nodes-regular.json?url';
 import phosphorNodesFillUrl from '../../public/phosphor-nodes-fill.json?url';
 

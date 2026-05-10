@@ -17,39 +17,45 @@
       },
       {
         "id": "node-1771350689142-g167jkli6",
-        "type": "hex-prism-sdf",
+        "type": "hexagonal-grid",
         "position": {
-          "x": 118,
-          "y": 306
+          "x": 420,
+          "y": -110
         },
         "parameters": {
-          "hexRadius": 0.3,
-          "halfHeight": 1,
-          "positionX": 0.5,
-          "positionY": 3.5,
-          "positionZ": -2.5
+          "hexSize": 0.22,
+          "hexGap": 0,
+          "hexRotation": 0,
+          "hexIntensity": 1,
+          "hexSoftness": 0.02,
+          "hexEdgeThickness": 0.08,
+          "hexEdgeIntensity": 0.55
         }
       },
       {
-        "id": "node-1771350689142-3a09u1gd2",
-        "type": "generic-raymarcher",
+        "id": "node-hex-prism-sdf-color-map",
+        "type": "color-map",
         "position": {
-          "x": 1246,
-          "y": -24
+          "x": 860,
+          "y": -110
         },
-        "parameters": {
-          "raymarchSteps": 64,
-          "glowIntensity": 0.3,
-          "brightness": 1,
-          "cameraRoZ": 3
-        }
+        "parameters": {}
+      },
+      {
+        "id": "node-hex-prism-sdf-blur",
+        "type": "blur",
+        "position": {
+          "x": 1280,
+          "y": -110
+        },
+        "parameters": {}
       },
       {
         "id": "node-1771350689142-alf80kyev",
         "type": "final-output",
         "position": {
-          "x": 2278,
-          "y": -14
+          "x": 1710,
+          "y": -110
         },
         "parameters": {}
       }
@@ -59,20 +65,27 @@
         "id": "conn-1771350689142-kr38run6f",
         "sourceNodeId": "node-1771350689142-15sjbb93v",
         "sourcePort": "out",
-        "targetNodeId": "node-1771350689142-3a09u1gd2",
+        "targetNodeId": "node-1771350689142-g167jkli6",
         "targetPort": "in"
       },
       {
-        "id": "conn-1771350689142-jz5ggaycv",
+        "id": "conn-hex-prism-sdf-hexgrid-to-colormap",
         "sourceNodeId": "node-1771350689142-g167jkli6",
         "sourcePort": "out",
-        "targetNodeId": "node-1771350689142-3a09u1gd2",
-        "targetPort": "sdf"
+        "targetNodeId": "node-hex-prism-sdf-color-map",
+        "targetPort": "in"
       },
       {
-        "id": "conn-1771350689142-kggktkvku",
-        "sourceNodeId": "node-1771350689142-3a09u1gd2",
-        "sourcePort": "color",
+        "id": "conn-hex-prism-sdf-colormap-to-blur",
+        "sourceNodeId": "node-hex-prism-sdf-color-map",
+        "sourcePort": "out",
+        "targetNodeId": "node-hex-prism-sdf-blur",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-hex-prism-sdf-blur-to-output",
+        "sourceNodeId": "node-hex-prism-sdf-blur",
+        "sourcePort": "out",
         "targetNodeId": "node-1771350689142-alf80kyev",
         "targetPort": "in"
       }

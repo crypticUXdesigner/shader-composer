@@ -10,9 +10,9 @@ import type { NodeSpec } from '../../types/nodeSpec';
 export const hexPrismSdfNodeSpec: NodeSpec = {
   id: 'hex-prism-sdf',
   category: 'SDF',
-  displayName: 'Hex 3D',
+  displayName: 'Hex Prism SDF',
   description:
-    '3D SDF primitive for an extruded hexagon (hex prism). Connect a vec3 position (e.g. from raymarcher); output is a float SDF. Parameters: hex radius (cross-section), half-height (extrusion).',
+    '3D hex-prism signed distance. With SDF Raymarch, connect out to sdf—the march supplies the sample point; Position can stay unwired. Otherwise wire Position, or use Pos X/Y/Z to offset. Hex radius is cross-section; half height is half extrusion length along Z.',
   icon: 'hexagon',
   inputs: [
     {
@@ -25,7 +25,8 @@ export const hexPrismSdfNodeSpec: NodeSpec = {
   outputs: [
     {
       name: 'out',
-      type: 'float'
+      type: 'float',
+      label: 'SDF'
     }
   ],
   parameters: {

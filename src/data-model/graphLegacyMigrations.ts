@@ -6,14 +6,46 @@
 import type { NodeGraph } from './types';
 import { migrateNoiseNodes } from './noiseNodesMigration';
 import { migrateBloomSphereColors } from './bloomSphereColorsMigration';
+import { migrateSkyDomeColors } from './skyDomeColorsMigration';
+import { migrateIridescentTunnelColors } from './iridescentTunnelColorsMigration';
+import { migrateIridescentTunnelCenter } from './iridescentTunnelCenterMigration';
 import { migrateDriveHomeLightsSkyGradient } from './driveHomeLightsSkyGradientMigration';
 import { migrateKaleidoscopeSmooth } from './kaleidoscopeMergeMigration';
 import { migrateDisplace2dUnify } from './displace2dUnifyMigration';
+import { migrateRingsNode } from './ringsNodeMigration';
+import { migrateDotsNodeParameterNames } from './dotsNodeMigration';
+import { migrateParticleSystemFoldScale } from './particleSystemGrainMigration';
+import { migrateStreakNodeAngleToDegrees } from './streakNodeMigration';
+import { migrateWarpTerrain } from './warpTerrainMigration';
+import { migrateWorleyNoiseToVoronoi } from './worleyNoiseMigration';
+import { migrateRemoveSpiralNodes } from './spiralNodeRemovalMigration';
+import { migrateUnifiedStripesPattern } from './stripesPatternUnificationMigration';
+import { migrateInfiniteZoom } from './infiniteZoomMigration';
+import { migrateBoxTorusSdfLightMode } from './boxTorusSdfLightModeMigration';
+import { migrateInflatedIcosahedronColors } from './inflatedIcosahedronColorsMigration';
+import { migrateGlassShellColors } from './glassShellColorsMigration';
+import { migrateRadialRepeatSdfParameters } from './radialRepeatSdfMigration';
 
 export function migrateLegacyNodeGraph(graph: NodeGraph): NodeGraph {
   let g = migrateNoiseNodes(graph);
+  g = migrateWorleyNoiseToVoronoi(g);
   g = migrateKaleidoscopeSmooth(g);
   g = migrateDisplace2dUnify(g);
   g = migrateBloomSphereColors(g);
-  return migrateDriveHomeLightsSkyGradient(g);
+  g = migrateSkyDomeColors(g);
+  g = migrateIridescentTunnelColors(g);
+  g = migrateIridescentTunnelCenter(g);
+  g = migrateRingsNode(g);
+  g = migrateDotsNodeParameterNames(g);
+  g = migrateParticleSystemFoldScale(g);
+  g = migrateStreakNodeAngleToDegrees(g);
+  g = migrateWarpTerrain(g);
+  g = migrateDriveHomeLightsSkyGradient(g);
+  g = migrateRemoveSpiralNodes(g);
+  g = migrateInfiniteZoom(g);
+  g = migrateBoxTorusSdfLightMode(g);
+  g = migrateInflatedIcosahedronColors(g);
+  g = migrateGlassShellColors(g);
+  g = migrateRadialRepeatSdfParameters(g);
+  return migrateUnifiedStripesPattern(g);
 }

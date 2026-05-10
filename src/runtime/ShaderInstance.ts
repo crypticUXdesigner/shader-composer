@@ -24,10 +24,17 @@ void main() {
 /** Message thrown when WebGL context is lost so callers can skip without reporting a compilation error. */
 export const SHADER_INSTANCE_CONTEXT_LOST_MESSAGE = 'WEBGL_CONTEXT_LOST';
 /**
- * Legacy message; `ShaderInstance` now waits for parallel link completion instead of throwing.
- * Kept for `CompilationManager` catch/retry paths and any external handlers.
+ * Thrown when link completion is deferred to a later frame (`deferPending` preview path).
+ * `CompilationManager` maps this to `scheduleApplyRetry` (same as WebGPU “program pending”).
  */
 export const SHADER_INSTANCE_PROGRAM_PENDING_MESSAGE = 'WEBGL_PROGRAM_PENDING';
+
+/** `blocking` = wait until linked (export, tests). `deferPending` = throw {@link SHADER_INSTANCE_PROGRAM_PENDING_MESSAGE} if link is still in flight. */
+export type ShaderLinkCompletionMode = 'blocking' | 'deferPending';
+
+export type ShaderInstanceOptions = {
+  linkCompletionMode?: ShaderLinkCompletionMode;
+};
 
 type CachedProgram = {
   program: WebGLProgram;
@@ -76,6 +83,7 @@ export class ShaderInstance implements Disposable {
   static readonly CONTEXT_LOST_MESSAGE = SHADER_INSTANCE_CONTEXT_LOST_MESSAGE;
 
   private gl: WebGL2RenderingContext;
+  private readonly linkCompletionMode: ShaderLinkCompletionMode;
   private program: WebGLProgram | null = null;
   private vertexShader: WebGLShader | null = null;
   private fragmentShader: WebGLShader | null = null;
@@ -100,11 +108,16 @@ export class ShaderInstance implements Disposable {
   private positionBuffer: WebGLBuffer | null = null;
   private positionAttribLocation: number = -1;
   
-  constructor(gl: WebGL2RenderingContext, compilationResult: CompilationResult) {
+  constructor(
+    gl: WebGL2RenderingContext,
+    compilationResult: CompilationResult,
+    options?: ShaderInstanceOptions
+  ) {
     if (gl.isContextLost && gl.isContextLost()) {
       throw new Error(ShaderInstance.CONTEXT_LOST_MESSAGE);
     }
     this.gl = gl;
+    this.linkCompletionMode = options?.linkCompletionMode ?? 'blocking';
     this.createProgram(compilationResult);
     this.cacheUniformLocations(compilationResult);
     this.setupPositionBuffer();
@@ -193,14 +206,22 @@ export class ShaderInstance implements Disposable {
       }
     );
 
-    // If the program was left pending (parallel compile), block until completion so synchronous
-    // callers (video export, tests) get a linked program — preview uses rAF retry if this ever threw.
+    // Parallel link: block (export) or throw pending (preview) so the UI thread is not spin-waiting.
     if (cached.value.status === 'pending') {
       const ext = this.gl.getExtension('KHR_parallel_shader_compile') as
         | { COMPLETION_STATUS_KHR: number }
         | null;
       if (ext) {
-        waitForParallelProgramCompletion(this.gl, cached.value.program, ext.COMPLETION_STATUS_KHR);
+        const completionReady = Boolean(
+          this.gl.getProgramParameter(cached.value.program, ext.COMPLETION_STATUS_KHR)
+        );
+        if (!completionReady) {
+          if (this.linkCompletionMode === 'deferPending') {
+            cached.release();
+            throw new Error(SHADER_INSTANCE_PROGRAM_PENDING_MESSAGE);
+          }
+          waitForParallelProgramCompletion(this.gl, cached.value.program, ext.COMPLETION_STATUS_KHR);
+        }
       }
     }
 

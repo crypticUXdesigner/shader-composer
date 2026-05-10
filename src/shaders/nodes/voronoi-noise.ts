@@ -3,8 +3,8 @@ import type { NodeSpec } from '../../types/nodeSpec';
 export const voronoiNoiseNodeSpec: NodeSpec = {
   id: 'voronoi-noise',
   category: 'Patterns',
-  displayName: 'Voronoi',
-  description: 'Cell-like patterns using Voronoi diagrams, creating organic crystal-like structures',
+  displayName: 'Cells',
+  description: 'Cell-like patterns from jittered Voronoi seeds—organic, crystalline, or cracked boundaries',
   icon: 'cell',
   inputs: [
     {
@@ -17,7 +17,7 @@ export const voronoiNoiseNodeSpec: NodeSpec = {
     {
       name: 'out',
       type: 'float',
-      label: 'Noise'
+      label: 'Cells'
     }
   ],
   parameters: {
@@ -82,12 +82,12 @@ export const voronoiNoiseNodeSpec: NodeSpec = {
       default: 0.5,
       min: 0.0,
       max: 5.0,
-      step: 0.01,
+      step: 0.001,
       label: 'Time Speed'
     },
     voronoiIntensity: {
       type: 'float',
-      default: 0.5,
+      default: 1.0,
       min: 0.0,
       max: 2.0,
       step: 0.01,
@@ -98,9 +98,10 @@ export const voronoiNoiseNodeSpec: NodeSpec = {
       default: 0.0,
       min: -100.0,
       max: 100.0,
-      step: 0.05,
+      step: 0.001,
       label: 'Time Offset',
-      knobPolarity: 'two-sided' },
+      knobPolarity: 'two-sided'
+    },
     voronoiOutputMode: {
       type: 'int',
       default: 0,
@@ -137,8 +138,25 @@ export const voronoiNoiseNodeSpec: NodeSpec = {
       {
         type: 'grid',
         label: 'Animation',
-        parameters: ['voronoiAnimationMode', 'voronoiDriftDirection', 'voronoiDriftAmount', 'voronoiRotationSpeed', 'voronoiTimeSpeed', 'voronoiTimeOffset'],
-        layout: { columns: 3 }
+        parameters: ['voronoiAnimationMode'],
+        layout: { columns: 3, parameterSpan: { voronoiAnimationMode: 3 } }
+      },
+      {
+        type: 'grid',
+        visibleWhen: { parameter: 'voronoiAnimationMode', equals: 0 },
+        parameters: [
+          'voronoiDriftDirection',
+          'voronoiDriftAmount',
+          'voronoiTimeSpeed',
+          'voronoiTimeOffset'
+        ],
+        layout: { columns: 3, parameterSpan: { voronoiTimeOffset: 3 } }
+      },
+      {
+        type: 'grid',
+        visibleWhen: { parameter: 'voronoiAnimationMode', equals: 1 },
+        parameters: ['voronoiRotationSpeed', 'voronoiTimeSpeed', 'voronoiTimeOffset'],
+        layout: { columns: 3, parameterSpan: { voronoiTimeOffset: 3 } }
       }
     ]
   },

@@ -43,15 +43,15 @@
           "y": -1526
         },
         "parameters": {
-          "dotsSpacing": 0.35000000000000003,
+          "dotsGap": 0.19800000000000004,
           "dotsSize": 0.076,
-          "dotsFalloff": 0.5,
+          "dotsFeather": 0.175,
           "dotsIntensity": 2
         },
         "parameterInputModes": {
           "dotsIntensity": "multiply",
           "dotsSize": "multiply",
-          "dotsSpacing": "multiply"
+          "dotsGap": "multiply"
         }
       },
       {
@@ -95,7 +95,6 @@
           "y": 1658
         },
         "parameters": {
-          "stops": 10,
           "startColorL": 0.45582984926719844,
           "startColorC": 0.04744580591988629,
           "startColorH": 283.1315653240594,
@@ -125,7 +124,6 @@
           "y": -1885
         },
         "parameters": {
-          "stops": 49,
           "startColorL": 0.3430038357658246,
           "startColorC": 0.006958090190399934,
           "startColorH": 86.82837325286599,
@@ -267,32 +265,32 @@
           "turbulenceScale": 1.1300000000000001,
           "turbulenceStrength": 0.06,
           "turbulenceIterations": 3,
-          "turbulenceTimeSpeed": 1,
+          "turbulenceTimeSpeed": 10,
           "turbulenceTimeOffset": 0
         }
       },
       {
         "id": "node-1774041780868-2zgiffrb5",
-        "type": "metaballs",
+        "type": "sphere-raymarch",
         "position": {
           "x": -32,
           "y": 106
         },
         "parameters": {
-          "blobCount": 6,
-          "blobRadius": 0.6100000000000001,
-          "threshold": 6.1000000000000005,
-          "orbitRadius": 0.5,
-          "centerX": 0,
-          "centerY": 0,
-          "centerZ": 2,
-          "timeSpeed": 0.6000000000000001,
-          "timeOffset": 0,
+          "sphereRadius": 1.3,
+          "sphereGlowIntensity": 1,
+          "sphereBrightness": 1.2,
           "raymarchSteps": 128,
-          "glowIntensity": 0
-        },
-        "parameterInputModes": {
-          "blobRadius": "override"
+          "vectorFieldFrequencyX": 0,
+          "vectorFieldFrequencyY": 10,
+          "vectorFieldFrequencyZ": 10,
+          "vectorFieldAmplitude": 1.2,
+          "vectorFieldRadialStrength": 10,
+          "vectorFieldHarmonicAmplitude": 1,
+          "vectorFieldComplexity": 8,
+          "vectorFieldDistanceContribution": 0.06,
+          "vectorFieldSpeed": 0.35,
+          "animationSpeed": 0.3
         }
       },
       {
@@ -527,7 +525,7 @@
         "sourceNodeId": "node-1774041780868-k9owg2lna",
         "sourcePort": "out",
         "targetNodeId": "node-1774041780868-2zgiffrb5",
-        "targetParameter": "blobRadius"
+        "targetParameter": "sphereRadius"
       },
       {
         "id": "conn-1774041780868-zwaj3k6kt",

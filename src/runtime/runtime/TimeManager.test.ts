@@ -7,6 +7,8 @@ function staticDeps(): PreviewDependencyMask {
     usesWallTime: false,
     usesTimelineTime: false,
     usesAudioUniforms: false,
+    usesRadialPulseVirtualDrive: false,
+    usesRadialPulseSpawnUniformPass: false,
     usesResolutionUniform: true,
     usesMouseUniforms: false,
     usesFrameIndex: false
@@ -15,6 +17,14 @@ function staticDeps(): PreviewDependencyMask {
 
 function audioDeps(): PreviewDependencyMask {
   return { ...staticDeps(), usesAudioUniforms: true };
+}
+
+function radialDriveDeps(): PreviewDependencyMask {
+  return {
+    ...staticDeps(),
+    usesRadialPulseVirtualDrive: true,
+    usesRadialPulseSpawnUniformPass: true,
+  };
 }
 
 describe('TimeManager (preview scheduling)', () => {
@@ -62,6 +72,30 @@ describe('TimeManager (preview scheduling)', () => {
     expect(updateAudio).toHaveBeenCalledTimes(1);
     updateAudio.mockClear();
     render.mockClear();
+
+    nowSpy.mockReturnValue(20);
+    tm.updateTime(0.02, shader as never, renderer, updateAudio, opts);
+    expect(updateAudio).not.toHaveBeenCalled();
+
+    nowSpy.mockReturnValue(100);
+    tm.updateTime(0.04, shader as never, renderer, updateAudio, opts);
+    expect(updateAudio).toHaveBeenCalledTimes(1);
+  });
+
+  it('throttles analyser pass when paused with radial pulse virtual-drive deps (spawn path)', () => {
+    const nowSpy = vi.spyOn(performance, 'now').mockReturnValue(0);
+    const tm = new TimeManager();
+    const render = vi.fn();
+    const renderer = { markDirty: vi.fn(), render } as import('../types').IRenderer;
+    const updateAudio = vi.fn();
+    const shader = { setTime: vi.fn() };
+
+    const opts = { previewDependencies: radialDriveDeps(), timelinePlaying: false };
+
+    tm.markDirty(renderer, 'compilation');
+    tm.updateTime(0, shader as never, renderer, updateAudio, opts);
+    expect(updateAudio).toHaveBeenCalledTimes(1);
+    updateAudio.mockClear();
 
     nowSpy.mockReturnValue(20);
     tm.updateTime(0.02, shader as never, renderer, updateAudio, opts);

@@ -35,10 +35,16 @@
     onParameterChange?: (nodeId: string, paramName: string, value: import('../../../data-model/types').ParameterValue) => void;
     onParameterInputModeChanged?: (nodeId: string, paramName: string, mode: import('../../../types/nodeSpec').ParameterInputMode) => void;
     onNodeContextMenu?: (nodeId: string, clientX: number, clientY: number) => void;
+    /** Double-click node body → Patch tool with this node as insert; next click picks cable. */
+    onPatchIntoDoubleClick?: (nodeId: string) => void;
+    /** Patch tool: graph node id waiting for a cable click (insert-this-node flow). */
+    patchInsertNodeId?: string | null;
+    onNodePowerToggle?: (nodeId: string, bypassed: boolean) => void;
   }
 
   let {
     landedNodeId = null,
+    patchInsertNodeId = null,
     graph,
     nodeSpecs,
     audioSetup = { files: [], bands: [], remappers: [] },
@@ -56,6 +62,8 @@
     onParameterChange,
     onParameterInputModeChanged,
     onNodeContextMenu,
+    onPatchIntoDoubleClick,
+    onNodePowerToggle,
   }: Props = $props();
 
   const nodeSpecsMap = $derived(new Map(nodeSpecs.map((s) => [s.id, s])));
@@ -196,6 +204,7 @@
           spec={spec}
           metrics={toDomMetrics(metrics)}
           justLanded={landedNodeId === node.id}
+          patchIntoInsertPick={patchInsertNodeId != null && patchInsertNodeId === node.id}
           selected={selectedSet.has(node.id)}
           graph={graph}
           audioSetup={audioSetup}
@@ -213,6 +222,8 @@
           onParameterChange={onParameterChange ?? (() => {})}
           onParameterInputModeChanged={onParameterInputModeChanged}
           onContextMenu={onNodeContextMenu}
+          onPatchIntoDoubleClick={onPatchIntoDoubleClick}
+          onPowerToggle={onNodePowerToggle}
         />
       {/if}
     {/each}

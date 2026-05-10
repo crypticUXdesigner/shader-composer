@@ -9,7 +9,7 @@ export const mandelboxSdfNodeSpec: NodeSpec = {
   category: 'SDF',
   displayName: 'Mandelbox SDF',
   description:
-    'Classic Mandelbox signed distance: box fold, sphere fold, then scale and offset each iteration. Visually distinct from KIFS and Menger; still fold-heavy. Connect position to Generic SDF Raymarcher. Combine with Displacement 3D or Repeated Hex Prism SDF for layered looks.',
+    'Classic Mandelbox signed distance: box fold, sphere fold, then scale and offset each iteration. Visually distinct from KIFS and Menger; still fold-heavy. Wire out → SDF Raymarch sdf (the raymarcher supplies positions). Combine with Displacement 3D or Repeated Hex Prism SDF for layered looks.',
   icon: 'cube',
   inputs: [
     {
@@ -23,7 +23,7 @@ export const mandelboxSdfNodeSpec: NodeSpec = {
     {
       name: 'out',
       type: 'float',
-      label: 'Distance'
+      label: 'SDF'
     }
   ],
   parameters: {

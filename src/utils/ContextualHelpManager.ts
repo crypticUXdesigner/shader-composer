@@ -85,9 +85,10 @@ export async function loadHelpData(): Promise<HelpData> {
 
   try {
     // Load both contextual-help.json and node-documentation.json
-    const helpModules = import.meta.glob(['/src/data/contextual-help.json', '/src/data/node-documentation.json'], { eager: false });
-    const contextualHelpPath = '/src/data/contextual-help.json';
-    const nodeDocPath = '/src/data/node-documentation.json';
+    // Use relative globs so Rollup/Vite resolve consistently across platforms (Windows paths included).
+    const helpModules = import.meta.glob(['../data/contextual-help.json', '../data/node-documentation.json'], { eager: false });
+    const contextualHelpPath = Object.keys(helpModules).find((k) => k.endsWith('/contextual-help.json')) ?? null;
+    const nodeDocPath = Object.keys(helpModules).find((k) => k.endsWith('/node-documentation.json')) ?? null;
     
     const mergedData: HelpData = {
       helpItems: {},
@@ -95,7 +96,7 @@ export async function loadHelpData(): Promise<HelpData> {
     };
 
     // Load contextual help data
-    if (contextualHelpPath in helpModules) {
+    if (contextualHelpPath) {
       const contextualModule = await helpModules[contextualHelpPath]();
       const contextualData = (contextualModule as { default: HelpData }).default;
       Object.assign(mergedData.helpItems, contextualData.helpItems);
@@ -103,7 +104,7 @@ export async function loadHelpData(): Promise<HelpData> {
     }
 
     // Load node documentation data
-    if (nodeDocPath in helpModules) {
+    if (nodeDocPath) {
       const nodeDocModule = await helpModules[nodeDocPath]();
       const nodeDocData = (nodeDocModule as { default: HelpData }).default;
       Object.assign(mergedData.helpItems, nodeDocData.helpItems);

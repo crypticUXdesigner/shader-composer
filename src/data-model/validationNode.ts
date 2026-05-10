@@ -92,4 +92,7 @@ export function validateNode(
       errors.push(`Node ${node.id} has invalid color format: ${node.color}`);
     }
   }
+  if (node.bypassed !== undefined && typeof node.bypassed !== 'boolean') {
+    errors.push(`Node ${node.id} has invalid bypassed value (expected boolean)`);
+  }
 }

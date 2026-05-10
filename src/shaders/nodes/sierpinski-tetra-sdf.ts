@@ -12,7 +12,7 @@ export const sierpinskiTetraSdfNodeSpec: NodeSpec = {
   category: 'SDF',
   displayName: 'Sierpinski Tetra SDF',
   description:
-    '3D SDF for a Sierpinski tetrahedron–style IFS: tetrahedral symmetry folds, scale, and translation each iteration, with optional pre-rotation. Triangular lacunarity distinct from box/Menger cuts. Connect position to Generic SDF Raymarcher. Advanced: core radius (sphere DE in scaled space) and DE bias.',
+    '3D SDF for a Sierpinski tetrahedron–style IFS: tetrahedral folds, per-iteration IFS scale and offset, optional pre-rotation. Rotation axis is normalized in the shader; angle is radians. Triangular lacunarity, not box or Menger cuts. Wire out → SDF Raymarch sdf. Advanced: core radius and DE bias on the KIFS-style sphere core.',
   icon: 'triangles',
   inputs: [
     {
@@ -26,7 +26,7 @@ export const sierpinskiTetraSdfNodeSpec: NodeSpec = {
     {
       name: 'out',
       type: 'float',
-      label: 'Distance'
+      label: 'SDF'
     }
   ],
   parameters: {
@@ -36,7 +36,7 @@ export const sierpinskiTetraSdfNodeSpec: NodeSpec = {
       min: 1.5,
       max: 3.5,
       step: 0.01,
-      label: 'Scale',
+      label: 'IFS scale',
       supportsAnimation: true,
       supportsAudio: true
     },
@@ -112,7 +112,7 @@ export const sierpinskiTetraSdfNodeSpec: NodeSpec = {
       min: -6.28,
       max: 6.28,
       step: 0.05,
-      label: 'Angle',
+      label: 'Angle rad',
       supportsAnimation: true,
       supportsAudio: true,
       knobPolarity: 'two-sided'
@@ -209,7 +209,7 @@ export const sierpinskiTetraSdfNodeSpec: NodeSpec = {
     },
     {
       id: 'position',
-      label: 'Position (when unconnected)',
+      label: 'Manual position',
       parameters: ['positionX', 'positionY', 'positionZ'],
       collapsible: true,
       defaultCollapsed: true
@@ -242,7 +242,7 @@ export const sierpinskiTetraSdfNodeSpec: NodeSpec = {
       },
       {
         type: 'grid',
-        label: 'Position',
+        label: 'Manual position',
         parameters: ['positionX', 'positionY', 'positionZ'],
         layout: { columns: 3 }
       }

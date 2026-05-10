@@ -1,6 +1,13 @@
 /**
  * Preview scheduler (dev/debug): records dirty + compile signals.
  * Does not change presentation cadence.
+ *
+ * Task 11 — selection vs effective preview backend:
+ * - `renderBackendSelection` mirrors URL/engine choice (`auto` / forced WebGPU / WebGL).
+ * - `effectiveBackend` reflects what actually draws the current frame: WebGPU when a WGSL
+ *   program is installed, otherwise WebGL2 — including automatic fallback when WebGPU init,
+ *   device-lost, coverage, or **WebGPU compile failure** occurs (`CompilationManager`
+ *   calls {@link PreviewScheduler.setEffectiveBackend} with reasons in `details`).
  */
 
 import type {
@@ -9,6 +16,8 @@ import type {
   PreviewSchedulerDebugState,
   PreviewSchedulerState
 } from './previewSchedulerTypes';
+import type { RenderBackendSelection } from './renderBackends/renderBackendTypes';
+import { previewPerfCounters } from './previewPerformanceMarks';
 import { clearPreviewCompileProgressToast } from '../lib/stores/previewCompileStatusStore';
 
 const MAX_EVENTS = 64;
@@ -37,6 +46,8 @@ export class PreviewScheduler {
   private mode: PreviewSchedulerState = 'legacyStub';
   private lastDirty: PreviewDirtyReasonKey | null = null;
   private lastCompilePhase: PreviewSchedulerDebugState['lastCompilePhase'] = 'idle';
+  private renderBackendSelection: RenderBackendSelection | undefined = undefined;
+  private effectiveBackend: PreviewSchedulerDebugState['effectiveBackend'] | undefined = undefined;
   private events: PreviewDirtyEvent[] = [];
   private previewFrameCommitCount = 0;
   private marksEnabled = true;
@@ -162,13 +173,43 @@ export class PreviewScheduler {
     this.previewFrameCommitCount += 1;
   }
 
+  private previewViewport:
+    | PreviewSchedulerDebugState['previewViewport']
+    | undefined;
+
+  /**
+   * Updated whenever the preview backing store / viewport is recomputed (same path as shader resolution).
+   */
+  recordPreviewViewportSnapshot(snapshot: NonNullable<PreviewSchedulerDebugState['previewViewport']>): void {
+    this.previewViewport = snapshot;
+  }
+
   getState(): PreviewSchedulerDebugState {
     return {
       mode: this.mode,
       lastDirty: this.lastDirty,
       lastCompilePhase: this.lastCompilePhase,
+      renderBackendSelection: this.renderBackendSelection,
+      effectiveBackend: this.effectiveBackend,
       previewFrameCommitCount: this.previewFrameCommitCount,
+      previewViewport: this.previewViewport,
       recentEvents: this.events.slice()
+    };
+  }
+
+  setRenderBackendSelection(selection: RenderBackendSelection): void {
+    this.renderBackendSelection = selection;
+  }
+
+  setEffectiveBackend(
+    selected: RenderBackendSelection['selected'],
+    reason: string,
+    details?: string[]
+  ): void {
+    this.effectiveBackend = {
+      selected,
+      reason,
+      details: details && details.length > 0 ? [...details] : undefined,
     };
   }
 
@@ -206,7 +247,7 @@ export class PreviewScheduler {
     st.right = '8px';
     st.bottom = '8px';
     st.zIndex = '99999';
-    st.maxWidth = '280px';
+    st.maxWidth = '340px';
     st.padding = '8px 10px';
     st.font = '11px/1.35 system-ui, sans-serif';
     st.color = '#e8e8e8';
@@ -220,13 +261,41 @@ export class PreviewScheduler {
       if (!this.overlayEl) return;
       const s = this.getState();
       const dpr = typeof window !== 'undefined' ? window.devicePixelRatio : 1;
+      const vp = s.previewViewport;
+      const renderLine = vp
+        ? `shader output (backing): ${vp.backingPx.width}×${vp.backingPx.height} px`
+        : 'shader output (backing): —';
+      const layoutLine = vp
+        ? `preview layout (CSS): ${Math.round(vp.layoutCssPx.width)}×${Math.round(vp.layoutCssPx.height)} px`
+        : 'preview layout (CSS): —';
+      const previewDprLine = vp
+        ? `preview DPR (effective): ${vp.effectivePreviewDpr === Math.floor(vp.effectivePreviewDpr) ? vp.effectivePreviewDpr : vp.effectivePreviewDpr.toFixed(3)}`
+        : 'preview DPR (effective): —';
+      const backend = s.renderBackendSelection
+        ? `${s.renderBackendSelection.selected} (${s.renderBackendSelection.reason})`
+        : '—';
+      const effective = s.effectiveBackend
+        ? `${s.effectiveBackend.selected} (${s.effectiveBackend.reason})${
+            s.effectiveBackend.details && s.effectiveBackend.details.length > 0
+              ? ` [${s.effectiveBackend.details.slice(0, 3).join('; ')}${s.effectiveBackend.details.length > 3 ? '; …' : ''}]`
+              : ''
+          }`
+        : '—';
       this.overlayEl.textContent = [
         `mode: ${s.mode}`,
+        renderLine,
+        layoutLine,
+        previewDprLine,
         `compile: ${s.lastCompilePhase}`,
         `lastDirty: ${s.lastDirty ?? '—'}`,
+        `backend: ${backend}`,
+        `effective: ${effective}`,
         `previewCommits: ${s.previewFrameCommitCount}`,
+        `wgpu modules: +${previewPerfCounters.webgpuShaderModuleCreates} (hit ${previewPerfCounters.webgpuShaderModuleCacheHits})`,
+        `wgpu cache evict: ${previewPerfCounters.webgpuShaderPipelineCacheEvictions}`,
+        `wgpu pipes: +${previewPerfCounters.webgpuRenderPipelineCreates} (hit ${previewPerfCounters.webgpuRenderPipelineCacheHits})`,
         `adaptive: ${this.adaptivePreviewEnabled ? 'on' : 'off'}`,
-        `dpr: ${dpr}`
+        `window.devicePixelRatio: ${dpr}`
       ].join('\n');
     };
     tick();

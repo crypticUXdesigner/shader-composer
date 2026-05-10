@@ -153,6 +153,9 @@ export class AudioManager implements Disposable {
 
     // Create audio node state
     this.playbackController.createAudioNodeState(nodeId, audioBuffer, analyser, gain);
+    // Panel analyzers are usually (re)synced via setAudioSetup, but uploads can finish after the last sync.
+    // Recreate FFT analyzers as soon as a source has an analyser so virtual-node/live spawn paths stay fed.
+    syncPanelAnalyzers(this.audioSetup, this.frequencyAnalyzer, this.playbackController);
     this.scheduleOfflineProvidersRebuild();
   }
   

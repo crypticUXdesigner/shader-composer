@@ -50,7 +50,7 @@ export const fractalNodeSpec: NodeSpec = {
       default: 0.0,
       min: -100.0,
       max: 100.0,
-      step: 0.05,
+      step: 0.001,
       label: 'Time Offset',
       knobPolarity: 'two-sided' },
     fractalAnimationSpeed: {

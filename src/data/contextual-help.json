@@ -83,7 +83,8 @@
         "Enum-like selections"
       ],
       "relatedItems": [
-        "node:blend-mode"
+        "node:blend-mode",
+        "node:blend-color"
       ]
     },
     "type:bool": {

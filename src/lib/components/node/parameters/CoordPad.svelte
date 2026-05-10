@@ -19,6 +19,8 @@
     maxY?: number;
     /** 'center' (0,0 at center) or 'bottom-left' (0,0 at corner). Default center. */
     origin?: 'center' | 'bottom-left';
+    /** Show small anchor + line from nominal (e.g. quad-warp rest corner) to current value. */
+    displacementNominal?: { x: number; y: number } | null;
     /** When true, pad drag and X/Y inputs keep both axes equal (1:1 ratio). */
     lockAspect1to1?: boolean;
     step?: number;
@@ -38,6 +40,7 @@
     minY = -2,
     maxY = 2,
     origin = 'center',
+    displacementNominal = null,
     lockAspect1to1 = false,
     step = 0.1,
     disabled = false,
@@ -84,6 +87,12 @@
 
   const normX = $derived(valueToNormX(displayX));
   const normY = $derived(valueToNormY(displayY));
+
+  const displacementAnchorNorm = $derived(
+    displacementNominal != null
+      ? { x: valueToNormX(displacementNominal.x), y: valueToNormY(displacementNominal.y) }
+      : null
+  );
 
   function handlePadPointerDown(e: PointerEvent) {
     if (disabled || !padEl) return;
@@ -192,6 +201,19 @@
     aria-label="XY coordinate pad"
     onpointerdown={handlePadPointerDown}
   >
+    {#if displacementAnchorNorm}
+      <svg class="displacement-svg" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
+        <!-- Wide-enough stroke in viewBox units (no non-scaling-stroke — that often hides sub-pixel lines). -->
+        <line
+          class="displacement-line"
+          x1={displacementAnchorNorm.x}
+          y1={1 - displacementAnchorNorm.y}
+          x2={normX}
+          y2={1 - normY}
+        />
+        <circle cx={displacementAnchorNorm.x} cy={1 - displacementAnchorNorm.y} r={0.012} class="anchor-dot" />
+      </svg>
+    {/if}
     <div
       class="knob"
       class:active={isDragging}
@@ -257,6 +279,7 @@
       flex-shrink: 0;
       padding: 8px; /* room for knob (12px) + shadow at edges so it doesn't get clipped */
       overflow: visible;
+      isolation: isolate;
       background: var(--param-control-bg);
       background-image:
         /* Center cross – more prominent */
@@ -298,6 +321,32 @@
         border-radius: inherit;
       }
 
+      .displacement-svg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        overflow: visible;
+        /* Above pad background / lock diagonal so the segment is visible */
+        z-index: 1;
+
+        .displacement-line {
+          fill: none;
+          stroke: color-mix(in srgb, var(--param-control-value-color, #fff) 52%, transparent);
+          stroke-width: 0.016;
+          stroke-linecap: round;
+          opacity: 0.9;
+          filter: drop-shadow(0 0 1px color-mix(in srgb, var(--param-control-bg, #000) 55%, transparent));
+        }
+
+        .anchor-dot {
+          fill: color-mix(in srgb, var(--port-hover-color, var(--color-gray-110)) 70%, transparent);
+          stroke: color-mix(in srgb, var(--param-control-value-color, #fff) 28%, transparent);
+          stroke-width: 0.0015;
+        }
+      }
+
       .knob {
         position: absolute;
         width: 12px;
@@ -308,6 +357,7 @@
         box-shadow: 0 0 2px 6px color-mix(in srgb, var(--param-control-value-color) 30%, transparent 70%);
         transform: translate(-50%, 50%);
         pointer-events: none;
+        z-index: 2;
         transition:
           background var(--motion-effects-fast-duration) var(--motion-effects-fast-easing),
           box-shadow var(--motion-effects-fast-duration) var(--motion-effects-fast-easing),

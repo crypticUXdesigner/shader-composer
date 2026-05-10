@@ -8,7 +8,98 @@ import type { NodeGraph } from '../../data-model/types';
 import type { NodeSpec } from '../../types/nodeSpec';
 import type { AudioSetup } from '../../data-model/audioSetupTypes';
 import type { PreviewDependencyMask, UniformMetadata } from '../../runtime/types';
+import { isVirtualNodeId } from '../../utils/virtualNodes';
+import { RADIAL_PULSE_SPAWN_SLOT_COUNT, radialPulseSpawnTimelineParam } from '../nodes/radial-pulse';
 import { isAudioNode } from './NodeShaderCompilerHelpers';
+
+function computeUpstreamReachableNodeIds(graph: NodeGraph, outputNodeId: string): Set<string> {
+  const upstreamByTarget = new Map<string, string[]>();
+  for (const c of graph.connections) {
+    const list = upstreamByTarget.get(c.targetNodeId);
+    if (list) list.push(c.sourceNodeId);
+    else upstreamByTarget.set(c.targetNodeId, [c.sourceNodeId]);
+  }
+
+  const reachable = new Set<string>();
+  const stack: string[] = [outputNodeId];
+  while (stack.length > 0) {
+    const id = stack.pop() as string;
+    if (reachable.has(id)) continue;
+    reachable.add(id);
+    const ups = upstreamByTarget.get(id);
+    if (!ups) continue;
+    for (const srcId of ups) stack.push(srcId);
+  }
+  return reachable;
+}
+
+/**
+ * True when a radial-pulse on the preview path has Drive wired to a virtual audio signal.
+ * Spawn timing for that node is evaluated in TS (`applyRadialPulseSpawnUniforms`), not via shader
+ * uniforms — so remap/band uniforms may be absent while we still must run the audio-uniform cadence.
+ */
+function usesReachableRadialPulseVirtualDrive(graph: NodeGraph): boolean {
+  const finalOut = graph.nodes.find((n) => n.type === 'final-output');
+  if (!finalOut) return false;
+  const reachable = computeUpstreamReachableNodeIds(graph, finalOut.id);
+
+  for (const c of graph.connections) {
+    if (c.targetParameter !== 'pulseDrive') continue;
+    if (!reachable.has(c.targetNodeId)) continue;
+    const target = graph.nodes.find((n) => n.id === c.targetNodeId);
+    if (!target || target.type !== 'radial-pulse') continue;
+    if (isVirtualNodeId(c.sourceNodeId)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Matches `radialPulsePreviewSpawn.ts`: authored spawn timelines disable loop-interval spawning. */
+function radialPulseSpawnSlotsUnsetForMask(parameters: Record<string, unknown> | undefined): boolean {
+  for (let i = 0; i < RADIAL_PULSE_SPAWN_SLOT_COUNT; i++) {
+    const key = radialPulseSpawnTimelineParam(i);
+    const v = parameters?.[key];
+    if (typeof v === 'number' && Number.isFinite(v) && v >= -9e9) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function readPulseFreeRunIntervalForMask(
+  params: Record<string, unknown> | undefined,
+  radialSpec: NodeSpec | undefined
+): number {
+  const raw = params?.pulseFreeRunInterval;
+  if (typeof raw === 'number' && Number.isFinite(raw)) {
+    return Math.max(0, raw);
+  }
+  const d = radialSpec?.parameters?.pulseFreeRunInterval?.default;
+  return typeof d === 'number' && Number.isFinite(d) ? Math.max(0, d) : 2;
+}
+
+/** Preview loop interval spawns when Drive has no virtual audio connection and graph spawns are unset. */
+function usesReachableRadialPulseFreeRunInterval(graph: NodeGraph, nodeSpecs: Map<string, NodeSpec>): boolean {
+  const finalOut = graph.nodes.find((n) => n.type === 'final-output');
+  if (!finalOut) return false;
+  const reachable = computeUpstreamReachableNodeIds(graph, finalOut.id);
+  const radialSpec = nodeSpecs.get('radial-pulse');
+
+  for (const node of graph.nodes) {
+    if (node.type !== 'radial-pulse' || !reachable.has(node.id)) continue;
+    const conn = graph.connections.find(
+      (c) => c.targetNodeId === node.id && c.targetParameter === 'pulseDrive'
+    );
+    const sourceId = conn?.sourceNodeId;
+    if (sourceId != null && isVirtualNodeId(sourceId)) continue;
+    if (!radialPulseSpawnSlotsUnsetForMask(node.parameters as Record<string, unknown>)) continue;
+    if (readPulseFreeRunIntervalForMask(node.parameters as Record<string, unknown>, radialSpec) > 0) {
+      return true;
+    }
+  }
+  return false;
+}
 
 /** Primary audio file uniforms drive transport-dependent preview. */
 const PRIMARY_AUDIO_UNIFORM_PARAMS = new Set(['currentTime', 'duration', 'isPlaying']);
@@ -52,6 +143,10 @@ export function computePreviewDependencyMask(
     }
   }
 
+  const usesRadialPulseVirtualDrive = usesReachableRadialPulseVirtualDrive(graph);
+  const usesRadialPulseSpawnUniformPass =
+    usesRadialPulseVirtualDrive || usesReachableRadialPulseFreeRunInterval(graph, nodeSpecs);
+
   let usesMouseUniforms = false;
   let usesFrameIndex = false;
   for (const node of graph.nodes) {
@@ -68,8 +163,45 @@ export function computePreviewDependencyMask(
     usesWallTime,
     usesTimelineTime,
     usesAudioUniforms,
+    usesRadialPulseVirtualDrive,
+    usesRadialPulseSpawnUniformPass,
     usesResolutionUniform,
     usesMouseUniforms,
     usesFrameIndex
+  };
+}
+
+/**
+ * Preview deps for WGSL MVP: GLSL-oriented regexes don't apply; combine graph reachability
+ * (time/resolution nodes) with WGSL text hints and uniform-based audio detection.
+ */
+export function computePreviewDependencyMaskForWgslMvp(
+  graph: NodeGraph,
+  uniforms: UniformMetadata[],
+  wgslCode: string,
+  nodeSpecs: Map<string, NodeSpec>,
+  audioSetup: AudioSetup | null | undefined,
+  finalOutputNodeId: string | null
+): PreviewDependencyMask {
+  const reachable =
+    finalOutputNodeId != null ? computeUpstreamReachableNodeIds(graph, finalOutputNodeId) : new Set<string>();
+
+  const hasTimeNode = graph.nodes.some((n) => reachable.has(n.id) && n.type === 'time');
+  const hasResolutionNode = graph.nodes.some((n) => reachable.has(n.id) && n.type === 'resolution');
+
+  const usesWallTime = hasTimeNode || /\buTime\b/.test(wgslCode) || /\bglobals\.v0\.x\b/.test(wgslCode);
+  const usesTimelineTime = /\buTimelineTime\b/.test(wgslCode) || /\bglobals\.v0\.y\b/.test(wgslCode);
+
+  const baseAudioAndMouse = computePreviewDependencyMask(graph, uniforms, wgslCode, nodeSpecs, audioSetup);
+
+  return {
+    usesWallTime,
+    usesTimelineTime,
+    usesAudioUniforms: baseAudioAndMouse.usesAudioUniforms,
+    usesRadialPulseVirtualDrive: baseAudioAndMouse.usesRadialPulseVirtualDrive,
+    usesRadialPulseSpawnUniformPass: baseAudioAndMouse.usesRadialPulseSpawnUniformPass,
+    usesResolutionUniform: hasResolutionNode || baseAudioAndMouse.usesResolutionUniform,
+    usesMouseUniforms: baseAudioAndMouse.usesMouseUniforms,
+    usesFrameIndex: baseAudioAndMouse.usesFrameIndex
   };
 }

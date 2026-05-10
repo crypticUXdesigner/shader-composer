@@ -46,7 +46,12 @@ export class FunctionGenerator {
     // Map: nodeId -> (originalFunctionName -> nodeSpecificFunctionName)
     const functionNameMap = new Map<string, Map<string, string>>();
 
+    // Per-node Power: nodes dropped from execution order (bypassed) must not contribute helper
+    // functions either, so the compiled shader stays free of bypassed-node code.
+    const executionOrderSet = new Set(executionOrder);
+
     for (const node of graph.nodes) {
+      if (!executionOrderSet.has(node.id)) continue;
       const nodeSpec = this.nodeSpecs.get(node.type);
       if (!nodeSpec?.functions) continue;
 
@@ -148,7 +153,7 @@ export class FunctionGenerator {
       // deduplication doesn't keep one node's implementation for all. This is needed when:
       // 1) This node has parameter connections (embeds different variable references), or
       // 2) This node's function code contains any of its uniforms (e.g. box-torus-sdf sceneSDF with
-      //    primitiveType). Otherwise e.g. cylinder-cone and box-torus-sdf both define sceneSDF(vec3);
+      //    primitiveType). Otherwise e.g. multiple primitive nodes could both define sceneSDF(vec3);
       //    the first wins and the other node's uniforms are never read.
       const nodeUniformPrefix = node.id + '.';
       let funcCodeHasNodeUniforms = false;

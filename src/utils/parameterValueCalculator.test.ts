@@ -236,5 +236,43 @@ describe('computeEffectiveParameterValue with signal model', () => {
     // config = 1, input = 0.4, multiply → 0.4
     expect(value).toBeCloseTo(0.4);
   });
+
+  it('snaps int parameters to discrete values when automation yields a float', () => {
+    const node: NodeInstance = {
+      id: 'n1',
+      type: 'primitive',
+      position: { x: 0, y: 0 },
+      parameters: { primitiveType: 0 },
+    };
+    const graph: NodeGraph = {
+      id: 'g1',
+      name: 'Test',
+      version: '2.0',
+      nodes: [node],
+      connections: [],
+    };
+    const paramSpec = makeParamSpec({
+      type: 'int',
+      default: 0,
+      min: 0,
+      max: 7,
+      step: 1,
+    });
+    const nodeSpecs = new Map<string, NodeSpec>([
+      ['primitive', makeNodeSpec('primitive', { primitiveType: paramSpec })],
+    ]);
+
+    const value = computeEffectiveParameterValue(
+      node,
+      'primitiveType',
+      paramSpec,
+      graph,
+      nodeSpecs,
+      undefined,
+      4.35,
+    );
+
+    expect(value).toBe(4);
+  });
 });
 

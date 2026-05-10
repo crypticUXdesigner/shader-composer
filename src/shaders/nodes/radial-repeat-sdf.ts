@@ -3,7 +3,7 @@ import type { NodeSpec } from '../../types/nodeSpec';
 /**
  * Radial Repeat SDF
  * 3D SDF primitive: concentric spherical shells.
- * SDF(p) = abs(mod(length(p), period) - halfPeriod)
+ * Distance = abs(mod(length(p), shellSpacing) - ringPhase * shellSpacing).
  * vec3 position in → float SDF out. Usable standalone or as input to generic raymarcher.
  */
 export const radialRepeatSdfNodeSpec: NodeSpec = {
@@ -11,7 +11,7 @@ export const radialRepeatSdfNodeSpec: NodeSpec = {
   category: 'SDF',
   displayName: 'Radial Repeat SDF',
   description:
-    '3D SDF primitive that outputs concentric spherical shells. Distance field: abs(mod(length(p), period) - halfPeriod). Connect a vec3 position (e.g. from raymarcher); output is a float SDF for use in raymarching or other SDF composition.',
+    '3D SDF: concentric spherical shells (radial repeat along radius). Shell spacing sets distance between repeats along radius; ring phase is 0–1 inside each spacing (half offset = phase × spacing). When wired into SDF Raymarch sdf, march position is injected each step—use Position input for overrides or use outside raymarching. Outputs float distance for SDF composition.',
   icon: 'sphere',
   inputs: [
     {
@@ -29,23 +29,23 @@ export const radialRepeatSdfNodeSpec: NodeSpec = {
     }
   ],
   parameters: {
-    period: {
+    shellSpacing: {
       type: 'float',
       default: 1.0,
       min: 0.01,
       max: 10.0,
       step: 0.01,
-      label: 'Period',
+      label: 'Shell spacing',
       supportsAnimation: true,
       supportsAudio: true
     },
-    halfPeriod: {
+    ringPhase: {
       type: 'float',
       default: 0.5,
       min: 0.0,
-      max: 10.0,
-      step: 0.01,
-      label: 'Half period',
+      max: 1.0,
+      step: 0.001,
+      label: 'Ring phase',
       supportsAnimation: true,
       supportsAudio: true
     },
@@ -87,7 +87,7 @@ export const radialRepeatSdfNodeSpec: NodeSpec = {
     {
       id: 'repeat',
       label: 'Repeat',
-      parameters: ['period', 'halfPeriod'],
+      parameters: ['shellSpacing', 'ringPhase'],
       collapsible: false,
       defaultCollapsed: false
     },
@@ -103,7 +103,7 @@ export const radialRepeatSdfNodeSpec: NodeSpec = {
     elements: [
       {
         type: 'grid',
-        parameters: ['period', 'halfPeriod'],
+        parameters: ['shellSpacing', 'ringPhase'],
         layout: { columns: 2 }
       },
       {
@@ -115,12 +115,12 @@ export const radialRepeatSdfNodeSpec: NodeSpec = {
     ]
   },
   functions: `
-float radialRepeatSdf(vec3 p, float period, float halfPeriod) {
+float radialRepeatSdf(vec3 p, float shellSpacing, float halfOffset) {
   float r = length(p);
-  return abs(mod(r, period) - halfPeriod);
+  return abs(mod(r, shellSpacing) - halfOffset);
 }
 `,
   mainCode: `
-  $output.out = radialRepeatSdf($input.position, $param.period, $param.halfPeriod);
+  $output.out = radialRepeatSdf($input.position, $param.shellSpacing, $param.ringPhase * $param.shellSpacing);
 `
 };

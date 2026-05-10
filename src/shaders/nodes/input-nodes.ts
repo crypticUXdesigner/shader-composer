@@ -134,7 +134,7 @@ export const constantVec2NodeSpec: NodeSpec = {
     {
       name: 'out',
       type: 'vec2',
-      label: 'UV'
+      label: 'Vec2'
     }
   ],
   parameters: {
@@ -177,7 +177,8 @@ export const constantVec3NodeSpec: NodeSpec = {
   outputs: [
     {
       name: 'out',
-      type: 'vec3'
+      type: 'vec3',
+      label: 'Vec3'
     }
   ],
   parameters: {
@@ -228,7 +229,8 @@ export const constantVec4NodeSpec: NodeSpec = {
   outputs: [
     {
       name: 'out',
-      type: 'vec4'
+      type: 'vec4',
+      label: 'Vec4'
     }
   ],
   parameters: {

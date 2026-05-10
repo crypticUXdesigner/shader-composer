@@ -34,6 +34,7 @@ import {
   applyConnectionHover
 } from './MouseEventMoveHandlers';
 import { completeConnectionOnMouseUp, endAllInteractionsAndClearGuides, resetInteractionState } from './MouseEventUpHandlers';
+import { createStrictDoubleClickNoteHandler } from '../../../../lib/utils/strictDoubleClick';
 
 export interface MouseEventHandlerDependencies {
   handlerContext: HandlerContext;
@@ -179,6 +180,13 @@ export interface MouseEventHandlerDependencies {
 
 export class MouseEventHandler {
   private deps: MouseEventHandlerDependencies;
+
+  /** Pairs successive parameter mouse-ups for future overlay (replacing OS-timed `mouseup.detail`). */
+  private readonly paramCandidateDoubleNotes = createStrictDoubleClickNoteHandler((evt: MouseEvent) => {
+    const hit = this.deps.hitTestManager.hitTestParameter(evt.clientX, evt.clientY);
+    if (!hit) return;
+    // TODO: Implement text input overlay for parameter editing
+  });
   
   /** Current graph (use getGraph when set so mode button and other ops see latest state after setGraph). */
   private get graph(): NodeGraph {
@@ -377,9 +385,7 @@ export class MouseEventHandler {
     }
     if (!finalState.pan.isPanning && !finalState.interaction.isDraggingNode && !finalState.connection.isConnecting && !finalState.interaction.isDraggingParameter) {
       const paramHit = this.deps.hitTestManager.hitTestParameter(e.clientX, e.clientY);
-      if (paramHit && e.detail === 2) {
-        // TODO: Implement text input overlay for parameter editing
-      }
+      if (paramHit) this.paramCandidateDoubleNotes(e);
     }
 
     resetInteractionState(this.getMoveContext());

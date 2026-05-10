@@ -45,6 +45,12 @@ export interface NodeInstance {
   // Metadata
   label?: string;                 // Optional custom label (overrides displayName)
   color?: string;                 // Optional node color (hex, e.g., "#FF0000")
+
+  /**
+   * Optional. When true, the node's effect is removed from the compiled output per the global Power rules.
+   * See docs/implementation/node-power/_OVERVIEW.md.
+   */
+  bypassed?: boolean;
 }
 
 /**

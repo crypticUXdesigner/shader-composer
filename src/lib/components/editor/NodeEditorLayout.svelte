@@ -71,6 +71,8 @@
     onGraphRedo?: () => void;
     /** Fired when layout-owned modals should block canvas shortcuts (load picker, shortcuts, import confirm). */
     onLayoutBlockingOverlaysChange?: (blocked: boolean) => void;
+    /** Sync preview framebuffer when shell geometry changes (view mode, panel inset). */
+    onPreviewGeometryCommit?: () => void;
   }
 
   let {
@@ -111,6 +113,7 @@
     onGraphUndo,
     onGraphRedo,
     onLayoutBlockingOverlaysChange,
+    onPreviewGeometryCommit,
   }: Props = $props();
 
   const SAFE_DISTANCE = 16;
@@ -231,6 +234,32 @@
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
+  });
+
+  /**
+   * Preview canvas ResizeObserver can miss geometry updates when only the shell changes.
+   * Double rAF runs after layout commits for the new view mode / panel inset.
+   */
+  $effect(() => {
+    viewMode;
+    panelOffset;
+    runtimeBootstrapped;
+    const cb = onPreviewGeometryCommit;
+    if (!cb || !runtimeBootstrapped) return;
+    let cancelled = false;
+    let innerRaf = 0;
+    const outerRaf = requestAnimationFrame(() => {
+      if (cancelled) return;
+      innerRaf = requestAnimationFrame(() => {
+        if (cancelled) return;
+        cb();
+      });
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(outerRaf);
+      cancelAnimationFrame(innerRaf);
+    };
   });
 
   // Panel resize handle: show only after open animation; hide instantly on close
@@ -581,7 +610,9 @@
     topBarHeight={topBarHeight}
     bottomSafeInset={bottomSafeInset}
     containerEl={containerEl}
-    disableTransition={isDraggingDivider || isResizingPanel}
+    disableTransition={
+      isDraggingDivider || isResizingPanel || viewMode !== 'node'
+    }
   />
 
   <!-- Bottom bar slot -->

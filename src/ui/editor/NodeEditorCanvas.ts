@@ -54,6 +54,7 @@ import {
 import { createHandlerContext, type HandlerContextSource } from './HandlerContextFactory';
 import { createNodeEditorCanvasStateBridge } from './NodeEditorCanvasStateBridge';
 import { runNodeEditorCanvasPostInit } from './NodeEditorCanvasPostInit';
+import { createStrictDoubleClickHandler } from '../../lib/utils/strictDoubleClick';
 
 export interface CanvasState {
   zoom: number;
@@ -162,6 +163,7 @@ export class NodeEditorCanvas {
   // Event handlers
   private mouseEventHandler!: MouseEventHandler;
   private wheelEventHandler!: WheelEventHandler;
+  private canvasStrictDoubleClick!: (e: MouseEvent) => void;
   
   /** Valid virtual node IDs (audio-signal:*) – when provided, connections from virtual nodes not in this set are not drawn. */
   private getValidVirtualNodeIds?: () => Set<string>;
@@ -306,6 +308,9 @@ export class NodeEditorCanvas {
     this.wheelEventHandler = new WheelEventHandler(
       buildWheelEventHandlerDeps(this as unknown as WheelEventHandlerDepsSource, handlerContext)
     );
+    this.canvasStrictDoubleClick = createStrictDoubleClickHandler((e: MouseEvent) =>
+      this.handleCanvasDoubleClick(e)
+    );
   }
 
   private setupEventListeners(): void {
@@ -313,7 +318,7 @@ export class NodeEditorCanvas {
     this.canvas.addEventListener('mousemove', (e) => this.mouseEventHandler.handleMouseMove(e));
     this.canvas.addEventListener('mouseup', (e) => this.mouseEventHandler.handleMouseUp(e));
     this.canvas.addEventListener('mouseleave', () => this.mouseEventHandler.handleMouseLeave());
-    this.canvas.addEventListener('dblclick', (e) => this.handleCanvasDoubleClick(e));
+    this.canvas.addEventListener('click', (e) => this.canvasStrictDoubleClick(e));
     this.canvas.addEventListener('wheel', (e) => this.wheelEventHandler.handleWheel(e), { passive: false });
     this.canvas.addEventListener('contextmenu', (e) => this.handleContextMenu(e));
   }

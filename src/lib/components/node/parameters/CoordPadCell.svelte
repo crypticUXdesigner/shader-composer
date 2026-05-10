@@ -37,6 +37,8 @@
     paramY: string;
     /** 'center' (0,0 at center) or 'bottom-left' (0,0 at corner, e.g. brick tiling). Default center. */
     coordsOrigin?: 'center' | 'bottom-left';
+    /** Optional nominal UV/rest position shown as anchor + line (see grid layout coordsDisplacementAnchor). */
+    displacementAnchor?: { x: number; y: number };
     graph: NodeGraph;
     audioSetup: AudioSetup;
     nodeSpecs: Map<string, NodeSpec>;
@@ -58,6 +60,7 @@
     paramX,
     paramY,
     coordsOrigin = 'center',
+    displacementAnchor = undefined,
     graph,
     audioSetup,
     nodeSpecs,
@@ -285,6 +288,16 @@
         (ly && automationLaneHasEvaluableRegions(ly))
     );
   });
+
+  /** Hide anchor/line when values can be externally driven — misleading vs graph/audio/automation blend. */
+  const displacementNominal = $derived(
+    displacementAnchor != null &&
+      connX.state === 'default' &&
+      connY.state === 'default' &&
+      !timelineDrivenPad
+      ? displacementAnchor
+      : null
+  );
 </script>
 
 <CoordPadWithPorts
@@ -299,6 +312,7 @@
   minY={paramSpecY?.min ?? -2}
   maxY={paramSpecY?.max ?? 2}
   origin={coordsOrigin}
+  displacementNominal={displacementNominal}
   step={paramSpecX?.step ?? paramSpecY?.step ?? 0.1}
   labelX={paramSpecX?.label ?? 'X'}
   labelY={paramSpecY?.label ?? 'Y'}

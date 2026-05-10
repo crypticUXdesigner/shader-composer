@@ -4,20 +4,21 @@ export const normalMappingNodeSpec: NodeSpec = {
   id: 'normal-mapping',
   category: 'Effects',
   displayName: 'Normal Mapping',
-  description: 'Simulates surface detail using normal mapping for added depth and texture',
+  description:
+    'Pseudo-bump shading in screenspace from input luminance (no height texture sampling)—Scale/Strength carve a dome-like normal.',
   icon: 'normal-map',
   inputs: [
     {
       name: 'in',
       type: 'vec4',
-      label: 'Height'
+      label: 'Color'
     }
   ],
   outputs: [
     {
       name: 'out',
       type: 'vec4',
-      label: 'Value'
+      label: 'Color'
     }
   ],
   parameters: {
@@ -94,14 +95,10 @@ export const normalMappingNodeSpec: NodeSpec = {
     ]
   },
   functions: `
-// Calculate normal from height map (simplified approximation)
-vec3 calculateNormal(vec2 p, float scale, float currentValue) {
-  // Simplified normal calculation using gradient approximation
-  // Since we can't sample neighbors, use position-based approximation
-  float gradient = length(p) * 0.1;
-  vec3 normal = normalize(vec3(p.x * gradient, p.y * gradient, 1.0));
-  
-  return normal;
+// Screenspace bumps: perturb Z by sampled luminance (no derivative neighbor samples).
+vec3 calculateNormal(vec2 p, float scale, float luminanceAmt) {
+  float amp = (0.12 + luminanceAmt) * scale;
+  return normalize(vec3(-p.x * amp, -p.y * amp, 1.0));
 }
 
 // Apply normal mapping to result
@@ -113,18 +110,18 @@ float applyNormalMapping(float baseValue, vec3 normal, vec3 lightDir) {
 }
 `,
   mainCode: `
-  // Extract float value from vec4 input
-  float value = $input.in.r;
-  
-  // Calculate screen space coordinates
+  vec4 inColor = $input.in;
+  vec3 color = inColor.rgb;
+  float lum = dot(color, vec3(0.2126, 0.7152, 0.0722));
+
   vec2 p = ((gl_FragCoord.xy / $resolution.xy * 2.0 - 1.0) * vec2($resolution.x / $resolution.y, 1.0));
-  
   vec3 lightDir = normalize(vec3($param.normalLightX, $param.normalLightY, $param.normalLightZ));
-  vec3 normal = calculateNormal(p * $param.normalScale, $param.normalScale, value);
-  float normalEffect = applyNormalMapping(value, normal, lightDir);
-  float result = mix(value, normalEffect, $param.normalStrength);
-  
-  // Output as vec4
-  $output.out = vec4(result, result, result, 1.0);
+  vec3 normal = calculateNormal(p * $param.normalScale, $param.normalScale, lum);
+  float normalEffect = applyNormalMapping(lum, normal, lightDir);
+  float mixedLum = mix(lum, normalEffect, clamp($param.normalStrength, 0.0, 1.0));
+  vec3 resultRgb =
+    lum > 1e-4 ? clamp(color * (mixedLum / lum), 0.0, 1.0) : vec3(mixedLum);
+
+  $output.out = vec4(resultRgb, inColor.a);
 `
 };

@@ -1,9 +1,9 @@
 import type { NodeSpec } from '../../types/nodeSpec';
 
 /**
- * Generic SDF Raymarcher
+ * SDF Raymarch (generic-raymarcher)
  * Raymarch loop that uses a graph-derived SDF (vec3 → float). No hardcoded scene.
- * Inputs: UV (vec2), SDF (float from graph), optional displacement (vec3), optional ro/rd (vec3) for camera.
+ * Inputs: Screen position (vec2), SDF (float from graph), optional displacement (vec3), optional ro/rd (vec3) for camera.
  * Optional output color (vec3): hit-position-based RGB with step-count fog when connected.
  * Compiler emits a function that evaluates the connected SDF at vec3 p; this node calls it in the loop.
  * Placeholders $sdf_call and $displacement_at_p are replaced by the compiler.
@@ -11,15 +11,15 @@ import type { NodeSpec } from '../../types/nodeSpec';
 export const genericRaymarcherNodeSpec: NodeSpec = {
   id: 'generic-raymarcher',
   category: 'SDF',
-  displayName: 'Raymarch',
+  displayName: 'SDF Raymarch',
   description:
-    'Raymarch a scene using an SDF from the graph. Connect a node with vec3 position in and float out (e.g. Repeated Hex Prism SDF). Optionally connect ro/rd (e.g. Orbit Camera) for custom camera; optionally connect 3D Displacement. Output out (float) is glow; optional output color (vec3) is hit color with depth fog.',
+    'Raymarch a graph SDF: connect an SDF node to sdf; Glow is stylized along the ray, not a lit PBR-style surface; use Color or shade downstream for hit tints. Optional ro/rd from Orbit Camera and 3D Displacement.',
   icon: 'cube-transparent',
   inputs: [
     {
       name: 'in',
       type: 'vec2',
-      label: 'UV'
+      label: 'Screen position'
     },
     {
       name: 'sdf',
@@ -93,7 +93,7 @@ export const genericRaymarcherNodeSpec: NodeSpec = {
       min: -10.0,
       max: 10.0,
       step: 0.1,
-      label: 'Ro X',
+      label: 'Origin X',
       inputMode: 'override',
       supportsAnimation: true,
       supportsAudio: true,
@@ -104,7 +104,7 @@ export const genericRaymarcherNodeSpec: NodeSpec = {
       min: -10.0,
       max: 10.0,
       step: 0.1,
-      label: 'Ro Y',
+      label: 'Origin Y',
       inputMode: 'override',
       supportsAnimation: true,
       supportsAudio: true,
@@ -115,7 +115,7 @@ export const genericRaymarcherNodeSpec: NodeSpec = {
       min: -10.0,
       max: 10.0,
       step: 0.1,
-      label: 'Ro Z',
+      label: 'Origin Z',
       inputMode: 'override',
       supportsAnimation: true,
       supportsAudio: true,
@@ -131,7 +131,7 @@ export const genericRaymarcherNodeSpec: NodeSpec = {
     },
     {
       id: 'camera',
-      label: 'Camera (when ro/rd unconnected)',
+      label: 'Fallback camera',
       parameters: ['cameraRoX', 'cameraRoY', 'cameraRoZ'],
       collapsible: true,
       defaultCollapsed: true
@@ -146,7 +146,6 @@ export const genericRaymarcherNodeSpec: NodeSpec = {
       },
       {
         type: 'grid',
-        label: 'Camera',
         parameters: ['cameraRoX', 'cameraRoY', 'cameraRoZ'],
         layout: { columns: 3 }
       }

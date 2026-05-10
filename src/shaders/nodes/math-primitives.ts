@@ -235,7 +235,7 @@ export const mixNodeSpec: NodeSpec = {
   inputs: [
     { name: 'a', type: 'float', fallbackParameter: 'a', label: 'A' },
     { name: 'b', type: 'float', fallbackParameter: 'b', label: 'B' },
-    { name: 't', type: 'float', fallbackParameter: 't', label: 't' }
+    { name: 't', type: 'float', fallbackParameter: 't', label: 'Mix' }
   ],
   outputs: [{ name: 'out', type: 'float', label: '=' }],
   parameters: {
@@ -243,7 +243,7 @@ export const mixNodeSpec: NodeSpec = {
       knobPolarity: 'two-sided' },
     b: { type: 'float', default: 1.0, min: -10.0, max: 10.0, step: 0.001, label: 'B',
       knobPolarity: 'two-sided' },
-    t: { type: 'float', default: 0.5, min: 0.0, max: 1.0, step: 0.01, label: 't' }
+    t: { type: 'float', default: 0.5, min: 0.0, max: 1.0, step: 0.01, label: 'Mix' }
   },
   mainCode: `$output.out = mix($input.a, $input.b, $input.t);`
 };

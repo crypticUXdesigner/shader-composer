@@ -10,7 +10,7 @@ export const lookAtCameraNodeSpec: NodeSpec = {
   category: 'Inputs',
   displayName: 'Look-at Camera',
   description:
-    'Outputs ray origin (ro) and ray direction (rd) from a fixed camera position looking at a target. Connect screen position (e.g. UV or UV minus rain offset) for perspective.',
+    'Outputs ray origin (ro) and ray direction (rd) from a fixed camera position looking at a target. Connect screen position (e.g. UV or UV minus rain offset) for perspective. Zoom is distance along the view to the ray image plane (larger → usually narrower field); it is not magnify-style optical zoom.',
   icon: 'focus',
   inputs: [
     {
@@ -42,7 +42,7 @@ export const lookAtCameraNodeSpec: NodeSpec = {
       knobPolarity: 'two-sided' },
     posZ: {
       type: 'float',
-      default: 0.0,
+      default: -3.0,
       min: -20.0,
       max: 20.0,
       step: 0.1,
@@ -54,7 +54,7 @@ export const lookAtCameraNodeSpec: NodeSpec = {
       min: -20.0,
       max: 20.0,
       step: 0.1,
-      label: 'Lookat X',
+      label: 'Look-at target X',
       knobPolarity: 'two-sided' },
     lookatY: {
       type: 'float',
@@ -62,7 +62,7 @@ export const lookAtCameraNodeSpec: NodeSpec = {
       min: -20.0,
       max: 20.0,
       step: 0.1,
-      label: 'Lookat Y',
+      label: 'Look-at target Y',
       knobPolarity: 'two-sided' },
     lookatZ: {
       type: 'float',
@@ -70,7 +70,7 @@ export const lookAtCameraNodeSpec: NodeSpec = {
       min: -20.0,
       max: 20.0,
       step: 0.1,
-      label: 'Lookat Z',
+      label: 'Look-at target Z',
       knobPolarity: 'two-sided' },
     zoom: {
       type: 'float',
@@ -91,7 +91,7 @@ export const lookAtCameraNodeSpec: NodeSpec = {
     },
     {
       id: 'lookat',
-      label: 'Lookat',
+      label: 'Look-at target',
       parameters: ['lookatX', 'lookatY', 'lookatZ'],
       collapsible: true,
       defaultCollapsed: false
@@ -101,7 +101,7 @@ export const lookAtCameraNodeSpec: NodeSpec = {
       label: 'View',
       parameters: ['zoom'],
       collapsible: true,
-      defaultCollapsed: true
+      defaultCollapsed: false
     }
   ],
   parameterLayout: {
@@ -114,7 +114,7 @@ export const lookAtCameraNodeSpec: NodeSpec = {
       },
       {
         type: 'grid',
-        label: 'Lookat',
+        label: 'Look-at target',
         parameters: ['lookatX', 'lookatY', 'lookatZ'],
         layout: { columns: 3 }
       },

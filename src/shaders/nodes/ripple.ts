@@ -76,7 +76,7 @@ export const rippleNodeSpec: NodeSpec = {
       default: 1.0,
       min: 0.0,
       max: 5.0,
-      step: 0.01,
+      step: 0.001,
       label: 'Speed'
     },
     rippleTimeOffset: {
@@ -84,7 +84,7 @@ export const rippleNodeSpec: NodeSpec = {
       default: 0.0,
       min: -100.0,
       max: 100.0,
-      step: 0.05,
+      step: 0.001,
       label: 'Offset',
       inputMode: 'add',
       knobPolarity: 'two-sided' }

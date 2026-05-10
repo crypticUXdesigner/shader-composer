@@ -27,7 +27,7 @@ export const gradientNodeSpec: NodeSpec = {
       min: 0,
       max: 1,
       step: 1,
-      label: 'Type'
+      label: 'Mode'
     },
     centerX: {
       type: 'float',
@@ -97,7 +97,7 @@ export const gradientNodeSpec: NodeSpec = {
   parameterGroups: [
     {
       id: 'gradient-type',
-      label: 'Type',
+      label: 'Mode',
       parameters: ['gradientType'],
       collapsible: true,
       defaultCollapsed: false
@@ -128,9 +128,29 @@ export const gradientNodeSpec: NodeSpec = {
     elements: [
       {
         type: 'grid',
-        parameters: ['gradientType', 'centerX', 'centerY', 'radius', 'falloff', 'invert', 'angle', 'linearScale', 'intensity'],
-        parameterUI: { centerX: 'coords', centerY: 'coords' },
+        label: 'Mode',
+        parameters: ['gradientType'],
+        parameterUI: { gradientType: 'enum' },
+        layout: { columns: 1 }
+      },
+      {
+        type: 'grid',
+        label: 'Radial',
+        parameters: ['centerX', 'centerY', 'radius', 'falloff', 'invert'],
+        parameterUI: { centerX: 'coords', centerY: 'coords', invert: 'toggle' },
         layout: { columns: 3, coordsSpan: 2 }
+      },
+      {
+        type: 'grid',
+        label: 'Linear',
+        parameters: ['angle', 'linearScale'],
+        layout: { columns: 2 }
+      },
+      {
+        type: 'grid',
+        label: 'Output',
+        parameters: ['intensity'],
+        layout: { columns: 1 }
       }
     ]
   },

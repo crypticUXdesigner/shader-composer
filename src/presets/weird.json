@@ -26,14 +26,20 @@
       },
       {
         "id": "node-1774032571285-up3dbh1rc",
-        "type": "spherize",
+        "type": "radial-uv-warp",
         "position": {
           "x": 744,
           "y": -497
         },
         "parameters": {
-          "spherizeCenterX": 0.6000000000000001,
-          "spherizeCenterY": 0.5,
+          "warpMode": 2,
+          "warpCenterX": 0.6000000000000001,
+          "warpCenterY": 0.5,
+          "bulgeStrength": 0.5,
+          "bulgeRadius": 1,
+          "bulgeFalloff": 1,
+          "fisheyeStrength": -0.3,
+          "fisheyeAspect": 1,
           "spherizeRadius": 1.1,
           "spherizeStrength": 1
         },
@@ -330,14 +336,14 @@
         "sourceNodeId": "node-1774032571285-wttumjukt",
         "sourcePort": "out",
         "targetNodeId": "node-1774032571285-up3dbh1rc",
-        "targetParameter": "spherizeCenterY"
+        "targetParameter": "warpCenterY"
       },
       {
         "id": "conn-1774032571285-mcaojvcyp",
         "sourceNodeId": "node-1774032571285-sobrtqi1j",
         "sourcePort": "out",
         "targetNodeId": "node-1774032571285-up3dbh1rc",
-        "targetParameter": "spherizeCenterX"
+        "targetParameter": "warpCenterX"
       },
       {
         "id": "conn-1774032571285-tvzxpow3v",

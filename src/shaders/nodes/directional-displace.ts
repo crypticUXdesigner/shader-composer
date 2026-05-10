@@ -3,7 +3,7 @@ import type { NodeSpec } from '../../types/nodeSpec';
 export const directionalDisplaceNodeSpec: NodeSpec = {
   id: 'directional-displace',
   category: 'Distort',
-  displayName: 'Dir. Displace',
+  displayName: 'Directional Displace',
   icon: 'arrow-right',
   description: 'Displace coordinates along a fixed direction by a scalar amount',
   inputs: [

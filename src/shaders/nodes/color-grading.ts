@@ -26,7 +26,7 @@ export const colorGradingNodeSpec: NodeSpec = {
       default: 1.0,
       min: 0.0,
       max: 2.0,
-      step: 0.01,
+      step: 0.001,
       label: 'R'
     },
     colorShadowsG: {
@@ -34,7 +34,7 @@ export const colorGradingNodeSpec: NodeSpec = {
       default: 1.0,
       min: 0.0,
       max: 2.0,
-      step: 0.01,
+      step: 0.001,
       label: 'G'
     },
     colorShadowsB: {
@@ -42,7 +42,7 @@ export const colorGradingNodeSpec: NodeSpec = {
       default: 1.0,
       min: 0.0,
       max: 2.0,
-      step: 0.01,
+      step: 0.001,
       label: 'B'
     },
     colorMidtonesR: {
@@ -50,7 +50,7 @@ export const colorGradingNodeSpec: NodeSpec = {
       default: 1.0,
       min: 0.0,
       max: 2.0,
-      step: 0.01,
+      step: 0.001,
       label: 'R'
     },
     colorMidtonesG: {
@@ -58,7 +58,7 @@ export const colorGradingNodeSpec: NodeSpec = {
       default: 1.0,
       min: 0.0,
       max: 2.0,
-      step: 0.01,
+      step: 0.001,
       label: 'G'
     },
     colorMidtonesB: {
@@ -66,7 +66,7 @@ export const colorGradingNodeSpec: NodeSpec = {
       default: 1.0,
       min: 0.0,
       max: 2.0,
-      step: 0.01,
+      step: 0.001,
       label: 'B'
     },
     colorHighlightsR: {
@@ -74,7 +74,7 @@ export const colorGradingNodeSpec: NodeSpec = {
       default: 1.0,
       min: 0.0,
       max: 2.0,
-      step: 0.01,
+      step: 0.001,
       label: 'R'
     },
     colorHighlightsG: {
@@ -82,7 +82,7 @@ export const colorGradingNodeSpec: NodeSpec = {
       default: 1.0,
       min: 0.0,
       max: 2.0,
-      step: 0.01,
+      step: 0.001,
       label: 'G'
     },
     colorHighlightsB: {
@@ -90,7 +90,7 @@ export const colorGradingNodeSpec: NodeSpec = {
       default: 1.0,
       min: 0.0,
       max: 2.0,
-      step: 0.01,
+      step: 0.001,
       label: 'B'
     },
     levelsInMin: {

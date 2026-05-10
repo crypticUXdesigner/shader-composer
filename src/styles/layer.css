@@ -81,7 +81,7 @@
   border: 1px solid var(--card-display-border);
   border-radius: var(--radius-md);
   background: var(--card-display-bg);
-  gap: var(--pd-sm);
+  gap: var(--card-display-gap);
   box-sizing: border-box;
 }
 

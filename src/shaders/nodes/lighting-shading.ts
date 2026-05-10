@@ -4,13 +4,13 @@ export const lightingShadingNodeSpec: NodeSpec = {
   id: 'lighting-shading',
   category: 'Effects',
   displayName: 'Lighting',
-  description: 'Adds directional or point lighting to create depth and dimension',
-  icon: 'light',
+  description:
+    'Screenspace shading on input luminance: Directional fake-normal from XY; Point light attenuates distance only (angle-free). Tint multiplies preserved RGB.',  icon: 'light',
   inputs: [
     {
       name: 'in',
       type: 'vec4',
-      label: 'Luminance'
+      label: 'Color'
     }
   ],
   outputs: [
@@ -106,7 +106,7 @@ export const lightingShadingNodeSpec: NodeSpec = {
       default: 1.0,
       min: 0.0,
       max: 2.0,
-      step: 0.01,
+      step: 0.001,
       label: 'R'
     },
     lightColorG: {
@@ -114,7 +114,7 @@ export const lightingShadingNodeSpec: NodeSpec = {
       default: 1.0,
       min: 0.0,
       max: 2.0,
-      step: 0.01,
+      step: 0.001,
       label: 'G'
     },
     lightColorB: {
@@ -122,7 +122,7 @@ export const lightingShadingNodeSpec: NodeSpec = {
       default: 1.0,
       min: 0.0,
       max: 2.0,
-      step: 0.01,
+      step: 0.001,
       label: 'B'
     }
   },
@@ -212,33 +212,28 @@ vec3 surfaceNormal(vec2 p) {
 }
 `,
   mainCode: `
-  // Extract float value from vec4 input
-  float value = $input.in.r;
-  
-  // Calculate screen space coordinates
+  vec4 inColor = $input.in;
+  vec3 color = inColor.rgb;
+  float lum = dot(color, vec3(0.2126, 0.7152, 0.0722));
   vec2 p = ((gl_FragCoord.xy / $resolution.xy * 2.0 - 1.0) * vec2($resolution.x / $resolution.y, 1.0));
-  
-  // Calculate lighting
-  float lighting = 0.0;
-  vec3 lightColor = vec3($param.lightColorR, $param.lightColorG, $param.lightColorB);
-  
+  float lightingTerm = 0.0;
+
   if ($param.lightType == 0) {
-    // Directional
     vec3 normal = surfaceNormal(p);
     vec3 lightDirVec = vec3($param.lightDirX, $param.lightDirY, $param.lightDirZ);
     float lightLen = length(lightDirVec);
     vec3 lightDir = lightLen > 0.001 ? normalize(lightDirVec) : vec3(0.0, 0.0, 1.0);
-    lighting = directionalLight(normal, lightDir);
+    lightingTerm = directionalLight(normal, lightDir);
   } else if ($param.lightType == 1) {
-    // Point light
     vec3 lightPos = vec3($param.lightPosX, $param.lightPosY, $param.lightPosZ);
-    lighting = pointLight(vec3(p, 0.0), lightPos, $param.lightIntensity, $param.lightFalloff);
+    lightingTerm = pointLight(vec3(p, 0.0), lightPos, $param.lightIntensity, $param.lightFalloff);
   }
-  
-  // Apply lighting to result
-  float result = value * ($param.lightAmbient + lighting * $param.lightIntensity);
-  
-  // Output as vec4
-  $output.out = vec4(result, result, result, 1.0);
+
+  vec3 lightColor = vec3($param.lightColorR, $param.lightColorG, $param.lightColorB);
+  float shadedLum = lum * ($param.lightAmbient + lightingTerm * $param.lightIntensity);
+  vec3 resultRgb =
+    lum > 1e-4 ? clamp(lightColor * color * (shadedLum / lum), 0.0, 1.0) : shadedLum * lightColor;
+
+  $output.out = vec4(resultRgb, inColor.a);
 `
 };

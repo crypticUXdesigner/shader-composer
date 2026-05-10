@@ -9,6 +9,7 @@ import type { NodeGraph } from '../data-model/types';
 import type { CompilationResult } from './types';
 import { createCompilationManager } from './factories';
 import type { ShaderCompiler } from './types';
+import type { RenderBackendSelection } from './renderBackends/renderBackendTypes';
 
 // Mock ShaderInstance so we don't need WebGL. CompilationManager and parameterTransfer
 // only need: setParameter, getParameters, setTimelineTime, setTime, getTimelineTime, getTime, destroy.
@@ -24,14 +25,19 @@ const mockInstanceMethods = {
 
 vi.mock('./ShaderInstance', () => ({
   ShaderInstance: class MockShaderInstance {
-    constructor(_gl: unknown, _result: CompilationResult) {
+    constructor(_gl: unknown, _result: CompilationResult, _opts?: unknown) {
       Object.assign(this, mockInstanceMethods);
     }
   },
+  SHADER_INSTANCE_PROGRAM_PENDING_MESSAGE: 'WEBGL_PROGRAM_PENDING',
 }));
 
 function minimalCompilationResult(finalOutputNodeId: string | null = 'n2'): CompilationResult {
   return {
+    backend: 'webgl',
+    supported: true,
+    unsupportedReasons: undefined,
+    code: 'void main() { gl_FragColor = vec4(0.0); }',
     shaderCode: 'void main() { gl_FragColor = vec4(0.0); }',
     uniforms: [],
     metadata: {
@@ -43,11 +49,16 @@ function minimalCompilationResult(finalOutputNodeId: string | null = 'n2'): Comp
         usesWallTime: false,
         usesTimelineTime: false,
         usesAudioUniforms: false,
+        usesRadialPulseVirtualDrive: false,
+        usesRadialPulseSpawnUniformPass: false,
         usesResolutionUniform: false,
         usesMouseUniforms: false,
         usesFrameIndex: false
       }
     },
+    paramLayout: {},
+    resources: undefined,
+    webgpuPassPlan: undefined,
   };
 }
 
@@ -78,11 +89,16 @@ function createMockRenderer() {
   const mockGL = {
     isContextLost: vi.fn(() => false),
   };
+  const selection: RenderBackendSelection = { mode: 'auto', selected: 'webgl2', reason: 'test' };
   return {
+    selection,
     setShaderInstance,
     markDirty,
     render,
     getGLContext: vi.fn(() => mockGL),
+    getCanvas: vi.fn(() => ({ width: 1, height: 1 }) as unknown as HTMLCanvasElement),
+    setOnContextRestored: vi.fn(),
+    setOnContextLost: vi.fn(),
   };
 }
 
@@ -115,17 +131,50 @@ describe('CompilationManager', () => {
 
       vi.runAllTimers();
 
-      expect(compiler.compile).toHaveBeenCalledWith(minimalGraph(), null);
+      expect(compiler.compile).toHaveBeenCalledWith(minimalGraph(), null, { backend: 'webgl' });
       expect(renderer.setShaderInstance).toHaveBeenCalled();
       expect(cm.getShaderInstance()).not.toBeNull();
       expect(cm.getPreviewDependencyMask()).toEqual({
         usesWallTime: false,
         usesTimelineTime: false,
         usesAudioUniforms: false,
+        usesRadialPulseVirtualDrive: false,
+        usesRadialPulseSpawnUniformPass: false,
         usesResolutionUniform: false,
         usesMouseUniforms: false,
         usesFrameIndex: false
       });
+    });
+
+    it('falls back to WebGL when WebGPU compile returns metadata errors (main thread)', () => {
+      const compiler = createMockCompiler();
+      const renderer = createMockRenderer();
+      renderer.selection.selected = 'webgpu';
+      compiler.compile = vi.fn((_g, _a, opts?: { backend?: string }) => {
+        if (opts?.backend === 'webgpu') {
+          return {
+            ...minimalCompilationResult(),
+            backend: 'webgpu',
+            supported: true,
+            metadata: {
+              ...minimalCompilationResult().metadata,
+              errors: ['WGSL failure'],
+            },
+          } satisfies CompilationResult;
+        }
+        return minimalCompilationResult();
+      });
+      const cm = createCompilationManager(compiler, renderer);
+
+      cm.setGraph(minimalGraph());
+      cm.onGraphStructureChange(true);
+      vi.runAllTimers();
+
+      expect(compiler.compile).toHaveBeenCalledTimes(2);
+      expect(compiler.compile).toHaveBeenNthCalledWith(1, minimalGraph(), null, { backend: 'webgpu' });
+      expect(compiler.compile).toHaveBeenNthCalledWith(2, minimalGraph(), null, { backend: 'webgl' });
+      expect(renderer.setShaderInstance).toHaveBeenCalled();
+      expect(cm.getShaderInstance()).not.toBeNull();
     });
 
     it('skips recompilation when only disconnected nodes change', () => {
@@ -298,9 +347,18 @@ describe('CompilationManager', () => {
       vi.runAllTimers();
 
       expect(postMessageCalls.length).toBeGreaterThanOrEqual(1);
-      const payload = postMessageCalls[0] as { type: string; id: number; graph: NodeGraph; audioSetup: unknown; affectedNodeIds: string[]; tryIncremental: boolean };
+      const payload = postMessageCalls[0] as {
+        type: string;
+        id: number;
+        targetBackend: string;
+        graph: NodeGraph;
+        audioSetup: unknown;
+        affectedNodeIds: string[];
+        tryIncremental: boolean;
+      };
       expect(payload.type).toBe('compile');
       expect(typeof payload.id).toBe('number');
+      expect(payload.targetBackend).toBe('webgl');
       expect(payload.graph).toEqual(minimalGraph());
       expect(payload.audioSetup).toBeNull();
       expect(Array.isArray(payload.affectedNodeIds)).toBe(true);
@@ -319,6 +377,131 @@ describe('CompilationManager', () => {
       expect(renderer.setShaderInstance).toHaveBeenCalled();
       expect(cm.getShaderInstance()).not.toBeNull();
       expect(cm.getPreviewDependencyMask()).toEqual(result.metadata.previewDependencies);
+    });
+
+    it('captures `unsupportedReasons` and emits a single info notice when WebGPU compile falls back to WebGL', () => {
+      const postMessageCalls: unknown[] = [];
+      const mockWorker = {
+        postMessage: vi.fn((payload: unknown) => postMessageCalls.push(payload)),
+        onmessage: null as ((ev: MessageEvent) => void) | null,
+        terminate: vi.fn(),
+      };
+      const compiler = createMockCompiler();
+      const renderer = createMockRenderer();
+      // Force WebGPU as the requested backend so the fallback path is exercised.
+      renderer.selection.selected = 'webgpu';
+      const reportCalls: Array<{
+        category: string;
+        severity: string;
+        message: string;
+        details: string[] | undefined;
+      }> = [];
+      const errorHandler = {
+        reportError: vi.fn(),
+        report: vi.fn(
+          (
+            category: string,
+            severity: string,
+            message: string,
+            details?: string[] | Record<string, unknown>
+          ) => {
+            reportCalls.push({
+              category,
+              severity,
+              message,
+              details: Array.isArray(details) ? details : undefined,
+            });
+          }
+        ),
+        onError: vi.fn(),
+        offError: vi.fn(),
+      };
+      const cm = createCompilationManager(compiler, renderer, errorHandler, mockWorker as unknown as Worker);
+
+      cm.setGraph(minimalGraph());
+      cm.onGraphStructureChange(true);
+      vi.runAllTimers();
+
+      expect(postMessageCalls.length).toBeGreaterThanOrEqual(1);
+      const initialPayload = postMessageCalls[0] as { id: number; targetBackend: string };
+      expect(initialPayload.targetBackend).toBe('webgpu');
+
+      // Reply with an unsupported WebGPU result mirroring leftover WebGL-only fragments.
+      const webgpuUnsupported: CompilationResult = {
+        ...minimalCompilationResult(),
+        backend: 'webgpu',
+        supported: false,
+        unsupportedReasons: ['unsupported node type: ___webgpu_fixture_placeholder_node___'],
+        code: '',
+      };
+      mockWorker.onmessage?.({
+        data: { type: 'result', id: initialPayload.id, result: webgpuUnsupported },
+      } as MessageEvent);
+
+      // Manager must request a WebGL recompile and emit a single info notice with the reasons.
+      expect(postMessageCalls.length).toBe(2);
+      const fallbackPayload = postMessageCalls[1] as { targetBackend: string };
+      expect(fallbackPayload.targetBackend).toBe('webgl');
+      expect(reportCalls).toHaveLength(1);
+      expect(reportCalls[0].severity).toBe('info');
+      expect(reportCalls[0].message).toBe('Switching to WebGL fallback...');
+      expect(reportCalls[0].details).toEqual(webgpuUnsupported.unsupportedReasons);
+
+      // Replaying the same fallback (same reasons) must not double-toast.
+      cm.setGraph(minimalGraph());
+      cm.onGraphStructureChange(true);
+      vi.runAllTimers();
+      const followupPayload = postMessageCalls[postMessageCalls.length - 1] as { id: number };
+      mockWorker.onmessage?.({
+        data: { type: 'result', id: followupPayload.id, result: webgpuUnsupported },
+      } as MessageEvent);
+      expect(reportCalls).toHaveLength(1);
+    });
+
+    it('requests WebGL recompile when WebGPU result has metadata errors (no broken preview)', () => {
+      const postMessageCalls: unknown[] = [];
+      const mockWorker = {
+        postMessage: vi.fn((payload: unknown) => postMessageCalls.push(payload)),
+        onmessage: null as ((ev: MessageEvent) => void) | null,
+        terminate: vi.fn(),
+      };
+      const compiler = createMockCompiler();
+      const renderer = createMockRenderer();
+      renderer.selection.selected = 'webgpu';
+
+      const cm = createCompilationManager(compiler, renderer, undefined, mockWorker as unknown as Worker);
+
+      cm.setGraph(minimalGraph());
+      cm.onGraphStructureChange(true);
+      vi.runAllTimers();
+
+      const initialPayload = postMessageCalls[0] as { id: number; targetBackend: string };
+      expect(initialPayload.targetBackend).toBe('webgpu');
+
+      const webgpuWithErrors: CompilationResult = {
+        ...minimalCompilationResult(),
+        backend: 'webgpu',
+        supported: true,
+        metadata: {
+          ...minimalCompilationResult().metadata,
+          errors: ['WGSL compile failed (fixture)'],
+        },
+      };
+      mockWorker.onmessage?.({
+        data: { type: 'result', id: initialPayload.id, result: webgpuWithErrors },
+      } as MessageEvent);
+
+      expect(postMessageCalls.length).toBe(2);
+      const fallbackPayload = postMessageCalls[1] as { targetBackend: string };
+      expect(fallbackPayload.targetBackend).toBe('webgl');
+
+      const okGl = minimalCompilationResult();
+      mockWorker.onmessage?.({
+        data: { type: 'result', id: (postMessageCalls[1] as { id: number }).id, result: okGl },
+      } as MessageEvent);
+
+      expect(renderer.setShaderInstance).toHaveBeenCalled();
+      expect(cm.getShaderInstance()).not.toBeNull();
     });
 
     it('ignores worker result when id does not match', () => {

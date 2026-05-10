@@ -38,6 +38,8 @@
     maxY?: number;
     /** 'center' (0,0 at center) or 'bottom-left' (0,0 at corner). Default center. */
     origin?: 'center' | 'bottom-left';
+    /** Nominal/rest position dot + displacement line inside pad when set */
+    displacementNominal?: { x: number; y: number } | null;
     step?: number;
     labelX?: string;
     labelY?: string;
@@ -65,6 +67,7 @@
     minY = -2,
     maxY = 2,
     origin = 'center',
+    displacementNominal = null,
     step = 0.1,
     labelX: _labelX = 'X',
     labelY: _labelY = 'Y',
@@ -197,6 +200,7 @@
         {maxY}
         {origin}
         lockAspect1to1={lockAspect1to1}
+        {displacementNominal}
         {step}
         {disabled}
         {onChange}

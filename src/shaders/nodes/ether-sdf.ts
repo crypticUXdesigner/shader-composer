@@ -11,7 +11,7 @@ export const etherSdfNodeSpec: NodeSpec = {
   category: 'SDF',
   displayName: 'Ether SDF',
   description:
-    '3D SDF for Ether-fork style volumetric blobs: time-based rotations (XZ, XY) and composite distance (radial + layered sine). Connect to Generic SDF Raymarcher as SDF input. Parameters: rotation speeds, scale, wobble speed, sine amplitude.',
+    '3D SDF for Ether-fork blobs: rotations (XZ, XY), radial + layered sine. Connect out to SDF Raymarch sdf. Params: rot speeds, scale, wobble, sine amp; Pos XYZ; breathing (Z bob); time.',
   icon: 'waves',
   inputs: [
     {
@@ -24,7 +24,7 @@ export const etherSdfNodeSpec: NodeSpec = {
     {
       name: 'out',
       type: 'float',
-      label: 'Distance'
+      label: 'SDF'
     }
   ],
   parameters: {

@@ -2,104 +2,77 @@
   "format": "shadernoice-node-graph",
   "formatVersion": "2.0",
   "graph": {
-    "id": "graph-1774035677831-61jd2fwwe",
-    "name": "New",
+    "id": "graph-inflated-icosahedron-1781000000000",
+    "name": "Inflated Icosahedron",
     "version": "2.0",
     "nodes": [
       {
-        "id": "node-1774035677831-6clg0od3o",
+        "id": "node-inflated-icosahedron-uv",
         "type": "uv-coordinates",
         "position": {
-          "x": -1625,
-          "y": -375
+          "x": -600,
+          "y": -160
         },
         "parameters": {}
       },
       {
-        "id": "node-1774035677831-h2q7ur65h",
-        "type": "final-output",
-        "position": {
-          "x": 2529,
-          "y": -395
-        },
-        "parameters": {}
-      },
-      {
-        "id": "node-1774036028599-7tu46w3e8",
+        "id": "node-inflated-icosahedron-shape",
         "type": "inflated-icosahedron",
         "position": {
-          "x": 273,
-          "y": -348
+          "x": 0,
+          "y": -200
         },
         "parameters": {
-          "timeScale": 0.7000000000000001,
-          "twistAmount": 13.600000000000001,
+          "timeScale": 1.0,
+          "twistAmount": 5.5,
           "seamlessLoop": 1,
-          "raymarchSteps": 150,
-          "orbitRadius": 4.5,
-          "orbitSpeed": 0.4,
-          "brightness": 0.4
+          "raymarchSteps": 100,
+          "orbitRadius": 3.3,
+          "orbitSpeed": 0.5,
+          "brightness": 1.0,
+          "bgInnerL": 0.9319210526768515,
+          "bgInnerC": 0.01656867539003518,
+          "bgInnerH": 286.07385464934896,
+          "bgOuterL": 0.7806235084475901,
+          "bgOuterC": 0.045073781186323464,
+          "bgOuterH": 243.59027913347347,
+          "bgFalloff": 1.5,
+          "paletteHue": 0.0,
+          "shapeSize": 1.0,
+          "lightAngle": 0.0,
+          "contrast": 1.0
         }
       },
       {
-        "id": "node-1774036078122-kld6fdit1",
-        "type": "orbit-camera",
+        "id": "node-inflated-icosahedron-output",
+        "type": "final-output",
         "position": {
-          "x": -940.2024449715034,
-          "y": -54.938595874464816
+          "x": 720,
+          "y": -180
         },
-        "parameters": {
-          "orbitRadius": 3,
-          "orbitSpeed": 0.5,
-          "targetX": 0,
-          "targetY": 0,
-          "targetZ": 0,
-          "inclination": -0.47,
-          "fovScale": 1
-        }
+        "parameters": {}
       }
     ],
     "connections": [
       {
-        "id": "conn-1774036040387-ttt4yxuqp",
-        "sourceNodeId": "node-1774035677831-6clg0od3o",
+        "id": "conn-inflated-icosahedron-uv-to-shape",
+        "sourceNodeId": "node-inflated-icosahedron-uv",
         "sourcePort": "out",
-        "targetNodeId": "node-1774036028599-7tu46w3e8",
+        "targetNodeId": "node-inflated-icosahedron-shape",
         "targetPort": "in"
       },
       {
-        "id": "conn-1774036043814-5m3v3359a",
-        "sourceNodeId": "node-1774036028599-7tu46w3e8",
+        "id": "conn-inflated-icosahedron-shape-to-output",
+        "sourceNodeId": "node-inflated-icosahedron-shape",
         "sourcePort": "out",
-        "targetNodeId": "node-1774035677831-h2q7ur65h",
+        "targetNodeId": "node-inflated-icosahedron-output",
         "targetPort": "in"
-      },
-      {
-        "id": "conn-1774036084878-wf8b664pz",
-        "sourceNodeId": "node-1774035677831-6clg0od3o",
-        "sourcePort": "out",
-        "targetNodeId": "node-1774036078122-kld6fdit1",
-        "targetPort": "in"
-      },
-      {
-        "id": "conn-1774036089130-yzr5yax85",
-        "sourceNodeId": "node-1774036078122-kld6fdit1",
-        "sourcePort": "ro",
-        "targetNodeId": "node-1774036028599-7tu46w3e8",
-        "targetPort": "ro"
-      },
-      {
-        "id": "conn-1774036091846-n6eh6xc2r",
-        "sourceNodeId": "node-1774036078122-kld6fdit1",
-        "sourcePort": "rd",
-        "targetNodeId": "node-1774036028599-7tu46w3e8",
-        "targetPort": "rd"
       }
     ],
     "viewState": {
-      "zoom": 0.21731204535885576,
-      "panX": 836.780586180531,
-      "panY": 705.1230498606008,
+      "zoom": 0.6,
+      "panX": 600,
+      "panY": 400,
       "selectedNodeIds": []
     },
     "automation": {
@@ -107,17 +80,5 @@
       "durationSeconds": 30,
       "lanes": []
     }
-  },
-  "audioSetup": {
-    "files": [
-      {
-        "id": "file-new-billie",
-        "name": "seb - music xcx",
-        "filePath": "seb - music xcx.mp3",
-        "autoPlay": true
-      }
-    ],
-    "bands": [],
-    "remappers": []
   }
 }

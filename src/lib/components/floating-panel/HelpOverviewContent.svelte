@@ -1,4 +1,6 @@
 <script lang="ts">
+  import LayeredAppLogo from '../ui/display/LayeredAppLogo.svelte';
+
   interface Props {
     /** Optional, for future use (jump bar / analytics / A/B copy). */
     class?: string;
@@ -9,8 +11,15 @@
 
 <div class={`content ${className ?? ''}`}>
   <header class="hero">
-    <h2 id="help-overview-top" class="title">ShaderNoice</h2>
-    <p class="tagline">Connect signals into a shader pipeline — see the result change instantly.</p>
+    <div class="hero-brand">
+      <div class="hero-brand-logo-wrap">
+        <LayeredAppLogo variant="compact" />
+      </div>
+      <div class="hero-text">
+        <h2 id="help-overview-top" class="title">ShaderNoice</h2>
+        <p class="tagline">Connect signals into a shader pipeline — see the result change instantly.</p>
+      </div>
+    </div>
   </header>
 
   <nav class="index" aria-labelledby="help-overview-index-title">
@@ -229,6 +238,27 @@
   }
 
   .hero {
+    display: flex;
+    flex-direction: column;
+    gap: var(--pd-md);
+    min-width: 0;
+  }
+
+  .hero-brand {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--pd-md);
+    min-width: 0;
+  }
+
+  .hero-brand-logo-wrap {
+    flex-shrink: 0;
+    padding-top: 0.125rem;
+  }
+
+  .hero-text {
+    flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     gap: var(--pd-xs);

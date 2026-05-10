@@ -4,6 +4,7 @@
    * Confirm: Enter or click outside (blur). Cancel: Esc.
    */
   import { onMount } from 'svelte';
+  import { createStrictDoubleClickHandler } from '../../../utils/strictDoubleClick';
   interface Props {
     value: string;
     placeholder?: string;
@@ -89,6 +90,10 @@
     });
   }
 
+  const strictStartEdit = createStrictDoubleClickHandler((_e: MouseEvent) => {
+    startEdit();
+  });
+
   function commit() {
     if (!editing) return;
     const trimmed = editText.trim();
@@ -141,7 +146,7 @@
     class="editable-label {className}"
     role="textbox"
     tabindex={disabled ? -1 : 0}
-    ondblclick={startEdit}
+    onclick={strictStartEdit}
     onkeydown={(e) => !disabled && e.key === 'Enter' && startEdit()}
     aria-label="{ariaLabel}. Double-click to edit."
   >

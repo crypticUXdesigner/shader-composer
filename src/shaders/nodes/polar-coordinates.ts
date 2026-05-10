@@ -5,7 +5,7 @@ export const polarCoordinatesNodeSpec: NodeSpec = {
   category: 'Distort',
   displayName: 'Polar Coords',
   description: 'Converts Cartesian coordinates to polar coordinates, enabling radial/rotational effects',
-  icon: 'spiral',
+  icon: 'asterisk-simple',
   inputs: [
     {
       name: 'in',

@@ -65,21 +65,28 @@ export class BodyFlexboxLayout {
     // Body content starts after top padding
     const bodyContentStartY = bodyStartY + bodyPadding;
     
-    // Create flex items for each slot
-    const slotItems: FlexItem[] = layout.elements.map((element, index) => {
+    // Create flex items only for visible (non-zero-height) slots so hidden
+    // `visibleWhen` sections do not consume vertical space (or gap) in the body.
+    // Negative / non-finite heights are still treated as invalid -> 20px fallback.
+    const slotItems: FlexItem[] = [];
+    for (let index = 0; index < layout.elements.length; index++) {
+      const element = layout.elements[index];
       const height = slotHeights.get(element);
-      // Validate height - ensure it's a valid positive number
-      const validHeight = (height !== undefined && height !== null && isFinite(height) && height > 0) 
-        ? height 
-        : 20; // Minimum height fallback
-      return {
+      if (height === 0) {
+        // Hidden section: omit from flex items. Slot position is filled in below.
+        continue;
+      }
+      const validHeight = (height !== undefined && height !== null && isFinite(height) && height > 0)
+        ? height
+        : 20;
+      slotItems.push({
         id: `slot-${index}`,
         properties: {
           height: validHeight,
           width: availableWidth
         }
-      };
-    });
+      });
+    }
     
     // Calculate body layout (content-based height)
     // Content starts after top padding
@@ -98,23 +105,34 @@ export class BodyFlexboxLayout {
     
     for (let i = 0; i < layout.elements.length; i++) {
       const element = layout.elements[i];
+      const requestedHeight = slotHeights.get(element);
+      const isHidden = requestedHeight === 0;
       const slotLayoutItem = bodyLayout.items.get(`slot-${i}`);
-      
+
       let slotLayout: LayoutResult | null = null;
-      
-      if (slotLayoutItem) {
+
+      if (!isHidden && slotLayoutItem) {
         // Handle both LayoutResult and FlexboxLayoutResult
         if ('container' in slotLayoutItem && 'items' in slotLayoutItem) {
-          // It's a FlexboxLayoutResult, use the container
           slotLayout = slotLayoutItem.container;
         } else if ('x' in slotLayoutItem && 'y' in slotLayoutItem) {
-          // It's a LayoutResult
           slotLayout = slotLayoutItem as LayoutResult;
         }
       }
-      
+
+      if (isHidden) {
+        // Collapsed slot: zero height at the current Y, no flex gap consumed.
+        slots.push({
+          x: nodeX + bodyPadding,
+          y: currentY,
+          width: availableWidth,
+          height: 0
+        });
+        continue;
+      }
+
       // Validate slotLayout or create fallback
-      if (!slotLayout || 
+      if (!slotLayout ||
           slotLayout.x === undefined || slotLayout.x === null ||
           slotLayout.y === undefined || slotLayout.y === null ||
           slotLayout.width === undefined || slotLayout.width === null ||
@@ -122,12 +140,11 @@ export class BodyFlexboxLayout {
           !isFinite(slotLayout.x) || !isFinite(slotLayout.y) ||
           !isFinite(slotLayout.width) || !isFinite(slotLayout.height) ||
           slotLayout.width <= 0 || slotLayout.height <= 0) {
-        // Create fallback slot with valid values
         const fallbackHeight = this._slotHeights.get(element);
         const validHeight = (fallbackHeight !== undefined && fallbackHeight !== null && isFinite(fallbackHeight) && fallbackHeight > 0)
           ? fallbackHeight
-          : 20; // Minimum height fallback
-        
+          : 20;
+
         slotLayout = {
           x: nodeX + bodyPadding,
           y: currentY,
@@ -135,17 +152,15 @@ export class BodyFlexboxLayout {
           height: validHeight
         };
       }
-      
-      // Ensure slot has valid values before pushing
+
       slots.push({
         x: isFinite(slotLayout.x) ? slotLayout.x : nodeX + bodyPadding,
         y: isFinite(slotLayout.y) ? slotLayout.y : currentY,
         width: (isFinite(slotLayout.width) && slotLayout.width > 0) ? slotLayout.width : availableWidth,
         height: (isFinite(slotLayout.height) && slotLayout.height > 0) ? slotLayout.height : 20
       });
-      
-      // Update currentY for next slot (stack vertically)
-      currentY += slots[i].height;
+
+      currentY = slots[i].y + slots[i].height;
     }
     
     // Body height = top padding + content + bottom padding.

@@ -1,13 +1,66 @@
 <script lang="ts">
   /**
    * MiniGraph – generic read-only mini graph (nodes + edges) for Setup example visualization.
-   * Left-to-right layout; icon + label per node; SVG edges. No help or graph-store imports.
+   * Layered DAG layout (left → right); cycles fall back to array-order row. Parallel edges are separated slightly.
    */
   import { NodeIconSvg } from './icon';
   import { getNodeIcon } from '../../../utils/nodeSpecUtils';
   import { getCategorySlug } from '../../../utils/cssTokens';
+  import { computeMiniGraphLayout } from '../../../utils/miniGraphLayout';
   import type { SetupExampleGraph } from '../../../utils/ContextualHelpManager';
   import type { NodeSpec } from '../../../types/nodeSpec';
+
+  /** Horizontal → vertical → horizontal wire with quarter-circle corners (SVG y grows downward). */
+  function orthogonalRoundedWirePath(
+    sx: number,
+    sy: number,
+    ex: number,
+    ey: number,
+    requestedR: number
+  ): string {
+    const EPS = 0.5;
+    if (Math.abs(sy - ey) < EPS) {
+      return `M ${sx} ${sy} L ${ex} ${ey}`;
+    }
+    if (ex <= sx + EPS) {
+      return `M ${sx} ${sy} L ${ex} ${ey}`;
+    }
+
+    const midX = (sx + ex) / 2;
+    const vertSpan = Math.abs(ey - sy);
+    let R = Math.min(
+      requestedR,
+      (ex - sx) / 2 - 0.25,
+      vertSpan / 2 - 0.25,
+      midX - sx - 0.25,
+      ex - midX - 0.25
+    );
+    R = Math.max(R, 0);
+
+    if (R < 1.5) {
+      return `M ${sx} ${sy} L ${midX} ${sy} L ${midX} ${ey} L ${ex} ${ey}`;
+    }
+
+    if (ey > sy) {
+      return [
+        `M ${sx} ${sy}`,
+        `L ${midX - R} ${sy}`,
+        `A ${R} ${R} 0 0 1 ${midX} ${sy + R}`,
+        `L ${midX} ${ey - R}`,
+        `A ${R} ${R} 0 0 1 ${midX + R} ${ey}`,
+        `L ${ex} ${ey}`,
+      ].join(' ');
+    }
+
+    return [
+      `M ${sx} ${sy}`,
+      `L ${midX - R} ${sy}`,
+      `A ${R} ${R} 0 0 0 ${midX} ${sy - R}`,
+      `L ${midX} ${ey + R}`,
+      `A ${R} ${R} 0 0 0 ${midX + R} ${ey}`,
+      `L ${ex} ${ey}`,
+    ].join(' ');
+  }
 
   interface Props {
     graph: SetupExampleGraph;
@@ -22,37 +75,70 @@
   const GAP = 24;
   const PADDING = 0;
 
-  const nodePositions = $derived.by(() => {
-    const map = new Map<string, { x: number; y: number }>();
-    graph.nodes.forEach((node, i) => {
-      map.set(node.id, { x: PADDING + i * (NODE_WIDTH + GAP), y: PADDING });
-    });
-    return map;
-  });
+  /** Unique SVG marker id when multiple MiniGraph instances exist on one page */
+  const arrowMarkerId = `mini-graph-arrow-${Math.random().toString(36).slice(2, 11)}`;
 
-  /* Arrow marker length in same units as path; path stops this far from target so arrow tip hits node edge */
-  const ARROW_LENGTH = 12;
+  const layoutMetrics = {
+    nodeWidth: NODE_WIDTH,
+    nodeHeight: NODE_HEIGHT,
+    gapX: GAP,
+    gapY: GAP,
+    padding: PADDING,
+  };
+
+  const layoutResult = $derived(computeMiniGraphLayout(graph, layoutMetrics));
+  const nodePositions = $derived(layoutResult.positions);
+  const totalWidth = $derived(layoutResult.totalWidth);
+  const totalHeight = $derived(layoutResult.totalHeight);
+
+  /**
+   * Triangle tip → tail length along the wire. Path ends at targetEdgeX - MARKER_W so the marker
+   * (anchored at tail refX=0) paints the tip flush on the node edge.
+   */
+  const PARALLEL_EDGE_SPREAD = 8;
+  const CORNER_RADIUS = 6;
+  const MARKER_W = 8;
+  const MARKER_H = 6;
 
   const edgePaths = $derived.by(() => {
-    return graph.connections.map((conn) => {
+    const connections = graph.connections;
+    const key = (c: (typeof connections)[number]) => `${c.from}\0${c.to}`;
+    const buckets = new Map<string, (typeof connections)[number][]>();
+    for (const c of connections) {
+      const k = key(c);
+      let arr = buckets.get(k);
+      if (!arr) {
+        arr = [];
+        buckets.set(k, arr);
+      }
+      arr.push(c);
+    }
+    for (const arr of buckets.values()) {
+      arr.sort(
+        (a, b) =>
+          a.fromPort.localeCompare(b.fromPort) || a.toPort.localeCompare(b.toPort)
+      );
+    }
+
+    return connections.map((conn) => {
       const fromPos = nodePositions.get(conn.from);
       const toPos = nodePositions.get(conn.to);
       if (!fromPos || !toPos) return '';
+      const group = buckets.get(key(conn))!;
+      const parallel = group.length;
+      const slot = group.indexOf(conn);
+      const spread =
+        parallel > 1 ? Math.min(PARALLEL_EDGE_SPREAD, (NODE_HEIGHT - 12) / parallel) : 0;
+      const dy = parallel > 1 ? (slot - (parallel - 1) / 2) * spread : 0;
+
       const x1 = fromPos.x + NODE_WIDTH;
-      const y1 = fromPos.y + NODE_HEIGHT / 2;
-      const x2 = toPos.x;
-      const y2 = toPos.y + NODE_HEIGHT / 2;
-      /* End path early so arrowhead (drawn at path end) is not covered by target node */
-      const x2End = x2 - ARROW_LENGTH;
-      const cx = (x1 + x2End) / 2;
-      return `M ${x1} ${y1} C ${cx} ${y1}, ${cx} ${y2}, ${x2End} ${y2}`;
+      const y1 = fromPos.y + NODE_HEIGHT / 2 + dy;
+      const targetEdgeX = toPos.x;
+      const y2 = toPos.y + NODE_HEIGHT / 2 + dy;
+      const wireEndX = targetEdgeX - MARKER_W;
+      return orthogonalRoundedWirePath(x1, y1, wireEndX, y2, CORNER_RADIUS);
     });
   });
-
-  const totalWidth = $derived(
-    graph.nodes.length === 0 ? 0 : PADDING * 2 + graph.nodes.length * NODE_WIDTH + (graph.nodes.length - 1) * GAP
-  );
-  const totalHeight = $derived(PADDING * 2 + NODE_HEIGHT);
 
   const visible = $derived(graph.nodes.length > 0);
 </script>
@@ -68,23 +154,18 @@
     >
       <defs>
         <marker
-          id="mini-graph-arrow"
+          id={arrowMarkerId}
           markerUnits="userSpaceOnUse"
-          markerWidth="14"
-          markerHeight="10"
+          markerWidth={MARKER_W}
+          markerHeight={MARKER_H}
           refX="0"
-          refY="5"
+          refY={MARKER_H / 2}
           orient="auto"
           class="arrow-marker"
         >
-          <path d="M 0 0 L 14 5 L 0 10 Z" />
+          <path d={`M 0 0 L ${MARKER_W} ${MARKER_H / 2} L 0 ${MARKER_H} Z`} />
         </marker>
       </defs>
-      <g class="edges">
-        {#each edgePaths as path}
-          <path class="edge" d={path} fill="none" marker-end="url(#mini-graph-arrow)" />
-        {/each}
-      </g>
       <g class="nodes">
         {#each graph.nodes as node (node.id)}
           {@const pos = nodePositions.get(node.id)}
@@ -108,6 +189,11 @@
           {/if}
         {/each}
       </g>
+      <g class="edges">
+        {#each edgePaths as path}
+          <path class="edge" d={path} fill="none" marker-end={`url(#${arrowMarkerId})`} />
+        {/each}
+      </g>
     </svg>
   </figure>
 {/if}
@@ -126,7 +212,9 @@
 
     .edges .edge {
       stroke: var(--color-gray-100);
-      stroke-width: 2.5;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
 
     .arrow-marker path {

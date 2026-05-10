@@ -7,6 +7,7 @@ This repo is a **node-based shader editor** (WebGL, Svelte 5, TypeScript).
 - **Graph**: Immutable; use `src/data-model/` for updates, serialization, and validation. Runtime and compilation never mutate the graph.
 - **UX and features**: Align with `docs/user-goals/` (use the doc for the area you change).
 - **UI work**: Follow `.impeccable.md` and `.cursor/rules/frontend/` (notably `css-standards.mdc`, `svelte-standards.mdc`, `design-system.mdc`).
+- **Shader node naming, parameters, & ports**: **`NodeSpec.displayName`**, **`src/data/node-documentation.json`** **`title`**, **`parameters` / `parameterGroups` / `parameterLayout` header `label`s** (keep **short** — node body layout), and optional **`inputs`/`outputs` `label`** (display-only; **`name`** stays stable for GLSL) — conventions in **`shaders/node-standards.mdc`** (**Parameter and group label rules**, **Port label rules**). Extended port tables: **`docs/implementation/node-port-labels-in-out-analysis.md`**.
 
 ## Where things live
 

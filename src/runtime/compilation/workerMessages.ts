@@ -7,6 +7,7 @@ import type { NodeGraph } from '../../data-model/types';
 import type { AudioSetup } from '../../data-model/audioSetupTypes';
 import type { CompilationResult } from '../types';
 import type { NodeSpec } from '../../types/nodeSpec';
+import type { RenderBackendKind } from '../types';
 
 /** Sent from main thread to worker: init with node specs. */
 export interface WorkerInitPayload {
@@ -18,6 +19,7 @@ export interface WorkerInitPayload {
 export interface WorkerCompilePayload {
   type: 'compile';
   id: number;
+  targetBackend: RenderBackendKind;
   graph: NodeGraph;
   audioSetup: AudioSetup | null;
   previousResult: CompilationResult | null;

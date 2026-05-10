@@ -10,7 +10,7 @@ export const kifsSdfNodeSpec: NodeSpec = {
   category: 'SDF',
   displayName: 'KIFS SDF',
   description:
-    '3D Kaleidoscopic IFS SDF: iterative fold (abs), scale, offset, and rotation. Output signed distance for raymarching. Connect position to generic raymarcher; use orbit camera (when ro/rd supported) for Larval-style fractals.',
+    'Kaleidoscopic IFS in 3D: absolute fold each iteration, multiply by scale, add offset, then rotate. Outputs signed distance for SDF Raymarch; orbit camera ro and rd give Larval-style motion. Rotation axis X/Y/Z is normalized in the shader; angle is radians. Scale stays at least 1 so iterations expand the folded volume like typical KIFS setups. Core radius sets the terminating sphere inside the iterated point. Estimated distance fields may band or leak—raise SDF Raymarch steps or tighten its safety controls if artifacts show.',
   icon: 'sphere',
   inputs: [
     {
@@ -24,7 +24,7 @@ export const kifsSdfNodeSpec: NodeSpec = {
     {
       name: 'out',
       type: 'float',
-      label: 'Distance'
+      label: 'SDF'
     }
   ],
   parameters: {
@@ -124,7 +124,7 @@ export const kifsSdfNodeSpec: NodeSpec = {
       min: 0.0,
       max: 2.0,
       step: 0.01,
-      label: 'Radius',
+      label: 'Core radius',
       supportsAnimation: true,
       supportsAudio: true
     },
@@ -186,7 +186,7 @@ export const kifsSdfNodeSpec: NodeSpec = {
     },
     {
       id: 'position',
-      label: 'Position (when unconnected)',
+      label: 'Fallback position',
       parameters: ['positionX', 'positionY', 'positionZ'],
       collapsible: true,
       defaultCollapsed: true
@@ -196,6 +196,7 @@ export const kifsSdfNodeSpec: NodeSpec = {
     elements: [
       {
         type: 'grid',
+        label: 'KIFS',
         parameters: ['scale', 'iterations', 'sphereRadius'],
         layout: { columns: 3 }
       },
@@ -213,7 +214,7 @@ export const kifsSdfNodeSpec: NodeSpec = {
       },
       {
         type: 'grid',
-        label: 'Position',
+        label: 'Fallback position',
         parameters: ['positionX', 'positionY', 'positionZ'],
         layout: { columns: 3 }
       }

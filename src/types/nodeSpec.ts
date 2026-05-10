@@ -18,11 +18,16 @@ export interface PortSpec {
    * Takes precedence over fallbackParameter when set. Used when the default depends on other inputs (e.g. rd from in).
    */
   fallbackExpression?: string;
+  /**
+   * Omit the visible name chip next to input ports on the node header (dot + type chip remain).
+   * `label` is still used for aria-label on the port and documentation when set.
+   */
+  hideHeaderLabel?: boolean;
 }
 
 export interface NodeSpec {
   id: string;                     // Node type ID (e.g., "fbm-noise")
-  displayName: string;            // Human-readable name
+  displayName: string;            // Human-readable palette/canvas title (see `.cursor/rules/shaders/node-standards.mdc`)
   description?: string;           // Node description
   category: string;               // Category (Input, Transform, Generator, etc.)
   icon?: string;                  // Optional node-specific icon identifier (overrides category icon)
@@ -134,6 +139,14 @@ export interface ColorPickerElement {
 /** Two OKLCH color pickers in one row, equal width. */
 export interface ColorPickerRowElement {
   type: 'color-picker-row';
+  /**
+   * Optional visibility clause (matches `GridElement.visibleWhen` semantics).
+   * When set, the row renders only when the controlling parameter equals the given number.
+   */
+  visibleWhen?: {
+    parameter: string;
+    equals: number;
+  };
   /** Optional group header label (e.g. "Colors") rendered above the row */
   label?: string;
   /** Two color picker configs: [start color params], [end color params] */
@@ -167,6 +180,14 @@ export interface AutoGridElement {
 // Explicit grid with layout control
 export interface GridElement {
   type: 'grid';
+  /**
+   * When set, this entire grid section (parameters + optional label header) renders only when
+   * the node's stored value for `parameter` equals `equals` (fallback: spec default, then 0).
+   */
+  visibleWhen?: {
+    parameter: string;
+    equals: number;
+  };
   /** Optional header label rendered above this grid block */
   label?: string;
   /**
@@ -185,6 +206,12 @@ export interface GridElement {
     coordsSpan?: 2 | 3;
     /** Origin for coord pad grid: 'center' (0,0 at center, default) or 'bottom-left' (0,0 at bottom-left). Use a record keyed by X param name to set origin per coord pad (e.g. { sizeX: 'bottom-left', centerX: 'center' }). */
     coordsOrigin?: 'center' | 'bottom-left' | Record<string, 'center' | 'bottom-left'>;
+    /**
+     * Per coord pad (keyed by X parameter): nominal "rest" UV in value space vs min/max,
+     * shown as an anchor dot and a displacement line from anchor to current (CoordPad-only).
+     * Hidden when ports are wired or timeline automation affects the pair.
+     */
+    coordsDisplacementAnchor?: Record<string, { x: number; y: number }>;
     /** Per-parameter column span (e.g. make a single param take full row). */
     parameterSpan?: Record<string, 2 | 3>;
   };

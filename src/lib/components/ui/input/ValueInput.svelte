@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { createStrictTapThenDownDouble } from '../../../utils/strictDoubleClick';
+
   interface Props {
     value: number;
     /** When provided, this value is shown in edit mode (e.g. on double-click) instead of value. Use for "config" vs "display": display shows live value, edit shows configured value. */
@@ -34,6 +36,8 @@
   let wrapperEl: HTMLDivElement | undefined = $state();
   let lockedWidthPx: number | undefined = $state();
 
+  const valueTapStrictDouble = createStrictTapThenDownDouble();
+
   /** Same base as Knob: modifiers divide/multiply effective sensitivity. */
   const BASE_DRAG_SENSITIVITY = 100;
 
@@ -62,16 +66,27 @@
 
   function handlePointerDown(e: PointerEvent) {
     if (disabled || editMode) return;
+    if (valueTapStrictDouble.consumeIfSecondPress(e)) {
+      handleDblClick();
+      return;
+    }
     e.preventDefault();
     const el = e.currentTarget as HTMLElement;
     const pointerId = e.pointerId;
     el.setPointerCapture(pointerId);
     let currentY = e.clientY;
+    let dragMovedBeyondTap = false;
     /** Unsnapped float; small dy values accumulate across pointer moves until step snaps. */
     let dragAccumulator = value;
     let lastEmittedSnapped = value;
 
     function handlePointerMove(moveEvent: PointerEvent) {
+      if (
+        Math.abs(moveEvent.clientX - e.clientX) > 3 ||
+        Math.abs(moveEvent.clientY - e.clientY) > 3
+      ) {
+        dragMovedBeyondTap = true;
+      }
       const dy = currentY - moveEvent.clientY;
       currentY = moveEvent.clientY;
       const range = max - min;
@@ -104,6 +119,9 @@
 
     function handlePointerUp(upEvent: PointerEvent) {
       if (upEvent.pointerId !== pointerId) return;
+      if (!dragMovedBeyondTap) {
+        valueTapStrictDouble.recordCompletedPrimaryTap(upEvent);
+      }
       cleanup();
     }
 
@@ -180,7 +198,6 @@
       aria-label="Value: {displayText}. Double-click to edit, drag to adjust."
       aria-readonly="false"
       onpointerdown={handlePointerDown}
-      ondblclick={handleDblClick}
       onkeydown={(e) => e.key === 'Enter' && handleDblClick()}
     >
       {displayText}

@@ -8,10 +8,34 @@ alwaysApply: false
 
 New or changed **`src/shaders/nodes/**`** specs:
 
-1. **`NodeSpec`** — match peers (id, name, category, ports, glsl, …); see `src/types/nodeSpec.ts`.
-2. **`node-documentation.json`** — key **`"node:<id>"`** (e.g. `"node:noise"`): title, category, icon, tagline, description, inputs/outputs with `suggestedTargets`, `relatedItems` as needed.
-3. **`index.ts`** — export/register the node with the bundle.
-4. **`npm run build`** — green types.
-5. Align with **`docs/user-goals/04-nodes-and-parameters.md`** if behavior is user-visible.
+1. **`NodeSpec`** — match peers (**`id`** kebab-case, **`displayName`**, category, ports, glsl, …); see `src/types/nodeSpec.ts`.
+2. **`displayName`** (palette / canvas title) — **Title Case** for principal words (`Radial Pulse`, `Julia Slab SDF`). **Exceptions:** preserve **identifiers** (`Vec2`, `Hash32`, `2D`), **standard acronyms** (`RGB`, `OKLCH`, `SDF`, `KIFS`, `BW`), **established shading tokens** (`Mix`, `Smoothstep`, `Fract`), **compound brand-style names** OK if intentional (`KalScope Smooth`). Prefer full words over cryptic abbreviations (`Directional Displace`, not `Dir. Displace`). Use **`/`** or **`&`** only when the node intentionally pairs two modes (e.g. `Sky / Dome`). Keep **`src/data/node-documentation.json`** **`title`** aligned with **`displayName`** for the same node.
+3. **`node-documentation.json`** — key **`"node:<id>"`** (e.g. `"node:noise"`): **title** (match **`displayName`**), category, icon, tagline, description, inputs/outputs with `suggestedTargets`, `relatedItems` as needed.
+4. **`index.ts`** — export/register the node with the bundle.
+5. **`npm run build`** — green types.
+6. Align with **`docs/user-goals/04-nodes-and-parameters.md`** if behavior is user-visible.
+7. **Port labels (`PortSpec.label`)** — display-only; **`name`** stays stable for GLSL and connections. UI uses **`label ?? name`** (`NodeHeader.svelte`). Omit **`label`** when the canvas intentionally hides redundant single outputs on **Inputs** nodes (see **`isRedundantOutputLabel`** in `src/utils/nodeSpecUtils.ts`).
+8. **Parameter & group labels (node body)** — see **Parameter and group label rules** below. Types: **`ParameterSpec.label`**, **`ParameterGroup.label`**, optional **`label`** on **`parameterLayout`** elements (grid sections, rows, strips, etc.); see `src/types/nodeSpec.ts`.
+
+### Parameter and group label rules (node body)
+
+- **Brevity (layout):** These strings render in **fixed-width node body columns** beside sliders, knobs, and toggles. **Long labels break layout** (wrap, clip, uneven rows, or force awkward width). Keep them **short**: typically **one word**, or **two–three words** only when needed to disambiguate.
+- **Groups & section headers:** **`parameterGroups[].label`** and layout element headers (e.g. grid block `label`) are **section chrome** — prefer **one or two words** (`Shape`, `Color`, `Motion`). Avoid titles that read like documentation sentences.
+- **Detail elsewhere:** Put explanations, units, and “what this really does” in **`node-documentation.json`**, contextual help, or tooltips — **not** by stretching the visible parameter or group label.
+
+### Port label rules (agreed conventions)
+
+- **Brevity (UI):** Labels show in a **compact node header** — keep them **short**: prefer **one word**, a **standard token** (`UV`, `Mix`, `Color`, `A`, `B`, `=`), or **two words** only when needed (`If true`, `Ray origin`). Avoid long explanatory phrases on the port; put nuance in **`node-documentation.json`** (input/output descriptions) and **parameter tooltips**. Lengthen a label only to **disambiguate** two similar ports on the same node.
+- **Casings:** **Sentence case** for multi-word strings (`Ray origin`, `Start color`). **Allowed tokens as-is:** `UV`, `SDF`, `OKLCH`, identifiers like `Vec2`, and symbolic math glyphs (e.g. `=`, `A`, `B`, `Mix` for `mix()`/`lerp` weight).
+- **Math family:** Keep **symbolic** inputs/outputs (`A`, `B`, **`=`** on result). Nodes that mirror **`mix()`** (`mix`, **`lerp`**): ports **`a`** / **`b`** / **`t`** → labels **`A`**, **`B`**, **`Mix`** (weight); output **`=`**. Match **parameter** row labels to the same words when those params are exposed.
+- **Vec2 coordinate `in` (pick by intention, not only by dtype):**
+  - **`UV`** — used as **sampling / warp-domain** coordinates (texture-like chaining, distortion accepted; mental model “sample here”).
+  - **`Position`** — **planar geometric** coords (masks, shapes, procedural distance fields) where the value is **not** treated as a UV warp chain.
+  - **`Screen position`** — **fullscreen / camera-plane** coords for projections and ray-entry setups (orbit, look-at–style feeds). Use **`Frag coords`** only when the value is explicitly **pixel**/fragment-oriented (matches nodes that expose `gl_FragCoord`-style semantics).
+  When unsure: prefer **`UV`** vs **`Position`** per the dominant mental model of the node; do not rename to **`UV`** purely for uniformity if the node is strictly geometric **Position** space.
+- **Scalar generator outputs (`float`):** Prefer a **readable semantic** label when accurate (`Noise`, `Rays`, `Grid`, `Particles`, `Glow`, …); use **`Value`** when nothing clearer fits.
+- **Color throughput (`vec3`/`vec4`):** Default **`Color`** on **inputs**; **outputs** may rename when meaning shifts (**`Edges`**, **`Shading`**, etc.).
+- **Branching nodes** (select/compare family): Keep **readable words** — e.g. **Condition**, **If true**, **If false** (not symbolic `?`/`T`/`F` alongside math).
+- **Constants (`constant-*`):** Output **`label`** should match the **panel’s primary concept**, not generic pipeline guesses: e.g. **`Value`** mirrors the float param **`value`**; vec2–vec4 with only component params → align with **`displayName`** / arity (**Vec2**, **Vec3**, **Vec4**) rather than prescribing **`UV`** / **`Color`** unless those params are explicitly color-labeled elsewhere.
 
 **Refs:** Existing nodes in `src/shaders/nodes/`, `src/data/node-documentation.json`.

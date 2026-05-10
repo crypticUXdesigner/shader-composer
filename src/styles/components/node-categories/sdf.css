@@ -34,7 +34,7 @@
   --node-icon-box-color-sdf: var(--color-cyan-110);
 
   /* Param group header */
-  --param-group-header-color-sdf: var(--color-cyan-gray-60);
+  --param-group-header-color-sdf: var(--color-cyan-gray-110);
 
   /* Param cell */
   --node-param-cell-bg-sdf: var(--color-blue-gray-80);
@@ -258,13 +258,4 @@
       }
     }
   }
-}
-
-/* Shiny: use header print color as ring accent */
-.node.sdf.shiny {
-  --node-shiny-ring-color: var(--node-header-print-sdf);
-}
-
-.node.sdf.raymarcher.shiny {
-  --node-shiny-ring-color: var(--node-header-print-sdf-raymarcher);
 }

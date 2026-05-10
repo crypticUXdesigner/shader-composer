@@ -9,12 +9,11 @@ export const oneMinusNodeSpec: NodeSpec = {
   category: 'Utilities',
   displayName: 'One Minus',
   description: 'Subtracts input from 1.0 (invert for 0-1 range)',
-  icon: 'settings-2',
   inputs: [
     { name: 'in', type: 'float', label: 'Value' }
   ],
   outputs: [
-    { name: 'out', type: 'float', label: 'Result' }
+    { name: 'out', type: 'float', label: '=' }
   ],
   parameters: {},
   mainCode: `
@@ -27,12 +26,11 @@ export const negateNodeSpec: NodeSpec = {
   category: 'Utilities',
   displayName: 'Negate',
   description: 'Negates input value',
-  icon: 'settings-2',
   inputs: [
     { name: 'in', type: 'float', label: 'Value' }
   ],
   outputs: [
-    { name: 'out', type: 'float', label: 'Result' }
+    { name: 'out', type: 'float', label: '=' }
   ],
   parameters: {},
   mainCode: `
@@ -45,12 +43,11 @@ export const reciprocalNodeSpec: NodeSpec = {
   category: 'Utilities',
   displayName: 'Reciprocal',
   description: 'Reciprocal (1.0 / input)',
-  icon: 'settings-2',
   inputs: [
     { name: 'in', type: 'float', label: 'Value' }
   ],
   outputs: [
-    { name: 'out', type: 'float', label: 'Result' }
+    { name: 'out', type: 'float', label: '=' }
   ],
   parameters: {},
   mainCode: `
@@ -63,12 +60,11 @@ export const clamp01NodeSpec: NodeSpec = {
   category: 'Utilities',
   displayName: 'Clamp 01',
   description: 'Clamps value to 0.0-1.0 range',
-  icon: 'settings-2',
   inputs: [
     { name: 'in', type: 'float', label: 'Value' }
   ],
   outputs: [
-    { name: 'out', type: 'float', label: 'Result' }
+    { name: 'out', type: 'float', label: '=' }
   ],
   parameters: {},
   mainCode: `
@@ -81,12 +77,11 @@ export const saturateNodeSpec: NodeSpec = {
   category: 'Utilities',
   displayName: 'Saturate',
   description: 'Same as Clamp 01 (common shader term)',
-  icon: 'settings-2',
   inputs: [
     { name: 'in', type: 'float', label: 'Value' }
   ],
   outputs: [
-    { name: 'out', type: 'float', label: 'Result' }
+    { name: 'out', type: 'float', label: '=' }
   ],
   parameters: {},
   mainCode: `
@@ -99,12 +94,11 @@ export const signNodeSpec: NodeSpec = {
   category: 'Utilities',
   displayName: 'Sign',
   description: 'Returns sign of value (-1.0, 0.0, or 1.0)',
-  icon: 'settings-2',
   inputs: [
     { name: 'in', type: 'float', label: 'Value' }
   ],
   outputs: [
-    { name: 'out', type: 'float', label: 'Result' }
+    { name: 'out', type: 'float', label: '=' }
   ],
   parameters: {},
   mainCode: `
@@ -117,12 +111,11 @@ export const roundNodeSpec: NodeSpec = {
   category: 'Utilities',
   displayName: 'Round',
   description: 'Rounds to nearest integer',
-  icon: 'settings-2',
   inputs: [
     { name: 'in', type: 'float', label: 'Value' }
   ],
   outputs: [
-    { name: 'out', type: 'float', label: 'Result' }
+    { name: 'out', type: 'float', label: '=' }
   ],
   parameters: {},
   mainCode: `
@@ -135,12 +128,11 @@ export const truncateNodeSpec: NodeSpec = {
   category: 'Utilities',
   displayName: 'Truncate',
   description: 'Truncates (removes fractional part)',
-  icon: 'settings-2',
   inputs: [
     { name: 'in', type: 'float', label: 'Value' }
   ],
   outputs: [
-    { name: 'out', type: 'float', label: 'Result' }
+    { name: 'out', type: 'float', label: '=' }
   ],
   parameters: {},
   mainCode: `
@@ -153,21 +145,20 @@ export const lerpNodeSpec: NodeSpec = {
   category: 'Utilities',
   displayName: 'Lerp',
   description: 'Linear interpolation (alias for Mix)',
-  icon: 'settings-2',
   inputs: [
-    { name: 'a', type: 'float', fallbackParameter: 'a', label: 'Start' },
-    { name: 'b', type: 'float', fallbackParameter: 'b', label: 'End' },
-    { name: 't', type: 'float', fallbackParameter: 't', label: 'Factor' }
+    { name: 'a', type: 'float', fallbackParameter: 'a', label: 'A' },
+    { name: 'b', type: 'float', fallbackParameter: 'b', label: 'B' },
+    { name: 't', type: 'float', fallbackParameter: 't', label: 'Mix' }
   ],
   outputs: [
-    { name: 'out', type: 'float', label: 'Result' }
+    { name: 'out', type: 'float', label: '=' }
   ],
   parameters: {
-    a: { type: 'float', default: 0.0, min: -10.0, max: 10.0, step: 0.001, label: 'Start',
+    a: { type: 'float', default: 0.0, min: -10.0, max: 10.0, step: 0.001, label: 'A',
       knobPolarity: 'two-sided' },
-    b: { type: 'float', default: 1.0, min: -10.0, max: 10.0, step: 0.001, label: 'End',
+    b: { type: 'float', default: 1.0, min: -10.0, max: 10.0, step: 0.001, label: 'B',
       knobPolarity: 'two-sided' },
-    t: { type: 'float', default: 0.5, min: 0.0, max: 1.0, step: 0.01, label: 'Factor' }
+    t: { type: 'float', default: 0.5, min: 0.0, max: 1.0, step: 0.01, label: 'Mix' }
   },
   parameterLayout: {
     elements: [
@@ -193,7 +184,7 @@ export const swizzleNodeSpec: NodeSpec = {
     { name: 'in', type: 'vec4', label: 'Vector' }
   ],
   outputs: [
-    { name: 'out', type: 'vec4', label: 'Result' }
+    { name: 'out', type: 'vec4', label: 'Vector' }
   ],
   parameters: {
     swizzle: {

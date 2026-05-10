@@ -41,6 +41,24 @@ export function getParameterEnumMappings(
     };
   }
 
+  // blend-color — same mode index semantics as blend-mode
+  if (nodeId === 'blend-color' && paramName === 'mode') {
+    return {
+      0: 'Normal',
+      1: 'Multiply',
+      2: 'Screen',
+      3: 'Overlay',
+      4: 'Soft Light',
+      5: 'Hard Light',
+      6: 'Color Dodge',
+      7: 'Color Burn',
+      8: 'Linear Dodge',
+      9: 'Linear Burn',
+      10: 'Difference',
+      11: 'Exclusion'
+    };
+  }
+
   // gradient-mask node - maskType
   if (nodeId === 'gradient-mask' && paramName === 'maskType') {
     return {
@@ -83,6 +101,11 @@ export function getParameterEnumMappings(
     };
   }
 
+  // box-torus-sdf node - mode (directional vs point light)
+  if (nodeId === 'box-torus-sdf' && paramName === 'mode') {
+    return { 0: 'Directional', 1: 'Point' };
+  }
+
   // voronoi-noise
   if (nodeId === 'voronoi-noise' && paramName === 'voronoiDistanceMetric') {
     return { 0: 'Euclidean', 1: 'Manhattan', 2: 'Chebyshev' };
@@ -115,11 +138,6 @@ export function getParameterEnumMappings(
     return { 0: 'Boxy', 1: 'Sphere minus box', 2: 'Heightmap' };
   }
 
-  // cylinder-cone
-  if (nodeId === 'cylinder-cone' && paramName === 'primitiveType') {
-    return { 0: 'Cylinder', 1: 'Cone' };
-  }
-
   // worley-noise
   if (nodeId === 'worley-noise' && paramName === 'worleyDistanceMetric') {
     return { 0: 'Euclidean', 1: 'Manhattan', 2: 'Chebyshev' };
@@ -136,26 +154,6 @@ export function getParameterEnumMappings(
   // noise
   if (nodeId === 'noise' && paramName === 'noiseMode') {
     return { 0: 'Simplex 2D', 1: 'Simplex 3D', 2: 'Value fBm' };
-  }
-
-  // blending-modes
-  if (nodeId === 'blending-modes' && paramName === 'blendMode') {
-    return {
-      0: 'Multiply',
-      1: 'Screen',
-      2: 'Overlay',
-      3: 'Soft Light',
-      4: 'Hard Light',
-      5: 'Color Dodge',
-      6: 'Color Burn',
-      7: 'Linear Dodge',
-      8: 'Linear Burn',
-      9: 'Difference',
-      10: 'Exclusion'
-    };
-  }
-  if (nodeId === 'blending-modes' && paramName === 'blendSource') {
-    return { 0: 'Parameter', 1: 'Noise', 2: 'Wave' };
   }
 
   // wave-patterns
@@ -212,6 +210,50 @@ export function getParameterEnumMappings(
       1: 'Normalized',
       2: 'Product',
       3: 'Max |·|',
+    };
+  }
+
+  // glass-shell - outer / inner SDF shapes
+  if (nodeId === 'glass-shell' && paramName === 'outerShape') {
+    return {
+      0: 'Sphere',
+      1: 'Box',
+      2: 'Icosahedron',
+    };
+  }
+  if (nodeId === 'glass-shell' && paramName === 'innerShape') {
+    return {
+      0: 'Sphere',
+      1: 'Box',
+      2: 'Sphere + box (smooth)',
+    };
+  }
+
+  // triangle-grid
+  if (nodeId === 'triangle-grid' && paramName === 'triProjection') {
+    return { 0: 'Infinite plane', 1: 'UV' };
+  }
+
+  // radial-uv-warp
+  if (nodeId === 'radial-uv-warp' && paramName === 'warpMode') {
+    return {
+      0: 'Bulge / pinch',
+      1: 'Fisheye (lens)',
+      2: 'Spherize (hemisphere)',
+    };
+  }
+
+  // displace
+  if (nodeId === 'displace' && paramName === 'displaceMode') {
+    return { 0: 'Vector offset', 1: 'Directional' };
+  }
+
+  // infinite-zoom
+  if (nodeId === 'infinite-zoom' && paramName === 'infiniteZoomMotion') {
+    return {
+      0: 'Ping-pong loop',
+      1: 'Snap zoom in',
+      2: 'Snap zoom out',
     };
   }
 

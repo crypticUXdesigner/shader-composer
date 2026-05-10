@@ -100,9 +100,9 @@ export const SYSTEM_INPUT_NODE_IDS = new Set([
 /** Node IDs for structured patterns (rays, grids, gradients, waves — more prominent). Default = noise (muted). */
 export const STRUCTURED_PATTERN_NODE_IDS = new Set([
   'rings',
+  'radial-pulse',
   'spiral',
   'radial-rays',
-  'sunbeams',
   'crepuscular-rays',
   'volume-rays',
   'streak',
@@ -111,8 +111,7 @@ export const STRUCTURED_PATTERN_NODE_IDS = new Set([
   'hexagonal-grid',
   'stripes',
   'dots',
-  'triangle-grid',
-  'wave-patterns'
+  'triangle-grid'
 ]);
 
 /** Node IDs for derived shapes / scenes & surfaces (more prominent). Default = primitive (muted). */
@@ -120,9 +119,7 @@ export const DERIVED_SHAPE_NODE_IDS = new Set([
   'fractal',
   'plane-grid',
   'sky-dome',
-  'hex-voxel',
   'bloom-sphere',
-  'bloom-sphere-effect',
   'iridescent-tunnel',
   'inflated-icosahedron',
   'glass-shell'
@@ -138,14 +135,12 @@ export const PANEL_GRID_SPAN_2_NODE_IDS = new Set<string>([]);
 
 /** Node IDs for warp distortions (bulge, fisheye, displace, etc. — more prominent). Default = transform (muted). */
 export const WARP_DISTORT_NODE_IDS = new Set([
-  'bulge-pinch',
-  'fisheye',
-  'spherize',
+  'radial-uv-warp',
   'ripple',
   'quad-warp',
-  'twist-distortion',
   'vortex',
   'displace',
+  'rain-drops',
   'vector-field',
   'turbulence'
 ]);
@@ -194,8 +189,7 @@ export const STYLIZE_EFFECTS_NODE_IDS = new Set([
   'scanlines',
   'color-grading',
   'bayer-dither',
-  'tone-mapping',
-  'blending-modes'
+  'tone-mapping'
 ]);
 
 /**
@@ -216,9 +210,7 @@ export const SHINY_NODE_IDS = new Set<string>([
   // Shapes / SDF scenes and surfaces
   'fractal',
   'sphere-raymarch',
-  'hex-voxel',
   'bloom-sphere',
-  'bloom-sphere-effect',
   'iridescent-tunnel',
   'inflated-icosahedron',
   'glass-shell',
@@ -227,10 +219,9 @@ export const SHINY_NODE_IDS = new Set<string>([
   // Patterns
   'flow-field-pattern',
   'hexagonal-grid',
-  'wave-patterns',
+  'stripes',
   // Distort / warp
-  'bulge-pinch',
-  'fisheye',
+  'radial-uv-warp',
   'displace',
   'vector-field',
 ]);

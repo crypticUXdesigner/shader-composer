@@ -11,6 +11,7 @@ import type { LayoutElementRenderer, ElementMetrics } from '../LayoutElementRend
 import { getCategoryVariableAsNumber, getCSSVariableAsNumber } from '../../../../../utils/cssTokens';
 import { FlexboxLayoutEngine } from '../flexbox/FlexboxLayoutEngine';
 import type { FlexItem } from '../flexbox/FlexboxTypes';
+import { layoutSectionVisible } from '../../../../../utils/parameterVisibility';
 
 /**
  * Get cell height for a parameter based on its UI type.
@@ -68,7 +69,17 @@ export class GridElementRenderer implements LayoutElementRenderer {
     const cellMinWidth = layout.cellMinWidth ?? defaultCellMinWidth;
     const respectMinWidth = layout.respectMinWidth !== false; // Default true
     const parameterSpan = layout.parameterSpan;
-    
+
+    if (!layoutSectionVisible(element.visibleWhen, node, spec)) {
+      return {
+        x: node.position.x,
+        y: node.position.y + metrics.headerHeight + startY,
+        width: availableWidth,
+        height: 0,
+        parameterGridPositions: new Map()
+      };
+    }
+
     const headerToggle = element.headerToggleParameter;
     const headerToggleSpec = headerToggle ? spec.parameters[headerToggle] : undefined;
     const useHeaderToggle = (() => {

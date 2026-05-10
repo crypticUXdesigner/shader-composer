@@ -14,13 +14,19 @@
       },
       {
         "id": "node-fisheye",
-        "type": "fisheye",
+        "type": "radial-uv-warp",
         "position": { "x": 200, "y": 200 },
         "parameters": {
-          "fisheyeCenterX": 0.0,
-          "fisheyeCenterY": 0.0,
+          "warpMode": 1,
+          "warpCenterX": 0.0,
+          "warpCenterY": 0.0,
+          "bulgeStrength": 0.5,
+          "bulgeRadius": 1.0,
+          "bulgeFalloff": 1.0,
           "fisheyeStrength": -0.35,
-          "fisheyeAspect": 1.0
+          "fisheyeAspect": 1.0,
+          "spherizeRadius": 1.0,
+          "spherizeStrength": 1.0
         }
       },
       {

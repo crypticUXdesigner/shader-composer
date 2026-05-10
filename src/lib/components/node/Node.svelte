@@ -23,6 +23,7 @@
   import type { DomNodeMetrics } from './types';
   import type { AudioSetup } from '../../../data-model/audioSetupTypes';
   import type { IAudioManager } from '../../../runtime/types';
+  import { createStrictDoubleClickHandler } from '../../utils/strictDoubleClick';
 
   interface Props {
     nodeId: string;
@@ -31,6 +32,8 @@
     metrics: DomNodeMetrics;
     /** Palette/add-picker spawn: brief entrance emphasis (CSS). */
     justLanded?: boolean;
+    /** Patch tool: this node is the insert target (double-click or pick); next step is cable. */
+    patchIntoInsertPick?: boolean;
     selected: boolean;
     graph: NodeGraph;
     audioSetup: AudioSetup;
@@ -49,6 +52,9 @@
     onParameterChange: (nodeId: string, paramName: string, value: import('../../../data-model/types').ParameterValue) => void;
     onParameterInputModeChanged?: (nodeId: string, paramName: string, mode: import('../../../types/nodeSpec').ParameterInputMode) => void;
     onContextMenu?: (nodeId: string, clientX: number, clientY: number) => void;
+    /** Double-click node chrome outside interactive controls → Patch tool: insert this node into a cable on next click. */
+    onPatchIntoDoubleClick?: (nodeId: string) => void;
+    onPowerToggle?: (nodeId: string, bypassed: boolean) => void;
   }
 
   let {
@@ -57,6 +63,7 @@
     spec,
     metrics,
     justLanded = false,
+    patchIntoInsertPick = false,
     selected,
     graph,
     audioSetup,
@@ -74,6 +81,8 @@
     onParameterChange,
     onParameterInputModeChanged,
     onContextMenu,
+    onPatchIntoDoubleClick,
+    onPowerToggle,
   }: Props = $props();
 
   const label = $derived(node.label ?? spec.displayName);
@@ -92,15 +101,36 @@
     onDrag(nodeId, clientX, clientY, shiftKey);
   }
 
+  /** Patch-into mode: skip label rename (stopped in header), ports/buttons, and parameter controls. */
+  function handlePatchIntoDoubleClick(e: MouseEvent) {
+    if (!onPatchIntoDoubleClick) return;
+    const t = e.target;
+    if (!(t instanceof Element)) return;
+    if (
+      t.closest(
+        'button, input, textarea, select, .value-input-wrapper, .knob, .param-port, [role="textbox"], .toggle, .bezier-editor, .color-picker-row, .coord-pad, .coord-pad-cell, .remap-range-editor, .frequency-range-editor, .enum-selector-trigger'
+      )
+    ) {
+      return;
+    }
+    e.preventDefault();
+    onPatchIntoDoubleClick(nodeId);
+  }
+
+  const patchStrictDoubleClick = createStrictDoubleClickHandler((e: MouseEvent) =>
+    handlePatchIntoDoubleClick(e)
+  );
+
   function handleClick(e: MouseEvent) {
     onSelect(nodeId, e.shiftKey);
+    if (onPatchIntoDoubleClick) patchStrictDoubleClick(e);
   }
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events - Node is a custom region; selection and context menu are handled by parent/canvas; keyboard handled elsewhere -->
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions - Node is a custom region; selection and context menu are handled by parent/canvas; keyboard handled elsewhere -->
 <div
-  class="node {categorySlug} {isSystemInput ? 'system-input' : ''} {isStructuredPattern ? 'structured' : ''} {isDerivedShape ? 'derived' : ''} {isWarpDistort ? 'warp' : ''} {isFunctionsMath ? 'functions' : ''} {isAdvancedMath ? 'advanced' : ''} {isStylizeEffects ? 'stylize' : ''} {isSdfRaymarcher ? 'raymarcher' : ''} {isShiny ? 'shiny' : ''} {justLanded ? 'landed' : ''} {selected ? 'selected' : ''}"
+  class="node {categorySlug} {isSystemInput ? 'system-input' : ''} {isStructuredPattern ? 'structured' : ''} {isDerivedShape ? 'derived' : ''} {isWarpDistort ? 'warp' : ''} {isFunctionsMath ? 'functions' : ''} {isAdvancedMath ? 'advanced' : ''} {isStylizeEffects ? 'stylize' : ''} {isSdfRaymarcher ? 'raymarcher' : ''} {isShiny ? 'shiny' : ''} {justLanded ? 'landed' : ''} {patchIntoInsertPick ? 'patch-insert-pick' : ''} {selected ? 'selected' : ''} {node.bypassed ? 'is-bypassed' : ''}"
   data-node-id={nodeId}
   style="--node-x: {node.position.x}px; --node-y: {node.position.y}px; transform: translate(var(--node-x), var(--node-y)); width: {metrics.width}px; min-height: {metrics.height}px;"
   role="article"
@@ -118,6 +148,9 @@
     inputPortPositions={metrics.inputPortPositions}
     outputPortPositions={metrics.outputPortPositions}
     nodePosition={nodePosition}
+    nodeId={nodeId}
+    bypassed={node.bypassed === true}
+    onPowerToggle={onPowerToggle}
     onHeaderPortPointerDown={onHeaderPortPointerDown}
     onLabelChange={(l) => onLabelChange(nodeId, l)}
     onDragStart={handleHeaderDragStart}
@@ -176,6 +209,32 @@
         var(--node-box-shadow-selected);
     }
 
+    &.selected.shiny {
+      border-color: var(--node-border-selected);
+      box-shadow:
+        0 0 0 var(--node-shiny-ring-width) var(--node-shiny-ring-color),
+        0 0 0 5px var(--node-border-selected),
+        0 0 var(--node-shiny-glow-radius) var(--node-shiny-glow-color),
+        0 0 var(--node-shiny-selected-outer-glow-radius) var(--node-shiny-selected-outer-glow),
+        var(--node-box-shadow-selected);
+    }
+
+    /* Patch-into: waiting for cable — teal ring reads as “tool intent”, distinct from selection blue */
+    &.patch-insert-pick {
+      border-color: var(--node-border-patch-insert);
+      box-shadow:
+        0 0 0 var(--node-patch-insert-ring-width) var(--node-border-patch-insert),
+        var(--node-box-shadow-patch-insert);
+    }
+
+    /* Tie-break over &.shiny:not(.selected) when shiny node is insert pick but not yet selected */
+    &.shiny.patch-insert-pick {
+      border-color: var(--node-border-patch-insert);
+      box-shadow:
+        0 0 0 var(--node-patch-insert-ring-width) var(--node-border-patch-insert),
+        var(--node-box-shadow-patch-insert);
+    }
+
     /* Intro: position via --node-x/--node-y so translate + scale can run on the same element */
     &.landed {
       animation: node-land-pop 260ms cubic-bezier(0.22, 1, 0.32, 1) forwards;
@@ -195,6 +254,17 @@
     @media (prefers-reduced-motion: reduce) {
       &.landed {
         animation: none;
+      }
+    }
+
+    &.is-bypassed :global(.node-body) {
+      opacity: var(--opacity-disabled);
+      transition: opacity 150ms var(--motion-effects-fast-easing);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      &.is-bypassed :global(.node-body) {
+        transition: none;
       }
     }
   }

@@ -4,8 +4,8 @@ export const scanlinesNodeSpec: NodeSpec = {
   id: 'scanlines',
   category: 'Effects',
   displayName: 'Scanlines',
-  description: 'Adds horizontal scanline overlay effect, simulating CRT monitor or digital display artifacts',
-  icon: 'scanline',
+  description:
+    'CRT-style horizontal stripes: Frequency sets line spacing (sin scale on Y). Applies to luminance while preserving saturation; animate with Time speed/offset.',  icon: 'scanline',
   inputs: [
     {
       name: 'in',
@@ -50,7 +50,7 @@ export const scanlinesNodeSpec: NodeSpec = {
       default: 0.0,
       min: 0.0,
       max: 10.0,
-      step: 0.1,
+      step: 0.001,
       label: 'Time Speed'
     },
     scanlineTimeOffset: {
@@ -58,7 +58,7 @@ export const scanlinesNodeSpec: NodeSpec = {
       default: 0.0,
       min: -100.0,
       max: 100.0,
-      step: 0.05,
+      step: 0.001,
       label: 'Time Offset',
       knobPolarity: 'two-sided' }
   },
@@ -107,16 +107,13 @@ float scanlineEffect(float value, vec2 p, float frequency, float thickness, floa
 }
 `,
   mainCode: `
-  // Extract float value from vec4 input
-  float value = $input.in.r;
-  
-  // Calculate screen space coordinates
+  vec4 inColor = $input.in;
+  vec3 color = inColor.rgb;
+  float lum = dot(color, vec3(0.2126, 0.7152, 0.0722));
   vec2 p = ((gl_FragCoord.xy / $resolution.xy * 2.0 - 1.0) * vec2($resolution.x / $resolution.y, 1.0));
-  
   float scanlineTime = ($time + $param.scanlineTimeOffset) * $param.scanlineTimeSpeed;
-  float result = scanlineEffect(value, p, $param.scanlineFrequency, $param.scanlineThickness, $param.scanlineOpacity, scanlineTime);
-  
-  // Output as vec4
-  $output.out = vec4(result, result, result, 1.0);
+  float scanned = scanlineEffect(lum, p, $param.scanlineFrequency, $param.scanlineThickness, $param.scanlineOpacity, scanlineTime);
+  vec3 resultRgb = lum > 1e-4 ? clamp(color * (scanned / lum), 0.0, 1.0) : vec3(scanned);
+  $output.out = vec4(resultRgb, inColor.a);
 `
 };

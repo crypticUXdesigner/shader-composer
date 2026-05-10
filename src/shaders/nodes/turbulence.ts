@@ -1,5 +1,12 @@
 import type { NodeSpec } from '../../types/nodeSpec';
 
+/**
+ * Dampens how fast turbulence tracks wall time × Time Speed. The hash-style noise
+ * is sensitive to time, so this keeps the low end of the Time Speed slider usable; pair
+ * with a wider `turbulenceTimeSpeed` max for the same "grungy" top end as before.
+ */
+export const TURBULENCE_TIME_INTRINSIC_SCALE = 0.1;
+
 export const turbulenceNodeSpec: NodeSpec = {
   id: 'turbulence',
   category: 'Distort',
@@ -49,8 +56,8 @@ export const turbulenceNodeSpec: NodeSpec = {
       type: 'float',
       default: 1.0,
       min: 0.0,
-      max: 5.0,
-      step: 0.01,
+      max: 50.0,
+      step: 0.001,
       label: 'Time Speed'
     },
     turbulenceTimeOffset: {
@@ -58,7 +65,7 @@ export const turbulenceNodeSpec: NodeSpec = {
       default: 0.0,
       min: -100.0,
       max: 100.0,
-      step: 0.05,
+      step: 0.001,
       label: 'Time Offset',
       knobPolarity: 'two-sided' }
   },
@@ -127,7 +134,7 @@ vec2 turbulence(vec2 p, float time, int iterations, float strength) {
 }
 `,
   mainCode: `
-  float turbulenceTime = ($time + $param.turbulenceTimeOffset) * $param.turbulenceTimeSpeed;
+  float turbulenceTime = ($time + $param.turbulenceTimeOffset) * $param.turbulenceTimeSpeed * ${TURBULENCE_TIME_INTRINSIC_SCALE};
   float turbulenceScale = max($param.turbulenceScale, 0.001);
   // Strength should stay meaningful regardless of scale.
   // We warp in scaled space then divide back, so multiply by scale to keep output-space amplitude stable.

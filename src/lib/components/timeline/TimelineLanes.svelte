@@ -15,6 +15,7 @@
   } from '../../../utils/cssTokens';
   import type { NodeSpec } from '../../../types/nodeSpec';
   import type { TimelineLaneRowViewModel } from './timelineLaneViewModel';
+  import { createStrictDoubleClickHandler } from '../../utils/strictDoubleClick';
 
   type RegionKey = { laneId: string; regionId: string };
 
@@ -95,6 +96,31 @@
     onPlayheadClipEl,
   }: Props = $props();
 
+  const trackStrictByLaneId = new Map<string, (e: MouseEvent) => void>();
+  const regionStrictByKey = new Map<string, (e: MouseEvent) => void>();
+
+  function strictTrackClick(laneId: string): (e: MouseEvent) => void {
+    let handler = trackStrictByLaneId.get(laneId);
+    if (!handler) {
+      handler = createStrictDoubleClickHandler((e: MouseEvent) => onTrackDblClick(e, laneId));
+      trackStrictByLaneId.set(laneId, handler);
+    }
+    return handler;
+  }
+
+  function strictRegionClick(laneId: string, regionId: string): (e: MouseEvent) => void {
+    const key = `${laneId}:${regionId}`;
+    let handler = regionStrictByKey.get(key);
+    if (!handler) {
+      handler = createStrictDoubleClickHandler((e: MouseEvent) => {
+        e.stopPropagation();
+        onRegionDblClick?.(laneId, regionId);
+      });
+      regionStrictByKey.set(key, handler);
+    }
+    return handler;
+  }
+
   function handleLaneRevealClick(e: MouseEvent, nodeId: string, paramName: string): void {
     e.stopPropagation();
     onRevealInNodeEditor?.(nodeId, paramName);
@@ -173,7 +199,7 @@
                 data-lane-id={vm.lane.id}
                 role="button"
                 tabindex={0}
-                ondblclick={(e: MouseEvent) => onTrackDblClick(e, vm.lane.id)}
+                onclick={strictTrackClick(vm.lane.id)}
               >
                 <div class="track-grid" aria-hidden="true">
                   {#each trackGridLines as x (x)}
@@ -200,10 +226,7 @@
                     tabindex={0}
                     onmousedown={(e: MouseEvent) => onRegionMouseDown(e, vm.lane.id, region.id)}
                     oncontextmenu={(e: MouseEvent) => onRegionContextMenu(e, vm.lane.id, region.id)}
-                    ondblclick={(e: MouseEvent) => {
-                      e.stopPropagation();
-                      onRegionDblClick?.(vm.lane.id, region.id);
-                    }}
+                    onclick={strictRegionClick(vm.lane.id, region.id)}
                   >
                     <div
                       class="region-resize region-resize-left"

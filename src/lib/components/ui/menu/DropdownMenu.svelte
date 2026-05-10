@@ -231,7 +231,7 @@
     align={popoverAlign}
     alignY={popoverAlignY}
     onClose={handleClose}
-    class="dropdown-menu menu-wrapper is-visible {className}"
+    class="dropdown-menu scrollbar-styled menu-wrapper is-visible {className}"
   >
     <div bind:this={menuEl} class="menu-wrapper-inner scrollbar-styled" role="menu">
       {#if contentSnippet}

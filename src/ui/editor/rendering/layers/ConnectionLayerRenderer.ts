@@ -174,12 +174,16 @@ export class ConnectionLayerRenderer implements LayerRenderer {
     const connectionOpacity = isSelected
       ? getCSSVariableAsNumber('connection-opacity-selected', 1.0)
       : getCSSVariableAsNumber('connection-opacity', 0.8);
-    
+    const bypassSourceDim =
+      sourceNode.bypassed === true
+        ? getCSSVariableAsNumber('opacity-disabled', 0.5)
+        : 1;
+
     // Reset canvas state to ensure clean rendering
     ctx.setLineDash([]);
     ctx.strokeStyle = connectionColor;
     ctx.lineWidth = connectionWidth;
-    ctx.globalAlpha = connectionOpacity;
+    ctx.globalAlpha = connectionOpacity * bypassSourceDim;
     
     ctx.stroke(path);
 

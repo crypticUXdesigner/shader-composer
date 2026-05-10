@@ -4,6 +4,7 @@
 
 import type { NodeSpec } from '../../../../types/nodeSpec';
 import { getCSSVariableAsNumber } from '../../../../utils/cssTokens';
+import { getHeaderMainContentBoundsCanvas } from '../../../../utils/nodeHeaderGeometry';
 import { getPortTypeDisplayLabel } from '../../rendering/RenderingUtils';
 import type { HitTestContext } from './HitTestContext';
 
@@ -19,7 +20,8 @@ export function hitTestHeaderLabel(ctx: HitTestContext, mouseX: number, mouseY: 
     const nameSize = getCSSVariableAsNumber('node-header-name-size', 30);
     const nameWeight = getCSSVariableAsNumber('node-header-name-weight', 600);
     const groupHeight = iconBoxHeight + iconBoxNameSpacing + nameSize;
-    const iconBoxY = node.position.y + (headerHeight - groupHeight) / 2;
+    const { mainTop, mainHeight } = getHeaderMainContentBoundsCanvas(node.position.y, headerHeight, spec);
+    const iconBoxY = mainTop + (mainHeight - groupHeight) / 2;
     const nameY = iconBoxY + iconBoxHeight + iconBoxNameSpacing;
     const iconX = node.position.x + metrics.width / 2;
     ctx.ctx.font = `${nameWeight} ${nameSize}px "Space Grotesk", sans-serif`;

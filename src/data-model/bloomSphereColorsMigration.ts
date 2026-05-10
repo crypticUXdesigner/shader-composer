@@ -22,6 +22,12 @@ const CONNECTION_PARAM_MAP: Record<string, string> = {
   innerR: 'innerL',
   innerG: 'innerC',
   innerB: 'innerH',
+  classicOuterGlowR: 'outerL',
+  classicOuterGlowG: 'outerC',
+  classicOuterGlowB: 'outerH',
+  classicInnerGlowR: 'innerL',
+  classicInnerGlowG: 'innerC',
+  classicInnerGlowB: 'innerH',
 };
 
 function asNumber(v: unknown): number | undefined {
@@ -39,6 +45,14 @@ function migrateNode(node: NodeInstance): NodeInstance {
   const inR = asNumber(params.innerR);
   const inG = asNumber(params.innerG);
   const inB = asNumber(params.innerB);
+
+  const classicOutR = asNumber(params.classicOuterGlowR);
+  const classicOutG = asNumber(params.classicOuterGlowG);
+  const classicOutB = asNumber(params.classicOuterGlowB);
+
+  const classicInR = asNumber(params.classicInnerGlowR);
+  const classicInG = asNumber(params.classicInnerGlowG);
+  const classicInB = asNumber(params.classicInnerGlowB);
 
   const nextParams: Record<string, unknown> = { ...params };
 
@@ -60,6 +74,20 @@ function migrateNode(node: NodeInstance): NodeInstance {
     nextParams.innerH = oklch.h;
   }
 
+  if (!hasOuterOklch && classicOutR != null && classicOutG != null && classicOutB != null) {
+    const oklch = linearRgbToOklch(classicOutR, classicOutG, classicOutB);
+    nextParams.outerL = oklch.l;
+    nextParams.outerC = oklch.c;
+    nextParams.outerH = oklch.h;
+  }
+
+  if (!hasInnerOklch && classicInR != null && classicInG != null && classicInB != null) {
+    const oklch = linearRgbToOklch(classicInR, classicInG, classicInB);
+    nextParams.innerL = oklch.l;
+    nextParams.innerC = oklch.c;
+    nextParams.innerH = oklch.h;
+  }
+
   // Remove legacy RGB params to avoid graph validation warnings and to make OKLCH the source of truth.
   delete nextParams.outerR;
   delete nextParams.outerG;
@@ -67,6 +95,12 @@ function migrateNode(node: NodeInstance): NodeInstance {
   delete nextParams.innerR;
   delete nextParams.innerG;
   delete nextParams.innerB;
+  delete nextParams.classicOuterGlowR;
+  delete nextParams.classicOuterGlowG;
+  delete nextParams.classicOuterGlowB;
+  delete nextParams.classicInnerGlowR;
+  delete nextParams.classicInnerGlowG;
+  delete nextParams.classicInnerGlowB;
 
   // If parameterInputModes existed for RGB channels, map them to the corresponding OKLCH channel params.
   const nextInputModes: Record<string, ParameterInputMode> | undefined = node.parameterInputModes
@@ -81,6 +115,12 @@ function migrateNode(node: NodeInstance): NodeInstance {
       ['innerR', 'innerL'],
       ['innerG', 'innerC'],
       ['innerB', 'innerH'],
+      ['classicOuterGlowR', 'outerL'],
+      ['classicOuterGlowG', 'outerC'],
+      ['classicOuterGlowB', 'outerH'],
+      ['classicInnerGlowR', 'innerL'],
+      ['classicInnerGlowG', 'innerC'],
+      ['classicInnerGlowB', 'innerH'],
     ];
     for (const [from, to] of channelMap) {
       if (from in nextInputModes && !(to in nextInputModes)) {
@@ -115,7 +155,13 @@ export function migrateBloomSphereColors(graph: NodeGraph): NodeGraph {
       'outerB' in p ||
       'innerR' in p ||
       'innerG' in p ||
-      'innerB' in p
+      'innerB' in p ||
+      'classicOuterGlowR' in p ||
+      'classicOuterGlowG' in p ||
+      'classicOuterGlowB' in p ||
+      'classicInnerGlowR' in p ||
+      'classicInnerGlowG' in p ||
+      'classicInnerGlowB' in p
     );
   });
 

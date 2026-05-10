@@ -4,7 +4,8 @@ export const rgbSeparationNodeSpec: NodeSpec = {
   id: 'rgb-separation',
   category: 'Effects',
   displayName: 'RGB Separation',
-  description: 'Advanced RGB channel separation with independent X/Y offsets per channel for glitch effects',
+  description:
+    'Screenspace glitch: biases R/G/B with separate vec2 offsets against aspect-correct coords (dot-based, not shifted UV sampling).',
   icon: 'rgb-split',
   inputs: [
     {
@@ -27,7 +28,7 @@ export const rgbSeparationNodeSpec: NodeSpec = {
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Red',
+      label: 'Rx',
       knobPolarity: 'two-sided' },
     rgbSeparationRY: {
       type: 'float',
@@ -35,7 +36,7 @@ export const rgbSeparationNodeSpec: NodeSpec = {
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Y',
+      label: 'Ry',
       knobPolarity: 'two-sided' },
     rgbSeparationGX: {
       type: 'float',
@@ -43,7 +44,7 @@ export const rgbSeparationNodeSpec: NodeSpec = {
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Green',
+      label: 'Gx',
       knobPolarity: 'two-sided' },
     rgbSeparationGY: {
       type: 'float',
@@ -51,7 +52,7 @@ export const rgbSeparationNodeSpec: NodeSpec = {
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Y',
+      label: 'Gy',
       knobPolarity: 'two-sided' },
     rgbSeparationBX: {
       type: 'float',
@@ -59,7 +60,7 @@ export const rgbSeparationNodeSpec: NodeSpec = {
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Blue',
+      label: 'Bx',
       knobPolarity: 'two-sided' },
     rgbSeparationBY: {
       type: 'float',
@@ -67,7 +68,7 @@ export const rgbSeparationNodeSpec: NodeSpec = {
       min: -1.0,
       max: 1.0,
       step: 0.01,
-      label: 'Y',
+      label: 'By',
       knobPolarity: 'two-sided' },
     rgbSeparationStrength: {
       type: 'float',
@@ -116,6 +117,6 @@ vec3 rgbSeparation(vec3 color, vec2 p, vec2 rOffset, vec2 gOffset, vec2 bOffset,
   vec2 gOffset = vec2($param.rgbSeparationGX, $param.rgbSeparationGY);
   vec2 bOffset = vec2($param.rgbSeparationBX, $param.rgbSeparationBY);
   vec3 result = rgbSeparation(color, p, rOffset, gOffset, bOffset, $param.rgbSeparationStrength);
-  $output.out = vec4(result, 1.0);
+  $output.out = vec4(result, $input.in.a);
 `
 };

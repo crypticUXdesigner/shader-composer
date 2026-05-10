@@ -84,15 +84,15 @@
           "y": -1526
         },
         "parameters": {
-          "dotsSpacing": 0.44,
+          "dotsGap": 0.288,
           "dotsSize": 0.076,
-          "dotsFalloff": 0.5,
+          "dotsFeather": 0.2,
           "dotsIntensity": 2
         },
         "parameterInputModes": {
           "dotsIntensity": "multiply",
           "dotsSize": "multiply",
-          "dotsSpacing": "multiply"
+          "dotsGap": "multiply"
         }
       },
       {
@@ -136,7 +136,6 @@
           "y": 1658
         },
         "parameters": {
-          "stops": 10,
           "startColorL": 0.45582984926719844,
           "startColorC": 0.04744580591988629,
           "startColorH": 283.1315653240594,
@@ -166,7 +165,6 @@
           "y": -1885
         },
         "parameters": {
-          "stops": 10,
           "startColorL": 0.386289233857325,
           "startColorC": 0.007245707030720271,
           "startColorH": 263.84805469351807,
@@ -451,7 +449,7 @@
         "sourceNodeId": "node-1774040400063-epl5wduo1",
         "sourcePort": "out",
         "targetNodeId": "node-1774040400063-est6wq714",
-        "targetParameter": "dotsSpacing"
+        "targetParameter": "dotsGap"
       },
       {
         "id": "conn-1774040400063-x4gu22aft",

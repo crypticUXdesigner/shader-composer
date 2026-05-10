@@ -28,7 +28,10 @@
         "id": "node-blur",
         "type": "blur",
         "position": { "x": 650, "y": 0 },
-        "parameters": {}
+        "parameters": {
+          "blurAmount": 0.45,
+          "blurRadius": 8.5
+        }
       },
       {
         "id": "node-output",

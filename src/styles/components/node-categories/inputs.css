@@ -135,13 +135,3 @@
   --node-header-print-inputs: var(--node-header-print-inputs-system);
   --param-group-header-color-inputs: var(--node-header-print-inputs-system);
 }
-
-/* Shiny: use header print color as ring accent */
-.node.inputs.shiny {
-  --node-shiny-ring-color: var(--node-header-print-inputs);
-}
-
-.node.inputs.system-input.shiny {
-  --node-shiny-ring-color: var(--node-header-print-inputs-system);
-}
-

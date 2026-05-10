@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Help / discovery
 
-- **Docs:** Adding/changing nodes → update **`src/data/node-documentation.json`** (`"node:<id>"`). Full checklist: **`.cursor/rules/shaders/node-standards.mdc`**.
+- **Docs:** Adding/changing nodes → update **`src/data/node-documentation.json`** (`"node:<id>"`). **`title`** matches **`NodeSpec.displayName`** (casing rules: **`shaders/node-standards.mdc`**). Full checklist: **`node-standards.mdc`**.
 - **Help UI:** Enabled when **exactly one** node selected; otherwise disabled / alternate messaging.
 - **Context menu:** _Read Guide_ (same payload as Help), _Copy node name_ (type id), _Remove_ (node + wires); non-blocking.
 

@@ -12,11 +12,25 @@ import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { describe, it, expect } from 'vitest';
 import { NodeShaderCompiler } from './NodeShaderCompiler';
+import { WGSL_SUPPORTED_NODE_TYPES, WGSL_WEBGPU_PASS_PLAN_NODE_TYPES } from './compilation/WgslMvpCompiler';
 import { nodeSystemSpecs } from './nodes/index';
 import { addConnection } from '../data-model/immutableUpdates';
 import type { NodeGraph, Connection } from '../data-model/types';
 import type { NodeSpec } from '../types/nodeSpec';
 import type { AudioSetup } from '../data-model/audioSetupTypes';
+import {
+  mvpAudioBlurPassPlanGraph,
+  mvpAudioBokehPassPlanGraph,
+  mvpAudioCrepuscularRaysPassPlanGraph,
+  mvpAudioGlowBloomPassPlanGraph,
+  mvpBlurPassPlanGraph,
+  mvpGlowBloomPassPlanGraph,
+  mvpBokehPassPlanGraph,
+  mvpCrepuscularRaysPassPlanGraph,
+  mvpGenericRaymarcherDisplacementGraph,
+  mvpGenericRaymarcherSierpinskiTetraScaleAudioSetup,
+  mvpGenericRaymarcherSierpinskiTetraScaleWireGraph,
+} from '../validation/webgpuMvpFixtures';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -128,14 +142,32 @@ describe('NodeShaderCompiler', () => {
       const result = compiler.compile(graph);
 
       expect(result.metadata.errors).toHaveLength(0);
+      expect(result.backend).toBe('webgl');
+      expect(result.supported).toBe(true);
+      expect(result.code).toBe(result.shaderCode);
       expect(result.shaderCode).toBeDefined();
       expect(typeof result.shaderCode).toBe('string');
       expect(result.shaderCode.length).toBeGreaterThan(0);
       expect(result.uniforms).toBeDefined();
       expect(Array.isArray(result.uniforms)).toBe(true);
+      expect(result.paramLayout).toBeDefined();
+      expect(typeof result.paramLayout).toBe('object');
       expect(result.metadata.executionOrder).toBeDefined();
       expect(Array.isArray(result.metadata.executionOrder)).toBe(true);
       expect(result.metadata.finalOutputNodeId).toBe('n-out');
+    });
+
+    it('produces a deterministic paramLayout for the same graph', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const graph = buildMinimalCompilableGraph();
+
+      const a = compiler.compile(graph);
+      const b = compiler.compile(graph);
+
+      expect(a.metadata.errors).toHaveLength(0);
+      expect(b.metadata.errors).toHaveLength(0);
+      expect(a.paramLayout).toEqual(b.paramLayout);
     });
 
     it('includes previewDependencies with no audio uniforms for minimal graph', () => {
@@ -161,6 +193,1519 @@ describe('NodeShaderCompiler', () => {
       expect(result.shaderCode).toContain('uTime');
       expect(result.shaderCode).toContain('uResolution');
       expect(result.shaderCode).toContain('fragColor');
+    });
+  });
+
+  describe('webgpu wgsl MVP subset', () => {
+    it('emits WGSL for a supported minimal graph when backend=webgpu', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const graph: NodeGraph = {
+        id: 'graph-wgpu-min',
+        name: 'WGSL minimal',
+        version: '2.0',
+        nodes: [
+          { id: 'n-const', type: 'constant-vec3', position: { x: 0, y: 0 }, parameters: { x: 0.1, y: 0.2, z: 0.3 } },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: 'n-const', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
+        ],
+      };
+
+      const result = compiler.compile(graph, null, { backend: 'webgpu' });
+
+      expect(result.backend).toBe('webgpu');
+      expect(result.supported).toBe(true);
+      expect(result.code).toContain('@fragment');
+      expect(result.code).toContain('fn fs');
+      expect(result.paramLayout['n-const.x']).toBeTypeOf('number');
+      expect(result.paramLayout['n-const.y']).toBeTypeOf('number');
+      expect(result.paramLayout['n-const.z']).toBeTypeOf('number');
+    });
+
+    it('compiles src/presets/new.json on WebGPU (no structural fallback)', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+
+      const raw = readFileSync(join(process.cwd(), 'src', 'presets', 'new.json'), 'utf8');
+      const parsed = JSON.parse(raw) as { graph: NodeGraph };
+
+      const result = compiler.compile(structuredClone(parsed.graph), null, { backend: 'webgpu' });
+
+      expect(result.backend).toBe('webgpu');
+      expect(result.metadata.errors).toHaveLength(0);
+      expect(result.supported).toBe(true);
+      expect(result.unsupportedReasons ?? []).toHaveLength(0);
+    });
+
+    it('compiles src/presets/testing.json on WebGPU (no structural fallback)', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+
+      const raw = readFileSync(join(process.cwd(), 'src', 'presets', 'testing.json'), 'utf8');
+      const parsed = JSON.parse(raw) as { graph: NodeGraph };
+
+      const result = compiler.compile(structuredClone(parsed.graph), null, { backend: 'webgpu' });
+
+      expect(result.backend).toBe('webgpu');
+      expect(result.metadata.errors).toHaveLength(0);
+      expect(result.supported).toBe(true);
+      expect(result.unsupportedReasons ?? []).toHaveLength(0);
+    });
+
+    it('emits WGSL helpers for ether-sdf when backend=webgpu', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const graph: NodeGraph = {
+        id: 'graph-wgpu-ether-sdf',
+        name: 'WGSL ether-sdf',
+        version: '2.0',
+        nodes: [
+          { id: 'n-pos', type: 'constant-vec3', position: { x: 0, y: 0 }, parameters: { x: 0.1, y: -0.2, z: 0.3 } },
+          {
+            id: 'n-ether',
+            type: 'ether-sdf',
+            position: { x: 0, y: 0 },
+            parameters: {
+              rotSpeedXZ: 0.4,
+              rotSpeedXY: 0.3,
+              scale: 2.0,
+              timeSpeed: 1.0,
+              timeOffset: 0.0,
+              wobbleSpeed: 0.7,
+              sineAmp: 5.5,
+              breatheAmount: 0.0,
+              breatheSpeed: 0.7,
+              positionX: 0.0,
+              positionY: 0.0,
+              positionZ: 0.0,
+            },
+          },
+          { id: 'n-v', type: 'combine-vector', position: { x: 0, y: 0 }, parameters: {} },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: 'n-pos', sourcePort: 'out', targetNodeId: 'n-ether', targetPort: 'position' },
+          { id: 'c2', sourceNodeId: 'n-ether', sourcePort: 'out', targetNodeId: 'n-v', targetPort: 'x' },
+          { id: 'c3', sourceNodeId: 'n-ether', sourcePort: 'out', targetNodeId: 'n-v', targetPort: 'y' },
+          { id: 'c4', sourceNodeId: 'n-ether', sourcePort: 'out', targetNodeId: 'n-v', targetPort: 'z' },
+          { id: 'c5', sourceNodeId: 'n-v', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
+        ],
+      };
+
+      const result = compiler.compile(graph, null, { backend: 'webgpu' });
+
+      expect(result.backend).toBe('webgpu');
+      expect(result.supported).toBe(true);
+      expect(result.metadata.errors).toHaveLength(0);
+      expect(result.code).toContain('fn etherSdfMap');
+      expect(result.code).toContain('fn etherSdfRot2');
+    });
+
+    it('emits WGSL helpers for kifs-sdf when backend=webgpu', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const graph: NodeGraph = {
+        id: 'graph-wgpu-kifs-sdf',
+        name: 'WGSL kifs-sdf',
+        version: '2.0',
+        nodes: [
+          { id: 'n-pos', type: 'constant-vec3', position: { x: 0, y: 0 }, parameters: { x: 0.2, y: -0.15, z: 0.4 } },
+          {
+            id: 'n-kifs',
+            type: 'kifs-sdf',
+            position: { x: 0, y: 0 },
+            parameters: {
+              scale: 1.25,
+              offsetX: -1.0,
+              offsetY: -2.0,
+              offsetZ: -0.2,
+              rotationAxisX: 1.0,
+              rotationAxisY: 4.0,
+              rotationAxisZ: 2.0,
+              rotationAngle: 0.0,
+              iterations: 12,
+              sphereRadius: 0.1,
+              positionX: 0.0,
+              positionY: 0.0,
+              positionZ: 0.0,
+            },
+          },
+          { id: 'n-cm', type: 'color-map', position: { x: 0, y: 0 }, parameters: {} },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: 'n-pos', sourcePort: 'out', targetNodeId: 'n-kifs', targetPort: 'position' },
+          { id: 'c2', sourceNodeId: 'n-kifs', sourcePort: 'out', targetNodeId: 'n-cm', targetPort: 'in' },
+          { id: 'c3', sourceNodeId: 'n-cm', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
+        ],
+      };
+
+      const result = compiler.compile(graph, null, { backend: 'webgpu' });
+
+      expect(result.backend).toBe('webgpu');
+      expect(result.supported).toBe(true);
+      expect(result.metadata.errors).toHaveLength(0);
+      expect(WGSL_SUPPORTED_NODE_TYPES.has('kifs-sdf')).toBe(true);
+      expect(result.code).toContain('fn kifs_sdf_distance');
+    });
+
+    it('compiles shapes-2d (superellipse mode) inline for backend=webgpu', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const graph: NodeGraph = {
+        id: 'graph-wgpu-shapes2d-superellipse',
+        name: 'WGSL shapes-2d superellipse',
+        version: '2.0',
+        nodes: [
+          { id: 'n-uv', type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          {
+            id: 'n-x',
+            type: 'shapes-2d',
+            position: { x: 0, y: 0 },
+            parameters: { shapeType: 2 },
+            parameterInputModes: {},
+          },
+          { id: 'n-cm', type: 'color-map', position: { x: 0, y: 0 }, parameters: {} },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: 'n-uv', sourcePort: 'out', targetNodeId: 'n-x', targetPort: 'in' },
+          { id: 'c2', sourceNodeId: 'n-x', sourcePort: 'out', targetNodeId: 'n-cm', targetPort: 'in' },
+          { id: 'c3', sourceNodeId: 'n-cm', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
+        ],
+      };
+
+      const result = compiler.compile(graph, null, { backend: 'webgpu' });
+
+      expect(result.backend).toBe('webgpu');
+      expect(result.supported).toBe(true);
+      expect(result.metadata.errors).toHaveLength(0);
+      expect(WGSL_SUPPORTED_NODE_TYPES.has('shapes-2d')).toBe(true);
+      expect(result.code).toContain('fn shapes2d_superellipseMask');
+    });
+
+    it('compiles glass-shell inline for backend=webgpu (outer refract → inner bounded march)', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const graph: NodeGraph = {
+        id: 'graph-wgpu-glass-shell',
+        name: 'WGSL glass shell',
+        version: '2.0',
+        nodes: [
+          { id: 'n-uv', type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          {
+            id: 'n-shell',
+            type: 'glass-shell',
+            position: { x: 0, y: 0 },
+            parameters: { outerSteps: 24, innerSteps: 20 },
+            parameterInputModes: {},
+          },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: 'n-uv', sourcePort: 'out', targetNodeId: 'n-shell', targetPort: 'in' },
+          { id: 'c2', sourceNodeId: 'n-shell', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
+        ],
+      };
+
+      const result = compiler.compile(graph, null, { backend: 'webgpu' });
+
+      expect(result.backend).toBe('webgpu');
+      expect(result.supported).toBe(true);
+      expect(result.metadata.errors).toHaveLength(0);
+      expect(WGSL_SUPPORTED_NODE_TYPES.has('glass-shell')).toBe(true);
+      expect(result.code).toContain('glass_shell_standalone_pixel');
+      expect(result.code).toContain('glass_shell_gs_raymarch_outer');
+    });
+
+    it('compiles inflated-icosahedron inline for backend=webgpu (bounded ray march)', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const graph: NodeGraph = {
+        id: 'graph-wgpu-inflated-icosahedron',
+        name: 'WGSL inflated icosahedron',
+        version: '2.0',
+        nodes: [
+          { id: 'n-uv', type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          {
+            id: 'n-ico',
+            type: 'inflated-icosahedron',
+            position: { x: 0, y: 0 },
+            parameters: { raymarchSteps: 64 },
+            parameterInputModes: {},
+          },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: 'n-uv', sourcePort: 'out', targetNodeId: 'n-ico', targetPort: 'in' },
+          { id: 'c2', sourceNodeId: 'n-ico', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
+        ],
+      };
+
+      const result = compiler.compile(graph, null, { backend: 'webgpu' });
+
+      expect(result.backend).toBe('webgpu');
+      expect(result.supported).toBe(true);
+      expect(result.metadata.errors).toHaveLength(0);
+      expect(WGSL_SUPPORTED_NODE_TYPES.has('inflated-icosahedron')).toBe(true);
+      expect(result.code).toContain('inflated_icosahedron_standalone_pixel');
+      expect(result.code).toContain('fn infl_ic_map');
+    });
+
+    it('compiles volume-rays inline for backend=webgpu (bounded ray accumulation)', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const graph: NodeGraph = {
+        id: 'graph-wgpu-volume-rays',
+        name: 'WGSL volume rays',
+        version: '2.0',
+        nodes: [
+          { id: 'n-uv', type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          { id: 'n-x', type: 'volume-rays', position: { x: 0, y: 0 }, parameters: {}, parameterInputModes: {} },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: 'n-uv', sourcePort: 'out', targetNodeId: 'n-x', targetPort: 'in' },
+          { id: 'c2', sourceNodeId: 'n-x', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
+        ],
+      };
+
+      const result = compiler.compile(graph, null, { backend: 'webgpu' });
+
+      expect(result.backend).toBe('webgpu');
+      expect(result.supported).toBe(true);
+      expect(result.metadata.errors).toHaveLength(0);
+      expect(WGSL_SUPPORTED_NODE_TYPES.has('volume-rays')).toBe(true);
+      expect(result.code).toContain('fn vr_march_acc');
+    });
+
+    it('compiles particle-system inline for backend=webgpu (cell hash field)', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const graph: NodeGraph = {
+        id: 'graph-wgpu-particle-system',
+        name: 'WGSL particle system',
+        version: '2.0',
+        nodes: [
+          { id: 'n-uv', type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          { id: 'n-p', type: 'particle-system', position: { x: 0, y: 0 }, parameters: {}, parameterInputModes: {} },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: 'n-uv', sourcePort: 'out', targetNodeId: 'n-p', targetPort: 'in' },
+          { id: 'c2', sourceNodeId: 'n-p', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
+        ],
+      };
+
+      const result = compiler.compile(graph, null, { backend: 'webgpu' });
+
+      expect(result.backend).toBe('webgpu');
+      expect(result.supported).toBe(true);
+      expect(result.metadata.errors).toHaveLength(0);
+      expect(WGSL_SUPPORTED_NODE_TYPES.has('particle-system')).toBe(true);
+      expect(result.code).toContain('fn ps_particle_system_ps');
+    });
+
+    it('compiles blur as separable Gaussian pass plan when graph ends in `... → blur → final-output`', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const graph: NodeGraph = {
+        id: 'graph-wgpu-blur-passplan',
+        name: 'WGSL separable blur (pass plan)',
+        version: '2.0',
+        nodes: [
+          { id: 'n-const', type: 'constant-vec4', position: { x: 0, y: 0 }, parameters: { x: 0.5, y: 0.5, z: 0.5, w: 1.0 } },
+          { id: 'n-blur', type: 'blur', position: { x: 0, y: 0 }, parameters: { blurAmount: 0.5, blurRadius: 4.0 } },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: 'n-const', sourcePort: 'out', targetNodeId: 'n-blur', targetPort: 'in' },
+          { id: 'c2', sourceNodeId: 'n-blur', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
+        ],
+      };
+
+      const result = compiler.compile(graph, null, { backend: 'webgpu' });
+
+      expect(result.backend).toBe('webgpu');
+      expect(result.supported).toBe(true);
+      expect(WGSL_WEBGPU_PASS_PLAN_NODE_TYPES.has('blur')).toBe(true);
+      expect(WGSL_SUPPORTED_NODE_TYPES.has('blur')).toBe(false);
+
+      const plan = result.webgpuPassPlan;
+      expect(plan?.kind).toBe('pass.blur.gaussian-separable.v1');
+      if (plan?.kind !== 'pass.blur.gaussian-separable.v1') return;
+
+      expect(plan.nodeId).toBe('n-blur');
+      // Upstream subgraph (`constant-vec4` → final-output) compiles into the input fragment shader.
+      expect(plan.inputWgsl).toContain('@fragment');
+      expect(plan.inputWgsl).toContain('fn fs(');
+      expect(plan.blurWgsl).toContain('fsBlurH');
+      expect(plan.blurWgsl).toContain('fsBlurV');
+      expect(plan.presentWgsl).toContain('fn fs(');
+      expect(plan.intermediateTexture.format).toBe('rgba8unorm');
+      // Param slots are deterministic per-graph and contiguous past the upstream params.
+      expect(result.paramLayout['n-blur.blurAmount']).toBe(plan.paramSlots.amount);
+      expect(result.paramLayout['n-blur.blurRadius']).toBe(plan.paramSlots.radius);
+      expect(result.paramLayout['n-blur.blurType']).toBe(plan.paramSlots.type);
+    });
+
+    it('compiles glow-bloom as threshold/blur/combine pass plan', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const graph: NodeGraph = {
+        id: 'graph-wgpu-glow-bloom-passplan',
+        name: 'WGSL glow bloom (pass plan)',
+        version: '2.0',
+        nodes: [
+          { id: 'n-const', type: 'constant-vec4', position: { x: 0, y: 0 }, parameters: { x: 0.9, y: 0.4, z: 0.2, w: 1.0 } },
+          {
+            id: 'n-glow',
+            type: 'glow-bloom',
+            position: { x: 0, y: 0 },
+            parameters: { glowThreshold: 0.5, glowIntensity: 1.25, glowRadius: 4.0, glowStrength: 0.75 },
+          },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: 'n-const', sourcePort: 'out', targetNodeId: 'n-glow', targetPort: 'in' },
+          { id: 'c2', sourceNodeId: 'n-glow', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
+        ],
+      };
+
+      const result = compiler.compile(graph, null, { backend: 'webgpu' });
+
+      expect(result.backend).toBe('webgpu');
+      expect(result.supported).toBe(true);
+      expect(WGSL_WEBGPU_PASS_PLAN_NODE_TYPES.has('glow-bloom')).toBe(true);
+      expect(WGSL_SUPPORTED_NODE_TYPES.has('glow-bloom')).toBe(false);
+
+      const plan = result.webgpuPassPlan;
+      expect(plan?.kind).toBe('pass.glow-bloom.v1');
+      if (plan?.kind !== 'pass.glow-bloom.v1') return;
+
+      expect(plan.nodeId).toBe('n-glow');
+      expect(plan.inputWgsl).toContain('@fragment');
+      expect(plan.thresholdWgsl).toContain('sourceTex');
+      expect(plan.blurWgsl).toContain('fsBlurH');
+      expect(plan.blurWgsl).toContain('fsBlurV');
+      expect(plan.combineWgsl).toContain('bloomTex');
+      expect(plan.intermediateTexture.format).toBe('rgba8unorm');
+      expect(result.paramLayout['n-glow.glowThreshold']).toBe(plan.paramSlots.threshold);
+      expect(result.paramLayout['n-glow.glowIntensity']).toBe(plan.paramSlots.intensity);
+      expect(result.paramLayout['n-glow.glowRadius']).toBe(plan.paramSlots.radius);
+      expect(result.paramLayout['n-glow.glowStrength']).toBe(plan.paramSlots.strength);
+    });
+
+    it('compiles crepuscular-rays as input/occluder/sweep/combine pass plan', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const graph: NodeGraph = {
+        id: 'graph-wgpu-crepuscular-rays-passplan',
+        name: 'WGSL crepuscular rays (pass plan)',
+        version: '2.0',
+        nodes: [
+          { id: 'n-const', type: 'constant-vec4', position: { x: 0, y: 0 }, parameters: { x: 0.6, y: 0.5, z: 0.3, w: 1.0 } },
+          {
+            id: 'n-crep',
+            type: 'crepuscular-rays',
+            position: { x: 0, y: 0 },
+            parameters: {
+              sourceX: 0.25,
+              sourceY: 0.1,
+              rayCount: 12,
+              spread: 360.0,
+              width: 0.07,
+              distanceFalloff: 1.5,
+              intensity: 1.2,
+              rotationSpeed: 0.0,
+              rotationOffset: 0.0,
+            },
+          },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: 'n-const', sourcePort: 'out', targetNodeId: 'n-crep', targetPort: 'in' },
+          { id: 'c2', sourceNodeId: 'n-crep', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
+        ],
+      };
+
+      const result = compiler.compile(graph, null, { backend: 'webgpu' });
+
+      expect(result.backend).toBe('webgpu');
+      expect(result.supported).toBe(true);
+      expect(result.metadata.errors).toHaveLength(0);
+      expect(WGSL_WEBGPU_PASS_PLAN_NODE_TYPES.has('crepuscular-rays')).toBe(true);
+      expect(WGSL_SUPPORTED_NODE_TYPES.has('crepuscular-rays')).toBe(false);
+
+      const plan = result.webgpuPassPlan;
+      expect(plan?.kind).toBe('pass.crepuscular-rays.v1');
+      // Compiler MUST emit the pass plan and not fall back to the inline WGSL allowlist.
+      if (plan?.kind !== 'pass.crepuscular-rays.v1') return;
+
+      expect(plan.nodeId).toBe('n-crep');
+      expect(plan.inputWgsl).toContain('@fragment');
+      expect(plan.inputWgsl).toContain('fn fs(');
+      expect(plan.occluderWgsl).toContain('rayStripes');
+      expect(plan.sweepWgsl).toContain('SAMPLES');
+      expect(plan.combineWgsl).toContain('raysTex');
+      expect(plan.intermediateTexture.format).toBe('rgba8unorm');
+
+      // All crepuscular params have deterministic slot mappings exposed in `paramLayout`.
+      expect(result.paramLayout['n-crep.sourceX']).toBe(plan.paramSlots.sourceX);
+      expect(result.paramLayout['n-crep.sourceY']).toBe(plan.paramSlots.sourceY);
+      expect(result.paramLayout['n-crep.distanceFalloff']).toBe(plan.paramSlots.distanceFalloff);
+      expect(result.paramLayout['n-crep.intensity']).toBe(plan.paramSlots.intensity);
+      expect(result.paramLayout['n-crep.rayCount']).toBe(plan.paramSlots.rayCount);
+      expect(result.paramLayout['n-crep.spread']).toBe(plan.paramSlots.spread);
+      expect(result.paramLayout['n-crep.width']).toBe(plan.paramSlots.width);
+      expect(result.paramLayout['n-crep.rotationSpeed']).toBe(plan.paramSlots.rotationSpeed);
+      expect(result.paramLayout['n-crep.rotationOffset']).toBe(plan.paramSlots.rotationOffset);
+    });
+
+    it('compiles bokeh as threshold/blur/combine pass plan', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const graph: NodeGraph = {
+        id: 'graph-wgpu-bokeh-passplan',
+        name: 'WGSL bokeh (pass plan)',
+        version: '2.0',
+        nodes: [
+          { id: 'n-const', type: 'constant-vec4', position: { x: 0, y: 0 }, parameters: { x: 0.7, y: 0.5, z: 0.2, w: 1.0 } },
+          {
+            id: 'n-bokeh',
+            type: 'bokeh',
+            position: { x: 0, y: 0 },
+            parameters: {
+              bokehThreshold: 0.4,
+              bokehIntensity: 1.5,
+              bokehRadius: 12.0,
+              bokehStrength: 0.8,
+              bokehBlades: 6,
+              bokehRotation: 30.0,
+            },
+          },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: 'n-const', sourcePort: 'out', targetNodeId: 'n-bokeh', targetPort: 'in' },
+          { id: 'c2', sourceNodeId: 'n-bokeh', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
+        ],
+      };
+
+      const result = compiler.compile(graph, null, { backend: 'webgpu' });
+
+      expect(result.backend).toBe('webgpu');
+      expect(result.supported).toBe(true);
+      expect(result.metadata.errors).toHaveLength(0);
+      expect(WGSL_WEBGPU_PASS_PLAN_NODE_TYPES.has('bokeh')).toBe(true);
+      expect(WGSL_SUPPORTED_NODE_TYPES.has('bokeh')).toBe(true);
+
+      const plan = result.webgpuPassPlan;
+      expect(plan?.kind).toBe('pass.bokeh.v1');
+      // Compiler MUST emit the pass plan and not fall back to the inline WGSL allowlist.
+      if (plan?.kind !== 'pass.bokeh.v1') return;
+
+      expect(plan.nodeId).toBe('n-bokeh');
+      expect(plan.inputWgsl).toContain('@fragment');
+      expect(plan.inputWgsl).toContain('fn fs(');
+      expect(plan.thresholdWgsl).toContain('sourceTex');
+      expect(plan.blurWgsl).toContain('apertureScale');
+      expect(plan.combineWgsl).toContain('blurTex');
+      expect(plan.intermediateTexture.format).toBe('rgba8unorm');
+
+      expect(result.paramLayout['n-bokeh.bokehThreshold']).toBe(plan.paramSlots.threshold);
+      expect(result.paramLayout['n-bokeh.bokehIntensity']).toBe(plan.paramSlots.intensity);
+      expect(result.paramLayout['n-bokeh.bokehRadius']).toBe(plan.paramSlots.radius);
+      expect(result.paramLayout['n-bokeh.bokehStrength']).toBe(plan.paramSlots.strength);
+      expect(result.paramLayout['n-bokeh.bokehBlades']).toBe(plan.paramSlots.blades);
+      expect(result.paramLayout['n-bokeh.bokehRotation']).toBe(plan.paramSlots.rotation);
+    });
+
+    it('compiles bokeh inline WebGPU when output feeds blend-color (no pass plan)', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const graph: NodeGraph = {
+        id: 'graph-wgpu-bokeh-blend-inline',
+        name: 'WGSL bokeh into blend-color',
+        version: '2.0',
+        nodes: [
+          { id: 'n-base', type: 'constant-vec4', position: { x: 0, y: 0 }, parameters: { x: 0.1, y: 0.2, z: 0.3, w: 1.0 } },
+          { id: 'n-src', type: 'constant-vec4', position: { x: 0, y: 0 }, parameters: { x: 0.9, y: 0.8, z: 0.1, w: 1.0 } },
+          {
+            id: 'n-bokeh',
+            type: 'bokeh',
+            position: { x: 0, y: 0 },
+            parameters: {
+              bokehThreshold: 0.5,
+              bokehIntensity: 1.0,
+              bokehRadius: 10.0,
+              bokehStrength: 0.5,
+              bokehBlades: 7,
+              bokehRotation: 15.0,
+            },
+          },
+          {
+            id: 'n-bc',
+            type: 'blend-color',
+            position: { x: 0, y: 0 },
+            parameters: { mode: 2, opacity: 0.8 },
+          },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c-base', sourceNodeId: 'n-base', sourcePort: 'out', targetNodeId: 'n-bc', targetPort: 'base' },
+          { id: 'c-src-bokeh', sourceNodeId: 'n-src', sourcePort: 'out', targetNodeId: 'n-bokeh', targetPort: 'in' },
+          { id: 'c-bokeh-blend', sourceNodeId: 'n-bokeh', sourcePort: 'out', targetNodeId: 'n-bc', targetPort: 'blend' },
+          { id: 'c-bc-out', sourceNodeId: 'n-bc', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
+        ],
+      };
+
+      const result = compiler.compile(graph, null, { backend: 'webgpu' });
+
+      expect(result.backend).toBe('webgpu');
+      expect(result.supported).toBe(true);
+      expect(result.metadata.errors).toHaveLength(0);
+      expect(result.unsupportedReasons ?? []).toEqual([]);
+      expect(result.webgpuPassPlan).toBeUndefined();
+      expect(result.code).toContain('fn bokehBright');
+      expect(result.code).toContain('@fragment');
+    });
+
+    /**
+     * Smoke validation for every `webgpuPassPlan.kind` shipped in production.
+     *
+     * Asserts each MVP fixture compiles for WebGPU and emits the expected pass-plan kind.
+     * Pixel parity is exercised by the headless golden harness (`webgpuGoldenHarness.html`)
+     * and by snapshot tests (`wgslMvpCompileSnapshots.test.ts`); this block is the cheap,
+     * always-on guarantee that the compiler never silently drops a pass-plan branch.
+     */
+    describe('webgpuPassPlan kind smoke validation (fixtures)', () => {
+      const cases: ReadonlyArray<{
+        label: string;
+        graph: () => NodeGraph;
+        kind:
+          | 'pass.blur.gaussian-separable.v1'
+          | 'pass.glow-bloom.v1'
+          | 'pass.bokeh.v1'
+          | 'pass.crepuscular-rays.v1';
+        audioSetup?: () => AudioSetup;
+      }> = [
+        { label: 'blur (separable Gaussian)', graph: mvpBlurPassPlanGraph, kind: 'pass.blur.gaussian-separable.v1' },
+        { label: 'glow-bloom', graph: mvpGlowBloomPassPlanGraph, kind: 'pass.glow-bloom.v1' },
+        { label: 'bokeh', graph: mvpBokehPassPlanGraph, kind: 'pass.bokeh.v1' },
+        { label: 'crepuscular-rays', graph: mvpCrepuscularRaysPassPlanGraph, kind: 'pass.crepuscular-rays.v1' },
+        {
+          label: 'audio blur pass-plan',
+          graph: mvpAudioBlurPassPlanGraph,
+          kind: 'pass.blur.gaussian-separable.v1',
+          audioSetup: mvpGenericRaymarcherSierpinskiTetraScaleAudioSetup,
+        },
+        {
+          label: 'audio glow-bloom pass-plan',
+          graph: mvpAudioGlowBloomPassPlanGraph,
+          kind: 'pass.glow-bloom.v1',
+          audioSetup: mvpGenericRaymarcherSierpinskiTetraScaleAudioSetup,
+        },
+        {
+          label: 'audio bokeh pass-plan',
+          graph: mvpAudioBokehPassPlanGraph,
+          kind: 'pass.bokeh.v1',
+          audioSetup: mvpGenericRaymarcherSierpinskiTetraScaleAudioSetup,
+        },
+        {
+          label: 'audio crepuscular-rays pass-plan',
+          graph: mvpAudioCrepuscularRaysPassPlanGraph,
+          kind: 'pass.crepuscular-rays.v1',
+          audioSetup: mvpGenericRaymarcherSierpinskiTetraScaleAudioSetup,
+        },
+      ];
+
+      it.each(cases)(
+        'compiles fixture for $label and emits webgpuPassPlan.kind=$kind',
+        ({ graph, kind, audioSetup }) => {
+          const nodeSpecsMap = buildNodeSpecsMap();
+          const compiler = new NodeShaderCompiler(nodeSpecsMap);
+          const setup = audioSetup?.() ?? null;
+          const result = compiler.compile(graph(), setup, { backend: 'webgpu' });
+
+          expect(result.backend).toBe('webgpu');
+          expect(result.metadata.errors).toHaveLength(0);
+          expect(result.supported, (result.unsupportedReasons ?? []).join('; ')).toBe(true);
+          expect(result.webgpuPassPlan?.kind).toBe(kind);
+          expect(result.webgpuPassPlan?.nodeId).toBeTypeOf('string');
+        }
+      );
+    });
+
+    it('WebGPU + audioSetup: mvpAudioBlurPassPlan exposes remap paramLayout and blur pass-plan node', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const graph = mvpAudioBlurPassPlanGraph();
+      const audioSetup = mvpGenericRaymarcherSierpinskiTetraScaleAudioSetup();
+      const result = compiler.compile(graph, audioSetup, { backend: 'webgpu' });
+
+      expect(result.metadata.errors).toHaveLength(0);
+      expect(result.supported).toBe(true);
+      expect(result.metadata.previewDependencies?.usesAudioUniforms).toBe(true);
+      expect(result.paramLayout['remap-mvp-stetra-audio-scale.out']).toBeTypeOf('number');
+      expect(result.webgpuPassPlan?.kind).toBe('pass.blur.gaussian-separable.v1');
+      expect(result.webgpuPassPlan?.nodeId).toBe('n-blur-stab');
+    });
+
+    it('WebGPU + audioSetup: mvpAudioGlowBloomPassPlan exposes remap paramLayout and glow-bloom pass-plan node', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const graph = mvpAudioGlowBloomPassPlanGraph();
+      const audioSetup = mvpGenericRaymarcherSierpinskiTetraScaleAudioSetup();
+      const result = compiler.compile(graph, audioSetup, { backend: 'webgpu' });
+
+      expect(result.metadata.errors).toHaveLength(0);
+      expect(result.supported).toBe(true);
+      expect(result.metadata.previewDependencies?.usesAudioUniforms).toBe(true);
+      expect(result.paramLayout['remap-mvp-stetra-audio-scale.out']).toBeTypeOf('number');
+      expect(result.webgpuPassPlan?.kind).toBe('pass.glow-bloom.v1');
+      expect(result.webgpuPassPlan?.nodeId).toBe('n-glow-stgb');
+    });
+
+    it('WebGPU + audioSetup: mvpAudioBokehPassPlan exposes remap paramLayout and bokeh pass-plan node', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const graph = mvpAudioBokehPassPlanGraph();
+      const audioSetup = mvpGenericRaymarcherSierpinskiTetraScaleAudioSetup();
+      const result = compiler.compile(graph, audioSetup, { backend: 'webgpu' });
+
+      expect(result.metadata.errors).toHaveLength(0);
+      expect(result.supported).toBe(true);
+      expect(result.metadata.previewDependencies?.usesAudioUniforms).toBe(true);
+      expect(result.paramLayout['remap-mvp-stetra-audio-scale.out']).toBeTypeOf('number');
+      expect(result.webgpuPassPlan?.kind).toBe('pass.bokeh.v1');
+      expect(result.webgpuPassPlan?.nodeId).toBe('n-bokeh-stbk');
+    });
+
+    it('WebGPU + audioSetup: mvpAudioCrepuscularRaysPassPlan exposes remap paramLayout and crepuscular pass-plan node', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const graph = mvpAudioCrepuscularRaysPassPlanGraph();
+      const audioSetup = mvpGenericRaymarcherSierpinskiTetraScaleAudioSetup();
+      const result = compiler.compile(graph, audioSetup, { backend: 'webgpu' });
+
+      expect(result.metadata.errors).toHaveLength(0);
+      expect(result.supported).toBe(true);
+      expect(result.metadata.previewDependencies?.usesAudioUniforms).toBe(true);
+      expect(result.paramLayout['remap-mvp-stetra-audio-scale.out']).toBeTypeOf('number');
+      expect(result.webgpuPassPlan?.kind).toBe('pass.crepuscular-rays.v1');
+      expect(result.webgpuPassPlan?.nodeId).toBe('n-crep-stcr');
+    });
+
+    it('compiles edge-detection as inline WGSL', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const graph: NodeGraph = {
+        id: 'graph-wgpu-edge-detection',
+        name: 'WGSL edge-detection',
+        version: '2.0',
+        nodes: [
+          { id: 'n-const', type: 'constant-vec4', position: { x: 0, y: 0 }, parameters: { x: 0.4, y: 0.2, z: 0.1, w: 1.0 } },
+          {
+            id: 'n-edge',
+            type: 'edge-detection',
+            position: { x: 0, y: 0 },
+            parameters: { edgeThreshold: 0.5, edgeWidth: 0.02, edgeIntensity: 1.25, edgeStrength: 0.75 },
+          },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: 'n-const', sourcePort: 'out', targetNodeId: 'n-edge', targetPort: 'in' },
+          { id: 'c2', sourceNodeId: 'n-edge', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
+        ],
+      };
+
+      const result = compiler.compile(graph, null, { backend: 'webgpu' });
+
+      expect(result.backend).toBe('webgpu');
+      expect(result.supported).toBe(true);
+      expect(WGSL_SUPPORTED_NODE_TYPES.has('edge-detection')).toBe(true);
+      expect(result.code).toContain('smoothstep');
+    });
+
+    it('compiles hex-prism-sdf as inline WGSL', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const graph: NodeGraph = {
+        id: 'graph-wgpu-hex-prism-sdf',
+        name: 'WGSL hex prism sdf',
+        version: '2.0',
+        nodes: [
+          {
+            id: 'n-pos',
+            type: 'constant-vec3',
+            position: { x: 0, y: 0 },
+            parameters: { x: 0.2, y: 0.1, z: 0.3 },
+          },
+          {
+            id: 'n-hex',
+            type: 'hex-prism-sdf',
+            position: { x: 0, y: 0 },
+            parameters: { hexRadius: 0.25, halfHeight: 0.75, positionX: 0, positionY: 0, positionZ: 0 },
+            parameterInputModes: {},
+          },
+          { id: 'n-cm', type: 'color-map', position: { x: 0, y: 0 }, parameters: {} },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: 'n-pos', sourcePort: 'out', targetNodeId: 'n-hex', targetPort: 'position' },
+          { id: 'c2', sourceNodeId: 'n-hex', sourcePort: 'out', targetNodeId: 'n-cm', targetPort: 'in' },
+          { id: 'c3', sourceNodeId: 'n-cm', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
+        ],
+      };
+
+      const result = compiler.compile(graph, null, { backend: 'webgpu' });
+
+      expect(result.backend).toBe('webgpu');
+      expect(result.supported).toBe(true);
+      expect(WGSL_SUPPORTED_NODE_TYPES.has('hex-prism-sdf')).toBe(true);
+      expect(result.code).toContain('@fragment');
+      expect(result.code).toContain('0.866025');
+    });
+
+    it('compiles repeated-hex-prism-sdf as inline WGSL', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const graph: NodeGraph = {
+        id: 'graph-wgpu-repeated-hex-prism-sdf',
+        name: 'WGSL repeated hex prism sdf',
+        version: '2.0',
+        nodes: [
+          {
+            id: 'n-pos',
+            type: 'constant-vec3',
+            position: { x: 0, y: 0 },
+            parameters: { x: -1.2, y: 0.5, z: 2.1 },
+          },
+          {
+            id: 'n-hexr',
+            type: 'repeated-hex-prism-sdf',
+            position: { x: 0, y: 0 },
+            parameters: {
+              spacingX: 2.5,
+              spacingY: 2.5,
+              spacingZ: 2.5,
+              hexRadius: 0.3,
+              halfHeight: 1.0,
+              positionX: 0,
+              positionY: 0,
+              positionZ: 0,
+            },
+            parameterInputModes: {},
+          },
+          { id: 'n-cm', type: 'color-map', position: { x: 0, y: 0 }, parameters: {} },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: 'n-pos', sourcePort: 'out', targetNodeId: 'n-hexr', targetPort: 'position' },
+          { id: 'c2', sourceNodeId: 'n-hexr', sourcePort: 'out', targetNodeId: 'n-cm', targetPort: 'in' },
+          { id: 'c3', sourceNodeId: 'n-cm', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
+        ],
+      };
+
+      const result = compiler.compile(graph, null, { backend: 'webgpu' });
+
+      expect(result.backend).toBe('webgpu');
+      expect(result.supported).toBe(true);
+      expect(WGSL_SUPPORTED_NODE_TYPES.has('repeated-hex-prism-sdf')).toBe(true);
+      expect(result.code).toContain('@fragment');
+      expect(result.code).toContain('repeatedHexPrismSdf_distance');
+      // Domain repetition uses floor in the mod emulation.
+      expect(result.code).toContain('floor');
+      expect(result.code).toContain('0.866025');
+    });
+
+    /**
+     * Fractal presets: bounded generic-raymarcher pilot wires fractal sdf nodes inline in WGSL.
+     * Smoke-check each compiles WebGPU-supported; drift surfaces via `scripts/scan-webgpu-presets.ts`.
+     */
+    describe.each([
+      { file: 'fractal-julia-slab.json', wgslSubstring: 'julia_sl_' },
+      { file: 'fractal-mandelbox.json', wgslSubstring: 'mandelbox_sdf_distance' },
+      { file: 'fractal-menger-sponge.json', wgslSubstring: 'mer_sponge_distance' },
+      { file: 'fractal-sierpinski-tetra.json', wgslSubstring: 'ster_tetra_distance' },
+    ])('fractal preset WebGPU ($file)', ({ file, wgslSubstring }) => {
+      it('compiles fractal sdf graph on WebGPU with bounded generic-raymarcher march', () => {
+        const nodeSpecsMap = buildNodeSpecsMap();
+        const compiler = new NodeShaderCompiler(nodeSpecsMap);
+        const raw = readFileSync(join(process.cwd(), 'src', 'presets', file), 'utf8');
+        const parsed = JSON.parse(raw) as { graph: NodeGraph };
+
+        const result = compiler.compile(structuredClone(parsed.graph), null, { backend: 'webgpu' });
+
+        expect(result.backend).toBe('webgpu');
+        expect(result.supported).toBe(true);
+        expect(result.code).toContain('@fragment');
+        expect(result.code).toContain(wgslSubstring);
+        expect(result.code).toContain('genericRaymarchbounded_');
+      });
+    });
+
+    it('compiles fractal-mandelbulb preset on bounded WebGPU generic-raymarcher + mandelbulb-sdf pilot', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const raw = readFileSync(join(process.cwd(), 'src', 'presets', 'fractal-mandelbulb.json'), 'utf8');
+      const parsed = JSON.parse(raw) as { graph: NodeGraph };
+
+      const result = compiler.compile(structuredClone(parsed.graph), null, { backend: 'webgpu' });
+
+      expect(result.backend).toBe('webgpu');
+      expect(result.supported).toBe(true);
+      expect(result.code).toContain('@fragment');
+      expect(WGSL_SUPPORTED_NODE_TYPES.has('generic-raymarcher')).toBe(true);
+      expect(WGSL_SUPPORTED_NODE_TYPES.has('mandelbulb-sdf')).toBe(true);
+      expect(result.code).toContain('mandelbulbSdf_distance');
+      expect(result.code).toContain('genericRaymarchbounded_');
+    });
+
+    it('compiles bounded WebGPU generic-raymarcher with hex-prism-sdf sdf source', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+
+      const graph: NodeGraph = {
+        id: 'graph-grm-hex-prism',
+        name: 'GRM hex prism',
+        version: '2.0',
+        nodes: [
+          { id: 'n-uv', type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          { id: 'n-ray', type: 'generic-raymarcher', position: { x: 0, y: 0 }, parameters: {} },
+          { id: 'n-prism', type: 'hex-prism-sdf', position: { x: 0, y: 0 }, parameters: {} },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: 'n-uv', sourcePort: 'out', targetNodeId: 'n-ray', targetPort: 'in' },
+          {
+            id: 'c2',
+            sourceNodeId: 'n-prism',
+            sourcePort: 'out',
+            targetNodeId: 'n-ray',
+            targetPort: 'sdf',
+          },
+          {
+            id: 'c4',
+            sourceNodeId: 'n-ray',
+            sourcePort: 'out',
+            targetNodeId: 'n-out',
+            targetPort: 'in',
+          },
+        ],
+      };
+
+      const result = compiler.compile(structuredClone(graph), null, { backend: 'webgpu' });
+
+      expect(result.supported).toBe(true);
+      expect(result.code).toContain('0.866025');
+      expect(result.code).toContain('genericRaymarchbounded_');
+    });
+
+    it('compiles bounded WebGPU generic-raymarcher with metaballs sdf source', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+
+      const graph: NodeGraph = {
+        id: 'graph-grm-metaballs-sdf',
+        name: 'GRM metab sdf',
+        version: '2.0',
+        nodes: [
+          { id: 'n-uv', type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          { id: 'n-ray', type: 'generic-raymarcher', position: { x: 0, y: 0 }, parameters: {} },
+          {
+            id: 'n-meta',
+            type: 'metaballs',
+            position: { x: 0, y: 0 },
+            parameters: { blobCount: 4, blobRadius: 0.25, threshold: 4.0 },
+          },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: 'n-uv', sourcePort: 'out', targetNodeId: 'n-ray', targetPort: 'in' },
+          { id: 'c0', sourceNodeId: 'n-uv', sourcePort: 'out', targetNodeId: 'n-meta', targetPort: 'in' },
+          {
+            id: 'c2',
+            sourceNodeId: 'n-meta',
+            sourcePort: 'out',
+            targetNodeId: 'n-ray',
+            targetPort: 'sdf',
+          },
+          {
+            id: 'c4',
+            sourceNodeId: 'n-ray',
+            sourcePort: 'out',
+            targetNodeId: 'n-out',
+            targetPort: 'in',
+          },
+        ],
+      };
+
+      const result = compiler.compile(structuredClone(graph), null, { backend: 'webgpu' });
+
+      expect(result.supported).toBe(true);
+      expect(result.code).toContain('metaballsWgsl_implicit_sdf');
+      expect(result.code).toContain('genericRaymarchbounded_');
+    });
+
+    it('compiles bounded WebGPU generic-raymarcher with repeated-hex-prism-sdf sdf source', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+
+      const graph: NodeGraph = {
+        id: 'graph-grm-repeated-hex-prism',
+        name: 'GRM repeated hex prism',
+        version: '2.0',
+        nodes: [
+          { id: 'n-uv', type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          { id: 'n-ray', type: 'generic-raymarcher', position: { x: 0, y: 0 }, parameters: {} },
+          {
+            id: 'n-prism',
+            type: 'repeated-hex-prism-sdf',
+            position: { x: 0, y: 0 },
+            parameters: { spacingX: 2.5, spacingY: 2.5, spacingZ: 2.5, hexRadius: 0.35, halfHeight: 1.2 },
+          },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: 'n-uv', sourcePort: 'out', targetNodeId: 'n-ray', targetPort: 'in' },
+          {
+            id: 'c2',
+            sourceNodeId: 'n-prism',
+            sourcePort: 'out',
+            targetNodeId: 'n-ray',
+            targetPort: 'sdf',
+          },
+          {
+            id: 'c4',
+            sourceNodeId: 'n-ray',
+            sourcePort: 'out',
+            targetNodeId: 'n-out',
+            targetPort: 'in',
+          },
+        ],
+      };
+
+      const result = compiler.compile(structuredClone(graph), null, { backend: 'webgpu' });
+
+      expect(result.supported).toBe(true);
+      expect(result.code).toContain('repeatedHexPrismSdf_distance');
+      expect(result.code).toContain('genericRaymarchbounded_');
+    });
+
+    it('compiles bounded WebGPU generic-raymarcher with radial-repeat-sdf sdf source', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+
+      const graph: NodeGraph = {
+        id: 'graph-grm-radial-repeat',
+        name: 'GRM radial repeat',
+        version: '2.0',
+        nodes: [
+          { id: 'n-uv', type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          { id: 'n-ray', type: 'generic-raymarcher', position: { x: 0, y: 0 }, parameters: {} },
+          {
+            id: 'n-rad',
+            type: 'radial-repeat-sdf',
+            position: { x: 0, y: 0 },
+            parameters: { shellSpacing: 3.5, ringPhase: 0.5 },
+          },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: 'n-uv', sourcePort: 'out', targetNodeId: 'n-ray', targetPort: 'in' },
+          {
+            id: 'c2',
+            sourceNodeId: 'n-rad',
+            sourcePort: 'out',
+            targetNodeId: 'n-ray',
+            targetPort: 'sdf',
+          },
+          {
+            id: 'c4',
+            sourceNodeId: 'n-ray',
+            sourcePort: 'out',
+            targetNodeId: 'n-out',
+            targetPort: 'in',
+          },
+        ],
+      };
+
+      const result = compiler.compile(structuredClone(graph), null, { backend: 'webgpu' });
+
+      expect(result.supported).toBe(true);
+      expect(result.code).toContain('radialRepeatSdf_distance');
+      expect(result.code).toContain('genericRaymarchbounded_');
+    });
+
+    it('compiles bounded WebGPU generic-raymarcher with ether-sdf sdf source', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+
+      const graph: NodeGraph = {
+        id: 'graph-grm-ether',
+        name: 'GRM ether sdf',
+        version: '2.0',
+        nodes: [
+          { id: 'n-uv', type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          { id: 'n-ray', type: 'generic-raymarcher', position: { x: 0, y: 0 }, parameters: {} },
+          {
+            id: 'n-ether',
+            type: 'ether-sdf',
+            position: { x: 0, y: 0 },
+            parameters: {
+              rotSpeedXZ: 0.4,
+              rotSpeedXY: 0.3,
+              scale: 2.0,
+              timeSpeed: 1.0,
+              timeOffset: 0.0,
+              wobbleSpeed: 0.7,
+              sineAmp: 5.5,
+              breatheAmount: 0.0,
+              breatheSpeed: 0.7,
+              positionX: 0.0,
+              positionY: 0.0,
+              positionZ: 0.0,
+            },
+          },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: 'n-uv', sourcePort: 'out', targetNodeId: 'n-ray', targetPort: 'in' },
+          {
+            id: 'c2',
+            sourceNodeId: 'n-ether',
+            sourcePort: 'out',
+            targetNodeId: 'n-ray',
+            targetPort: 'sdf',
+          },
+          {
+            id: 'c4',
+            sourceNodeId: 'n-ray',
+            sourcePort: 'out',
+            targetNodeId: 'n-out',
+            targetPort: 'in',
+          },
+        ],
+      };
+
+      const result = compiler.compile(structuredClone(graph), null, { backend: 'webgpu' });
+
+      expect(result.supported).toBe(true);
+      expect(result.code).toContain('fn etherSdfMap');
+      expect(result.code).toContain('genericRaymarchbounded_');
+    });
+
+    it('compiles WebGPU generic-raymarcher with no SDF wire (black output, stays on WebGPU MVP)', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+
+      const graph: NodeGraph = {
+        id: 'graph-grm-no-sdf',
+        name: 'GRM no sdf',
+        version: '2.0',
+        nodes: [
+          { id: 'n-uv', type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          { id: 'n-ray', type: 'generic-raymarcher', position: { x: 0, y: 0 }, parameters: {} },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: 'n-uv', sourcePort: 'out', targetNodeId: 'n-ray', targetPort: 'in' },
+          {
+            id: 'c4',
+            sourceNodeId: 'n-ray',
+            sourcePort: 'color',
+            targetNodeId: 'n-out',
+            targetPort: 'in',
+          },
+        ],
+      };
+
+      const result = compiler.compile(structuredClone(graph), null, { backend: 'webgpu' });
+
+      expect(result.supported).toBe(true);
+      expect(result.metadata.errors).toHaveLength(0);
+      expect(result.code).toContain('vec3<f32>(0.0, 0.0, 0.0)');
+      expect(result.code).not.toContain('genericRaymarchbounded_');
+    });
+
+    it('compiles bounded WebGPU generic-raymarcher with kifs-sdf sdf source', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+
+      const graph: NodeGraph = {
+        id: 'graph-grm-kifs',
+        name: 'GRM kifs sdf',
+        version: '2.0',
+        nodes: [
+          { id: 'n-uv', type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          { id: 'n-ray', type: 'generic-raymarcher', position: { x: 0, y: 0 }, parameters: {} },
+          {
+            id: 'n-kifs',
+            type: 'kifs-sdf',
+            position: { x: 0, y: 0 },
+            parameters: {
+              scale: 1.3,
+              offsetX: -0.5,
+              offsetY: -1.2,
+              offsetZ: 0.0,
+              rotationAxisX: 0.0,
+              rotationAxisY: 1.0,
+              rotationAxisZ: 0.0,
+              rotationAngle: 0.4,
+              iterations: 10,
+              sphereRadius: 0.12,
+              positionX: 0.0,
+              positionY: 0.0,
+              positionZ: 0.0,
+            },
+          },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: 'n-uv', sourcePort: 'out', targetNodeId: 'n-ray', targetPort: 'in' },
+          {
+            id: 'c2',
+            sourceNodeId: 'n-kifs',
+            sourcePort: 'out',
+            targetNodeId: 'n-ray',
+            targetPort: 'sdf',
+          },
+          {
+            id: 'c4',
+            sourceNodeId: 'n-ray',
+            sourcePort: 'out',
+            targetNodeId: 'n-out',
+            targetPort: 'in',
+          },
+        ],
+      };
+
+      const result = compiler.compile(structuredClone(graph), null, { backend: 'webgpu' });
+
+      expect(result.supported).toBe(true);
+      expect(result.code).toContain('kifs_sdf_distance');
+      expect(result.code).toContain('genericRaymarchbounded_');
+    });
+
+    it('compiles bounded WebGPU generic-raymarcher with box-torus-sdf sdf source', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+
+      const graph: NodeGraph = {
+        id: 'graph-grm-box-torus-sdf',
+        name: 'GRM box torus sdf',
+        version: '2.0',
+        nodes: [
+          { id: 'n-uv', type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          { id: 'n-ray', type: 'generic-raymarcher', position: { x: 0, y: 0 }, parameters: {} },
+          {
+            id: 'n-btt',
+            type: 'box-torus-sdf',
+            position: { x: 0, y: 0 },
+            parameters: { primitiveType: 0 },
+          },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: 'n-uv', sourcePort: 'out', targetNodeId: 'n-ray', targetPort: 'in' },
+          {
+            id: 'c2',
+            sourceNodeId: 'n-btt',
+            sourcePort: 'out',
+            targetNodeId: 'n-ray',
+            targetPort: 'sdf',
+          },
+          {
+            id: 'c4',
+            sourceNodeId: 'n-ray',
+            sourcePort: 'out',
+            targetNodeId: 'n-out',
+            targetPort: 'in',
+          },
+        ],
+      };
+
+      const result = compiler.compile(structuredClone(graph), null, { backend: 'webgpu' });
+
+      expect(result.supported).toBe(true);
+      expect(result.code).toContain('boxTorusSceneSdf_distance');
+      expect(result.code).toContain('BoxTorusSdfSceneParams');
+      expect(result.code).toContain('genericRaymarchbounded_');
+    });
+
+    it('compiles bounded WebGPU generic-raymarcher with sphere-raymarch sdf source', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+
+      const graph: NodeGraph = {
+        id: 'graph-grm-sphere-raymarch',
+        name: 'GRM sphere raymarch sdf',
+        version: '2.0',
+        nodes: [
+          { id: 'n-uv', type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          { id: 'n-ray', type: 'generic-raymarcher', position: { x: 0, y: 0 }, parameters: {} },
+          {
+            id: 'n-sr',
+            type: 'sphere-raymarch',
+            position: { x: 0, y: 0 },
+            parameters: {},
+          },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: 'n-uv', sourcePort: 'out', targetNodeId: 'n-ray', targetPort: 'in' },
+          { id: 'c0', sourceNodeId: 'n-uv', sourcePort: 'out', targetNodeId: 'n-sr', targetPort: 'in' },
+          {
+            id: 'c2',
+            sourceNodeId: 'n-sr',
+            sourcePort: 'out',
+            targetNodeId: 'n-ray',
+            targetPort: 'sdf',
+          },
+          {
+            id: 'c4',
+            sourceNodeId: 'n-ray',
+            sourcePort: 'out',
+            targetNodeId: 'n-out',
+            targetPort: 'in',
+          },
+        ],
+      };
+
+      const result = compiler.compile(structuredClone(graph), null, { backend: 'webgpu' });
+
+      expect(result.supported).toBe(true);
+      expect(result.code).toContain('sphereRaymarch_implicit_distance_for_grm');
+      expect(result.code).toContain('genericRaymarchbounded_');
+    });
+
+    it('reports generic-raymarcher MVP failure when sdf source is outside the bounded allow-list', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+
+      const graph: NodeGraph = {
+        id: 'graph-grm-non-mandel',
+        name: 'GRM sdf mismatch',
+        version: '2.0',
+        nodes: [
+          { id: 'n-uv', type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          { id: 'n-ray', type: 'generic-raymarcher', position: { x: 0, y: 0 }, parameters: {} },
+          {
+            id: 'n-bad-sdf',
+            type: 'gradient',
+            position: { x: 0, y: 0 },
+            parameters: {},
+          },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: 'n-uv', sourcePort: 'out', targetNodeId: 'n-ray', targetPort: 'in' },
+          { id: 'c0', sourceNodeId: 'n-uv', sourcePort: 'out', targetNodeId: 'n-bad-sdf', targetPort: 'in' },
+          {
+            id: 'c2',
+            sourceNodeId: 'n-bad-sdf',
+            sourcePort: 'out',
+            targetNodeId: 'n-ray',
+            targetPort: 'sdf',
+          },
+          {
+            id: 'c4',
+            sourceNodeId: 'n-ray',
+            sourcePort: 'out',
+            targetNodeId: 'n-out',
+            targetPort: 'in',
+          },
+        ],
+      };
+
+      const result = compiler.compile(graph, null, { backend: 'webgpu' });
+
+      expect(result.supported).toBe(false);
+      const joined = (result.unsupportedReasons ?? []).join('\n');
+      expect(joined).toMatch(/generic-raymarcher \(WebGPU MVP\): sdf source must be one of /);
+      expect(joined).toMatch(/got 'gradient'/);
+    });
+
+    it('reports `pass.blur.gaussian-separable.v1` unsupported when blur input is unconnected', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const graph: NodeGraph = {
+        id: 'graph-wgpu-blur-no-upstream',
+        name: 'Blur no upstream',
+        version: '2.0',
+        nodes: [
+          { id: 'n-blur', type: 'blur', position: { x: 0, y: 0 }, parameters: {} },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: 'n-blur', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
+        ],
+      };
+
+      const result = compiler.compile(graph, null, { backend: 'webgpu' });
+
+      expect(result.backend).toBe('webgpu');
+      expect(result.supported).toBe(false);
+      expect(result.unsupportedReasons?.join('\n')).toContain('pass.blur.gaussian-separable.v1');
+    });
+
+    it('reports `pass.blur.gaussian-separable.v1` unsupported when upstream subgraph has unsupported nodes', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const graph: NodeGraph = {
+        id: 'graph-wgpu-blur-bad-upstream',
+        name: 'Blur with unsupported upstream',
+        version: '2.0',
+        nodes: [
+          { id: 'n-uv', type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          {
+            id: 'n-ray',
+            type: 'generic-raymarcher',
+            position: { x: 0, y: 0 },
+            parameters: {},
+            parameterInputModes: {},
+          },
+          {
+            id: 'n-bad-sdf',
+            type: 'gradient',
+            position: { x: 0, y: 0 },
+            parameters: {},
+            parameterInputModes: {},
+          },
+          { id: 'n-cm', type: 'color-map', position: { x: 0, y: 0 }, parameters: {} },
+          { id: 'n-blur', type: 'blur', position: { x: 0, y: 0 }, parameters: {} },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c0', sourceNodeId: 'n-uv', sourcePort: 'out', targetNodeId: 'n-ray', targetPort: 'in' },
+          { id: 'c1', sourceNodeId: 'n-uv', sourcePort: 'out', targetNodeId: 'n-bad-sdf', targetPort: 'in' },
+          {
+            id: 'c2',
+            sourceNodeId: 'n-bad-sdf',
+            sourcePort: 'out',
+            targetNodeId: 'n-ray',
+            targetPort: 'sdf',
+          },
+          { id: 'c3', sourceNodeId: 'n-ray', sourcePort: 'out', targetNodeId: 'n-cm', targetPort: 'in' },
+          { id: 'c4', sourceNodeId: 'n-cm', sourcePort: 'out', targetNodeId: 'n-blur', targetPort: 'in' },
+          { id: 'c5', sourceNodeId: 'n-blur', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
+        ],
+      };
+
+      const result = compiler.compile(graph, null, { backend: 'webgpu' });
+
+      expect(result.backend).toBe('webgpu');
+      expect(result.supported).toBe(false);
+      const reasons = result.unsupportedReasons?.join('\n') ?? '';
+      expect(reasons).toContain('pass.blur.gaussian-separable.v1');
+      expect(reasons).toMatch(/generic-raymarcher \(WebGPU MVP\): sdf source must be one of /);
+      expect(reasons).toMatch(/got 'gradient'/);
+    });
+
+    /**
+     * Regression: when an input port is unconnected and has no `fallbackParameter`, the WGSL MVP
+     * compiler used to bail (`break;`) and leave the node's output unset, which caused the final
+     * output resolution to fail with `'could not resolve output expression'`. GLSL parity requires
+     * a typed zero default (mirrors `MainCodeGeneratorNodeCode` / `getInputDefaultValue`), so the
+     * graph keeps compiling on WebGPU and the user sees an updated shader instead of falling back
+     * to WebGL with a confusing console error.
+     *
+     * Fixture mirrors the user-reported bug:
+     *   uv → gradient → blend-mode.blend; blend-mode.out → final-output
+     *   blend-mode.base ("Background") is intentionally left unconnected.
+     */
+    it('compiles when blend-mode.base is unconnected (defaults to 0.0, GLSL parity)', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const graph: NodeGraph = {
+        id: 'graph-blend-mode-disconnected-base',
+        name: 'blend-mode disconnected base',
+        version: '2.0',
+        nodes: [
+          { id: 'n-uv', type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          { id: 'n-grad', type: 'gradient', position: { x: 0, y: 0 }, parameters: {} },
+          {
+            id: 'n-blend',
+            type: 'blend-mode',
+            position: { x: 0, y: 0 },
+            parameters: { mode: 1, opacity: 1.0, blend: 0.5 },
+          },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c-uv-grad', sourceNodeId: 'n-uv', sourcePort: 'out', targetNodeId: 'n-grad', targetPort: 'in' },
+          { id: 'c-grad-blend', sourceNodeId: 'n-grad', sourcePort: 'out', targetNodeId: 'n-blend', targetPort: 'blend' },
+          { id: 'c-blend-out', sourceNodeId: 'n-blend', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
+        ],
+      };
+
+      const result = compiler.compile(graph, null, { backend: 'webgpu' });
+
+      expect(result.backend).toBe('webgpu');
+      expect(result.unsupportedReasons ?? []).toEqual([]);
+      expect(result.supported).toBe(true);
+      expect(result.metadata.errors).toHaveLength(0);
+      expect(result.code).toContain('@fragment');
+      expect(result.code).toContain('applyBlendMode(0.0,');
+    });
+
+    it('compiles when blend-color.base is unconnected (defaults to vec4(0.0), GLSL parity)', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const graph: NodeGraph = {
+        id: 'graph-blend-color-disconnected-base',
+        name: 'blend-color disconnected base',
+        version: '2.0',
+        nodes: [
+          { id: 'n-v', type: 'constant-float', position: { x: 0, y: 0 }, parameters: { value: 0.4 } },
+          { id: 'n-comb', type: 'combine-vector', position: { x: 0, y: 0 }, parameters: { x: 0, y: 0, z: 0, w: 1 } },
+          {
+            id: 'n-bc',
+            type: 'blend-color',
+            position: { x: 0, y: 0 },
+            parameters: { mode: 2, opacity: 0.5 },
+          },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          {
+            id: 'c-float-x',
+            sourceNodeId: 'n-v',
+            sourcePort: 'out',
+            targetNodeId: 'n-comb',
+            targetPort: 'x',
+          },
+          {
+            id: 'c-float-y',
+            sourceNodeId: 'n-v',
+            sourcePort: 'out',
+            targetNodeId: 'n-comb',
+            targetPort: 'y',
+          },
+          {
+            id: 'c-float-z',
+            sourceNodeId: 'n-v',
+            sourcePort: 'out',
+            targetNodeId: 'n-comb',
+            targetPort: 'z',
+          },
+          { id: 'c-comb-blend', sourceNodeId: 'n-comb', sourcePort: 'out', targetNodeId: 'n-bc', targetPort: 'blend' },
+          { id: 'c-bc-out', sourceNodeId: 'n-bc', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
+        ],
+      };
+
+      const result = compiler.compile(graph, null, { backend: 'webgpu' });
+
+      expect(result.backend).toBe('webgpu');
+      expect(result.unsupportedReasons ?? []).toEqual([]);
+      expect(result.supported).toBe(true);
+      expect(result.metadata.errors).toHaveLength(0);
+      expect(result.code).toContain('@fragment');
+      expect(result.code).toContain('mix(vec4<f32>(0.0).xyz');
     });
   });
 
@@ -238,6 +1783,39 @@ describe('NodeShaderCompiler', () => {
       expect(sceneIdx).toBeGreaterThanOrEqual(0);
       const sceneChunk = result.shaderCode.slice(sceneIdx, sceneIdx + 1200);
       expect(sceneChunk).toContain(`vec3(clamp((${mulVar}),`);
+    });
+
+    it('compiles UV → box-torus-sdf → color-map on WebGPU with scene distance + standalone pixel', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+
+      const graph: NodeGraph = {
+        id: 'graph-box-torus-wgsl',
+        name: 'Box torus WGSL',
+        version: '2.0',
+        nodes: [
+          { id: 'n-uv', type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          {
+            id: 'n-bt',
+            type: 'box-torus-sdf',
+            position: { x: 0, y: 0 },
+            parameters: { primitiveRaymarchSteps: 48, primitiveType: 1 },
+          },
+          { id: 'n-cm', type: 'color-map', position: { x: 0, y: 0 }, parameters: {} },
+          { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: 'n-uv', sourcePort: 'out', targetNodeId: 'n-bt', targetPort: 'in' },
+          { id: 'c2', sourceNodeId: 'n-bt', sourcePort: 'out', targetNodeId: 'n-cm', targetPort: 'in' },
+          { id: 'c3', sourceNodeId: 'n-cm', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
+        ],
+      };
+
+      const result = compiler.compile(structuredClone(graph), null, { backend: 'webgpu' });
+
+      expect(result.supported).toBe(true);
+      expect(result.code).toContain('boxTorusSdf_standalone_pixel');
+      expect(result.code).toContain('btSdTorus');
     });
   });
 
@@ -779,47 +2357,6 @@ describe('NodeShaderCompiler', () => {
       expect(sceneChunk).toContain(`vec3(clamp((${mulVar}),`);
     });
 
-    function buildGenericRaymarcherWithDisplacementGraph(): NodeGraph {
-      const uvId = 'n-uv';
-      const constId = 'n-const';
-      const etherId = 'n-ether';
-      const dispId = 'n-disp';
-      const rayId = 'n-ray';
-      const outputId = 'n-out';
-
-      return {
-        id: 'graph-raymarcher-disp',
-        name: 'Raymarcher Displacement Param',
-        version: '2.0',
-        nodes: [
-          { id: uvId, type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
-          { id: constId, type: 'constant-float', position: { x: 0, y: 0 }, parameters: { value: 0.25 } },
-          { id: etherId, type: 'ether-sdf', position: { x: 0, y: 0 }, parameters: {} },
-          { id: dispId, type: 'displacement-3d', position: { x: 0, y: 0 }, parameters: {} },
-          {
-            id: rayId,
-            type: 'generic-raymarcher',
-            position: { x: 0, y: 0 },
-            parameters: {},
-          },
-          { id: outputId, type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
-        ],
-        connections: [
-          { id: 'd1', sourceNodeId: uvId, sourcePort: 'out', targetNodeId: rayId, targetPort: 'in' },
-          { id: 'd2', sourceNodeId: etherId, sourcePort: 'out', targetNodeId: rayId, targetPort: 'sdf' },
-          { id: 'd3', sourceNodeId: dispId, sourcePort: 'out', targetNodeId: rayId, targetPort: 'displacement' },
-          {
-            id: 'd4',
-            sourceNodeId: constId,
-            sourcePort: 'out',
-            targetNodeId: dispId,
-            targetParameter: 'timeOffset',
-          },
-          { id: 'd5', sourceNodeId: rayId, sourcePort: 'color', targetNodeId: outputId, targetPort: 'in' },
-        ],
-      };
-    }
-
     it('uses SDF parameter input variable in generic-raymarcher SDF function body', () => {
       const nodeSpecsMap = buildNodeSpecsMap();
       const compiler = new NodeShaderCompiler(nodeSpecsMap);
@@ -955,40 +2492,8 @@ describe('NodeShaderCompiler', () => {
     it('uses constant-float output for sierpinski-tetra-sdf.scale inside generic-raymarcher SDF function', () => {
       const nodeSpecsMap = buildNodeSpecsMap();
       const compiler = new NodeShaderCompiler(nodeSpecsMap);
-      const uvId = 'n-uv-st2';
+      const graph = mvpGenericRaymarcherSierpinskiTetraScaleWireGraph();
       const constId = 'n-const-st2';
-      const stId = 'n-stetra2';
-      const rayId = 'n-ray-st2';
-      const outId = 'n-out-st2';
-      const graph: NodeGraph = {
-        id: 'graph-stetra-scale-wire',
-        name: 'STetra scale wire',
-        version: '2.0',
-        nodes: [
-          { id: uvId, type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
-          { id: constId, type: 'constant-float', position: { x: 0, y: 0 }, parameters: { value: 2.2 } },
-          {
-            id: stId,
-            type: 'sierpinski-tetra-sdf',
-            position: { x: 0, y: 0 },
-            parameters: { iterations: 3 }
-          },
-          { id: rayId, type: 'generic-raymarcher', position: { x: 0, y: 0 }, parameters: {} },
-          { id: outId, type: 'final-output', position: { x: 0, y: 0 }, parameters: {} }
-        ],
-        connections: [
-          { id: 'w1', sourceNodeId: uvId, sourcePort: 'out', targetNodeId: rayId, targetPort: 'in' },
-          { id: 'w2', sourceNodeId: stId, sourcePort: 'out', targetNodeId: rayId, targetPort: 'sdf' },
-          {
-            id: 'w3',
-            sourceNodeId: constId,
-            sourcePort: 'out',
-            targetNodeId: stId,
-            targetParameter: 'scale'
-          },
-          { id: 'w4', sourceNodeId: rayId, sourcePort: 'color', targetNodeId: outId, targetPort: 'in' }
-        ]
-      };
 
       const result = compiler.compile(graph);
       expect(result.metadata.errors).toHaveLength(0);
@@ -1123,7 +2628,7 @@ describe('NodeShaderCompiler', () => {
     it('uses displacement parameter input variable in generic-raymarcher displacement expression', () => {
       const nodeSpecsMap = buildNodeSpecsMap();
       const compiler = new NodeShaderCompiler(nodeSpecsMap);
-      const graph = buildGenericRaymarcherWithDisplacementGraph();
+      const graph = mvpGenericRaymarcherDisplacementGraph();
 
       const result = compiler.compile(graph);
 

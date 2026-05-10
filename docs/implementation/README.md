@@ -6,11 +6,12 @@ Focused engineering notes for behavior that is **partially implemented**, **not 
 |----------|--------|
 | [graph-undo-redo.md](./graph-undo-redo.md) | Wire `UndoRedoManager` to keyboard/UI so undo/redo matches user goals |
 | [node-panel-category-order.md](./node-panel-category-order.md) | Keep browse category order consistent between node panel and add picker |
-| [`audio-band-modes/_OVERVIEW.md`](./audio-band-modes/_OVERVIEW.md) | Add per-band extraction modes (mean/max/RMS/…) with live+export parity |
-| [`parameter-range-clamp/_OVERVIEW.md`](./parameter-range-clamp/_OVERVIEW.md) | Hard-enforce float parameter ranges so shader + live UI values stay in spec |
-| [`param-port-driven-state/_OVERVIEW.md`](./param-port-driven-state/_OVERVIEW.md) | Use parameter port as single “driven” cue (graph/audio/automation) |
-| [`preview-responsiveness/_OVERVIEW.md`](./preview-responsiveness/_OVERVIEW.md) | Keep editor responsive by skipping idle recompiles, coalescing, and caching programs |
-| [`svelte-effect-hygiene/_OVERVIEW.md`](./svelte-effect-hygiene/_OVERVIEW.md) | Svelte 5 `$effect` audit follow-ups: export ETA, picker selection, motion `$derived`, App bridges, patch toast, preview corner layout |
-| [`help-overview-guide/_OVERVIEW.md`](./help-overview-guide/_OVERVIEW.md) | Guide callout **overview** (no node selected): wiring, onboarding content, jump/motion, user-goals sync |
+| [a11y-baseline.md](./a11y-baseline.md) | Accessibility baseline / scripted checks |
+| [node-port-labels-in-out-analysis.md](./node-port-labels-in-out-analysis.md) | Port labels: extended reference + audit tables (**canonical rules:** `shaders/node-standards.mdc` § port labels) |
+| [`webgpu-migration/_OVERVIEW.md`](./webgpu-migration/_OVERVIEW.md) | WebGPU-first preview + export, WGSL coverage ledger, WebGL fallback policy |
+| [`node-power/_OVERVIEW.md`](./node-power/_OVERVIEW.md) | Per-node Power (bypass) toggle: serialized node setting + two global compile rules + UI affordance |
+| [`expression-node/_OVERVIEW.md`](./expression-node/_OVERVIEW.md) | **Expression** node: sandboxed math DSL (`a`–`d`), dual GLSL/WGSL emit, CodeMirror UI, demo preset |
+
+New multi-step packages: add `docs/implementation/<slug>/_OVERVIEW.md` first, then link it here (see **`workpkg-hygiene.mdc`**).
 
 When a spec is fully delivered, update or archive it and align **`docs/user-goals/`** if behavior changed.
