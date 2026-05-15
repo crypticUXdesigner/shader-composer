@@ -66,7 +66,14 @@ export function validateNode(
       }
       const paramSpec = nodeSpec.parameters[paramName];
       if (!paramSpec) continue;
-      const paramValue = node.parameters[paramName];
+      let paramValue = node.parameters[paramName];
+      if (paramSpec.type === 'string' && typeof paramValue === 'number') {
+        // String params shown as knobs (e.g. arrangement trackFilterList) store 0 — treat as empty.
+        paramValue = paramValue === 0 ? '' : String(paramValue);
+        warnings.push(
+          `Node ${node.id} (${node.type}) parameter ${paramName} was stored as a number; use Reset parameters on the node to clear this warning.`
+        );
+      }
       if (!validateParameterValue(paramValue, paramSpec)) {
         errors.push(`Node ${node.id} (${node.type}) has invalid parameter value type for: ${paramName}`);
         continue;

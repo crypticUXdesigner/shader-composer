@@ -190,6 +190,8 @@ describe('eligible node ids — snapshot regression guard', () => {
       .sort();
     expect(eligibleIds).toMatchInlineSnapshot(`
       [
+        "arrangement-lanes",
+        "arrangement-notes",
         "bayer-dither",
         "bezier-curve",
         "blend-color",

@@ -31,6 +31,15 @@ import {
 import { VIRTUAL_NODE_PREFIX } from '../../utils/virtualNodes';
 import { RADIAL_PULSE_SPAWN_SLOT_COUNT, radialPulseSpawnTimelineParam } from '../nodes/radial-pulse';
 import { TURBULENCE_TIME_INTRINSIC_SCALE } from '../nodes/turbulence';
+import {
+  arrangementLanesGlslSuffix,
+  buildArrangementLanesWgslNodeHelper,
+  filterRegionsForNode,
+} from '../arrangement/packArrangementRegionsForGlsl';
+import {
+  buildArrangementNotesWgslNodeHelper,
+  filterNotesForNode,
+} from '../arrangement/packArrangementNotesForGlsl';
 
 type WgslType = 'f32' | 'vec2<f32>' | 'vec3<f32>' | 'vec4<f32>';
 
@@ -94,6 +103,8 @@ export const WGSL_SUPPORTED_NODE_TYPES = new Set([
   'arc-cosine',
   'arc-tangent',
   'arc-tangent-2',
+  'arrangement-lanes',
+  'arrangement-notes',
   'exponential',
   'natural-logarithm',
   'lerp',
@@ -109,6 +120,7 @@ export const WGSL_SUPPORTED_NODE_TYPES = new Set([
   'compare',
   'select',
   'mask-composite-float',
+  'mask-composite-vec2',
   'mask-composite-vec3',
   'reflect',
   'refract',
@@ -4381,6 +4393,17 @@ fn mwsMixedWaveShape(p: f32, shape: i32) -> f32 {
         setNodeOut(nodeId, 'out', { type: 'f32', code: `mix(${bg.code}, ${fg.code}, ${m})` });
         break;
       }
+      case 'mask-composite-vec2': {
+        const bg = resolveInputVec2(nodeId, 'bg');
+        const fg = resolveInputVec2(nodeId, 'fg');
+        const mask = resolveInputF32(nodeId, 'mask', 'mask');
+        if (!bg || !fg || !mask) break;
+        if (mask.type !== 'f32') break;
+        const invert = paramSlotExprWired(paramLayout, nodeId, 'invert', 0);
+        const m = `select(${mask.code}, (1.0 - ${mask.code}), ${invert} > 0.5)`;
+        setNodeOut(nodeId, 'out', { type: 'vec2<f32>', code: `mix(${bg.code}, ${fg.code}, ${m})` });
+        break;
+      }
       case 'mask-composite-vec3': {
         const bg = resolveInputVec3(nodeId, 'bg');
         const fg = resolveInputVec3(nodeId, 'fg');
@@ -5791,7 +5814,7 @@ fn wavePatternStripes(p: vec2<f32>, frequency: f32, amplitude: f32, phase: f32, 
         const pIn = resolveInputVec2(nodeId, 'in');
         if (!pIn) break;
 
-        const gap = paramSlotExprWired(paramLayout, nodeId, 'dotsGap', 0);
+        const spacing = paramSlotExprWired(paramLayout, nodeId, 'dotsSpacing', 0);
         const size = paramSlotExprWired(paramLayout, nodeId, 'dotsSize', 0);
         const feather = paramSlotExprWired(paramLayout, nodeId, 'dotsFeather', 0);
         const intensity = paramSlotExprWired(paramLayout, nodeId, 'dotsIntensity', 0);
@@ -5799,9 +5822,8 @@ fn wavePatternStripes(p: vec2<f32>, frequency: f32, amplitude: f32, phase: f32, 
         requireHelper(
           'dots',
           `
-fn dotsPattern(p: vec2<f32>, gap: f32, dotRadiusWorld: f32, featherUv: f32) -> f32 {
-  let g = max(0.0, gap);
-  let period = max(1e-5, 2.0 * dotRadiusWorld + g);
+fn dotsPattern(p: vec2<f32>, periodUv: f32, dotRadiusWorld: f32, featherUv: f32) -> f32 {
+  let period = max(1e-5, periodUv);
   let cell = fract(p / period);
   let center = vec2<f32>(0.5, 0.5);
   let dist = length(cell - center);
@@ -5812,7 +5834,7 @@ fn dotsPattern(p: vec2<f32>, gap: f32, dotRadiusWorld: f32, featherUv: f32) -> f
           `
         );
 
-        const dotVal = `dotsPattern(${pIn.code}, ${gap}, ${size}, ${feather})`;
+        const dotVal = `dotsPattern(${pIn.code}, ${spacing}, ${size}, ${feather})`;
         setNodeOut(nodeId, 'out', { type: 'f32', code: `(${dotVal} * ${intensity})` });
         break;
       }
@@ -7648,14 +7670,16 @@ fn radialRays(p: vec2<f32>, center: vec2<f32>, rayCountF: f32, spreadDeg: f32, w
         const angle = `(${angleDeg}) * 0.017453292519943295`;
         const stretch = `max(${paramSlotExprWired(paramLayout, nodeId, 'streakStretch', 0)}, 0.2)`;
         const width = `max(${paramSlotExprWired(paramLayout, nodeId, 'streakWidth', 0)}, 0.01)`;
+        const falloffK = `max(${paramSlotExprWired(paramLayout, nodeId, 'streakFalloff', 0)}, 0.1)`;
         const intensity = paramSlotExprWired(paramLayout, nodeId, 'streakIntensity', 0);
 
         const axis = `vec2<f32>(cos(${angle}), sin(${angle}))`;
         const perpAxis = `vec2<f32>(-sin(${angle}), cos(${angle}))`;
         const along = `dot(${pIn.code}, ${axis})`;
         const perp = `dot(${pIn.code}, ${perpAxis})`;
-        const falloff = `exp(-(${perp} * ${perp}) / (${width} * ${width}))`;
-        const alongFalloff = `(1.0 - smoothstep(0.0, ${stretch}, abs(${along})))`;
+        const d2 = `(${perp} * ${perp}) / (${width} * ${width})`;
+        const falloff = `exp(-pow(${d2}, 1.0 / ${falloffK}))`;
+        const alongFalloff = `(1.0 - smoothstep(0.0, ${stretch} * ${falloffK}, abs(${along})))`;
         setNodeOut(nodeId, 'out', { type: 'f32', code: `(${falloff} * ${alongFalloff} * ${intensity})` });
         break;
       }
@@ -8086,13 +8110,129 @@ fn bayer8(a: vec2<f32>) -> f32 {
           setNodeOut(nodeId, 'out', { type: 'vec4<f32>', code: `vec4<f32>(${v.code}.xyz, 1.0)` });
         } else if (patt === 'zyx') {
           setNodeOut(nodeId, 'out', { type: 'vec4<f32>', code: `vec4<f32>(${v.code}.zyx, 1.0)` });
-        } else if (patt === 'xyzw') {
-          setNodeOut(nodeId, 'out', { type: 'vec4<f32>', code: `${v.code}.xyzw` });
         } else if (patt === 'wzyx') {
           setNodeOut(nodeId, 'out', { type: 'vec4<f32>', code: `${v.code}.wzyx` });
         } else {
           setNodeOut(nodeId, 'out', { type: 'vec4<f32>', code: v.code });
         }
+        break;
+      }
+      case 'arrangement-lanes': {
+        const laneUv = resolveInputVec2(nodeId, 'in');
+        if (!laneUv) break;
+
+        const timeLinked = tryResolveInputF32(nodeId, 'time');
+        const timelineTime = timeLinked ? timeLinked.code : 'globals.v0.y';
+
+        const viewportMode = paramSlotExprWired(paramLayout, nodeId, 'viewportMode', 0);
+        const windowSeconds = paramSlotExprWired(paramLayout, nodeId, 'windowSeconds', 0);
+        const fixedStart = paramSlotExprWired(paramLayout, nodeId, 'fixedStartSeconds', 0);
+        const colorSource = paramSlotExprWired(paramLayout, nodeId, 'colorSource', 0);
+        const laneHeight = paramSlotExprWired(paramLayout, nodeId, 'laneHeight', 0);
+        const laneSpacing = paramSlotExprWired(paramLayout, nodeId, 'laneSpacing', 0);
+        const edgeFade = paramSlotExprWired(paramLayout, nodeId, 'edgeFade', 0);
+        const opacity = paramSlotExprWired(paramLayout, nodeId, 'opacity', 0);
+        const bgR = paramSlotExprWired(paramLayout, nodeId, 'backgroundR', 0);
+        const bgG = paramSlotExprWired(paramLayout, nodeId, 'backgroundG', 0);
+        const bgB = paramSlotExprWired(paramLayout, nodeId, 'backgroundB', 0);
+
+        requireHelper(
+          'arrangement-lanes-shared',
+          `
+fn arrangementLanesPaletteColorWgsl(colorIndex: f32, trackRow: f32, colorSource: f32) -> vec3<f32> {
+  if (colorSource >= 0.5) {
+    let hue = fract(colorIndex * 0.0625 + 0.02);
+    return vec3<f32>(
+      0.55 + 0.45 * cos(6.28318 * (hue + 0.0)),
+      0.55 + 0.45 * cos(6.28318 * (hue + 0.33)),
+      0.55 + 0.45 * cos(6.28318 * (hue + 0.66))
+    );
+  }
+  let hue = fract(trackRow * 0.17 + 0.41);
+  return vec3<f32>(
+    0.5 + 0.5 * cos(6.28318 * (hue + 0.0)),
+    0.5 + 0.5 * cos(6.28318 * (hue + 0.33)),
+    0.5 + 0.5 * cos(6.28318 * (hue + 0.66))
+  );
+}
+
+fn arrangementLanesEdgeFadeWgsl(uv: vec2<f32>, fadeAmount: f32) -> f32 {
+  if (fadeAmount <= 0.0001) {
+    return 1.0;
+  }
+  let edge = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
+  return smoothstep(0.0, fadeAmount, edge);
+}
+
+fn arrangementLanesScreenUvWgsl(inUv: vec2<f32>, uvInputMode: f32) -> vec2<f32> {
+  if (uvInputMode < 0.5) {
+    return inUv;
+  }
+  let aspect = globals.v0.z / max(1.0, globals.v0.w);
+  return vec2<f32>(inUv.x / (2.0 * aspect) + 0.5, inUv.y * 0.5 + 0.5);
+}
+          `
+        );
+
+        const suffix = arrangementLanesGlslSuffix(nodeId);
+        const packed = filterRegionsForNode(audioSetup?.arrangementSnapshot, node);
+        requireHelper(`arrangement-lanes-${suffix}`, buildArrangementLanesWgslNodeHelper(nodeId, packed));
+
+        const uvInputMode = paramSlotExprWired(paramLayout, nodeId, 'uvInputMode', 0);
+        const laneUvNorm = `arrangementLanesScreenUvWgsl(${laneUv.code}, ${uvInputMode})`;
+        const bg = `vec3<f32>(${bgR}, ${bgG}, ${bgB})`;
+        const out = `evalArrangementLanes_${suffix}(${laneUvNorm}, ${timelineTime}, ${viewportMode}, ${windowSeconds}, ${fixedStart}, ${colorSource}, ${laneHeight}, ${laneSpacing}, ${edgeFade}, ${opacity}, ${bg})`;
+        setNodeOut(nodeId, 'out', { type: 'vec4<f32>', code: out });
+        break;
+      }
+      case 'arrangement-notes': {
+        const noteUv = resolveInputVec2(nodeId, 'in');
+        if (!noteUv) break;
+
+        const timeLinked = tryResolveInputF32(nodeId, 'time');
+        const timelineTime = timeLinked ? timeLinked.code : 'globals.v0.y';
+
+        const viewportMode = paramSlotExprWired(paramLayout, nodeId, 'viewportMode', 0);
+        const windowSeconds = paramSlotExprWired(paramLayout, nodeId, 'windowSeconds', 0);
+        const fixedStart = paramSlotExprWired(paramLayout, nodeId, 'fixedStartSeconds', 0);
+        const noteSize = paramSlotExprWired(paramLayout, nodeId, 'noteSize', 0);
+        const velocityScale = paramSlotExprWired(paramLayout, nodeId, 'velocityScale', 0);
+        const edgeFade = paramSlotExprWired(paramLayout, nodeId, 'edgeFade', 0);
+        const opacity = paramSlotExprWired(paramLayout, nodeId, 'opacity', 0);
+        const bgR = paramSlotExprWired(paramLayout, nodeId, 'backgroundR', 0);
+        const bgG = paramSlotExprWired(paramLayout, nodeId, 'backgroundG', 0);
+        const bgB = paramSlotExprWired(paramLayout, nodeId, 'backgroundB', 0);
+
+        requireHelper(
+          'arrangement-notes-shared',
+          `
+fn arrangementLanesEdgeFadeWgsl(uv: vec2<f32>, fadeAmount: f32) -> f32 {
+  if (fadeAmount <= 0.0001) {
+    return 1.0;
+  }
+  let edge = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
+  return smoothstep(0.0, fadeAmount, edge);
+}
+
+fn arrangementNotesScreenUvWgsl(inUv: vec2<f32>, uvInputMode: f32) -> vec2<f32> {
+  if (uvInputMode < 0.5) {
+    return inUv;
+  }
+  let aspect = globals.v0.z / max(1.0, globals.v0.w);
+  return vec2<f32>(inUv.x / (2.0 * aspect) + 0.5, inUv.y * 0.5 + 0.5);
+}
+          `
+        );
+
+        const suffix = arrangementLanesGlslSuffix(nodeId);
+        const packed = filterNotesForNode(audioSetup?.arrangementSnapshot, node);
+        requireHelper(`arrangement-notes-${suffix}`, buildArrangementNotesWgslNodeHelper(nodeId, packed));
+
+        const uvInputMode = paramSlotExprWired(paramLayout, nodeId, 'uvInputMode', 0);
+        const laneUvNorm = `arrangementNotesScreenUvWgsl(${noteUv.code}, ${uvInputMode})`;
+        const bg = `vec3<f32>(${bgR}, ${bgG}, ${bgB})`;
+        const out = `evalArrangementNotes_${suffix}(${laneUvNorm}, ${timelineTime}, ${viewportMode}, ${windowSeconds}, ${fixedStart}, ${noteSize}, ${velocityScale}, ${edgeFade}, ${opacity}, ${bg})`;
+        setNodeOut(nodeId, 'out', { type: 'vec4<f32>', code: out });
         break;
       }
       case 'final-output': {

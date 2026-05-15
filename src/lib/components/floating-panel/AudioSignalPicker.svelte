@@ -36,6 +36,10 @@
      * remappers can still be created, edited, and deleted.
      */
     browseOnly?: boolean;
+    canImportArrangement?: boolean;
+    arrangementImportBusy?: boolean;
+    arrangementRegionCount?: number;
+    onImportArrangement?: () => void;
     class?: string;
   }
 
@@ -58,6 +62,10 @@
     onAudioSetupChange,
     getAudioManager,
     browseOnly = false,
+    canImportArrangement = false,
+    arrangementImportBusy = false,
+    arrangementRegionCount,
+    onImportArrangement,
     class: className = ''
   }: Props = $props();
 </script>
@@ -81,5 +89,9 @@
   onAudioSetupChange={onAudioSetupChange}
   getAudioManager={getAudioManager}
   browseOnly={browseOnly}
+  canImportArrangement={canImportArrangement}
+  arrangementImportBusy={arrangementImportBusy}
+  arrangementRegionCount={arrangementRegionCount}
+  onImportArrangement={onImportArrangement}
   class={className}
 />

@@ -2284,9 +2284,8 @@ fn vs(@builtin(vertex_index) vid : u32) -> VsOut {
   return o;
 }
 
-fn dotsPattern(p: vec2<f32>, gap: f32, dotRadiusWorld: f32, featherUv: f32) -> f32 {
-  let g = max(0.0, gap);
-  let period = max(1e-5, 2.0 * dotRadiusWorld + g);
+fn dotsPattern(p: vec2<f32>, periodUv: f32, dotRadiusWorld: f32, featherUv: f32) -> f32 {
+  let period = max(1e-5, periodUv);
   let cell = fract(p / period);
   let center = vec2<f32>(0.5, 0.5);
   let dist = length(cell - center);
@@ -2296,7 +2295,7 @@ fn dotsPattern(p: vec2<f32>, gap: f32, dotRadiusWorld: f32, featherUv: f32) -> f
 }
 @fragment
 fn fs(in : VsOut) -> @location(0) vec4<f32> {
-  return vec4<f32>(vec4<f32>((dotsPattern(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), params[4].x, params[6].x, params[3].x) * params[5].x), (dotsPattern(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), params[4].x, params[6].x, params[3].x) * params[5].x), select((dotsPattern(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), params[4].x, params[6].x, params[3].x) * params[5].x), 0.0, (params[0].x < 2.5)), select(1.0, params[1].x, (params[0].x >= 3.5))).xyz, 1.0);
+  return vec4<f32>(vec4<f32>((dotsPattern(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), params[6].x, params[5].x, params[3].x) * params[4].x), (dotsPattern(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), params[6].x, params[5].x, params[3].x) * params[4].x), select((dotsPattern(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), params[6].x, params[5].x, params[3].x) * params[4].x), 0.0, (params[0].x < 2.5)), select(1.0, params[1].x, (params[0].x >= 3.5))).xyz, 1.0);
 }
 ",
   "fixtureId": "mvpBokehPassPlan",
@@ -2311,9 +2310,9 @@ fn fs(in : VsOut) -> @location(0) vec4<f32> {
     "n-c.w": 1,
     "n-c.z": 2,
     "n-dots.dotsFeather": 3,
-    "n-dots.dotsGap": 4,
-    "n-dots.dotsIntensity": 5,
-    "n-dots.dotsSize": 6,
+    "n-dots.dotsIntensity": 4,
+    "n-dots.dotsSize": 5,
+    "n-dots.dotsSpacing": 6,
   },
   "previewDependencies": {
     "usesAudioUniforms": false,
@@ -3857,9 +3856,8 @@ fn vs(@builtin(vertex_index) vid : u32) -> VsOut {
   return o;
 }
 
-fn dotsPattern(p: vec2<f32>, gap: f32, dotRadiusWorld: f32, featherUv: f32) -> f32 {
-  let g = max(0.0, gap);
-  let period = max(1e-5, 2.0 * dotRadiusWorld + g);
+fn dotsPattern(p: vec2<f32>, periodUv: f32, dotRadiusWorld: f32, featherUv: f32) -> f32 {
+  let period = max(1e-5, periodUv);
   let cell = fract(p / period);
   let center = vec2<f32>(0.5, 0.5);
   let dist = length(cell - center);
@@ -3869,15 +3867,15 @@ fn dotsPattern(p: vec2<f32>, gap: f32, dotRadiusWorld: f32, featherUv: f32) -> f
 }
 @fragment
 fn fs(in : VsOut) -> @location(0) vec4<f32> {
-  return vec4<f32>((dotsPattern(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), params[1].x, params[3].x, params[0].x) * params[2].x), (dotsPattern(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), params[1].x, params[3].x, params[0].x) * params[2].x), (dotsPattern(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), params[1].x, params[3].x, params[0].x) * params[2].x), 1.0);
+  return vec4<f32>((dotsPattern(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), params[3].x, params[2].x, params[0].x) * params[1].x), (dotsPattern(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), params[3].x, params[2].x, params[0].x) * params[1].x), (dotsPattern(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), params[3].x, params[2].x, params[0].x) * params[1].x), 1.0);
 }
 ",
   "fixtureId": "mvpDots",
   "paramLayout": {
     "n-d.dotsFeather": 0,
-    "n-d.dotsGap": 1,
-    "n-d.dotsIntensity": 2,
-    "n-d.dotsSize": 3,
+    "n-d.dotsIntensity": 1,
+    "n-d.dotsSize": 2,
+    "n-d.dotsSpacing": 3,
   },
   "previewDependencies": {
     "usesAudioUniforms": false,
@@ -9205,6 +9203,63 @@ fn fs(in : VsOut) -> @location(0) vec4<f32> {
 }
 `;
 
+exports[`WGSL MVP compile snapshots > matches snapshot for mvpMaskCompositeVec2 1`] = `
+{
+  "code": "
+struct Globals {
+  v0 : vec4<f32>,
+  v1 : vec4<f32>,
+}
+
+@group(0) @binding(0) var<uniform> globals : Globals;
+@group(0) @binding(1) var<storage, read> params : array<vec4<f32>>;
+
+struct VsOut {
+  @builtin(position) pos : vec4<f32>,
+  @location(0) uv : vec2<f32>,
+}
+
+@vertex
+fn vs(@builtin(vertex_index) vid : u32) -> VsOut {
+  var p = array<vec2<f32>, 3>(
+    vec2<f32>(-1.0, -1.0),
+    vec2<f32>( 3.0, -1.0),
+    vec2<f32>(-1.0,  3.0)
+  );
+  var o : VsOut;
+  o.pos = vec4<f32>(p[vid], 0.0, 1.0);
+  o.uv = (o.pos.xy * 0.5) + vec2<f32>(0.5, 0.5);
+  return o;
+}
+
+@fragment
+fn fs(in : VsOut) -> @location(0) vec4<f32> {
+  return vec4<f32>(0.0, 0.0, 0.0, 1.0);
+}
+",
+  "fixtureId": "mvpMaskCompositeVec2",
+  "paramLayout": {
+    "n-bg.x": 0,
+    "n-bg.y": 1,
+    "n-fg.x": 2,
+    "n-fg.y": 3,
+    "n-m.value": 4,
+    "n-mask.invert": 5,
+    "n-mask.mask": 6,
+  },
+  "previewDependencies": {
+    "usesAudioUniforms": false,
+    "usesFrameIndex": false,
+    "usesMouseUniforms": false,
+    "usesRadialPulseSpawnUniformPass": false,
+    "usesRadialPulseVirtualDrive": false,
+    "usesResolutionUniform": false,
+    "usesTimelineTime": false,
+    "usesWallTime": false,
+  },
+}
+`;
+
 exports[`WGSL MVP compile snapshots > matches snapshot for mvpMaskCompositeVec3 1`] = `
 {
   "code": "
@@ -12011,15 +12066,16 @@ fn vs(@builtin(vertex_index) vid : u32) -> VsOut {
 
 @fragment
 fn fs(in : VsOut) -> @location(0) vec4<f32> {
-  return vec4<f32>((exp(-(dot(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), vec2<f32>(-sin((params[0].x) * 0.017453292519943295), cos((params[0].x) * 0.017453292519943295))) * dot(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), vec2<f32>(-sin((params[0].x) * 0.017453292519943295), cos((params[0].x) * 0.017453292519943295)))) / (max(params[3].x, 0.01) * max(params[3].x, 0.01))) * (1.0 - smoothstep(0.0, max(params[2].x, 0.2), abs(dot(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), vec2<f32>(cos((params[0].x) * 0.017453292519943295), sin((params[0].x) * 0.017453292519943295)))))) * params[1].x), (exp(-(dot(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), vec2<f32>(-sin((params[0].x) * 0.017453292519943295), cos((params[0].x) * 0.017453292519943295))) * dot(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), vec2<f32>(-sin((params[0].x) * 0.017453292519943295), cos((params[0].x) * 0.017453292519943295)))) / (max(params[3].x, 0.01) * max(params[3].x, 0.01))) * (1.0 - smoothstep(0.0, max(params[2].x, 0.2), abs(dot(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), vec2<f32>(cos((params[0].x) * 0.017453292519943295), sin((params[0].x) * 0.017453292519943295)))))) * params[1].x), (exp(-(dot(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), vec2<f32>(-sin((params[0].x) * 0.017453292519943295), cos((params[0].x) * 0.017453292519943295))) * dot(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), vec2<f32>(-sin((params[0].x) * 0.017453292519943295), cos((params[0].x) * 0.017453292519943295)))) / (max(params[3].x, 0.01) * max(params[3].x, 0.01))) * (1.0 - smoothstep(0.0, max(params[2].x, 0.2), abs(dot(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), vec2<f32>(cos((params[0].x) * 0.017453292519943295), sin((params[0].x) * 0.017453292519943295)))))) * params[1].x), 1.0);
+  return vec4<f32>((exp(-pow((dot(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), vec2<f32>(-sin((params[0].x) * 0.017453292519943295), cos((params[0].x) * 0.017453292519943295))) * dot(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), vec2<f32>(-sin((params[0].x) * 0.017453292519943295), cos((params[0].x) * 0.017453292519943295)))) / (max(params[4].x, 0.01) * max(params[4].x, 0.01)), 1.0 / max(params[1].x, 0.1))) * (1.0 - smoothstep(0.0, max(params[3].x, 0.2) * max(params[1].x, 0.1), abs(dot(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), vec2<f32>(cos((params[0].x) * 0.017453292519943295), sin((params[0].x) * 0.017453292519943295)))))) * params[2].x), (exp(-pow((dot(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), vec2<f32>(-sin((params[0].x) * 0.017453292519943295), cos((params[0].x) * 0.017453292519943295))) * dot(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), vec2<f32>(-sin((params[0].x) * 0.017453292519943295), cos((params[0].x) * 0.017453292519943295)))) / (max(params[4].x, 0.01) * max(params[4].x, 0.01)), 1.0 / max(params[1].x, 0.1))) * (1.0 - smoothstep(0.0, max(params[3].x, 0.2) * max(params[1].x, 0.1), abs(dot(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), vec2<f32>(cos((params[0].x) * 0.017453292519943295), sin((params[0].x) * 0.017453292519943295)))))) * params[2].x), (exp(-pow((dot(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), vec2<f32>(-sin((params[0].x) * 0.017453292519943295), cos((params[0].x) * 0.017453292519943295))) * dot(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), vec2<f32>(-sin((params[0].x) * 0.017453292519943295), cos((params[0].x) * 0.017453292519943295)))) / (max(params[4].x, 0.01) * max(params[4].x, 0.01)), 1.0 / max(params[1].x, 0.1))) * (1.0 - smoothstep(0.0, max(params[3].x, 0.2) * max(params[1].x, 0.1), abs(dot(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)), vec2<f32>(cos((params[0].x) * 0.017453292519943295), sin((params[0].x) * 0.017453292519943295)))))) * params[2].x), 1.0);
 }
 ",
   "fixtureId": "mvpStreak",
   "paramLayout": {
     "n-st.streakAngleDeg": 0,
-    "n-st.streakIntensity": 1,
-    "n-st.streakStretch": 2,
-    "n-st.streakWidth": 3,
+    "n-st.streakFalloff": 1,
+    "n-st.streakIntensity": 2,
+    "n-st.streakStretch": 3,
+    "n-st.streakWidth": 4,
   },
   "previewDependencies": {
     "usesAudioUniforms": false,

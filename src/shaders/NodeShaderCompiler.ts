@@ -246,7 +246,8 @@ export class NodeShaderCompiler {
         compileGraph,
         uniformNames,
         variableNames,
-        compileExecutionOrder
+        compileExecutionOrder,
+        audioSetup ?? null
       );
 
       const { variableDeclarations, mainCode, genericRaymarcherSdfFunctions } = this.mainCodeGenerator.generateMainCode(
@@ -500,7 +501,8 @@ export class NodeShaderCompiler {
       compileGraph,
       uniformNames,
       variableNames,
-      compileExecutionOrder
+      compileExecutionOrder,
+      audioSetup ?? null
     );
 
     // Step 7: Generate main code (returns variable declarations, main code, and generic-raymarcher SDF functions).

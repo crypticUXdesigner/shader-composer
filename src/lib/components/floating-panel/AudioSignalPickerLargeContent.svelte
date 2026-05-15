@@ -33,6 +33,10 @@
     initialBandId,
     registerDeleteHandler,
     browseOnly = false,
+    canImportArrangement = false,
+    arrangementImportBusy = false,
+    arrangementRegionCount,
+    onImportArrangement,
   }: LargeSlotProps = $props();
 
   /** User override for band list selection; UNSET = follow auto rules (initial / growth). */
@@ -285,6 +289,31 @@
   use:registerDeleteBridge={{ register: registerDeleteHandler, getDelete: () => deleteSelected }}
   use:docDeleteCapture
 >
+  {#if browseOnly && onImportArrangement}
+    <div class="arrangement-import" role="group" aria-label="DAW arrangement">
+      <Button
+        variant="secondary"
+        size="sm"
+        mode="both"
+        disabled={!canImportArrangement || arrangementImportBusy}
+        title={canImportArrangement
+          ? 'Import region lanes from the published studio project'
+          : 'Sign in and select an Audiotool playlist track as primary'}
+        onclick={() => onImportArrangement?.()}
+        aria-busy={arrangementImportBusy}
+      >
+        {arrangementImportBusy ? 'Importing…' : 'Import arrangement from project'}
+      </Button>
+      {#if arrangementRegionCount != null && arrangementRegionCount > 0}
+        <p class="hint arrangement-hint">
+          Snapshot loaded ({arrangementRegionCount} region{arrangementRegionCount === 1 ? '' : 's'}).
+          Align timeline duration manually if needed.
+        </p>
+      {:else if !canImportArrangement}
+        <p class="hint arrangement-hint">Available when signed in with a playlist track as primary.</p>
+      {/if}
+    </div>
+  {/if}
   <div class="columns" role="group" aria-label="Audio signal picker: bands and remappers">
     <div
       class="left scrollbar-styled"
@@ -464,6 +493,18 @@
     overflow: hidden;
     padding: 0;
     box-sizing: border-box;
+
+    .arrangement-import {
+      display: flex;
+      flex-direction: column;
+      gap: var(--pd-xs);
+      flex-shrink: 0;
+      padding: var(--pd-md) var(--pd-md) 0;
+
+      .arrangement-hint {
+        margin: 0;
+      }
+    }
 
     .columns {
       display: grid;

@@ -1,6 +1,17 @@
-import { describe, it } from 'vitest';
+import { describe, it, expect } from 'vitest';
+import { buildArrangementSnapshot } from '../audiotool/arrangement/buildArrangementSnapshot';
+import type { RawArrangementEntities } from '../audiotool/arrangement/rawEntities';
+import spikeFixture from '../audiotool/arrangement/__fixtures__/spike-arrangement-raw.json';
 import type { AudioSetup } from './audioSetupTypes';
-import { retargetBandsToPrimary } from './audioSetupUpdates';
+import {
+  clearArrangementSnapshot,
+  clearArrangementSnapshotIfPrimaryMismatch,
+  setArrangementSnapshot,
+  setPrimarySource,
+  retargetBandsToPrimary,
+} from './audioSetupUpdates';
+
+const snapshot = buildArrangementSnapshot(spikeFixture as RawArrangementEntities);
 
 function assert(condition: boolean, message: string): void {
   if (!condition) {
@@ -144,3 +155,45 @@ describe('retargetBandsToPrimary', () => {
   });
 });
 
+describe('arrangement snapshot audio setup updates', () => {
+  it('clearArrangementSnapshotIfPrimaryMismatch keeps snapshot for matching playlist track', () => {
+    const setup = setArrangementSnapshot(
+      {
+        files: [],
+        bands: [],
+        remappers: [],
+        primarySource: { type: 'playlist', trackId: snapshot.source.trackName },
+      },
+      snapshot
+    );
+    expect(clearArrangementSnapshotIfPrimaryMismatch(setup).arrangementSnapshot).toEqual(snapshot);
+  });
+
+  it('clearArrangementSnapshotIfPrimaryMismatch clears on upload or other track', () => {
+    const withSnap = setArrangementSnapshot(
+      {
+        files: [],
+        bands: [],
+        remappers: [],
+        primarySource: { type: 'playlist', trackId: snapshot.source.trackName },
+      },
+      snapshot
+    );
+    const upload = setPrimarySource(withSnap, {
+      type: 'upload',
+      file: { id: 'f1', name: 'x', autoPlay: false },
+    });
+    expect(clearArrangementSnapshotIfPrimaryMismatch(upload).arrangementSnapshot).toBeUndefined();
+
+    const other = setPrimarySource(withSnap, { type: 'playlist', trackId: 'tracks/other' });
+    expect(clearArrangementSnapshotIfPrimaryMismatch(other).arrangementSnapshot).toBeUndefined();
+  });
+
+  it('clearArrangementSnapshot removes persisted fields', () => {
+    const cleared = clearArrangementSnapshot(
+      setArrangementSnapshot({ files: [], bands: [], remappers: [] }, snapshot)
+    );
+    expect(cleared.arrangementSnapshot).toBeUndefined();
+    expect(cleared.arrangementImportedAt).toBeUndefined();
+  });
+});

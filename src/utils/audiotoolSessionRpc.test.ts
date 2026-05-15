@@ -51,6 +51,31 @@ describe('parseAudiotoolTrackJsonPayload', () => {
   it('omits displayName when proto only has resource name — avoids UX treating tracks/… as title', () => {
     expect(parseAudiotoolTrackJsonPayload({ name: 'tracks/zzz' })).toEqual({});
   });
+
+  it('parses project_name and project_commit_index', () => {
+    expect(
+      parseAudiotoolTrackJsonPayload({
+        name: 'tracks/abc',
+        project_name: 'projects/uuid-here',
+        project_commit_index: 12,
+      })
+    ).toEqual({
+      projectName: 'projects/uuid-here',
+      projectCommitIndex: 12,
+    });
+  });
+
+  it('accepts camelCase project fields from Connect JSON', () => {
+    expect(
+      parseAudiotoolTrackJsonPayload({
+        projectName: 'projects/other',
+        projectCommitIndex: 3,
+      })
+    ).toEqual({
+      projectName: 'projects/other',
+      projectCommitIndex: 3,
+    });
+  });
 });
 
 describe('CEL ListTracks filters', () => {

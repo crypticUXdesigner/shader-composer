@@ -262,5 +262,20 @@ export function getParameterEnumMappings(
     };
   }
 
+  if (nodeId === 'arrangement-lanes' || nodeId === 'arrangement-notes') {
+    if (paramName === 'uvInputMode') {
+      return { 0: 'Normalized', 1: 'UV Coords' };
+    }
+    if (paramName === 'viewportMode') {
+      return { 0: 'Follow', 1: 'Fixed' };
+    }
+    if (paramName === 'trackFilterMode') {
+      return { 0: 'All tracks', 1: 'Track ids' };
+    }
+    if (nodeId === 'arrangement-lanes' && paramName === 'colorSource') {
+      return { 0: 'Palette', 1: 'DAW' };
+    }
+  }
+
   return null;
 }

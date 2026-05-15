@@ -50,6 +50,10 @@
      * `targetParameter` can be empty strings in this mode.
      */
     browseOnly?: boolean;
+    canImportArrangement?: boolean;
+    arrangementImportBusy?: boolean;
+    arrangementRegionCount?: number;
+    onImportArrangement?: () => void;
     class?: string;
   }
 
@@ -72,6 +76,10 @@
     onAudioSetupChange,
     getAudioManager,
     browseOnly = false,
+    canImportArrangement = false,
+    arrangementImportBusy = false,
+    arrangementRegionCount,
+    onImportArrangement,
     class: className = ''
   }: AudioSignalPickerPanelProps = $props();
 
@@ -134,6 +142,10 @@
       deleteHandler = handler;
     },
     browseOnly,
+    canImportArrangement,
+    arrangementImportBusy,
+    arrangementRegionCount,
+    onImportArrangement,
   } satisfies LargeSlotProps);
 
   /** Props for compact slot. Only valid when compactConnectionInfo is set. */

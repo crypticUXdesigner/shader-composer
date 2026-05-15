@@ -354,7 +354,9 @@ const TRACKABLE_NODE_INPUT_PORTS: Record<string, string[]> = {
   'step': ['edge', 'x'], 'smoothstep': ['edge0', 'edge1', 'x'],
   'sine': ['in'], 'cosine': ['in'], 'tangent': ['in'], 'arc-sine': ['in'], 'arc-cosine': ['in'], 'arc-tangent': ['in'], 'arc-tangent-2': ['y', 'x'],
   'exponential': ['in'], 'natural-logarithm': ['in'], 'reciprocal': ['in'], 'remap': ['in'], 'clamp-01': ['in'], 'saturate': ['in'], 'sign': ['in'],
-  'mask-composite-float': ['bg', 'mask', 'fg'], 'mask-composite-vec3': ['bg', 'mask', 'fg']
+  'mask-composite-float': ['bg', 'mask', 'fg'],
+  'mask-composite-vec2': ['bg', 'mask', 'fg'],
+  'mask-composite-vec3': ['bg', 'mask', 'fg']
 };
 
 function isConnectionTrackable(

@@ -33,6 +33,11 @@ export interface LargeSlotProps {
    * else (create, edit, delete) stays available.
    */
   browseOnly?: boolean;
+  /** Browse mode: import DAW arrangement for playlist primary (task 02). */
+  canImportArrangement?: boolean;
+  arrangementImportBusy?: boolean;
+  arrangementRegionCount?: number;
+  onImportArrangement?: () => void;
 }
 
 /** Props passed to the compact slot (02B). */

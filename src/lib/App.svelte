@@ -35,12 +35,15 @@
     getPrimaryFileId,
     setLoopCurrentTrack,
     retargetBandsToPrimary,
+    clearArrangementSnapshotIfPrimaryMismatch,
   } from '../data-model';
+  import { importArrangementForPrimaryTrack } from '../audiotool/arrangement';
   import {
     getTracksData,
     getPlaylistOrder,
     resolvePlaylistTrackMp3Url,
     playlistPrimaryFromBundledCatalog,
+    getBundledTrackProjectName,
   } from '../runtime/tracksData';
   import {
     fetchAudiotoolTrackViaGetTrack,
@@ -267,8 +270,7 @@
         setup = setPrimarySource(setup, playlistPrimaryFromBundledCatalog(trackId, data));
         const newPrimaryId = getPrimaryFileId(setup);
         setup = retargetBandsToPrimary(setup, prevPrimaryId, newPrimaryId);
-        graphStore.setAudioSetup(setup);
-        runtimeDispatcher?.setAudioSetup(setup, { autoPlayWhenReady: true });
+        commitAudioSetup(setup, { autoPlayWhenReady: true });
         runtimeDispatcher?.playPrimary();
       })();
     });
@@ -327,9 +329,9 @@
           graphChanged = true;
         }
 
-        if (graphChanged) graphStore.setAudioSetup(setup);
-        if (playbackUrl !== undefined || (dn?.length ?? 0) > 0)
-          runtimeDispatcher?.setAudioSetup(graphChanged ? setup : graphStore.audioSetup);
+        if (graphChanged) commitAudioSetup(setup);
+        else if (playbackUrl !== undefined || (dn?.length ?? 0) > 0)
+          runtimeDispatcher?.setAudioSetup(graphStore.audioSetup);
       });
     })();
   });
@@ -516,6 +518,21 @@
   let signalPickerTriggerElement = $state<HTMLElement | null>(null);
   /** True when the picker was opened from a global entry point (audio button) without a parameter target. */
   let signalPickerBrowseMode = $state(false);
+  let arrangementImportBusy = $state(false);
+
+  const canImportArrangement = $derived(
+    atConn.session != null && graphStore.audioSetup.primarySource?.type === 'playlist'
+  );
+  const arrangementRegionCount = $derived(graphStore.audioSetup.arrangementSnapshot?.regions.length);
+
+  function commitAudioSetup(
+    setup: AudioSetup,
+    runtimeOpts?: { autoPlayWhenReady?: boolean }
+  ): void {
+    const next = clearArrangementSnapshotIfPrimaryMismatch(setup);
+    graphStore.setAudioSetup(next);
+    runtimeDispatcher?.setAudioSetup(next, runtimeOpts);
+  }
 
   /** Load picker, shortcuts modal, preset import confirm (see NodeEditorLayout). */
   let layoutBlockingCanvasShortcuts = $state(false);
@@ -681,6 +698,70 @@
     signalPickerVisible = true;
   }
 
+  async function handleImportArrangement(): Promise<void> {
+    if (arrangementImportBusy) return;
+    arrangementImportBusy = true;
+    try {
+      let catalog: Awaited<ReturnType<typeof getTracksData>> | undefined;
+      try {
+        catalog = await getTracksData();
+      } catch {
+        /* bundled catalog optional — GetTrack may still supply project_name */
+      }
+      const result = await importArrangementForPrimaryTrack(
+        atConn.session,
+        graphStore.audioSetup,
+        (id) => (catalog ? getBundledTrackProjectName(catalog, id) : undefined)
+      );
+      if (!result.ok) {
+        const message =
+          result.reason === 'disconnected'
+            ? 'Sign in to Audiotool to import arrangement.'
+            : result.reason === 'not_playlist_primary'
+              ? 'Select an Audiotool playlist track as primary.'
+              : result.reason === 'no_project_name'
+                ? 'This track has no linked studio project.'
+                : result.reason === 'rpc_forbidden'
+                  ? 'Audiotool denied project read access. Check OAuth scopes.'
+                  : result.reason === 'session_auth_failed'
+                    ? 'Audiotool session expired. Sign in again.'
+                    : 'Could not import arrangement.';
+        appToastStore.addToast({
+          variant: 'warning',
+          message,
+          reportCategory: 'audio',
+          source: 'arrangement-import',
+        });
+        if (result.reason === 'session_auth_failed') {
+          handleAudiotoolSessionRpcInvalidated();
+        }
+        return;
+      }
+      const regionCount = result.snapshot.regions.length;
+      const noteCount = result.snapshot.notes?.length ?? 0;
+      commitAudioSetup(result.audioSetup);
+      console.info('[arrangement] after import (audioSetup)', {
+        regions: regionCount,
+        notes: noteCount,
+      });
+      appToastStore.addToast({
+        variant: 'success',
+        message: `Imported arrangement (${regionCount} region${regionCount === 1 ? '' : 's'}, ${noteCount} note${noteCount === 1 ? '' : 's'}). Open the browser console (F12) for [arrangement] diagnostics. Timeline duration is not changed automatically.`,
+        reportCategory: 'audio',
+        source: 'arrangement-import',
+      });
+    } catch (e) {
+      appToastStore.addToast({
+        variant: 'error',
+        message: e instanceof Error ? e.message : 'Could not import arrangement.',
+        reportCategory: 'audio',
+        source: 'arrangement-import',
+      });
+    } finally {
+      arrangementImportBusy = false;
+    }
+  }
+
   function refreshTimelineFloatingPosition(): void {
     const inset = 16;
     const w = typeof window !== 'undefined' ? window.innerWidth : 1000;
@@ -768,7 +849,7 @@
       setup = setPrimarySource(setup, playlistPrimaryFromBundledCatalog(startingTrackId, data));
       const idx = order.indexOf(startingTrackId);
       setup = setPlaylistCurrentIndex(setup, idx >= 0 ? idx : 0);
-      return setup;
+      return clearArrangementSnapshotIfPrimaryMismatch(setup);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       globalErrorHandler.report(
@@ -2064,8 +2145,7 @@
           setup = setPlaylistCurrentIndex(setup, idx >= 0 ? idx : 0);
           const newPrimaryId = getPrimaryFileId(setup);
           setup = retargetBandsToPrimary(setup, prevPrimaryId, newPrimaryId);
-          graphStore.setAudioSetup(setup);
-          runtimeDispatcher?.setAudioSetup(setup, { autoPlayWhenReady: true });
+          commitAudioSetup(setup, { autoPlayWhenReady: true });
         }}
         onAudioFileSelected={async (nodeId, file) => {
           let setup = graphStore.audioSetup;
@@ -2079,7 +2159,7 @@
             };
             setup = addAudioFile(setup, newFile);
             setup = setPrimarySource(setup, { type: 'upload', file: newFile });
-            graphStore.setAudioSetup(setup);
+            commitAudioSetup(setup);
             targetFileId = newFile.id;
           }
           if (!targetFileId) return;
@@ -2254,6 +2334,10 @@
     audioSetup={graphStore.audioSetup}
     nodeSpecs={nodeSpecsMap}
     browseOnly={signalPickerBrowseMode}
+    canImportArrangement={canImportArrangement}
+    arrangementImportBusy={arrangementImportBusy}
+    arrangementRegionCount={arrangementRegionCount}
+    onImportArrangement={() => void handleImportArrangement()}
     getAudioManager={() => runtimeManager?.getAudioManager() ?? null}
     onSelect={(payload) => {
       signalPickerOnSelect?.(payload);
@@ -2278,8 +2362,7 @@
       signalPickerBrowseMode = false;
     }}
     onAudioSetupChange={(setup) => {
-      graphStore.setAudioSetup(setup);
-      runtimeDispatcher?.setAudioSetup(setup);
+      commitAudioSetup(setup);
     }}
   />
 </div>

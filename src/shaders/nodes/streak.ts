@@ -46,6 +46,14 @@ export const streakNodeSpec: NodeSpec = {
       step: 0.01,
       label: 'Width'
     },
+    streakFalloff: {
+      type: 'float',
+      default: 1.0,
+      min: 0.1,
+      max: 5.0,
+      step: 0.1,
+      label: 'Falloff'
+    },
     streakIntensity: {
       type: 'float',
       default: 1.0,
@@ -59,7 +67,13 @@ export const streakNodeSpec: NodeSpec = {
     {
       id: 'spot-main',
       label: 'Spot',
-      parameters: ['streakAngleDeg', 'streakStretch', 'streakWidth', 'streakIntensity'],
+      parameters: [
+        'streakAngleDeg',
+        'streakStretch',
+        'streakWidth',
+        'streakFalloff',
+        'streakIntensity'
+      ],
       collapsible: true,
       defaultCollapsed: false
     }
@@ -73,8 +87,10 @@ export const streakNodeSpec: NodeSpec = {
   float perp = dot(p, perpAxis);
   float width = max($param.streakWidth, 0.01);
   float stretch = max($param.streakStretch, 0.2);
-  float falloff = exp(-(perp * perp) / (width * width));
-  float alongFalloff = 1.0 - smoothstep(0.0, stretch, abs(along));
+  float falloffK = max($param.streakFalloff, 0.1);
+  float d2 = (perp * perp) / (width * width);
+  float falloff = exp(-pow(d2, 1.0 / falloffK));
+  float alongFalloff = 1.0 - smoothstep(0.0, stretch * falloffK, abs(along));
   float v = falloff * alongFalloff * $param.streakIntensity;
   $output.out += v;
 `

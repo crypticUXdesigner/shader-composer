@@ -43,7 +43,7 @@
           "y": -1526
         },
         "parameters": {
-          "dotsGap": 0.19800000000000004,
+          "dotsSpacing": 0.35,
           "dotsSize": 0.076,
           "dotsFeather": 0.175,
           "dotsIntensity": 2
@@ -51,7 +51,7 @@
         "parameterInputModes": {
           "dotsIntensity": "multiply",
           "dotsSize": "multiply",
-          "dotsGap": "multiply"
+          "dotsSpacing": "multiply"
         }
       },
       {

@@ -1,47 +1,50 @@
 /**
  * Dots node legacy graph migration:
  * - `dotsFalloff` → `dotsFeather`
- * - `dotsSpacing` (lattice period, pre–gap semantics) → `dotsGap` (edge-to-edge) + cell-feather → UV-feather
+ * - `dotsGap` (edge-to-edge era) → `dotsSpacing` (center-to-center period)
+ * - legacy `dotsSpacing` + cell-feather `dotsFalloff` → UV `dotsFeather`
  */
 
 import type { ParameterInputMode } from '../types/nodeSpec';
 import type { AutomationLane, Connection, NodeGraph, NodeInstance } from './types';
 
-const MIN_GAP = 1e-4;
+const MIN_PERIOD = 1e-4;
 const DEFAULT_DOT_SIZE = 0.03;
+const DEFAULT_PERIOD = DEFAULT_DOT_SIZE * 3;
 
 function migrateNode(node: NodeInstance): NodeInstance {
   if (node.type !== 'dots') return node;
 
   const params: Record<string, unknown> = node.parameters ? { ...node.parameters } : {};
 
-  if (
+  const hadLegacyCellFeather =
     Object.prototype.hasOwnProperty.call(params, 'dotsFalloff') &&
-    !Object.prototype.hasOwnProperty.call(params, 'dotsFeather')
-  ) {
+    !Object.prototype.hasOwnProperty.call(params, 'dotsFeather');
+
+  if (hadLegacyCellFeather) {
     params.dotsFeather = params.dotsFalloff;
   }
   delete params.dotsFalloff;
 
-  const hadLegacyPeriod =
-    Object.prototype.hasOwnProperty.call(params, 'dotsSpacing') &&
-    !Object.prototype.hasOwnProperty.call(params, 'dotsGap');
+  const r =
+    typeof params.dotsSize === 'number' && Number.isFinite(params.dotsSize)
+      ? params.dotsSize
+      : DEFAULT_DOT_SIZE;
 
-  if (hadLegacyPeriod) {
-    const period = typeof params.dotsSpacing === 'number' ? params.dotsSpacing : DEFAULT_DOT_SIZE * 3;
-    const r =
-      typeof params.dotsSize === 'number' && Number.isFinite(params.dotsSize)
-        ? params.dotsSize
-        : DEFAULT_DOT_SIZE;
+  const hadEdgeGap =
+    Object.prototype.hasOwnProperty.call(params, 'dotsGap') &&
+    !Object.prototype.hasOwnProperty.call(params, 'dotsSpacing');
 
-    params.dotsGap = Math.max(MIN_GAP, period - 2.0 * r);
-
+  if (hadEdgeGap) {
+    const gap = typeof params.dotsGap === 'number' ? params.dotsGap : 0;
+    params.dotsSpacing = Math.max(MIN_PERIOD, gap + 2.0 * r);
+    delete params.dotsGap;
+  } else if (hadLegacyCellFeather && Object.prototype.hasOwnProperty.call(params, 'dotsSpacing')) {
+    const period =
+      typeof params.dotsSpacing === 'number' ? params.dotsSpacing : DEFAULT_PERIOD;
     if (typeof params.dotsFeather === 'number' && Number.isFinite(params.dotsFeather)) {
       params.dotsFeather = params.dotsFeather * period;
     }
-    delete params.dotsSpacing;
-  } else if (Object.prototype.hasOwnProperty.call(params, 'dotsSpacing')) {
-    delete params.dotsSpacing;
   }
 
   let parameterInputModes: Record<string, ParameterInputMode> | undefined = node.parameterInputModes
@@ -57,12 +60,13 @@ function migrateNode(node: NodeInstance): NodeInstance {
     delete parameterInputModes.dotsFalloff;
 
     if (
-      Object.prototype.hasOwnProperty.call(parameterInputModes, 'dotsSpacing') &&
-      !Object.prototype.hasOwnProperty.call(parameterInputModes, 'dotsGap')
+      Object.prototype.hasOwnProperty.call(parameterInputModes, 'dotsGap') &&
+      !Object.prototype.hasOwnProperty.call(parameterInputModes, 'dotsSpacing')
     ) {
-      parameterInputModes.dotsGap = parameterInputModes.dotsSpacing;
+      parameterInputModes.dotsSpacing = parameterInputModes.dotsGap;
     }
-    delete parameterInputModes.dotsSpacing;
+    delete parameterInputModes.dotsGap;
+
     if (Object.keys(parameterInputModes).length === 0) {
       parameterInputModes = undefined;
     }
@@ -86,7 +90,7 @@ export function migrateDotsNodeParameterNames(graph: NodeGraph): NodeGraph {
   const connections: Connection[] = graph.connections.map((c) => {
     if (!c.targetParameter || !dotsIds.has(c.targetNodeId)) return c;
     if (c.targetParameter === 'dotsFalloff') return { ...c, targetParameter: 'dotsFeather' };
-    if (c.targetParameter === 'dotsSpacing') return { ...c, targetParameter: 'dotsGap' };
+    if (c.targetParameter === 'dotsGap') return { ...c, targetParameter: 'dotsSpacing' };
     return c;
   });
 
@@ -95,7 +99,7 @@ export function migrateDotsNodeParameterNames(graph: NodeGraph): NodeGraph {
     const lanes: AutomationLane[] = automation.lanes.map((lane) => {
       if (!dotsIds.has(lane.nodeId)) return lane;
       if (lane.paramName === 'dotsFalloff') return { ...lane, paramName: 'dotsFeather' };
-      if (lane.paramName === 'dotsSpacing') return { ...lane, paramName: 'dotsGap' };
+      if (lane.paramName === 'dotsGap') return { ...lane, paramName: 'dotsSpacing' };
       return lane;
     });
     automation = { ...automation, lanes };

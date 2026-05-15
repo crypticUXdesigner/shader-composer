@@ -241,16 +241,44 @@ function humanDisplayNameFromTrackJson(trackJson: Record<string, unknown>): stri
   return fromFields.length > 0 ? fromFields : undefined;
 }
 
-/** Parsed subset of TrackService.GetTrack (HTTP media URLs + labels). */
+/** Parsed subset of TrackService.GetTrack (HTTP media URLs + labels + publish project). */
 export interface AudiotoolGetTrackParsed {
   playbackUrl?: string;
   displayName?: string;
+  /** Nexus project resource name, e.g. `projects/{uuid}`. */
+  projectName?: string;
+  /** Publish commit index from the track's linked project. */
+  projectCommitIndex?: number;
+}
+
+function parseProjectFieldsFromTrackJson(
+  trackJson: Record<string, unknown>
+): Pick<AudiotoolGetTrackParsed, 'projectName' | 'projectCommitIndex'> {
+  const projectRaw =
+    typeof trackJson.project_name === 'string'
+      ? trackJson.project_name
+      : typeof trackJson.projectName === 'string'
+        ? trackJson.projectName
+        : '';
+  const projectName = projectRaw.trim().length > 0 ? projectRaw.trim() : undefined;
+
+  const commitRaw = trackJson.project_commit_index ?? trackJson.projectCommitIndex;
+  let projectCommitIndex: number | undefined;
+  if (typeof commitRaw === 'number' && Number.isFinite(commitRaw) && commitRaw >= 0) {
+    projectCommitIndex = Math.floor(commitRaw);
+  }
+
+  const out: Pick<AudiotoolGetTrackParsed, 'projectName' | 'projectCommitIndex'> = {};
+  if (projectName !== undefined) out.projectName = projectName;
+  if (projectCommitIndex !== undefined) out.projectCommitIndex = projectCommitIndex;
+  return out;
 }
 
 export function parseAudiotoolTrackJsonPayload(trackJson: Record<string, unknown>): AudiotoolGetTrackParsed {
   const dn = humanDisplayNameFromTrackJson(trackJson);
   const playbackUrl = extractPlaybackAudioUrlFromTrackJson(trackJson);
-  const out: AudiotoolGetTrackParsed = {};
+  const projectFields = parseProjectFieldsFromTrackJson(trackJson);
+  const out: AudiotoolGetTrackParsed = { ...projectFields };
   if (dn !== undefined) out.displayName = dn;
   if (playbackUrl !== undefined) out.playbackUrl = playbackUrl;
   return out;

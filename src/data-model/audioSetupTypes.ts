@@ -6,6 +6,8 @@
  * Playlist-waveform: primary source (playlist track or upload) and playlist state.
  */
 
+import type { ArrangementSnapshot } from '../audiotool/arrangement/types';
+
 export interface AudioFileEntry {
   id: string;
   name: string;
@@ -98,6 +100,13 @@ export interface AudioSetup {
   primarySource?: PrimarySource;
   /** Playlist order and index; used when primarySource.type === 'playlist'. */
   playlistState?: PlaylistState;
+  /**
+   * One-shot DAW arrangement imported from the playlist track's published project (Audiotool).
+   * Cleared when primary switches to upload or a different track.
+   */
+  arrangementSnapshot?: ArrangementSnapshot;
+  /** ISO timestamp when `arrangementSnapshot` was last imported. */
+  arrangementImportedAt?: string;
 }
 
 /** Named audio signal ID (e.g. "band-1-raw", "remap-bass-kick") */

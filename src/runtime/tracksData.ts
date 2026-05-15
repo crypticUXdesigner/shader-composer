@@ -72,6 +72,14 @@ export function getTrackById(data: TracksDataMap, trackId: string): TrackEntry |
   return data[trackId];
 }
 
+/** Bundled catalog `projectName` for arrangement import when GetTrack omits project fields. */
+export function getBundledTrackProjectName(data: TracksDataMap, trackId: string): string | undefined {
+  const raw = data[trackId]?.projectName;
+  if (typeof raw !== 'string') return undefined;
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 /**
  * Get mp3 URL for a track id. Returns undefined if track not found.
  */

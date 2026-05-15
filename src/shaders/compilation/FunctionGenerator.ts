@@ -1,5 +1,8 @@
+import type { AudioSetup } from '../../data-model/audioSetupTypes';
 import type { NodeGraph } from '../../data-model/types';
 import type { NodeSpec } from '../../types/nodeSpec';
+import { injectArrangementLanesNodeFunctions } from '../arrangement/packArrangementRegionsForGlsl';
+import { injectArrangementNotesNodeFunctions } from '../arrangement/packArrangementNotesForGlsl';
 import {
   buildFloatParamExpressions,
   getAutomationExpressionForParam,
@@ -40,7 +43,8 @@ export class FunctionGenerator {
     graph: NodeGraph,
     uniformNames: Map<string, string>,
     variableNames: Map<string, Map<string, string>>,
-    executionOrder: string[]
+    executionOrder: string[],
+    audioSetup?: AudioSetup | null
   ): { functions: string; functionNameMap: Map<string, Map<string, string>> } {
     const processedFunctions: Array<{ nodeId: string; funcCode: string }> = [];
     // Map: nodeId -> (originalFunctionName -> nodeSpecificFunctionName)
@@ -57,6 +61,20 @@ export class FunctionGenerator {
 
       // Process function code for this node: replace placeholders with actual uniform names or input values
       let funcCode = nodeSpec.functions;
+
+      if (nodeSpec.id === 'arrangement-lanes') {
+        funcCode = injectArrangementLanesNodeFunctions(
+          funcCode,
+          node,
+          audioSetup?.arrangementSnapshot
+        );
+      } else if (nodeSpec.id === 'arrangement-notes') {
+        funcCode = injectArrangementNotesNodeFunctions(
+          funcCode,
+          node,
+          audioSetup?.arrangementSnapshot
+        );
+      }
 
       // Build GLSL expressions for float parameters (config value + automation + optional input connection).
       const floatParamExpressions: FloatParamExpressionMap = buildFloatParamExpressions(
@@ -165,7 +183,11 @@ export class FunctionGenerator {
       }
       const hasParamInputConnections =
         (floatParamExpressions.__hasInputConnections ?? false) === true;
-      const needsNodeSpecificNames = hasParamInputConnections || funcCodeHasNodeUniforms;
+      const needsNodeSpecificNames =
+        hasParamInputConnections ||
+        funcCodeHasNodeUniforms ||
+        nodeSpec.id === 'arrangement-lanes' ||
+        nodeSpec.id === 'arrangement-notes';
 
       if (needsNodeSpecificNames) {
         const functions = this.extractFunctions(funcCode);

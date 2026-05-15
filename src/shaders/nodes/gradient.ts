@@ -105,7 +105,7 @@ export const gradientNodeSpec: NodeSpec = {
     {
       id: 'gradient-radial',
       label: 'Radial',
-      parameters: ['centerX', 'centerY', 'radius', 'falloff', 'invert'],
+      parameters: ['centerX', 'centerY', 'radius', 'falloff'],
       collapsible: true,
       defaultCollapsed: false
     },
@@ -119,7 +119,7 @@ export const gradientNodeSpec: NodeSpec = {
     {
       id: 'gradient-output',
       label: 'Output',
-      parameters: ['intensity'],
+      parameters: ['intensity', 'invert'],
       collapsible: true,
       defaultCollapsed: false
     }
@@ -136,21 +136,24 @@ export const gradientNodeSpec: NodeSpec = {
       {
         type: 'grid',
         label: 'Radial',
-        parameters: ['centerX', 'centerY', 'radius', 'falloff', 'invert'],
-        parameterUI: { centerX: 'coords', centerY: 'coords', invert: 'toggle' },
-        layout: { columns: 3, coordsSpan: 2 }
+        visibleWhen: { parameter: 'gradientType', equals: 0 },
+        parameters: ['centerX', 'centerY', 'radius', 'falloff'],
+        parameterUI: { centerX: 'coords', centerY: 'coords' },
+        layout: { columns: 3, coordsSpan: 2, parameterSpan: { falloff: 3 } }
       },
       {
         type: 'grid',
         label: 'Linear',
+        visibleWhen: { parameter: 'gradientType', equals: 1 },
         parameters: ['angle', 'linearScale'],
         layout: { columns: 2 }
       },
       {
         type: 'grid',
         label: 'Output',
-        parameters: ['intensity'],
-        layout: { columns: 1 }
+        parameters: ['intensity', 'invert'],
+        parameterUI: { invert: 'toggle' },
+        layout: { columns: 2 }
       }
     ]
   },

@@ -5,6 +5,7 @@
  * All functions return new AudioSetup instances.
  */
 
+import type { ArrangementSnapshot } from '../audiotool/arrangement/types';
 import type {
   AudioSetup,
   AudioFileEntry,
@@ -130,6 +131,44 @@ export function removeRemapper(setup: AudioSetup, remapperId: string): AudioSetu
 
 export function setPrimarySource(setup: AudioSetup, primarySource: PrimarySource | undefined): AudioSetup {
   return { ...setup, primarySource };
+}
+
+export function setArrangementSnapshot(
+  setup: AudioSetup,
+  snapshot: ArrangementSnapshot | undefined,
+  importedAt?: string
+): AudioSetup {
+  if (snapshot === undefined) {
+    return clearArrangementSnapshot(setup);
+  }
+  return {
+    ...setup,
+    arrangementSnapshot: snapshot,
+    arrangementImportedAt: importedAt ?? new Date().toISOString(),
+  };
+}
+
+export function clearArrangementSnapshot(setup: AudioSetup): AudioSetup {
+  if (setup.arrangementSnapshot === undefined && setup.arrangementImportedAt === undefined) {
+    return setup;
+  }
+  const next = { ...setup };
+  delete next.arrangementSnapshot;
+  delete next.arrangementImportedAt;
+  return next;
+}
+
+/**
+ * Drops a persisted snapshot when the primary source no longer matches `snapshot.source.trackName`
+ * (upload primary, or a different playlist track).
+ */
+export function clearArrangementSnapshotIfPrimaryMismatch(setup: AudioSetup): AudioSetup {
+  const snap = setup.arrangementSnapshot;
+  if (snap === undefined) return setup;
+  const primary = setup.primarySource;
+  if (primary?.type !== 'playlist') return clearArrangementSnapshot(setup);
+  if (primary.trackId !== snap.source.trackName) return clearArrangementSnapshot(setup);
+  return setup;
 }
 
 export function setPlaylistOrder(setup: AudioSetup, order: string[]): AudioSetup {

@@ -19,6 +19,7 @@ Focused engineering notes for behavior that is **partially implemented**, **not 
 | [`webgpu-preview-gpu-scheduling/_OVERVIEW.md`](./webgpu-preview-gpu-scheduling/_OVERVIEW.md) | **Active:** WebGPU preview **GPU path & scheduling** — instrumentation, clock-mask hardening, uniform upload audit, editor view-sync backoff when fullscreen, pipeline LRU docs |
 | [`graph-runtime-ui-seams/_OVERVIEW.md`](./graph-runtime-ui-seams/_OVERVIEW.md) | **Done (2026-05-14):** Graph / runtime / UI **seam hardening** — preview-compile UI sink, canvas parameter sync, `App` runtime bootstrap extract, WebGPU paste/add guards, worker message contract tests |
 | [`graph-runtime-ui-architecture-followup/_OVERVIEW.md`](./graph-runtime-ui-architecture-followup/_OVERVIEW.md) | **Active:** Post–`/review-architecture` follow-up — `App` orchestration shrink, render-backend façade, WebGPU/compile modularization, graph-diff ownership doc, runtime-only guardrails, `graphStore`↔toast decoupling, WebGPU wire validation phase 2, `lib`→`ui` barrel audit |
+| [`audiotool-arrangement/_OVERVIEW.md`](./audiotool-arrangement/_OVERVIEW.md) | **Active:** Audiotool **published-project snapshot** — foundation shipped (import + persist on `audioSetup`); region/note nodes + DAW automation bindings next |
 
 New multi-step packages: add `docs/implementation/<slug>/_OVERVIEW.md` first, then link it here (see **`workpkg-hygiene.mdc`**).
 

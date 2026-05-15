@@ -84,7 +84,7 @@
           "y": -1526
         },
         "parameters": {
-          "dotsGap": 0.288,
+          "dotsSpacing": 0.44,
           "dotsSize": 0.076,
           "dotsFeather": 0.2,
           "dotsIntensity": 2
@@ -92,7 +92,7 @@
         "parameterInputModes": {
           "dotsIntensity": "multiply",
           "dotsSize": "multiply",
-          "dotsGap": "multiply"
+          "dotsSpacing": "multiply"
         }
       },
       {
@@ -448,7 +448,7 @@
         "sourceNodeId": "node-1774040400063-epl5wduo1",
         "sourcePort": "out",
         "targetNodeId": "node-1774040400063-est6wq714",
-        "targetParameter": "dotsGap"
+        "targetParameter": "dotsSpacing"
       },
       {
         "id": "conn-1774040400063-x4gu22aft",

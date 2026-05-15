@@ -130,6 +130,42 @@ export const maskCompositeFloatNodeSpec: NodeSpec = {
   `
 };
 
+/** Composites foreground UV/coords over background using a mask (vec2). */
+export const maskCompositeVec2NodeSpec: NodeSpec = {
+  id: 'mask-composite-vec2',
+  category: 'Mask',
+  displayName: 'Mask UV',
+  description:
+    'Composites foreground over background using a mask. Dark areas show background, bright areas show foreground. Optional invert swaps the mask.',
+  inputs: [
+    { name: 'bg', type: 'vec2', label: 'Background' },
+    { name: 'mask', type: 'float', fallbackParameter: 'mask', label: 'Mask' },
+    { name: 'fg', type: 'vec2', label: 'Foreground' }
+  ],
+  outputs: [
+    { name: 'out', type: 'vec2', label: 'UV' }
+  ],
+  parameters: {
+    mask: { type: 'float', default: 0.5, min: 0.0, max: 1.0, step: 0.01, label: 'Mask' },
+    invert: { type: 'int', default: 0, min: 0, max: 1, step: 1, label: 'Invert' }
+  },
+  parameterLayout: {
+    elements: [
+      {
+        type: 'grid',
+        parameters: ['mask', 'invert'],
+        parameterUI: { invert: 'toggle' },
+        layout: { columns: 2 }
+      }
+    ],
+    minColumns: 2
+  },
+  mainCode: `
+    float maskCompositeM = ($param.invert != 0) ? (1.0 - $input.mask) : $input.mask;
+    $output.out = mix($input.bg, $input.fg, maskCompositeM);
+  `
+};
+
 /** Composites colored foreground over colored background using a mask (vec3). */
 export const maskCompositeVec3NodeSpec: NodeSpec = {
   id: 'mask-composite-vec3',

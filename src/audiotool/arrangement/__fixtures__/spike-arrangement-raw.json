@@ -1,0 +1,137 @@
+{
+  "config": {
+    "tempoBpm": 128,
+    "signatureNumerator": 4,
+    "signatureDenominator": 4,
+    "durationTicks": 1228800
+  },
+  "noteTracks": [
+    {
+      "id": "track-note-1",
+      "orderAmongTracks": 0,
+      "isEnabled": true,
+      "playerEntityId": "device-heisenberg-1"
+    },
+    {
+      "id": "track-note-2",
+      "orderAmongTracks": 2,
+      "isEnabled": false,
+      "playerEntityId": "device-pulv-1"
+    }
+  ],
+  "audioTracks": [
+    {
+      "id": "track-audio-1",
+      "orderAmongTracks": 1,
+      "isEnabled": true,
+      "playerEntityId": "device-audio-1"
+    }
+  ],
+  "patternTracks": [
+    {
+      "id": "track-pattern-1",
+      "orderAmongTracks": 3,
+      "isEnabled": true,
+      "playerEntityId": "device-tonematrix-1"
+    }
+  ],
+  "noteRegions": [
+    {
+      "id": "region-note-1",
+      "collectionEntityId": "collection-note-1",
+      "trackEntityId": "track-note-1",
+      "region": {
+        "positionTicks": 0,
+        "durationTicks": 15360,
+        "collectionOffsetTicks": 0,
+        "isEnabled": true,
+        "displayName": "Intro",
+        "colorIndex": 4
+      }
+    },
+    {
+      "id": "region-note-disabled",
+      "collectionEntityId": "collection-note-disabled",
+      "trackEntityId": "track-note-1",
+      "region": {
+        "positionTicks": 30720,
+        "durationTicks": 7680,
+        "isEnabled": false,
+        "colorIndex": 2
+      }
+    },
+    {
+      "id": "region-note-2",
+      "collectionEntityId": "collection-note-2",
+      "trackEntityId": "track-note-2",
+      "region": {
+        "positionTicks": 15360,
+        "durationTicks": 30720,
+        "isEnabled": true,
+        "colorIndex": 7
+      }
+    }
+  ],
+  "audioRegions": [
+    {
+      "id": "region-audio-1",
+      "trackEntityId": "track-audio-1",
+      "region": {
+        "positionTicks": 7680,
+        "durationTicks": 46080,
+        "isEnabled": true,
+        "displayName": "Vox",
+        "colorIndex": 12
+      }
+    }
+  ],
+  "notes": [
+    {
+      "id": "note-1",
+      "collectionEntityId": "collection-note-1",
+      "positionTicks": 0,
+      "durationTicks": 1920,
+      "pitch": 60,
+      "velocity": 0.85
+    },
+    {
+      "id": "note-2",
+      "collectionEntityId": "collection-note-1",
+      "positionTicks": 3840,
+      "durationTicks": 1920,
+      "pitch": 64,
+      "velocity": 0.7
+    },
+    {
+      "id": "note-3",
+      "collectionEntityId": "collection-note-1",
+      "positionTicks": 7680,
+      "durationTicks": 960,
+      "pitch": 67,
+      "velocity": 0.55
+    }
+  ],
+  "patternRegions": [
+    {
+      "id": "region-pattern-1",
+      "trackEntityId": "track-pattern-1",
+      "region": {
+        "positionTicks": 0,
+        "durationTicks": 61440,
+        "isEnabled": true,
+        "colorIndex": 1
+      },
+      "patternIndex": 2
+    }
+  ],
+  "entityLabels": {
+    "device-heisenberg-1": "Lead",
+    "device-audio-1": "Vocal chop",
+    "device-tonematrix-1": "Drums"
+  },
+  "source": {
+    "trackName": "tracks/spike-fixture",
+    "projectName": "projects/spike-fixture-uuid",
+    "commitIndex": 42
+  }
+}

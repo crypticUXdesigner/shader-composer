@@ -27,6 +27,7 @@ import { migrateInflatedIcosahedronColors } from './inflatedIcosahedronColorsMig
 import { migrateGlassShellColors } from './glassShellColorsMigration';
 import { migrateRadialRepeatSdfParameters } from './radialRepeatSdfMigration';
 import { migratePolarCoordinatesRemoveEnabled } from './polarCoordinatesRemoveEnabledMigration';
+import { migrateArrangementLanesParameters } from './arrangementLanesParametersMigration';
 
 export function migrateLegacyNodeGraph(graph: NodeGraph): NodeGraph {
   let g = migrateNoiseNodes(graph);
@@ -51,5 +52,6 @@ export function migrateLegacyNodeGraph(graph: NodeGraph): NodeGraph {
   g = migrateGlassShellColors(g);
   g = migrateRadialRepeatSdfParameters(g);
   g = migrateUnifiedStripesPattern(g);
-  return migratePolarCoordinatesRemoveEnabled(g);
+  g = migratePolarCoordinatesRemoveEnabled(g);
+  return migrateArrangementLanesParameters(g);
 }

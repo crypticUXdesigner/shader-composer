@@ -7534,8 +7534,8 @@
     "node:streak": {
       "title": "Streak",
       "titleType": "node",
-      "tagline": "Directional streak or anamorphic overlay with angle, stretch, and intensity",
-      "description": "Produces a 2D directional streak (anamorphic-style) from the input coordinates. The streak direction is set by angle; width controls the gaussian falloff perpendicular to the streak; stretch controls how far along the streak the falloff extends. Use with mix or multiply to overlay on existing content.",
+      "tagline": "Directional streak or anamorphic overlay with angle, stretch, falloff, and intensity",
+      "description": "Produces a 2D directional streak (anamorphic-style) from the input coordinates. The streak direction is set by angle; width controls the ridge thickness across the streak; stretch controls how far along the streak it extends; falloff softens or sharpens both edges (1 = default). Use with mix or multiply to overlay on existing content.",
       "inputs": [
         {
           "name": "in",
@@ -7600,9 +7600,10 @@
       "examples": [
         "Connect UV → Streak → Mix (with another pattern) for anamorphic or directional streak overlay.",
         "Set angle for streak direction; tune width and stretch for thin or broad streaks.",
+        "Raise falloff above 1 for softer, wider edges; lower below 1 for a tighter core.",
         "Use with Output for standalone streak, or Multiply for lens-flare style."
       ],
-      "advanced": "Directional gaussian streak; angle sets direction, width/stretch set shape. Use for anamorphic bokeh or light streaks."
+      "advanced": "Directional gaussian streak across the ridge and smoothstep along the axis; both curves scale with falloff (default 1). Angle sets direction; width/stretch set size. Use for anamorphic bokeh or light streaks."
     },
     "node:shapes-2d": {
       "title": "Shapes",
@@ -8045,6 +8046,175 @@
       ],
       "advanced": "Curl-noise magnitude mapped to 0–1; divergence-free so flow lines don't converge. Use for fluid-like or organic streak backgrounds."
     },
+    "node:arrangement-lanes": {
+      "title": "Arrangement Lanes",
+      "titleType": "node",
+      "tagline": "DAW region blocks per track row, windowed on timeline time (requires imported arrangement snapshot)",
+      "description": "Renders horizontal track lanes with colored region rectangles from the Audiotool arrangement snapshot on the playlist primary. **Follow** viewport scrolls a time window centered on the playhead (`uTimelineTime`); **Fixed** uses a constant start time. Regions use outer span timing only (v1). Up to **512** regions are baked into the shader at compile time — recompile after import or track-filter changes. Import via the audio panel (**Import arrangement from project**).",
+      "inputs": [
+        {
+          "name": "in",
+          "type": "vec2",
+          "description": "UV across the lane view: X = time within the window, Y = track row (top to bottom).",
+          "suggestedSources": [
+            "type:vec2",
+            "node:uv-coordinates",
+            "node:scale",
+            "node:rotate"
+          ]
+        },
+        {
+          "name": "time",
+          "type": "float",
+          "description": "Timeline seconds for follow mode; defaults to `uTimelineTime` when unwired.",
+          "suggestedSources": [
+            "type:float",
+            "node:time"
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "vec4",
+          "description": "RGBA lane colors with alpha for compositing (Mix, Blend Color, masks).",
+          "suggestedTargets": [
+            "node:mix",
+            "node:blend-color",
+            "node:final-output"
+          ]
+        }
+      ],
+      "parameters": [
+        {
+          "name": "Viewport",
+          "description": "0 = follow playhead (window centered on timeline time); 1 = fixed start."
+        },
+        {
+          "name": "Window",
+          "description": "Visible timeline span in seconds along UV X."
+        },
+        {
+          "name": "Tracks",
+          "description": "0 = all enabled tracks; 1 = only track ids listed in Track ids (comma-separated)."
+        },
+        {
+          "name": "Colors",
+          "description": "0 = palette by track row; 1 = DAW region color index hues."
+        }
+      ],
+      "relatedItems": [
+        "node:uv-coordinates",
+        "node:mix",
+        "node:stripes",
+        "type:vec2",
+        "type:vec4"
+      ],
+      "setupExampleGraph": {
+        "nodes": [
+          { "id": "a", "type": "uv-coordinates" },
+          { "id": "b", "type": "arrangement-lanes" },
+          { "id": "d", "type": "final-output" }
+        ],
+        "connections": [
+          { "from": "a", "fromPort": "out", "to": "b", "toPort": "in" },
+          { "from": "b", "fromPort": "out", "to": "d", "toPort": "in" }
+        ]
+      },
+      "examples": [
+        "Import arrangement on a playlist primary, add UV → Arrangement Lanes → Final Output.",
+        "Use Mix to composite lanes over a generated background.",
+        "Set Tracks to subset and list track ids to show only selected rows."
+      ],
+      "advanced": "Snapshot data is compile-time baked; changing import or track filter requires recompilation. Cap: 512 regions (see arrangement types)."
+    },
+    "node:arrangement-notes": {
+      "title": "Arrangement Notes",
+      "titleType": "node",
+      "tagline": "MIDI note dots by pitch and time vs playhead (requires imported arrangement snapshot)",
+      "description": "Renders notes from the Audiotool arrangement snapshot as a piano-roll style field: horizontal axis is timeline time (follow or fixed window), vertical axis is pitch (auto-scaled from baked notes). Note brightness follows velocity. Up to **2048** notes are baked at compile time. Import via the audio panel (**Import arrangement from project**).",
+      "inputs": [
+        {
+          "name": "in",
+          "type": "vec2",
+          "description": "UV across the note view: X = time within the window, Y = pitch (low to high).",
+          "suggestedSources": [
+            "type:vec2",
+            "node:uv-coordinates",
+            "node:scale",
+            "node:rotate"
+          ]
+        },
+        {
+          "name": "time",
+          "type": "float",
+          "description": "Timeline seconds for follow mode; defaults to `uTimelineTime` when unwired.",
+          "suggestedSources": [
+            "type:float",
+            "node:time"
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "vec4",
+          "description": "RGBA note colors with alpha for compositing.",
+          "suggestedTargets": [
+            "node:mix",
+            "node:blend-color",
+            "node:final-output",
+            "node:arrangement-lanes"
+          ]
+        }
+      ],
+      "parameters": [
+        {
+          "name": "Viewport",
+          "description": "0 = follow playhead; 1 = fixed start."
+        },
+        {
+          "name": "Window",
+          "description": "Visible timeline span in seconds along UV X."
+        },
+        {
+          "name": "Tracks",
+          "description": "0 = all enabled tracks; 1 = only listed track ids."
+        },
+        {
+          "name": "Note size",
+          "description": "Vertical half-height of each note dot in normalized pitch space."
+        },
+        {
+          "name": "Velocity",
+          "description": "Scales MIDI velocity (0–1) into brightness."
+        }
+      ],
+      "relatedItems": [
+        "node:arrangement-lanes",
+        "node:uv-coordinates",
+        "node:mix",
+        "type:vec2",
+        "type:vec4"
+      ],
+      "setupExampleGraph": {
+        "nodes": [
+          { "id": "a", "type": "uv-coordinates" },
+          { "id": "b", "type": "arrangement-notes" },
+          { "id": "d", "type": "final-output" }
+        ],
+        "connections": [
+          { "from": "a", "fromPort": "out", "to": "b", "toPort": "in" },
+          { "from": "b", "fromPort": "out", "to": "d", "toPort": "in" }
+        ]
+      },
+      "examples": [
+        "Stack Arrangement Notes over Arrangement Lanes for structure + melody.",
+        "Use Mix to composite notes on a dark background.",
+        "Filter to one track id for a single instrument line."
+      ],
+      "advanced": "Pitch range is baked from visible notes after track filter. Shader loop cap: 2048 notes (`MAX_ARRANGEMENT_NOTES_PACKED`). Snapshot may store up to 8192 notes."
+    },
     "node:stripes": {
       "title": "Stripes",
       "titleType": "node",
@@ -8133,10 +8303,10 @@
       "advanced": "Same engine as the former wave-patterns node: direction rotates the marching axis; frequency and amplitude set band count and contrast; square/triangle approximate older hard-edge stripe looks."
     },
     "node:dots": {
-      "title": "Dots",
+      "title": "Dot Grid",
       "titleType": "node",
-      "tagline": "Polka-dot grid pattern with configurable spacing, dot size, and falloff",
-      "description": "Generates a seamless grid of dots (polka-dot pattern) by tiling the plane and drawing a circular dot in each cell. Control the spacing between dots, the dot size (radius), and the falloff (softness of the edge). The pattern tiles seamlessly and outputs a float suitable for color map or mix.",
+      "tagline": "Polka-dot grid with independent spacing, dot size, and feather",
+      "description": "Generates a seamless grid of dots (polka-dot pattern) by tiling the plane and drawing a circular dot in each cell. Spacing sets center-to-center cell size (UV); dot size sets radius independently. Feather softens the edge in UV. The pattern tiles seamlessly and outputs a float suitable for color map or mix.",
       "inputs": [
         {
           "name": "in",
@@ -8199,11 +8369,11 @@
         ]
       },
       "examples": [
-        "Connect UV → Dots → Output for polka-dot grid; tune spacing and dot size for density.",
+        "Connect UV → Dot Grid → Output for polka-dot grid; tune spacing and dot size for density.",
         "Use with Domain Repetition or Brick Tiling for offset dot layouts.",
         "Soften falloff for blurred dots or use with Mix for spot patterns."
       ],
-      "advanced": "Seamless grid of circular dots; spacing and radius set layout. Use for fabric, bubbles, or regular spot patterns."
+      "advanced": "Seamless grid of circular dots; spacing sets lattice pitch, radius sets dot width within each cell. Use for fabric, bubbles, or regular spot patterns."
     },
     "node:gradient": {
       "title": "Gradient",
@@ -10769,6 +10939,7 @@
             "node:select",
             "node:mix",
             "node:mask-composite-float",
+            "node:mask-composite-vec2",
             "node:mask-composite-vec3",
             "node:step",
             "node:gradient-mask"
@@ -10818,6 +10989,7 @@
       "relatedItems": [
         "node:select",
         "node:mask-composite-float",
+        "node:mask-composite-vec2",
         "node:mask-composite-vec3",
         "node:step",
         "type:float"
@@ -10826,7 +10998,7 @@
         "Compare Noise or Distance to a threshold (e.g. equal, greater) for binary masks.",
         "Use output as condition for Select to pick one of two values.",
         "Drive Mix factor or gradient mask from comparison (1.0 or 0.0).",
-        "Feed Mask BW or Mask Color mask inputs for sharp region splits (1.0 or 0.0)."
+        "Feed Mask BW, Mask UV, or Mask Color mask inputs for sharp region splits (1.0 or 0.0)."
       ],
       "advanced": "Output is 1.0 when condition true, 0.0 otherwise. For smooth transitions use Smoothstep; for hard edges use Step."
     },
@@ -10878,6 +11050,7 @@
             "node:mix",
             "node:final-output",
             "node:mask-composite-float",
+            "node:mask-composite-vec2",
             "node:mask-composite-vec3",
             "node:gradient-mask"
           ]
@@ -10936,6 +11109,7 @@
       "relatedItems": [
         "node:compare",
         "node:mask-composite-float",
+        "node:mask-composite-vec2",
         "node:mask-composite-vec3",
         "node:mix",
         "type:float"
@@ -10994,6 +11168,7 @@
           "description": "Result of mixing bg and fg by mask",
           "suggestedTargets": [
             "node:mix",
+            "node:mask-composite-vec2",
             "node:mask-composite-vec3"
           ]
         }
@@ -11067,11 +11242,140 @@
         ]
       },
       "relatedItems": [
+        "node:mask-composite-vec2",
         "node:mask-composite-vec3",
         "node:compare",
         "node:select",
         "node:mix",
         "type:float"
+      ]
+    },
+    "node:mask-composite-vec2": {
+      "title": "Mask UV",
+      "titleType": "node",
+      "tagline": "Composites foreground over background UV/coordinates using a float mask.",
+      "description": "Blends two vec2 coordinate fields (background and foreground) using a mask—equivalent to mix(background, foreground, mask) on both components at once. Where the mask is dark, background coordinates appear; where it is bright, foreground coordinates appear. Wire original and warped UV (or any vec2 fields) to Background and Foreground, and a float mask from Gradient, Noise, Step, or similar. Turn on Invert to swap which mask values favor background vs foreground (uses 1 − mask as the mix weight). Replaces splitting UV, masking each axis with Mask BW, and combining again.",
+      "inputs": [
+        {
+          "name": "bg",
+          "type": "vec2",
+          "description": "Background coordinates (shown where mask is dark)",
+          "suggestedSources": [
+            "type:vec2",
+            "node:uv-coordinates",
+            "node:constant-vec2"
+          ]
+        },
+        {
+          "name": "mask",
+          "type": "float",
+          "description": "Mask 0–1: dark = bg, bright = fg",
+          "suggestedSources": [
+            "type:float",
+            "node:gradient",
+            "node:noise",
+            "node:step",
+            "node:smoothstep",
+            "node:compare",
+            "node:select"
+          ]
+        },
+        {
+          "name": "fg",
+          "type": "vec2",
+          "description": "Foreground coordinates (shown where mask is bright)",
+          "suggestedSources": [
+            "type:vec2",
+            "node:uv-coordinates",
+            "node:constant-vec2"
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "vec2",
+          "description": "Blended vec2 coordinates from mixing bg and fg by mask",
+          "suggestedTargets": [
+            "node:radial-uv-warp",
+            "node:quad-warp",
+            "node:noise",
+            "node:fbm-noise"
+          ]
+        }
+      ],
+      "parameters": [
+        {
+          "name": "Mask",
+          "description": "Default mask value when mask input is unconnected. 0 = show background everywhere; 1 = show foreground; in between = blend between the two coordinate fields."
+        },
+        {
+          "name": "Invert",
+          "description": "When on, the mix uses (1 − mask) so bright and dark regions swap roles relative to background vs foreground."
+        }
+      ],
+      "setupExampleGraph": {
+        "nodes": [
+          {
+            "id": "n1",
+            "type": "constant-vec2"
+          },
+          {
+            "id": "n2",
+            "type": "constant-float"
+          },
+          {
+            "id": "n3",
+            "type": "constant-vec2"
+          },
+          {
+            "id": "n4",
+            "type": "mask-composite-vec2"
+          },
+          {
+            "id": "n5",
+            "type": "final-output"
+          }
+        ],
+        "connections": [
+          {
+            "from": "n1",
+            "fromPort": "out",
+            "to": "n4",
+            "toPort": "bg"
+          },
+          {
+            "from": "n2",
+            "fromPort": "out",
+            "to": "n4",
+            "toPort": "mask"
+          },
+          {
+            "from": "n3",
+            "fromPort": "out",
+            "to": "n4",
+            "toPort": "fg"
+          },
+          {
+            "from": "n4",
+            "fromPort": "out",
+            "to": "n5",
+            "toPort": "in"
+          }
+        ]
+      },
+      "relatedItems": [
+        "node:mask-composite-float",
+        "node:mask-composite-vec3",
+        "node:gradient",
+        "node:split-vector",
+        "node:combine-vector",
+        "type:vec2"
+      ],
+      "examples": [
+        "Blend original UV (background) with warped UV (foreground) using a radial Gradient mask.",
+        "Apply distortion only inside a soft mask without splitting X and Y through Mask BW.",
+        "Use Invert when the mask should favor background coordinates in bright regions."
       ]
     },
     "node:mask-composite-vec3": {
@@ -11186,6 +11490,7 @@
       },
       "relatedItems": [
         "node:mask-composite-float",
+        "node:mask-composite-vec2",
         "node:compare",
         "node:select",
         "node:mix",

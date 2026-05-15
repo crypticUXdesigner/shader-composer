@@ -18,6 +18,9 @@ import { addConnection } from '../data-model/immutableUpdates';
 import type { NodeGraph, Connection } from '../data-model/types';
 import type { NodeSpec } from '../types/nodeSpec';
 import type { AudioSetup } from '../data-model/audioSetupTypes';
+import { buildArrangementSnapshot } from '../audiotool/arrangement/buildArrangementSnapshot';
+import type { RawArrangementEntities } from '../audiotool/arrangement/rawEntities';
+import spikeFixture from '../audiotool/arrangement/__fixtures__/spike-arrangement-raw.json';
 import {
   mvpAudioBlurPassPlanGraph,
   mvpAudioBokehPassPlanGraph,
@@ -193,6 +196,193 @@ describe('NodeShaderCompiler', () => {
       expect(result.shaderCode).toContain('uTime');
       expect(result.shaderCode).toContain('uResolution');
       expect(result.shaderCode).toContain('fragColor');
+    });
+  });
+
+  describe('arrangement-lanes (GLSL bake)', () => {
+    const arrangementSnapshot = buildArrangementSnapshot(spikeFixture as RawArrangementEntities);
+
+    function buildArrangementLanesGraph(): NodeGraph {
+      const uvId = 'n-uv';
+      const lanesId = 'n-lanes';
+      const outputId = 'n-out';
+      return {
+        id: 'graph-arr-lanes',
+        name: 'Arrangement lanes',
+        version: '2.0',
+        nodes: [
+          { id: uvId, type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          { id: lanesId, type: 'arrangement-lanes', position: { x: 0, y: 0 }, parameters: {} },
+          { id: outputId, type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: uvId, sourcePort: 'out', targetNodeId: lanesId, targetPort: 'in' },
+          { id: 'c2', sourceNodeId: lanesId, sourcePort: 'out', targetNodeId: outputId, targetPort: 'in' },
+        ],
+      };
+    }
+
+    it('bakes region tables from audioSetup.arrangementSnapshot', () => {
+      const compiler = new NodeShaderCompiler(buildNodeSpecsMap());
+      const audioSetup: AudioSetup = {
+        files: [],
+        bands: [],
+        remappers: [],
+        primarySource: { type: 'playlist', trackId: 'fixture' },
+        arrangementSnapshot,
+      };
+      const result = compiler.compile(buildArrangementLanesGraph(), audioSetup);
+
+      expect(result.metadata.errors).toHaveLength(0);
+      expect(result.shaderCode).toContain('ARR_LANE_COUNT_n_lanes');
+      expect(result.shaderCode).toContain('ARR_LANE_REGIONS_n_lanes');
+      expect(result.shaderCode).toMatch(/evalArrangementLanes_n_lanes\s*\(/);
+      expect(result.metadata.previewDependencies?.usesTimelineTime).toBe(true);
+    });
+
+    it('compiles with empty bake when snapshot is missing', () => {
+      const compiler = new NodeShaderCompiler(buildNodeSpecsMap());
+      const result = compiler.compile(buildArrangementLanesGraph(), null);
+
+      expect(result.metadata.errors).toHaveLength(0);
+      expect(result.shaderCode).toContain('ARR_LANE_COUNT_n_lanes = 0');
+    });
+  });
+
+  describe('arrangement-lanes (WGSL)', () => {
+    const arrangementSnapshot = buildArrangementSnapshot(spikeFixture as RawArrangementEntities);
+
+    function buildArrangementLanesGraph(): NodeGraph {
+      const uvId = 'n-uv';
+      const lanesId = 'n-lanes';
+      const outputId = 'n-out';
+      return {
+        id: 'graph-arr-lanes-wgsl',
+        name: 'Arrangement lanes WGSL',
+        version: '2.0',
+        nodes: [
+          { id: uvId, type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          { id: lanesId, type: 'arrangement-lanes', position: { x: 0, y: 0 }, parameters: {} },
+          { id: outputId, type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: uvId, sourcePort: 'out', targetNodeId: lanesId, targetPort: 'in' },
+          { id: 'c2', sourceNodeId: lanesId, sourcePort: 'out', targetNodeId: outputId, targetPort: 'in' },
+        ],
+      };
+    }
+
+    it('emits WGSL with baked region table from arrangementSnapshot', () => {
+      const compiler = new NodeShaderCompiler(buildNodeSpecsMap());
+      const audioSetup: AudioSetup = {
+        files: [],
+        bands: [],
+        remappers: [],
+        primarySource: { type: 'playlist', trackId: 'fixture' },
+        arrangementSnapshot,
+      };
+      const result = compiler.compile(buildArrangementLanesGraph(), audioSetup, { backend: 'webgpu' });
+
+      expect(result.backend).toBe('webgpu');
+      expect(result.supported).toBe(true);
+      expect(result.code).toContain('const ARR_LANE_COUNT_n_lanes: i32 = 3');
+      expect(result.code).toContain('fn evalArrangementLanes_n_lanes');
+      expect(result.code).toContain('globals.v0.y');
+      expect(WGSL_SUPPORTED_NODE_TYPES.has('arrangement-lanes')).toBe(true);
+      expect(result.metadata.previewDependencies?.usesTimelineTime).toBe(true);
+    });
+
+    it('compiles WGSL with empty bake when snapshot is missing', () => {
+      const compiler = new NodeShaderCompiler(buildNodeSpecsMap());
+      const result = compiler.compile(buildArrangementLanesGraph(), null, { backend: 'webgpu' });
+
+      expect(result.supported).toBe(true);
+      expect(result.code).toContain('const ARR_LANE_COUNT_n_lanes: i32 = 0');
+    });
+  });
+
+  describe('arrangement-notes (GLSL bake)', () => {
+    const arrangementSnapshot = buildArrangementSnapshot(spikeFixture as RawArrangementEntities);
+
+    function buildArrangementNotesGraph(): NodeGraph {
+      const uvId = 'n-uv';
+      const notesId = 'n-notes';
+      const outputId = 'n-out';
+      return {
+        id: 'graph-arr-notes',
+        name: 'Arrangement notes',
+        version: '2.0',
+        nodes: [
+          { id: uvId, type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          { id: notesId, type: 'arrangement-notes', position: { x: 0, y: 0 }, parameters: {} },
+          { id: outputId, type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: uvId, sourcePort: 'out', targetNodeId: notesId, targetPort: 'in' },
+          { id: 'c2', sourceNodeId: notesId, sourcePort: 'out', targetNodeId: outputId, targetPort: 'in' },
+        ],
+      };
+    }
+
+    it('bakes note tables from audioSetup.arrangementSnapshot', () => {
+      const compiler = new NodeShaderCompiler(buildNodeSpecsMap());
+      const audioSetup: AudioSetup = {
+        files: [],
+        bands: [],
+        remappers: [],
+        primarySource: { type: 'playlist', trackId: 'fixture' },
+        arrangementSnapshot,
+      };
+      const result = compiler.compile(buildArrangementNotesGraph(), audioSetup);
+
+      expect(result.metadata.errors).toHaveLength(0);
+      expect(result.shaderCode).toContain('ARR_NOTE_COUNT_n_notes = 3');
+      expect(result.shaderCode).toContain('ARR_NOTES_n_notes');
+      expect(result.shaderCode).toMatch(/evalArrangementNotes_n_notes\s*\(/);
+      expect(result.metadata.previewDependencies?.usesTimelineTime).toBe(true);
+    });
+  });
+
+  describe('arrangement-notes (WGSL)', () => {
+    const arrangementSnapshot = buildArrangementSnapshot(spikeFixture as RawArrangementEntities);
+
+    function buildArrangementNotesGraph(): NodeGraph {
+      const uvId = 'n-uv';
+      const notesId = 'n-notes';
+      const outputId = 'n-out';
+      return {
+        id: 'graph-arr-notes-wgsl',
+        name: 'Arrangement notes WGSL',
+        version: '2.0',
+        nodes: [
+          { id: uvId, type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          { id: notesId, type: 'arrangement-notes', position: { x: 0, y: 0 }, parameters: {} },
+          { id: outputId, type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c1', sourceNodeId: uvId, sourcePort: 'out', targetNodeId: notesId, targetPort: 'in' },
+          { id: 'c2', sourceNodeId: notesId, sourcePort: 'out', targetNodeId: outputId, targetPort: 'in' },
+        ],
+      };
+    }
+
+    it('emits WGSL with baked note table from arrangementSnapshot', () => {
+      const compiler = new NodeShaderCompiler(buildNodeSpecsMap());
+      const audioSetup: AudioSetup = {
+        files: [],
+        bands: [],
+        remappers: [],
+        primarySource: { type: 'playlist', trackId: 'fixture' },
+        arrangementSnapshot,
+      };
+      const result = compiler.compile(buildArrangementNotesGraph(), audioSetup, { backend: 'webgpu' });
+
+      expect(result.backend).toBe('webgpu');
+      expect(result.supported).toBe(true);
+      expect(result.code).toContain('const ARR_NOTE_COUNT_n_notes: i32 = 3');
+      expect(result.code).toContain('fn evalArrangementNotes_n_notes');
+      expect(result.code).toContain('globals.v0.y');
+      expect(WGSL_SUPPORTED_NODE_TYPES.has('arrangement-notes')).toBe(true);
     });
   });
 

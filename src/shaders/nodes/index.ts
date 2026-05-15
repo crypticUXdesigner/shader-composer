@@ -13,6 +13,8 @@ import {
   constantVec4NodeSpec
 } from './input-nodes';
 import { mixedWaveSignalNodeSpec } from './mixed-wave-signal';
+import { arrangementLanesNodeSpec } from './arrangement-lanes';
+import { arrangementNotesNodeSpec } from './arrangement-notes';
 import { oscillator2dNodeSpec } from './oscillator-2d';
 import { orbitCameraNodeSpec } from './orbit-camera';
 import { lookAtCameraNodeSpec } from './look-at-camera';
@@ -118,6 +120,7 @@ import {
   compareNodeSpec,
   selectNodeSpec,
   maskCompositeFloatNodeSpec,
+  maskCompositeVec2NodeSpec,
   maskCompositeVec3NodeSpec
 } from './masking-nodes';
 import { blurNodeSpec } from './blur';
@@ -166,6 +169,8 @@ export const nodeSystemSpecs: NodeSpec[] = [
   constantVec3NodeSpec,
   constantVec4NodeSpec,
   mixedWaveSignalNodeSpec,
+  arrangementLanesNodeSpec,
+  arrangementNotesNodeSpec,
   oscillator2dNodeSpec,
   orbitCameraNodeSpec,
   lookAtCameraNodeSpec,
@@ -286,6 +291,7 @@ export const nodeSystemSpecs: NodeSpec[] = [
   compareNodeSpec,
   selectNodeSpec,
   maskCompositeFloatNodeSpec,
+  maskCompositeVec2NodeSpec,
   maskCompositeVec3NodeSpec,
   
   // Post-Processing nodes

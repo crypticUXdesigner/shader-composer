@@ -11,6 +11,7 @@ import {
   GRAPH_FILE_FORMAT,
   isKnownGraphFileFormat,
 } from './types';
+import type { ArrangementSnapshot } from '../audiotool/arrangement/types';
 import type { AudioSetup } from './audioSetupTypes';
 import { validateGraph } from './validation';
 import type { NodeSpecification } from './validation';
@@ -177,7 +178,10 @@ export function deserializeGraph(
     }
 
     let graphResult = data.graph as NodeGraph;
-    let audioSetup = isValidAudioSetup(data.audioSetup) ? data.audioSetup : undefined;
+    let audioSetup =
+      data.audioSetup && typeof data.audioSetup === 'object'
+        ? sanitizeAudioSetup(data.audioSetup as Record<string, unknown>)
+        : undefined;
 
     // Apply format-version migrations *before* validation so legacy node types can be rewritten
     // into current specs (e.g. node merges / renames).
@@ -244,7 +248,10 @@ export function deserializeGraphUnvalidated(json: string): DeserializationResult
     }
 
     let graphResult = data.graph as NodeGraph;
-    let audioSetup = isValidAudioSetup(data.audioSetup) ? data.audioSetup : undefined;
+    let audioSetup =
+      data.audioSetup && typeof data.audioSetup === 'object'
+        ? sanitizeAudioSetup(data.audioSetup as Record<string, unknown>)
+        : undefined;
 
     const migrated = applyMigrationsForVersion(data.formatVersion, {
       graph: graphResult,
@@ -269,13 +276,49 @@ export function deserializeGraphUnvalidated(json: string): DeserializationResult
   }
 }
 
-function isValidAudioSetup(val: unknown): val is AudioSetup {
+function isValidArrangementSnapshot(val: unknown): val is ArrangementSnapshot {
   if (!val || typeof val !== 'object') return false;
   const o = val as Record<string, unknown>;
-  // primarySource and playlistState are optional (legacy presets omit them)
+  const source = o.source;
+  if (!source || typeof source !== 'object') return false;
+  const src = source as Record<string, unknown>;
   return (
-    Array.isArray(o.files) &&
-    Array.isArray(o.bands) &&
-    Array.isArray(o.remappers)
+    Array.isArray(o.tracks) &&
+    Array.isArray(o.regions) &&
+    typeof o.bpm === 'number' &&
+    Number.isFinite(o.bpm) &&
+    typeof o.durationSeconds === 'number' &&
+    Number.isFinite(o.durationSeconds) &&
+    typeof src.trackName === 'string' &&
+    typeof src.projectName === 'string' &&
+    typeof src.commitIndex === 'number'
   );
+}
+
+function sanitizeAudioSetup(val: Record<string, unknown>): AudioSetup | undefined {
+  if (
+    !Array.isArray(val.files) ||
+    !Array.isArray(val.bands) ||
+    !Array.isArray(val.remappers)
+  ) {
+    return undefined;
+  }
+  const setup: AudioSetup = {
+    files: val.files as AudioSetup['files'],
+    bands: val.bands as AudioSetup['bands'],
+    remappers: val.remappers as AudioSetup['remappers'],
+  };
+  if (val.primarySource !== undefined) {
+    setup.primarySource = val.primarySource as AudioSetup['primarySource'];
+  }
+  if (val.playlistState !== undefined) {
+    setup.playlistState = val.playlistState as AudioSetup['playlistState'];
+  }
+  if (isValidArrangementSnapshot(val.arrangementSnapshot)) {
+    setup.arrangementSnapshot = val.arrangementSnapshot;
+    if (typeof val.arrangementImportedAt === 'string') {
+      setup.arrangementImportedAt = val.arrangementImportedAt;
+    }
+  }
+  return setup;
 }

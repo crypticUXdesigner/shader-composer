@@ -521,7 +521,7 @@ export function mvpBokehPassPlanGraph(): NodeGraph {
         id: 'n-dots',
         type: 'dots',
         position: { x: 0, y: 0 },
-        parameters: { dotsGap: 0.096, dotsSize: 0.012, dotsFeather: 0.0012, dotsIntensity: 12.0 },
+        parameters: { dotsSpacing: 0.12, dotsSize: 0.012, dotsFeather: 0.0012, dotsIntensity: 12.0 },
       },
       {
         id: 'n-c',
@@ -920,6 +920,28 @@ export function mvpMaskCompositeFloatGraph(): NodeGraph {
   };
 }
 
+/** Mask composite vec2: mix(bg.xy, fg.xy, mask). */
+export function mvpMaskCompositeVec2Graph(): NodeGraph {
+  return {
+    id: 'fixture-mvp-mask-composite-vec2',
+    name: 'MVP mask composite vec2',
+    version: '2.0',
+    nodes: [
+      { id: 'n-bg', type: 'constant-vec2', position: { x: 0, y: 0 }, parameters: { x: 0.1, y: 0.2 } },
+      { id: 'n-fg', type: 'constant-vec2', position: { x: 0, y: 0 }, parameters: { x: 0.9, y: 0.6 } },
+      { id: 'n-m', type: 'constant-float', position: { x: 0, y: 0 }, parameters: { value: 0.75 } },
+      { id: 'n-mask', type: 'mask-composite-vec2', position: { x: 0, y: 0 }, parameters: { mask: 0.5 } },
+      { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+    ],
+    connections: [
+      { id: 'c1', sourceNodeId: 'n-bg', sourcePort: 'out', targetNodeId: 'n-mask', targetPort: 'bg' },
+      { id: 'c2', sourceNodeId: 'n-fg', sourcePort: 'out', targetNodeId: 'n-mask', targetPort: 'fg' },
+      { id: 'c3', sourceNodeId: 'n-m', sourcePort: 'out', targetNodeId: 'n-mask', targetPort: 'mask' },
+      { id: 'c4', sourceNodeId: 'n-mask', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
+    ],
+  };
+}
+
 /** Mask composite vec3: mix(bg.rgb, fg.rgb, mask). */
 export function mvpMaskCompositeVec3Graph(): NodeGraph {
   return {
@@ -1290,7 +1312,7 @@ export function mvpDotsGraph(): NodeGraph {
         id: 'n-d',
         type: 'dots',
         position: { x: 0, y: 0 },
-        parameters: { dotsGap: 0.06, dotsSize: 0.03, dotsFeather: 0.0072, dotsIntensity: 1.0 },
+        parameters: { dotsSpacing: 0.12, dotsSize: 0.03, dotsFeather: 0.0072, dotsIntensity: 1.0 },
         parameterInputModes: {},
       },
       { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
@@ -1546,6 +1568,7 @@ export function mvpStreakGraph(): NodeGraph {
           streakAngleDeg: (1.2 * 180) / Math.PI,
           streakStretch: 2.8,
           streakWidth: 0.18,
+          streakFalloff: 1.0,
           streakIntensity: 1.0
         },
         parameterInputModes: {},
@@ -3718,6 +3741,7 @@ export const WEBGPU_MVP_FIXTURE_IDS = [
   'mvpCompareSelect',
   'mvpCrossProduct',
   'mvpMaskCompositeFloat',
+  'mvpMaskCompositeVec2',
   'mvpMaskCompositeVec3',
   'mvpReflect',
   'mvpRefract',
@@ -3845,6 +3869,8 @@ export function getWebgpuMvpFixtureGraph(id: WebgpuMvpFixtureId): NodeGraph {
       return mvpCrossProductGraph();
     case 'mvpMaskCompositeFloat':
       return mvpMaskCompositeFloatGraph();
+    case 'mvpMaskCompositeVec2':
+      return mvpMaskCompositeVec2Graph();
     case 'mvpMaskCompositeVec3':
       return mvpMaskCompositeVec3Graph();
     case 'mvpReflect':
