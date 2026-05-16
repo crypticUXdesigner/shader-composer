@@ -47,4 +47,11 @@ describe('getParameterEnumMappings', () => {
     expect(m![0]).toBe('Horizontal');
     expect(m![1]).toBe('Vertical');
   });
+
+  it('maps bloom-sphere mode to lattice vs legacy bloom labels', () => {
+    const m = getParameterEnumMappings('bloom-sphere', 'mode');
+    expect(m).not.toBeNull();
+    expect(m![0]).toBe('Lattice Glow');
+    expect(m![1]).toBe('Legacy Bloom');
+  });
 });

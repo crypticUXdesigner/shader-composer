@@ -205,9 +205,9 @@ float rings(vec2 p, vec2 center, float ringSpacingParam) {
   float radialPhase = TAU * dist / spacing - phase;
   float base = sin(radialPhase) * 0.5 + 0.5;
 
-  if ($param.ringLineMode < 0.5) {
+  if ($param.ringLineMode == 0) {
     float v = base;
-    if ($param.ringInvert > 0.5) v = 1.0 - v;
+    if ($param.ringInvert != 0) v = 1.0 - v;
     return v * envelope;
   }
 
@@ -223,11 +223,11 @@ float rings(vec2 p, vec2 center, float ringSpacingParam) {
   float featMax = max(0.0, maxHalf - halfW);
   // Feather uses most of the radial gap toward the next ring; gamma < 1 softens the tail.
   float feat = clamp(fn * featMax * 0.96, 0.0, featMax);
-  float t = clamp((dR - halfW) / max(feat, 1e-6), 0.0, 1.0);
+  float edgeMix = clamp((dR - halfW) / max(feat, 1e-6), 0.0, 1.0);
   const float FEATHER_GAMMA = 0.55;
-  float line = 1.0 - pow(t, FEATHER_GAMMA);
+  float line = 1.0 - pow(edgeMix, FEATHER_GAMMA);
   float v = line;
-  if ($param.ringInvert > 0.5) v = 1.0 - v;
+  if ($param.ringInvert != 0) v = 1.0 - v;
   return v * envelope;
 }
 `,

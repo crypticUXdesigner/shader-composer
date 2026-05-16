@@ -1,15 +1,16 @@
 import type { NodeSpec } from '../../types/nodeSpec';
 
 /**
- * Maps input (u,v) from unit square to a quadrilateral defined by 4 corners.
- * Corner order: bottom-left (0,0), bottom-right (1,0), top-left (0,1), top-right (1,1).
+ * Bilinear warp in aspect-corrected screen space (same `p` as UV Coords / base shader).
+ * Corners are positions on the unit square [0,1]² (identity = BL/BR/TL/TR at 0,0 / 1,0 / 0,1 / 1,1).
+ * Corner order: bottom-left, bottom-right, top-left, top-right.
  */
 export const quadWarpNodeSpec: NodeSpec = {
   id: 'quad-warp',
   category: 'Distort',
   displayName: 'Quad Warp',
   icon: 'perspective',
-  description: 'Map unit square to a quadrilateral (4 corners) for perspective and screen effects',
+  description: 'Perspective warp in screen space; corners on the unit square, identity at defaults',
   inputs: [
     {
       name: 'in',
@@ -95,10 +96,10 @@ export const quadWarpNodeSpec: NodeSpec = {
       {
         type: 'grid',
         parameters: [
-          'quadCorner0X', 'quadCorner0Y',
-          'quadCorner1X', 'quadCorner1Y',
           'quadCorner2X', 'quadCorner2Y',
-          'quadCorner3X', 'quadCorner3Y'
+          'quadCorner3X', 'quadCorner3Y',
+          'quadCorner0X', 'quadCorner0Y',
+          'quadCorner1X', 'quadCorner1Y'
         ],
         parameterUI: {
           quadCorner0X: 'coords',
@@ -111,7 +112,7 @@ export const quadWarpNodeSpec: NodeSpec = {
           quadCorner3Y: 'coords'
         },
         layout: {
-          columns: 2,
+          columns: 4,
           coordsSpan: 2,
           coordsOrigin: 'bottom-left',
           coordsDisplacementAnchor: {
@@ -125,17 +126,27 @@ export const quadWarpNodeSpec: NodeSpec = {
     ]
   },
   functions: `
+vec2 quadWarpScreenToUnit(vec2 p, float aspect) {
+  return vec2(p.x / aspect + 1.0, p.y + 1.0) * 0.5;
+}
+
+vec2 quadWarpUnitToScreen(vec2 uv, float aspect) {
+  return (uv * 2.0 - 1.0) * vec2(aspect, 1.0);
+}
+
 vec2 quadWarpBilinear(vec2 uv, vec2 c00, vec2 c10, vec2 c01, vec2 c11) {
   float u = uv.x, v = uv.y;
-  vec2 p = (1.0 - u) * (1.0 - v) * c00 + u * (1.0 - v) * c10 + (1.0 - u) * v * c01 + u * v * c11;
-  return p;
+  return (1.0 - u) * (1.0 - v) * c00 + u * (1.0 - v) * c10 + (1.0 - u) * v * c01 + u * v * c11;
 }
 `,
   mainCode: `
+  float aspect = $resolution.x / max($resolution.y, 1.0);
   vec2 c00 = vec2($param.quadCorner0X, $param.quadCorner0Y);
   vec2 c10 = vec2($param.quadCorner1X, $param.quadCorner1Y);
   vec2 c01 = vec2($param.quadCorner2X, $param.quadCorner2Y);
   vec2 c11 = vec2($param.quadCorner3X, $param.quadCorner3Y);
-  $output.out = quadWarpBilinear($input.in, c00, c10, c01, c11);
+  vec2 uvIn = quadWarpScreenToUnit($input.in, aspect);
+  vec2 uvOut = quadWarpBilinear(uvIn, c00, c10, c01, c11);
+  $output.out = quadWarpUnitToScreen(uvOut, aspect);
 `
 };

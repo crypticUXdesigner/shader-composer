@@ -41,7 +41,7 @@ export const arrangementNotesNodeSpec: NodeSpec = {
     windowSeconds: {
       type: 'float',
       default: 32.0,
-      min: 1.0,
+      min: 0.5,
       max: 600.0,
       step: 0.5,
       label: 'Window',

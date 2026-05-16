@@ -42,7 +42,7 @@ export const uvBlockGlitchNodeSpec: NodeSpec = {
       default: 0.0,
       min: 0.0,
       max: 60.0,
-      step: 0.1,
+      step: 0.001,
       label: 'Step Hz',
     },
     uvBlockGlitchCenterXMin: {

@@ -166,14 +166,14 @@
           "y": -404
         },
         "parameters": {
-          "quadCorner0X": -0.07000000000000006,
-          "quadCorner0Y": -0.7,
-          "quadCorner1X": 1.4900000000000002,
-          "quadCorner1Y": -0.48,
-          "quadCorner2X": -0.4099999999999999,
-          "quadCorner2Y": 1.0300000000000002,
-          "quadCorner3X": 1.63,
-          "quadCorner3Y": 0.6099999999999999
+          "quadCorner0X": 0.02,
+          "quadCorner0Y": 0.01,
+          "quadCorner1X": 0.98,
+          "quadCorner1Y": 0.03,
+          "quadCorner2X": 0.06,
+          "quadCorner2Y": 0.96,
+          "quadCorner3X": 0.94,
+          "quadCorner3Y": 0.98
         }
       },
       {

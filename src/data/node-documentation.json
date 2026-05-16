@@ -6349,13 +6349,13 @@
     "node:quad-warp": {
       "title": "Quad Warp",
       "titleType": "node",
-      "tagline": "Map unit square to a quadrilateral for perspective/screen effects",
-      "description": "Maps input (u,v) from the unit square to a quadrilateral defined by four corners (BL, BR, TL, TR). Use for perspective distortion, screens, and poster effects.",
+      "tagline": "Perspective warp in aspect-corrected screen space",
+      "description": "Maps aspect-corrected screen coordinates (same space as UV Coords) through a bilinear quad. Corner parameters are positions on the unit square; defaults are identity (no warp).",
       "inputs": [
         {
           "name": "in",
           "type": "vec2",
-          "description": "Input coordinates (e.g. 0–1)",
+          "description": "Screen coordinates (aspect-corrected p, e.g. from UV Coords)",
           "suggestedSources": [
             "type:vec2",
             "node:uv-coordinates"
@@ -6373,7 +6373,8 @@
         }
       ],
       "relatedItems": [
-        "node:transform"
+        "node:transform",
+        "node:plane-project"
       ],
       "setupExampleGraph": {
         "nodes": [
@@ -6420,7 +6421,77 @@
         "Set the four corners (BL, BR, TL, TR) to shape the quad; use for fake 3D planes or posters.",
         "Animate corners with Time or Sine for warping screens or flags."
       ],
-      "advanced": "Bilinear map from unit square to quadrilateral. Use for perspective correction, TV screens, or any four-corner warp."
+      "advanced": "Input and output use the same aspect-corrected p space as the base shader. Corners live on [0,1]²; identity corners are (0,0), (1,0), (0,1), (1,1)."
+    },
+    "node:plane-project": {
+      "title": "Plane Project",
+      "titleType": "node",
+      "tagline": "Project screen rays onto a 3D plane",
+      "description": "Casts a ray per pixel onto an oriented rectangle in world space and outputs UV on that plane plus a hit mask. Use Built-in camera (look-at style) or connect Ray origin / Ray direction from Look-at or Orbit Camera. Plane center, normal, spin, and width/height use world-scale ranges. UV mode: World (planar units), Normalized (0–1 on the rectangle), or Centered (−1…1). Clip discards hits outside the rectangle when UV mode is Normalized or Centered.",
+      "inputs": [
+        {
+          "name": "in",
+          "type": "vec2",
+          "description": "Screen coordinates (aspect-corrected p, e.g. from UV Coords)",
+          "suggestedSources": ["type:vec2", "node:uv-coordinates"]
+        },
+        {
+          "name": "ro",
+          "type": "vec3",
+          "description": "Ray origin (External camera). Falls back to built-in Position when unconnected.",
+          "suggestedSources": ["node:look-at-camera", "node:orbit-camera"]
+        },
+        {
+          "name": "rd",
+          "type": "vec3",
+          "description": "Ray direction (External camera). Falls back to built-in look-at rays when unconnected.",
+          "suggestedSources": ["node:look-at-camera", "node:orbit-camera"]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "uv",
+          "type": "vec2",
+          "description": "Coordinates on the plane (per UV mode)",
+          "suggestedTargets": ["node:noise", "node:brick-tiling"]
+        },
+        {
+          "name": "hit",
+          "type": "float",
+          "description": "1 when the ray hits the plane in front of the camera (and inside clip rect if enabled); 0 otherwise",
+          "suggestedTargets": ["node:multiply"]
+        }
+      ],
+      "relatedItems": [
+        "node:quad-warp",
+        "node:transform",
+        "node:uv-coordinates",
+        "node:look-at-camera",
+        "node:orbit-camera",
+        "node:plane-grid"
+      ],
+      "setupExampleGraph": {
+        "nodes": [
+          { "id": "a", "type": "uv-coordinates" },
+          { "id": "b", "type": "plane-project" },
+          { "id": "c", "type": "noise" },
+          { "id": "d", "type": "multiply" },
+          { "id": "e", "type": "final-output" }
+        ],
+        "connections": [
+          { "from": "a", "fromPort": "out", "to": "b", "toPort": "in" },
+          { "from": "b", "fromPort": "uv", "to": "c", "toPort": "in" },
+          { "from": "c", "fromPort": "out", "to": "d", "toPort": "a" },
+          { "from": "b", "fromPort": "hit", "to": "d", "toPort": "b" },
+          { "from": "d", "fromPort": "out", "to": "e", "toPort": "in" }
+        ]
+      },
+      "examples": [
+        "UV Coords → Plane Project → Noise; multiply pattern by Hit for a crisp poster quad.",
+        "Set Camera to External; wire Look-at Camera ro/rd for a shared rig with SDF nodes.",
+        "Tilt plane Normal and animate Spin for a panel in perspective; use Normalized UV + Clip for a hard edge."
+      ],
+      "advanced": "Built-in camera matches Look-at Camera math (position, look-at target, zoom). Plane normal defaults to +Z with camera at +Z looking at origin — adjust normal to (0,0,1) and center for a screen-facing card. World UV mode does not apply Clip. For mild 2D trapezoids without a 3D plane, use Quad Warp instead."
     },
     "node:brick-tiling": {
       "title": "Tiling",

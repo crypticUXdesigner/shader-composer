@@ -138,6 +138,7 @@ export const WARP_DISTORT_NODE_IDS = new Set([
   'radial-uv-warp',
   'ripple',
   'quad-warp',
+  'plane-project',
   'vortex',
   'displace',
   'rain-drops',

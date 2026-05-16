@@ -135,6 +135,12 @@ describe('eligibility for real specs', () => {
     expect(nodeSupportsPower(transform)).toBe(true);
   });
 
+  it('plane-project is Rule A (vec2 uv passthrough) and supports power', () => {
+    const planeProject = get('plane-project');
+    expect(nodePowerRule(planeProject)).toBe('A');
+    expect(nodeSupportsPower(planeProject)).toBe(true);
+  });
+
   it('noise is Rule B and supports power', () => {
     const noise = get('noise');
     expect(nodePowerRule(noise)).toBe('B');
@@ -249,6 +255,7 @@ describe('eligible node ids — snapshot regression guard', () => {
         "oscillator-2d",
         "particle-system",
         "plane-grid",
+        "plane-project",
         "polar-coordinates",
         "quad-warp",
         "radial-pulse",

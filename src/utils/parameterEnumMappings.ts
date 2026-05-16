@@ -234,6 +234,17 @@ export function getParameterEnumMappings(
     return { 0: 'Infinite plane', 1: 'UV' };
   }
 
+  // plane-project
+  if (nodeId === 'plane-project' && paramName === 'cameraSource') {
+    return { 0: 'Built-in', 1: 'External' };
+  }
+  if (nodeId === 'plane-project' && paramName === 'uvMode') {
+    return { 0: 'World', 1: 'Normalized', 2: 'Centered' };
+  }
+  if (nodeId === 'plane-project' && paramName === 'clipRect') {
+    return { 0: 'Off', 1: 'On' };
+  }
+
   // radial-uv-warp
   if (nodeId === 'radial-uv-warp' && paramName === 'warpMode') {
     return {
@@ -260,6 +271,11 @@ export function getParameterEnumMappings(
       1: 'Snap zoom in',
       2: 'Snap zoom out',
     };
+  }
+
+  // bloom-sphere
+  if (nodeId === 'bloom-sphere' && paramName === 'mode') {
+    return { 0: 'Lattice Glow', 1: 'Legacy Bloom' };
   }
 
   if (nodeId === 'arrangement-lanes') {

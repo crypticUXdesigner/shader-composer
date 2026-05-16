@@ -73,6 +73,7 @@ export const WGSL_SUPPORTED_NODE_TYPES = new Set([
   'iridescent-tunnel',
   'kaleidoscope',
   'quad-warp',
+  'plane-project',
   'rain-drops',
   'ripple',
   'turbulence',
@@ -3576,10 +3577,118 @@ fn kaleidoscopeFold(p: vec2<f32>, segments: i32, rotation: f32, smoothEdge: f32)
         const c01 = `vec2<f32>(${paramSlotExprWired(paramLayout, nodeId, 'quadCorner2X', 0)}, ${paramSlotExprWired(paramLayout, nodeId, 'quadCorner2Y', 0)})`;
         const c11 = `vec2<f32>(${paramSlotExprWired(paramLayout, nodeId, 'quadCorner3X', 0)}, ${paramSlotExprWired(paramLayout, nodeId, 'quadCorner3Y', 0)})`;
 
-        const u = `(${uv.code}).x`;
-        const v = `(${uv.code}).y`;
-        const out = `( (1.0 - ${u}) * (1.0 - ${v}) * ${c00} + ${u} * (1.0 - ${v}) * ${c10} + (1.0 - ${u}) * ${v} * ${c01} + ${u} * ${v} * ${c11} )`;
+        const aspect = `(globals.v0.z / max(1.0, globals.v0.w))`;
+        const uvIn = `vec2<f32>((${uv.code}).x / (2.0 * ${aspect}) + 0.5, (${uv.code}).y * 0.5 + 0.5)`;
+        const u = `(${uvIn}).x`;
+        const v = `(${uvIn}).y`;
+        const uvOut = `( (1.0 - ${u}) * (1.0 - ${v}) * ${c00} + ${u} * (1.0 - ${v}) * ${c10} + (1.0 - ${u}) * ${v} * ${c01} + ${u} * ${v} * ${c11} )`;
+        const out = `((${uvOut}) * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>(${aspect}, 1.0)`;
         setNodeOut(nodeId, 'out', { type: 'vec2<f32>', code: out });
+        break;
+      }
+      case 'plane-project': {
+        const pIn = resolveInputVec2(nodeId, 'in');
+        if (!pIn) break;
+
+        const cameraSource = paramSlotExprWired(paramLayout, nodeId, 'cameraSource', 0);
+        const posX = paramSlotExprWired(paramLayout, nodeId, 'posX', 0);
+        const posY = paramSlotExprWired(paramLayout, nodeId, 'posY', 0);
+        const posZ = paramSlotExprWired(paramLayout, nodeId, 'posZ', 0);
+        const lookatX = paramSlotExprWired(paramLayout, nodeId, 'lookatX', 0);
+        const lookatY = paramSlotExprWired(paramLayout, nodeId, 'lookatY', 0);
+        const lookatZ = paramSlotExprWired(paramLayout, nodeId, 'lookatZ', 0);
+        const zoom = paramSlotExprWired(paramLayout, nodeId, 'zoom', 0);
+        const centerX = paramSlotExprWired(paramLayout, nodeId, 'centerX', 0);
+        const centerY = paramSlotExprWired(paramLayout, nodeId, 'centerY', 0);
+        const centerZ = paramSlotExprWired(paramLayout, nodeId, 'centerZ', 0);
+        const normalX = paramSlotExprWired(paramLayout, nodeId, 'normalX', 0);
+        const normalY = paramSlotExprWired(paramLayout, nodeId, 'normalY', 0);
+        const normalZ = paramSlotExprWired(paramLayout, nodeId, 'normalZ', 0);
+        const rotation = paramSlotExprWired(paramLayout, nodeId, 'rotation', 0);
+        const width = paramSlotExprWired(paramLayout, nodeId, 'width', 0);
+        const height = paramSlotExprWired(paramLayout, nodeId, 'height', 0);
+        const uvMode = paramSlotExprWired(paramLayout, nodeId, 'uvMode', 0);
+        const clipRect = paramSlotExprWired(paramLayout, nodeId, 'clipRect', 0);
+
+        const roIn = resolveInputVec3(nodeId, 'ro');
+        const rdIn = resolveInputVec3(nodeId, 'rd');
+        if (!roIn || !rdIn) break;
+
+        requireHelper(
+          'plane-project',
+          `
+fn ppLookAtRays(
+  screenPos: vec2<f32>,
+  pos: vec3<f32>,
+  lookat: vec3<f32>,
+  zoomVal: f32,
+) -> struct { ro: vec3<f32>, rd: vec3<f32> } {
+  let ro = pos;
+  let f = normalize(lookat - ro);
+  let r = normalize(cross(vec3<f32>(0.0, 1.0, 0.0), f));
+  let u = cross(f, r);
+  let center = ro + f * zoomVal;
+  let i = center + screenPos.x * r + screenPos.y * u;
+  let rd = normalize(i - ro);
+  return struct { ro, rd };
+}
+
+fn ppPlaneBasis(n: vec3<f32>) -> struct { u: vec3<f32>, v: vec3<f32> } {
+  let helper = select(vec3<f32>(0.0, 1.0, 0.0), vec3<f32>(1.0, 0.0, 0.0), abs(n.y) >= 0.999);
+  let tangentU = normalize(cross(helper, n));
+  let tangentV = cross(n, tangentU);
+  return struct { u: tangentU, v: tangentV };
+}
+
+fn ppPlaneFrame(n: vec3<f32>, angleDeg: f32) -> struct { u: vec3<f32>, v: vec3<f32> } {
+  let basis = ppPlaneBasis(n);
+  let a = angleDeg * 0.01745329252;
+  let c = cos(a);
+  let s = sin(a);
+  let u0 = basis.u;
+  let tangentU = normalize(u0 * c + basis.v * s);
+  let tangentV = cross(n, tangentU);
+  return struct { u: tangentU, v: tangentV };
+}
+          `
+        );
+
+        const builtIn = `ppLookAtRays(${pIn.code}, vec3<f32>(${posX}, ${posY}, ${posZ}), vec3<f32>(${lookatX}, ${lookatY}, ${lookatZ}), ${zoom})`;
+        const roBuilt = `(${builtIn}).ro`;
+        const rdBuilt = `(${builtIn}).rd`;
+
+        const useExternal = `(${cameraSource}) >= 0.5`;
+        const roInLen = `dot(${roIn.code}, ${roIn.code})`;
+        const rdInLen = `dot(${rdIn.code}, ${rdIn.code})`;
+        const ro = `select(${roBuilt}, select(${roBuilt}, ${roIn.code}, ${roInLen} > 1.0e-8), ${useExternal})`;
+        const rd = `normalize(select(${rdBuilt}, select(${rdBuilt}, ${rdIn.code}, ${rdInLen} > 1.0e-8), ${useExternal}))`;
+
+        const planeCenter = `vec3<f32>(${centerX}, ${centerY}, ${centerZ})`;
+        const n = `normalize(vec3<f32>(${normalX}, ${normalY}, ${normalZ}))`;
+        const denom = `dot(${rd}, ${n})`;
+        const t = `dot(${planeCenter} - ${ro}, ${n}) / ${denom}`;
+        const hitPoint = `(${ro} + ${rd} * ${t})`;
+        const rel = `(${hitPoint} - ${planeCenter})`;
+        const frame = `ppPlaneFrame(${n}, ${rotation})`;
+        const u = `dot(${rel}, (${frame}).u)`;
+        const v = `dot(${rel}, (${frame}).v)`;
+        const halfW = `max((${width}) * 0.5, 1.0e-6)`;
+        const halfH = `max((${height}) * 0.5, 1.0e-6)`;
+
+        const uvWorld = `vec2<f32>(${u}, ${v})`;
+        const uvNorm = `vec2<f32>(${u} / ${halfW} * 0.5 + 0.5, ${v} / ${halfH} * 0.5 + 0.5)`;
+        const uvCentered = `vec2<f32>(${u} / ${halfW}, ${v} / ${halfH})`;
+        const uvOut = `select(${uvCentered}, select(${uvNorm}, ${uvWorld}, (${uvMode}) < 0.5), (${uvMode}) < 1.5)`;
+
+        const rayHit = `(abs(${denom}) > 0.0001 && ${t} > 0.0)`;
+        const clipNorm = `(${uvOut}.x < 0.0 || ${uvOut}.x > 1.0 || ${uvOut}.y < 0.0 || ${uvOut}.y > 1.0)`;
+        const clipCentered = `(abs((${uvOut}).x) > 1.0 || abs((${uvOut}).y) > 1.0)`;
+        const clipActive = `(${clipRect}) >= 0.5 && (${uvMode}) > 0.5`;
+        const clipFail = `select(${clipCentered}, ${clipNorm}, (${uvMode}) < 1.5)`;
+        const hitVal = `select(0.0, select(0.0, 1.0, !(${clipActive} && ${clipFail})), ${rayHit})`;
+
+        setNodeOut(nodeId, 'uv', { type: 'vec2<f32>', code: `select(vec2<f32>(0.0, 0.0), ${uvOut}, ${rayHit})` });
+        setNodeOut(nodeId, 'hit', { type: 'f32', code: hitVal });
         break;
       }
       case 'rain-drops': {

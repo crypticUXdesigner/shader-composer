@@ -28,6 +28,7 @@ import { rippleNodeSpec } from './ripple';
 import { displaceNodeSpec } from './displace';
 import { vortexNodeSpec } from './vortex';
 import { quadWarpNodeSpec } from './quad-warp';
+import { planeProjectNodeSpec } from './plane-project';
 import { brickTilingNodeSpec } from './brick-tiling';
 import { uvBlockGlitchNodeSpec } from './uv-block-glitch';
 import { uvBandShiftNodeSpec } from './uv-band-shift';
@@ -187,6 +188,7 @@ export const nodeSystemSpecs: NodeSpec[] = [
   displaceNodeSpec,
   vortexNodeSpec,
   quadWarpNodeSpec,
+  planeProjectNodeSpec,
   brickTilingNodeSpec,
   uvBlockGlitchNodeSpec,
   uvBandShiftNodeSpec,
