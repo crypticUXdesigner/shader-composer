@@ -4,7 +4,9 @@
    * Shows remapper name (with band prefix), range editor, and Connect action.
    */
   import { Button, IconSvg, EditableLabel, RemapRangeEditor } from '../ui';
+  import RemapperConnectionList from './RemapperConnectionList.svelte';
   import type { AudioRemapperEntry } from '../../../data-model/audioSetupTypes';
+  import type { RemapperParameterConnectionTarget } from '../../../utils/getRemapperParameterConnections';
 
   interface LiveValues {
     incoming: number | null;
@@ -19,7 +21,10 @@
     onSelect?: (e: MouseEvent) => void;
     onConnect?: () => void;
     onDelete?: () => void;
+    onDuplicate?: () => void;
     onRemapperChange?: (updater: (r: AudioRemapperEntry) => AudioRemapperEntry) => void;
+    parameterConnections?: RemapperParameterConnectionTarget[];
+    onRevealParameter?: (nodeId: string, paramName: string) => void;
   }
 
   let {
@@ -30,7 +35,10 @@
     onSelect,
     onConnect,
     onDelete,
+    onDuplicate,
     onRemapperChange,
+    parameterConnections = [],
+    onRevealParameter,
   }: Props = $props();
 </script>
 
@@ -72,6 +80,21 @@
     >
       <IconSvg name="trash" variant="line" />
     </Button>
+    {#if onDuplicate}
+      <Button
+        variant="ghost"
+        size="sm"
+        mode="icon-only"
+        title="Duplicate remapper"
+        aria-label={`Duplicate remapper: ${remapper.name || remapper.id}`}
+        onclick={(e) => {
+          e.stopPropagation();
+          onDuplicate();
+        }}
+      >
+        <IconSvg name="copy" variant="line" />
+      </Button>
+    {/if}
     {#if onConnect}
       <Button
         variant="ghost"
@@ -97,6 +120,7 @@
       onChange={(payload) => onRemapperChange?.((r) => ({ ...r, ...payload }))}
     />
   </div>
+  <RemapperConnectionList connections={parameterConnections} onReveal={onRevealParameter} />
 </div>
 
 <style>

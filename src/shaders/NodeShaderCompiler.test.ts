@@ -414,29 +414,18 @@ describe('NodeShaderCompiler', () => {
       expect(result.paramLayout['n-const.z']).toBeTypeOf('number');
     });
 
-    it('compiles src/presets/new.json on WebGPU (no structural fallback)', () => {
+    it('compiles src/presets/sphere.json on WebGPU (no structural fallback)', () => {
       const nodeSpecsMap = buildNodeSpecsMap();
       const compiler = new NodeShaderCompiler(nodeSpecsMap);
 
-      const raw = readFileSync(join(process.cwd(), 'src', 'presets', 'new.json'), 'utf8');
-      const parsed = JSON.parse(raw) as { graph: NodeGraph };
+      const raw = readFileSync(join(process.cwd(), 'src', 'presets', 'sphere.json'), 'utf8');
+      const parsed = JSON.parse(raw) as { graph: NodeGraph; audioSetup?: AudioSetup | null };
 
-      const result = compiler.compile(structuredClone(parsed.graph), null, { backend: 'webgpu' });
-
-      expect(result.backend).toBe('webgpu');
-      expect(result.metadata.errors).toHaveLength(0);
-      expect(result.supported).toBe(true);
-      expect(result.unsupportedReasons ?? []).toHaveLength(0);
-    });
-
-    it('compiles src/presets/testing.json on WebGPU (no structural fallback)', () => {
-      const nodeSpecsMap = buildNodeSpecsMap();
-      const compiler = new NodeShaderCompiler(nodeSpecsMap);
-
-      const raw = readFileSync(join(process.cwd(), 'src', 'presets', 'testing.json'), 'utf8');
-      const parsed = JSON.parse(raw) as { graph: NodeGraph };
-
-      const result = compiler.compile(structuredClone(parsed.graph), null, { backend: 'webgpu' });
+      const result = compiler.compile(
+        structuredClone(parsed.graph),
+        parsed.audioSetup ?? null,
+        { backend: 'webgpu' }
+      );
 
       expect(result.backend).toBe('webgpu');
       expect(result.metadata.errors).toHaveLength(0);
@@ -909,12 +898,12 @@ describe('NodeShaderCompiler', () => {
       expect(result.paramLayout['n-bokeh.bokehRotation']).toBe(plan.paramSlots.rotation);
     });
 
-    it('compiles bokeh inline WebGPU when output feeds blend-color (no pass plan)', () => {
+    it('compiles bokeh inline WebGPU when output feeds blend (no pass plan)', () => {
       const nodeSpecsMap = buildNodeSpecsMap();
       const compiler = new NodeShaderCompiler(nodeSpecsMap);
       const graph: NodeGraph = {
         id: 'graph-wgpu-bokeh-blend-inline',
-        name: 'WGSL bokeh into blend-color',
+        name: 'WGSL bokeh into blend',
         version: '2.0',
         nodes: [
           { id: 'n-base', type: 'constant-vec4', position: { x: 0, y: 0 }, parameters: { x: 0.1, y: 0.2, z: 0.3, w: 1.0 } },
@@ -934,9 +923,9 @@ describe('NodeShaderCompiler', () => {
           },
           {
             id: 'n-bc',
-            type: 'blend-color',
+            type: 'blend',
             position: { x: 0, y: 0 },
-            parameters: { mode: 2, opacity: 0.8 },
+            parameters: { mode: 2, opacity: 0.8, alphaMode: 0 },
           },
           { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
         ],
@@ -1787,7 +1776,7 @@ describe('NodeShaderCompiler', () => {
       expect(reasons).toMatch(/got 'gradient'/);
     });
 
-    it('compiles `constant-vec4 → blur → blend-color → final-output` on WebGPU (inline blur, no pass plan)', () => {
+    it('compiles `constant-vec4 → blur → blend → final-output` on WebGPU (inline blur, no pass plan)', () => {
       const nodeSpecsMap = buildNodeSpecsMap();
       const compiler = new NodeShaderCompiler(nodeSpecsMap);
       const graph: NodeGraph = {
@@ -1799,9 +1788,9 @@ describe('NodeShaderCompiler', () => {
           { id: 'n-blur', type: 'blur', position: { x: 0, y: 0 }, parameters: { blurAmount: 0.4, blurRadius: 6.0 } },
           {
             id: 'n-blend',
-            type: 'blend-color',
+            type: 'blend',
             position: { x: 0, y: 0 },
-            parameters: { mode: 0, opacity: 0.5 },
+            parameters: { mode: 0, opacity: 0.5, alphaMode: 0 },
           },
           { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
         ],
@@ -1832,24 +1821,24 @@ describe('NodeShaderCompiler', () => {
      * to WebGL with a confusing console error.
      *
      * Fixture mirrors the user-reported bug:
-     *   uv → gradient → blend-mode.blend; blend-mode.out → final-output
-     *   blend-mode.base ("Background") is intentionally left unconnected.
+     *   uv → gradient → blend.blend; blend.out → final-output
+     *   blend.base ("Background") is intentionally left unconnected.
      */
-    it('compiles when blend-mode.base is unconnected (defaults to 0.0, GLSL parity)', () => {
+    it('compiles when blend.base is unconnected (defaults to 0.0, GLSL parity)', () => {
       const nodeSpecsMap = buildNodeSpecsMap();
       const compiler = new NodeShaderCompiler(nodeSpecsMap);
       const graph: NodeGraph = {
-        id: 'graph-blend-mode-disconnected-base',
-        name: 'blend-mode disconnected base',
+        id: 'graph-blend-disconnected-base',
+        name: 'blend disconnected base',
         version: '2.0',
         nodes: [
           { id: 'n-uv', type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
           { id: 'n-grad', type: 'gradient', position: { x: 0, y: 0 }, parameters: {} },
           {
             id: 'n-blend',
-            type: 'blend-mode',
+            type: 'blend',
             position: { x: 0, y: 0 },
-            parameters: { mode: 1, opacity: 1.0, blend: 0.5 },
+            parameters: { mode: 1, opacity: 1.0, alphaMode: 0 },
           },
           { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
         ],
@@ -1870,21 +1859,21 @@ describe('NodeShaderCompiler', () => {
       expect(result.code).toContain('applyBlendMode(0.0,');
     });
 
-    it('compiles when blend-color.base is unconnected (defaults to vec4(0.0), GLSL parity)', () => {
+    it('compiles when blend.base is unconnected on vec4 chain (defaults to vec4(0.0), GLSL parity)', () => {
       const nodeSpecsMap = buildNodeSpecsMap();
       const compiler = new NodeShaderCompiler(nodeSpecsMap);
       const graph: NodeGraph = {
-        id: 'graph-blend-color-disconnected-base',
-        name: 'blend-color disconnected base',
+        id: 'graph-blend-vec4-disconnected-base',
+        name: 'blend vec4 disconnected base',
         version: '2.0',
         nodes: [
           { id: 'n-v', type: 'constant-float', position: { x: 0, y: 0 }, parameters: { value: 0.4 } },
           { id: 'n-comb', type: 'combine-vector', position: { x: 0, y: 0 }, parameters: { x: 0, y: 0, z: 0, w: 1 } },
           {
             id: 'n-bc',
-            type: 'blend-color',
+            type: 'blend',
             position: { x: 0, y: 0 },
-            parameters: { mode: 2, opacity: 0.5 },
+            parameters: { mode: 2, opacity: 0.5, alphaMode: 0 },
           },
           { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
         ],
@@ -2149,57 +2138,7 @@ describe('NodeShaderCompiler', () => {
       expect(result.shaderCode.length).toBeGreaterThan(0);
     });
 
-    it('merges vec3 Start color port with wired Start Hue param (regression: panel matched shader)', () => {
-      const nodeSpecsMap = buildNodeSpecsMap();
-      const compiler = new NodeShaderCompiler(nodeSpecsMap);
-      const floatId = 'n-t';
-      const vec3Id = 'n-v3';
-      const mwsId = 'n-mws';
-      const mapId = 'n-map';
-      const outId = 'n-out';
-      const graph: NodeGraph = {
-        id: 'graph-oklch-merge',
-        name: 'OKLCH merge',
-        version: '2.0',
-        nodes: [
-          { id: floatId, type: 'constant-float', position: { x: 0, y: 0 }, parameters: { value: 0.5 } },
-          {
-            id: vec3Id,
-            type: 'constant-vec3',
-            position: { x: 0, y: 0 },
-            parameters: { x: 0.5, y: 0.1, z: 33.0 },
-          },
-          { id: mwsId, type: 'mixed-wave-signal', position: { x: 0, y: 0 }, parameters: {} },
-          { id: mapId, type: 'oklch-color-map-bezier', position: { x: 0, y: 0 }, parameters: {} },
-          { id: outId, type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
-        ],
-        connections: [
-          { id: 'c-t', sourceNodeId: floatId, sourcePort: 'out', targetNodeId: mapId, targetPort: 'in' },
-          { id: 'c-sc', sourceNodeId: vec3Id, sourcePort: 'out', targetNodeId: mapId, targetPort: 'startColor' },
-          {
-            id: 'c-hue',
-            sourceNodeId: mwsId,
-            sourcePort: 'out',
-            targetNodeId: mapId,
-            targetParameter: 'startColorH',
-          },
-          { id: 'c-out', sourceNodeId: mapId, sourcePort: 'out', targetNodeId: outId, targetPort: 'in' },
-        ],
-      };
-
-      const glsl = compiler.compile(structuredClone(graph));
-      expect(glsl.metadata.errors).toHaveLength(0);
-      expect(glsl.shaderCode).toContain(expectedOutputVariableName(mwsId, 'out'));
-      expect(glsl.shaderCode).toContain(expectedOutputVariableName(vec3Id, 'out'));
-
-      const wgsl = compiler.compile(structuredClone(graph), null, { backend: 'webgpu' });
-      expect(wgsl.supported).toBe(true);
-      expect(wgsl.metadata.errors).toHaveLength(0);
-      expect(wgsl.code.length).toBeGreaterThan(0);
-      expect(wgsl.code).toContain('mwsMixedWaveShape');
-    });
-
-    it('WebGL: Value + wired Start Hue only (Start color port unwired; regression for OKLCH vec3 fallback)', () => {
+    it('WebGL: Value + wired Start Hue only (regression for OKLCH parameter drive)', () => {
       const nodeSpecsMap = buildNodeSpecsMap();
       const compiler = new NodeShaderCompiler(nodeSpecsMap);
       const floatId = 'n-f';
@@ -2213,7 +2152,7 @@ describe('NodeShaderCompiler', () => {
         nodes: [
           { id: floatId, type: 'constant-float', position: { x: 0, y: 0 }, parameters: { value: 0.5 } },
           { id: mwsId, type: 'mixed-wave-signal', position: { x: 0, y: 0 }, parameters: {} },
-          { id: mapId, type: 'oklch-color-map-bezier', position: { x: 0, y: 0 }, parameters: {} },
+          { id: mapId, type: 'oklch-color-map', position: { x: 0, y: 0 }, parameters: {} },
           { id: outId, type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
         ],
         connections: [
@@ -2263,7 +2202,7 @@ describe('NodeShaderCompiler', () => {
           { id: mwsId, type: 'mixed-wave-signal', position: { x: 0, y: 0 }, parameters: {} },
           {
             id: mapId,
-            type: 'oklch-color-map-bezier',
+            type: 'oklch-color-map',
             position: { x: 0, y: 0 },
             parameters: { startColorH: 2.0 },
             parameterInputModes: { startColorH: 'multiply' },
@@ -2317,7 +2256,7 @@ describe('NodeShaderCompiler', () => {
         nodes: [
           { id: uvId, type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
           { id: mwsId, type: 'mixed-wave-signal', position: { x: 0, y: 0 }, parameters: {} },
-          { id: mapId, type: 'oklch-color-map-bezier', position: { x: 0, y: 0 }, parameters: {} },
+          { id: mapId, type: 'oklch-color-map', position: { x: 0, y: 0 }, parameters: {} },
           { id: outId, type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
         ],
         connections: [
@@ -2339,6 +2278,181 @@ describe('NodeShaderCompiler', () => {
       expect(wgsl.code.length).toBeGreaterThan(0);
       expect(wgsl.code).toContain('in.uv');
       expect(wgsl.code).toContain('mwsMixedWaveShape');
+    });
+  });
+
+  describe('color LUT and color gradient nodes', () => {
+    it('WebGL: constant-float → color-lut → final-output includes LUT helpers', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const floatId = 'n-f';
+      const lutId = 'n-lut';
+      const outId = 'n-out';
+      const graph: NodeGraph = {
+        id: 'graph-color-lut-glsl',
+        name: 'Color LUT',
+        version: '2.0',
+        nodes: [
+          { id: floatId, type: 'constant-float', position: { x: 0, y: 0 }, parameters: { value: 0.5 } },
+          { id: lutId, type: 'color-lut', position: { x: 0, y: 0 }, parameters: {} },
+          { id: outId, type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c-in', sourceNodeId: floatId, sourcePort: 'out', targetNodeId: lutId, targetPort: 'in' },
+          { id: 'c-out', sourceNodeId: lutId, sourcePort: 'out', targetNodeId: outId, targetPort: 'in' },
+        ],
+      };
+
+      const result = compiler.compile(graph);
+      expect(result.metadata.errors).toHaveLength(0);
+      expect(result.shaderCode).toContain('vec3 cr_sample_lut_p0(float t)');
+      expect(result.shaderCode).toContain('const float cr_lut_tables_p0[768]');
+      expect(result.shaderCode).not.toContain('const float cr_lut_tables[9216]');
+      expect(result.shaderCode).toContain('cr_apply_lut_t');
+      // Baked single preset keeps GPU compile/link tractable (full 12-preset atlas is ~96k chars).
+      expect(result.shaderCode.length).toBeLessThan(25_000);
+    });
+
+    it('WebGPU: noise → color-lut (Viridis) → final-output is supported', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const uvId = 'n-uv';
+      const noiseId = 'n-noise';
+      const lutId = 'n-lut';
+      const outId = 'n-out';
+      const graph: NodeGraph = {
+        id: 'graph-color-lut-wgsl',
+        name: 'Color LUT WebGPU',
+        version: '2.0',
+        nodes: [
+          { id: uvId, type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          { id: noiseId, type: 'noise', position: { x: 0, y: 0 }, parameters: {} },
+          {
+            id: lutId,
+            type: 'color-lut',
+            position: { x: 0, y: 0 },
+            parameters: { preset: 0 },
+          },
+          { id: outId, type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c-uv', sourceNodeId: uvId, sourcePort: 'out', targetNodeId: noiseId, targetPort: 'in' },
+          { id: 'c-in', sourceNodeId: noiseId, sourcePort: 'out', targetNodeId: lutId, targetPort: 'in' },
+          { id: 'c-out', sourceNodeId: lutId, sourcePort: 'out', targetNodeId: outId, targetPort: 'in' },
+        ],
+      };
+
+      expect(WGSL_SUPPORTED_NODE_TYPES.has('color-lut')).toBe(true);
+      const result = compiler.compile(graph, null, { backend: 'webgpu' });
+      expect(result.metadata.errors).toHaveLength(0);
+      expect(result.supported).toBe(true);
+      expect(result.backend).toBe('webgpu');
+      expect(result.code).toContain('fn cr_sample_lut_p0(t: f32)');
+      expect(result.code).toContain('const cr_lut_tables_p0: array<f32, 768>');
+      expect(result.code).not.toContain('const cr_lut_tables: array<f32, 9216>');
+    });
+
+    it('WebGL: UV + noise → color-gradient → final-output includes 3-stop ramp', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const uvId = 'n-uv';
+      const noiseId = 'n-noise';
+      const gradId = 'n-grad';
+      const outId = 'n-out';
+      const graph: NodeGraph = {
+        id: 'graph-color-gradient-glsl',
+        name: 'Color Gradient',
+        version: '2.0',
+        nodes: [
+          { id: uvId, type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          { id: noiseId, type: 'noise', position: { x: 0, y: 0 }, parameters: {} },
+          { id: gradId, type: 'color-gradient', position: { x: 0, y: 0 }, parameters: {} },
+          { id: outId, type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c-pos', sourceNodeId: uvId, sourcePort: 'out', targetNodeId: gradId, targetPort: 'position' },
+          { id: 'c-val', sourceNodeId: noiseId, sourcePort: 'out', targetNodeId: gradId, targetPort: 'value' },
+          { id: 'c-out', sourceNodeId: gradId, sourcePort: 'out', targetNodeId: outId, targetPort: 'in' },
+        ],
+      };
+
+      const result = compiler.compile(graph);
+      expect(result.metadata.errors).toHaveLength(0);
+      expect(result.shaderCode).toContain('cr_sample_three_stop_oklch');
+      expect(result.shaderCode).toContain('cr_apply_color_gradient_value');
+      expect(result.shaderCode).toContain('cg_gradientRadial');
+    });
+
+    it('WebGPU: UV + noise → color-gradient → final-output is supported', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const uvId = 'n-uv';
+      const noiseId = 'n-noise';
+      const gradId = 'n-grad';
+      const outId = 'n-out';
+      const graph: NodeGraph = {
+        id: 'graph-color-gradient-wgsl',
+        name: 'Color Gradient WebGPU',
+        version: '2.0',
+        nodes: [
+          { id: uvId, type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          { id: noiseId, type: 'noise', position: { x: 0, y: 0 }, parameters: {} },
+          { id: gradId, type: 'color-gradient', position: { x: 0, y: 0 }, parameters: {} },
+          { id: outId, type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c-pos', sourceNodeId: uvId, sourcePort: 'out', targetNodeId: gradId, targetPort: 'position' },
+          { id: 'c-val', sourceNodeId: noiseId, sourcePort: 'out', targetNodeId: gradId, targetPort: 'value' },
+          { id: 'c-uv', sourceNodeId: uvId, sourcePort: 'out', targetNodeId: noiseId, targetPort: 'in' },
+          { id: 'c-out', sourceNodeId: gradId, sourcePort: 'out', targetNodeId: outId, targetPort: 'in' },
+        ],
+      };
+
+      expect(WGSL_SUPPORTED_NODE_TYPES.has('color-gradient')).toBe(true);
+      const result = compiler.compile(graph, null, { backend: 'webgpu' });
+      expect(result.metadata.errors).toHaveLength(0);
+      expect(result.supported).toBe(true);
+      expect(result.backend).toBe('webgpu');
+      expect(result.code).toContain('cr_sample_three_stop_oklch');
+      expect(result.code).toContain('cr_apply_color_gradient_value');
+      expect(result.code).toContain('gradientRadial');
+    });
+  });
+
+  describe('path-drive input node', () => {
+    it('compiles UV → Radial UV Warp driven by path-drive x/y → final-output', () => {
+      const nodeSpecsMap = buildNodeSpecsMap();
+      const compiler = new NodeShaderCompiler(nodeSpecsMap);
+      const uvId = 'n-uv';
+      const pdId = 'n-pd';
+      const warpId = 'n-warp';
+      const outId = 'n-out';
+
+      const graph: NodeGraph = {
+        id: 'graph-path-drive',
+        name: 'Path Drive test',
+        version: '2.0',
+        nodes: [
+          { id: uvId, type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+          { id: pdId, type: 'path-drive', position: { x: 0, y: 0 }, parameters: { pathPreset: 0, size: 0.3 } },
+          { id: warpId, type: 'radial-uv-warp', position: { x: 0, y: 0 }, parameters: {} },
+          { id: outId, type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+        ],
+        connections: [
+          { id: 'c0', sourceNodeId: uvId, sourcePort: 'out', targetNodeId: warpId, targetPort: 'in' },
+          { id: 'cpx', sourceNodeId: pdId, sourcePort: 'x', targetNodeId: warpId, targetParameter: 'warpCenterX' },
+          { id: 'cpy', sourceNodeId: pdId, sourcePort: 'y', targetNodeId: warpId, targetParameter: 'warpCenterY' },
+          { id: 'c1', sourceNodeId: warpId, sourcePort: 'out', targetNodeId: outId, targetPort: 'in' },
+        ],
+      };
+
+      const result = compiler.compile(graph);
+
+      expect(result.metadata.errors).toHaveLength(0);
+      expect(result.shaderCode).toContain('pd_pathCore');
+      expect(result.shaderCode).toMatch(/cos\s*\(\s*pdTheta/);
+      expect(result.shaderCode).toContain(expectedOutputVariableName(pdId, 'x'));
+      expect(result.shaderCode).toContain(expectedOutputVariableName(pdId, 'y'));
     });
   });
 
@@ -2525,7 +2639,7 @@ describe('NodeShaderCompiler', () => {
      * If this fails, the bug is in the compiler for the real graph. If it passes, the bug is
      * likely runtime (uniforms, WebGL state, etc.).
      */
-    const presetPath = join(__dirname, '../presets/testing.json');
+    const presetPath = join(__dirname, '../presets/sphere.json');
     it.skip('with full preset graph: Intensity before quad-warp and correct variable in shader (preset no longer contains this scenario)', () => {
       const raw = readFileSync(presetPath, 'utf-8');
       const preset = JSON.parse(raw) as { graph: NodeGraph; audioSetup?: AudioSetup };

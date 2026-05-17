@@ -15,6 +15,7 @@
   import { appToastStore, getGraph } from '../../stores';
   import { globalErrorHandler } from '../../../utils/errorHandling';
   import type { ViewMode, LayoutCallbacks } from './types';
+  import { computeSplitDividerPosition } from './splitPreviewDivider';
   import type { AuthenticatedClient } from '@audiotool/nexus';
   import type { ProjectAvatarFields } from '../../storage/projectAvatar';
   import type { ProjectMeta } from '../../storage/projectRepository';
@@ -131,6 +132,8 @@
   let viewMode = $state<ViewMode>('node');
   let activeTab = $state<'nodes' | 'docs'>('nodes');
   let dividerPosition = $state(0.5);
+  /** After the user drags the split divider, keep their width until they leave split view. */
+  let splitDividerUserAdjusted = $state(false);
   let panelWidth = $state(300);
   let isUiHidden = $state(false);
 
@@ -184,10 +187,16 @@
     return false;
   }
 
+  function applySplitDividerDefault(): void {
+    if (splitDividerUserAdjusted || contentWidth <= 0 || containerHeight <= 0) return;
+    dividerPosition = computeSplitDividerPosition(contentWidth, containerHeight);
+  }
+
   // View mode
   function setViewMode(mode: ViewMode) {
     if (viewMode === mode) return;
     viewMode = mode;
+    if (mode === 'split') applySplitDividerDefault();
   }
 
   function isTypingTarget(target: EventTarget | null): boolean {
@@ -325,6 +334,7 @@
     };
 
     const onUp = () => {
+      if (isDraggingDivider) splitDividerUserAdjusted = true;
       if (resizeMoveRafId) {
         cancelAnimationFrame(resizeMoveRafId);
         resizeMoveRafId = 0;
@@ -432,6 +442,14 @@
   let containerWidth = $state(0);
   let containerHeight = $state(0);
   const contentWidth = $derived(containerWidth - panelOffset);
+
+  // Keep auto split width at 9:16 when the window/panel changes until the user drags the divider.
+  $effect(() => {
+    if (viewMode !== 'split' || splitDividerUserAdjusted) return;
+    contentWidth;
+    containerHeight;
+    applySplitDividerDefault();
+  });
 
   // ResizeObserver ensures dimensions stay correct when layout changes (e.g. panel toggle, window resize)
   $effect(() => {

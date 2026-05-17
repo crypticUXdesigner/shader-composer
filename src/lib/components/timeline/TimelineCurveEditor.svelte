@@ -9,7 +9,11 @@
   import EditorParameterValueOverlay from '../editor/EditorParameterValueOverlay.svelte';
   import { updateAutomationRegion } from '../../../data-model';
   import type { NodeGraph } from '../../../data-model/types';
-  import type { AutomationCurve, AutomationCurveInterpolation } from '../../../data-model/types';
+  import type {
+    AutomationCurve,
+    AutomationCurveInterpolation,
+    AutomationKeyframe,
+  } from '../../../data-model/types';
   import type { NodeSpec } from '../../../types/nodeSpec';
   import { getWaveformSlice } from '../../../runtime/waveform/WaveformService';
   import { pollOnAnimationFrame } from '../../utils/pollOnAnimationFrame';
@@ -32,10 +36,14 @@
     SNAP_DIVISIONS,
     type CurveEditorDragSession,
     type SnapDivision,
+    constrainCurveEditorDragPointer,
     indexOfInsertedKeyframe,
+    invertCurveKeyframeValues,
     maybeSnapCurveKeyframeTime,
     proposeDragKeyframes,
     remapSelectionIndices,
+    resolveCurveEditorDragAxisLock,
+    sanitizeAutomationCurveKeyframes,
     stableTimeSortKeyframes,
   } from './curveEditorKeyframes';
   import {
@@ -100,7 +108,11 @@
   /** Sorted unique indices into `keyframesSorted` (selection set). */
   let selectedKeyframeIndices = $state<number[]>([]);
   let dragKeyframeSession = $state<CurveEditorDragSession | null>(null);
+  /** Live keyframes while dragging; graph commits on pointerup to avoid compile/render races. */
+  let dragKeyframePreview = $state<AutomationKeyframe[] | null>(null);
   let dragKeyframePointerId = $state<number | null>(null);
+  /** Index into `keyframesSorted` for the keyframe grab handle (drag time guide). */
+  let dragGuideKeyframeIndex = $state<number | null>(null);
   let snapEnabled = $state(false);
   let snapDivision = $state<SnapDivision>(1);
   let snapGridOpen = $state(false);
@@ -172,8 +184,15 @@
   }
 
   const keyframesSorted = $derived.by(() => {
-    if (!curve?.keyframes?.length) return [];
-    return [...curve.keyframes].sort((a, b) => a.time - b.time);
+    const src = dragKeyframePreview ?? curve?.keyframes;
+    if (!src?.length) return [];
+    return [...src].sort((a, b) => a.time - b.time);
+  });
+
+  const curveForDisplay = $derived.by((): AutomationCurve | null => {
+    if (!curve) return null;
+    if (!dragKeyframePreview) return curve;
+    return { ...curve, keyframes: dragKeyframePreview };
   });
 
   const regionBars = $derived(regionCtx.regionBars);
@@ -207,6 +226,12 @@
   });
 
   /** Global time mapped to normalized region X in SVG space; null when no range or no transport ticker. */
+  const dragTimeGuideSvgX = $derived.by(() => {
+    const idx = dragGuideKeyframeIndex;
+    if (idx === null || idx < 0 || idx >= keyframesSorted.length) return null;
+    return timeToX(keyframesSorted[idx]!.time);
+  });
+
   const transportPlayheadSvgX = $derived.by(() => {
     void transportTimeTick;
     void graphWidth;
@@ -283,8 +308,19 @@
 
   function updateCurve(newCurve: AutomationCurve) {
     const graph = getGraph();
-    const updated = updateAutomationRegion(graph, laneId, regionId, { curve: newCurve });
+    const sanitized: AutomationCurve = {
+      ...newCurve,
+      keyframes: sanitizeAutomationCurveKeyframes(newCurve.keyframes ?? []),
+    };
+    const updated = updateAutomationRegion(graph, laneId, regionId, { curve: sanitized });
     onGraphUpdate(updated);
+  }
+
+  function commitDragKeyframePreview(): void {
+    const preview = dragKeyframePreview;
+    dragKeyframePreview = null;
+    if (!preview || !curve) return;
+    updateCurve({ ...curve, keyframes: preview });
   }
 
   function getGraphRect(): DOMRect {
@@ -458,6 +494,19 @@
     dragKeyframeSession = null;
   }
 
+  function invertKeyframeValuesVertically() {
+    if (!curve || keyframesSorted.length === 0) return;
+    updateCurve({ ...curve, keyframes: invertCurveKeyframeValues(keyframesSorted) });
+  }
+
+  function selectAllKeyframes() {
+    if (keyframesSorted.length === 0) {
+      selectedKeyframeIndices = [];
+      return;
+    }
+    selectedKeyframeIndices = keyframesSorted.map((_, i) => i);
+  }
+
   function handleGraphPointerdown(e: PointerEvent): void {
     if (e.button !== 0) return;
     graphWrapEl?.focus({ preventScroll: true });
@@ -465,21 +514,28 @@
       handleGraphDblclick(e);
       return;
     }
-    const additive = e.shiftKey || e.ctrlKey || e.metaKey;
+    const additive = e.ctrlKey || e.metaKey;
     const keyframeHit = hitKeyframe(e.clientX, e.clientY);
     if (keyframeHit !== null) {
       /** Second/third click of a double- or triple-click: avoid re-toggling selection or starting drag. */
       if (e.detail > 1) return;
-      applySelectionClick(keyframeHit, additive);
+      if (additive) {
+        applySelectionClick(keyframeHit, true);
+      } else if (!selectedKeyframeSet.has(keyframeHit)) {
+        selectedKeyframeIndices = [keyframeHit];
+      }
       if (selectedKeyframeIndices.length === 0) return;
 
       const { t: anchorT, v: anchorV } = clientToGraph(e.clientX, e.clientY);
+      dragKeyframePreview = null;
       dragKeyframeSession = {
         startKeyframes: keyframesSorted.map((k) => ({ ...k })),
         selectedIndicesSorted: [...selectedKeyframeIndices],
+        primaryDragIndex: keyframeHit,
         anchorT,
         anchorV,
       };
+      dragGuideKeyframeIndex = keyframeHit;
       dragKeyframePointerId = e.pointerId;
       keyframeDragPointerDownClient = { x: e.clientX, y: e.clientY };
       return;
@@ -523,8 +579,10 @@
     }
 
     if (!additive) selectedKeyframeIndices = [];
+    dragKeyframePreview = null;
     dragKeyframeSession = null;
     dragKeyframePointerId = null;
+    dragGuideKeyframeIndex = null;
     keyframeDragPointerDownClient = null;
   }
 
@@ -556,6 +614,13 @@
     )
       return;
     if (!rootEl?.matches(':focus-within')) return;
+
+    if ((e.key === 'a' || e.key === 'A') && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      selectAllKeyframes();
+      return;
+    }
+
     if (e.key !== 'Delete' && e.key !== 'Backspace') return;
     if (selectedKeyframeIndices.length === 0) return;
     e.preventDefault();
@@ -563,8 +628,9 @@
   }
 
   const curvePathD = $derived.by(() => {
-    if (!curve) return '';
-    return buildCurveEditorCurvePathD(curve, graphWidth, graphHeight);
+    const c = curveForDisplay;
+    if (!c) return '';
+    return buildCurveEditorCurvePathD(c, graphWidth, graphHeight);
   });
 
   /** Waveform background path (stereo: up = left, down = right; peak-normalized like bottom bar). */
@@ -651,19 +717,30 @@
       if (!activeCurve) return;
 
       const ptr = clientToGraph(e.clientX, e.clientY);
+      const lock = resolveCurveEditorDragAxisLock(e.shiftKey, e.altKey);
+      const constrained = constrainCurveEditorDragPointer(
+        ptr.t,
+        ptr.v,
+        dragSnap.anchorT,
+        dragSnap.anchorV,
+        lock
+      );
       const proposed = proposeDragKeyframes(
         dragSnap.startKeyframes,
         dragSnap.selectedIndicesSorted,
         dragSnap.anchorT,
         dragSnap.anchorV,
-        ptr.t,
-        ptr.v,
+        constrained.t,
+        constrained.v,
         (tn) => maybeSnapCurveKeyframeTime(tn, { snapEnabled, regionBars: effectiveRegionBars, snapDivision })
       );
 
       const { sorted, oldToNew } = stableTimeSortKeyframes(proposed);
-      updateCurve({ ...activeCurve, keyframes: sorted });
+      dragKeyframePreview = sorted;
       selectedKeyframeIndices = remapSelectionIndices(dragSnap.selectedIndicesSorted, oldToNew);
+      const guideIdx = dragGuideKeyframeIndex ?? dragSnap.primaryDragIndex;
+      const mappedGuide = oldToNew.get(guideIdx);
+      dragGuideKeyframeIndex = mappedGuide ?? guideIdx;
     }
 
     function onPointerUp(e: PointerEvent) {
@@ -677,8 +754,10 @@
         }
         keyframeDragPointerDownClient = null;
       }
+      commitDragKeyframePreview();
       dragKeyframeSession = null;
       dragKeyframePointerId = null;
+      dragGuideKeyframeIndex = null;
     }
 
     window.addEventListener('pointermove', onPointerMove);
@@ -759,6 +838,17 @@
           variant="ghost"
           size="sm"
           mode="icon-only"
+          class="invert-keyframes"
+          title="Invert values vertically (low becomes high)"
+          disabled={!curve || keyframesSorted.length === 0}
+          onclick={invertKeyframeValuesVertically}
+        >
+          <IconSvg name="arrows-in-line-vertical" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          mode="icon-only"
           class="remove-keyframes"
           title="Remove selected keyframes"
           disabled={!hasKeyframeSelection}
@@ -822,8 +912,8 @@
     class="graph-wrap"
     tabindex="0"
     role="application"
-    aria-label="Automation curve graph. Double-click empty area adds a keyframe; double-click a keyframe to edit its value. Hover a keyframe to see its value. Shift-click or Ctrl-click to multi-select."
-    aria-keyshortcuts="Delete Backspace"
+    aria-label="Automation curve graph. Double-click empty area adds a keyframe; double-click a keyframe to edit its value. Hover a keyframe to see its value. Ctrl-click or Cmd-click to multi-select; Ctrl-A or Cmd-A selects all keyframes for group move. Shift-drag moves time only; Alt-drag moves value only."
+    aria-keyshortcuts="Control+A Meta+A Delete Backspace"
     use:focusGraphWhenRegionTargeted={{ laneId, regionId }}
     onpointerdown={handleGraphPointerdown}
     onclick={onSeek ? undefined : graphStrictBackgroundClick}
@@ -886,6 +976,16 @@
       />
       {#if curve}
         <path class="graph-path" d={curvePathD} clip-path="url(#curve-editor-clip)" />
+        {#if dragTimeGuideSvgX != null}
+          <line
+            class="graph-drag-time-guide"
+            x1={dragTimeGuideSvgX}
+            x2={dragTimeGuideSvgX}
+            y1={GRAPH_PADDING.top}
+            y2={graphHeight - GRAPH_PADDING.bottom}
+            aria-hidden="true"
+          />
+        {/if}
         <g class="graph-keyframes">
           {#each keyframesSorted as kf, index}
             {@const cx = timeToX(kf.time)}
@@ -1098,6 +1198,18 @@
     stroke-width: 2;
     vector-effect: non-scaling-stroke;
     stroke-linejoin: round;
+    stroke-linecap: round;
+    shape-rendering: geometricPrecision;
+  }
+
+  .graph-drag-time-guide {
+    stroke: var(--color-teal-120, #5dd);
+    stroke-width: 1px;
+    stroke-opacity: 0.38;
+    stroke-dasharray: 3 3;
+    vector-effect: non-scaling-stroke;
+    pointer-events: none;
+    shape-rendering: crispEdges;
   }
 
   .graph-transport-playhead {

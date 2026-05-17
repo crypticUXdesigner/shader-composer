@@ -4,8 +4,11 @@ import type { RawArrangementEntities } from '../../audiotool/arrangement/rawEnti
 import type { ArrangementSnapshot } from '../../audiotool/arrangement/types';
 import spikeFixture from '../../audiotool/arrangement/__fixtures__/spike-arrangement-raw.json';
 import type { NodeInstance } from '../../data-model/types';
+import { NOTE_COLOR_MODE } from '../../audiotool/arrangement/arrangementNoteColors';
+import { ARRANGEMENT_NOTES_INTERACTIVE_PACK_LIMIT } from '../../audiotool/arrangement/types';
 import {
   buildArrangementNotesGlslBake,
+  buildArrangementNotesWgslNodeHelper,
   filterNotesForNode,
   packArrangementNotesForGlsl,
   type ArrangementNotesPackOptions,
@@ -18,6 +21,8 @@ const defaultPackOpts: ArrangementNotesPackOptions = {
   trackFilterMode: 0,
   trackFilterList: '',
   trackLayout: 0,
+  noteColorMode: NOTE_COLOR_MODE.PROJECT,
+  trackNoteColors: '',
 };
 
 const node: NodeInstance = {
@@ -100,5 +105,89 @@ describe('packArrangementNotesForGlsl', () => {
     expect(bake).toContain('ARR_NOTE_COUNT_n_notes = 3');
     expect(bake).toContain('ARR_NOTES_n_notes');
     expect(bake).toContain('ARR_NOTE_Y_NORM_n_notes');
+    expect(bake).toContain('ARR_NOTES_COLOR_MODE_n_notes');
+    expect(bake).toContain('ARR_NOTE_PROJECT_n_notes');
+    expect(packed.noteProjectColorData).toHaveLength(3);
+  });
+
+  it('mono light does not bake per-note color tables', () => {
+    const packed = packArrangementNotesForGlsl(snapshot, {
+      ...defaultPackOpts,
+      noteColorMode: NOTE_COLOR_MODE.MONO_LIGHT,
+    });
+    expect(packed.noteProjectColorData).toHaveLength(0);
+    expect(packed.trackTableRgb).toHaveLength(0);
+    const bake = buildArrangementNotesGlslBake('n-notes', packed);
+    expect(bake).toContain('ARR_NOTES_COLOR_MODE_n_notes 0');
+    expect(bake).not.toContain('ARR_NOTE_PROJECT_');
+  });
+
+  it('bake stays compact at cap and loop uses actual note count (not 2048)', () => {
+    const manyNotes = Array.from({ length: 500 }, (_, i) => ({
+      id: `n-${i}`,
+      collectionId: 'c',
+      trackId: 'ta',
+      startSeconds: i * 0.01,
+      durationSeconds: 0.05,
+      pitch: 60 + (i % 12),
+      velocity: 0.8,
+    }));
+    const bigSnapshot: ArrangementSnapshot = {
+      ...dualTrackSnapshot,
+      notes: manyNotes,
+    };
+    const packed = packArrangementNotesForGlsl(bigSnapshot, defaultPackOpts);
+    expect(packed.notes).toHaveLength(500);
+    const bake = buildArrangementNotesGlslBake('n-notes', packed);
+    const wgsl = buildArrangementNotesWgslNodeHelper('n-notes', packed);
+    expect(bake).toContain('ARR_NOTE_COUNT_n_notes = 500');
+    expect(bake).not.toContain('ARR_NOTE_RGB_');
+    expect(bake.length).toBeLessThan(120_000);
+    expect(wgsl).toContain('for (var i: i32 = noteLoopStart; i < noteLoopEnd; i++)');
+    expect(wgsl).not.toMatch(/for \(var i: i32 = 0; i < ARR_NOTE_COUNT/);
+    expect(wgsl).not.toContain('MAX_ARRANGEMENT_NOTES_PACKED');
+  });
+
+  it('WGSL eval uses runtime note loop bounds uniforms', () => {
+    const packed = packArrangementNotesForGlsl(dualTrackSnapshot, defaultPackOpts);
+    const wgsl = buildArrangementNotesWgslNodeHelper('n-notes', packed);
+    expect(wgsl).toContain('noteLoopStart: i32');
+    expect(wgsl).toContain('for (var i: i32 = noteLoopStart; i < noteLoopEnd; i++)');
+    expect(wgsl).not.toContain('ARR_BUCKET_START');
+  });
+
+  it('subsamples sorted bakes above the interactive pack limit', () => {
+    const manyNotes = Array.from({ length: 1500 }, (_, i) => ({
+      id: `n-${i}`,
+      collectionId: 'c',
+      trackId: 'ta',
+      startSeconds: i * 0.01,
+      durationSeconds: 0.05,
+      pitch: 60 + (i % 12),
+      velocity: 0.8,
+    }));
+    const bigSnapshot: ArrangementSnapshot = {
+      ...dualTrackSnapshot,
+      notes: manyNotes,
+    };
+    const packed = packArrangementNotesForGlsl(bigSnapshot, defaultPackOpts);
+    expect(packed.notes).toHaveLength(ARRANGEMENT_NOTES_INTERACTIVE_PACK_LIMIT);
+    expect(packed.pitchYNorms).toHaveLength(ARRANGEMENT_NOTES_INTERACTIVE_PACK_LIMIT);
+    const bake = buildArrangementNotesGlslBake('n-notes', packed);
+    expect(bake).toContain(`ARR_NOTE_COUNT_n_notes = ${ARRANGEMENT_NOTES_INTERACTIVE_PACK_LIMIT}`);
+  });
+
+  it('custom mode bakes compact track table and per-note indices', () => {
+    const packed = packArrangementNotesForGlsl(dualTrackSnapshot, {
+      ...defaultPackOpts,
+      noteColorMode: NOTE_COLOR_MODE.CUSTOM,
+      trackNoteColors: 'ta:1.0:0.0:0;tb:0.55:0.18:120',
+    });
+    expect(packed.trackTableRgb).toHaveLength(2);
+    expect(packed.noteTrackIndices).toHaveLength(2);
+    const bake = buildArrangementNotesGlslBake('n-notes', packed);
+    expect(bake).toContain('ARR_TRACK_RGB_');
+    expect(bake).toContain('ARR_NOTE_TRACK_IDX_');
+    expect(bake).not.toContain('ARR_NOTE_RGB_');
   });
 });

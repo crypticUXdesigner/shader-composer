@@ -60,8 +60,8 @@ export function oklchToCssRgb(l: number, c: number, h: number): string {
   return `rgb(${R},${G},${B})`;
 }
 
-/** Linear RGB (0–1) to HSV (h 0–360, s/v 0–1). */
-export function linearRgbToHsv(r: number, g: number, b: number): HSV {
+/** RGB channels (0–1) to HSV (h 0–360, s/v 0–1). Works on linear or sRGB channels; pair with matching inverse. */
+export function rgbChannelsToHsv(r: number, g: number, b: number): HSV {
   const max = Math.max(r, g, b);
   const min = Math.min(r, g, b);
   const d = max - min;
@@ -76,25 +76,25 @@ export function linearRgbToHsv(r: number, g: number, b: number): HSV {
   return { h: h * 360, s, v };
 }
 
+/** @deprecated Use rgbChannelsToHsv — same math; name kept for call sites. */
+export function linearRgbToHsv(r: number, g: number, b: number): HSV {
+  return rgbChannelsToHsv(r, g, b);
+}
+
 /** OKLCH to HSV via linear RGB (legacy). Prefer oklchToHsvForPicker for UI. */
 export function oklchToHsv(l: number, c: number, h: number): HSV {
   const rgb = oklchToLinearRgb(l, c, h);
   return linearRgbToHsv(rgb.r, rgb.g, rgb.b);
 }
 
-/** sRGB (0–1) to HSV. Picker canvas uses sRGB, so use this so pointer matches swatch. */
+/** sRGB (0–1) to HSV. Picker uses display-referred channels (same space as CSS / canvas). */
 export function srgbToHsv(r: number, g: number, b: number): HSV {
-  return linearRgbToHsv(r, g, b);
+  return rgbChannelsToHsv(r, g, b);
 }
 
-/** HSV to sRGB (0–1). Used when saving from picker so round-trip matches display. */
+/** HSV to sRGB (0–1). Inverse of srgbToHsv — do not gamma-encode (would break picker round-trip). */
 export function hsvToSrgb(h: number, s: number, v: number): { r: number; g: number; b: number } {
-  const linear = hsvToLinearRgb(h, s, v);
-  return {
-    r: linearToSrgb(linear.r),
-    g: linearToSrgb(linear.g),
-    b: linearToSrgb(linear.b)
-  };
+  return hsvToRgbChannels(h, s, v);
 }
 
 /** OKLCH → sRGB → HSV for picker open. Pointer position then matches canvas (sRGB). */
@@ -123,8 +123,8 @@ export function srgbToCssRgb(r: number, g: number, b: number): string {
   return `rgb(${R},${G},${B})`;
 }
 
-/** HSV to linear RGB (0–1). */
-export function hsvToLinearRgb(h: number, s: number, v: number): { r: number; g: number; b: number } {
+/** HSV to RGB channels (0–1). Pair with rgbChannelsToHsv on the same space (sRGB for picker UI). */
+export function hsvToRgbChannels(h: number, s: number, v: number): { r: number; g: number; b: number } {
   const H = ((h % 360) + 360) % 360 / 60;
   const C = v * s;
   const X = C * (1 - Math.abs((H % 2) - 1));
@@ -137,6 +137,11 @@ export function hsvToLinearRgb(h: number, s: number, v: number): { r: number; g:
   else if (H < 5) { r = X; g = 0; b = C; }
   else { r = C; g = 0; b = X; }
   return { r: r + m, g: g + m, b: b + m };
+}
+
+/** HSV to linear RGB (0–1). For shader/legacy paths — not the display picker round-trip. */
+export function hsvToLinearRgb(h: number, s: number, v: number): { r: number; g: number; b: number } {
+  return hsvToRgbChannels(h, s, v);
 }
 
 /** Linear RGB to OKLCH. Inverse of oklchToLinearRgb (simplified: RGB → XYZ → Lab → LCH). Chroma clamped to 0.4 for UI sliders. */

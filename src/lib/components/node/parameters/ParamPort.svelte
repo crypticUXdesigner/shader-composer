@@ -99,7 +99,9 @@
   title={getTooltipText()}
 >
   <span class="port-circle" aria-hidden="true">
-    {#if state === 'audio-connected'}
+    {#if timelineDriven}
+      <IconSvg name="line-segments" variant="line" class="port-timeline-icon" />
+    {:else if state === 'audio-connected'}
       <IconSvg name="waveform" variant="line" class="port-audio-icon" />
     {/if}
   </span>
@@ -144,7 +146,6 @@
     .port-circle {
       --port-color: var(--port-color-float);
       --shadow-color: var(--port-color-float);
-      --timeline-driven-color: var(--color-teal-120, var(--port-color));
       position: relative;
       display: inline-flex;
       align-items: center;
@@ -161,47 +162,18 @@
         box-shadow var(--motion-effects-fast-duration) var(--motion-effects-fast-easing),
         transform var(--motion-effects-fast-duration) var(--motion-effects-fast-easing);
 
-      :global(.port-audio-icon) {
+      :global(.port-audio-icon),
+      :global(.port-timeline-icon) {
         width: var(--icon-size-sm);
         height: var(--icon-size-sm);
         color: currentColor;
       }
 
       :global(.port-audio-icon svg),
-      :global(.port-audio-icon svg *) {
+      :global(.port-audio-icon svg *),
+      :global(.port-timeline-icon svg),
+      :global(.port-timeline-icon svg *) {
         stroke-width: 3;
-      }
-    }
-
-    &.timeline-driven .port-circle::before {
-      content: '';
-      position: absolute;
-      inset: -3px;
-      border-radius: 999px;
-      box-shadow:
-        0 0 0 1px color-mix(in srgb, var(--timeline-driven-color) 65%, transparent 35%),
-        0 0 12px color-mix(in srgb, var(--timeline-driven-color) 35%, transparent 65%);
-      opacity: 0.75;
-      transform: scale(1);
-      transition:
-        opacity var(--motion-effects-fast-duration) var(--motion-effects-fast-easing),
-        transform var(--motion-effects-fast-duration) var(--motion-effects-fast-easing);
-      animation: param-port-timeline-driven-pulse 1.35s ease-in-out infinite;
-      pointer-events: none;
-    }
-
-    @keyframes param-port-timeline-driven-pulse {
-      0% {
-        opacity: 0.55;
-        transform: scale(0.98);
-      }
-      55% {
-        opacity: 0.9;
-        transform: scale(1.05);
-      }
-      100% {
-        opacity: 0.55;
-        transform: scale(0.98);
       }
     }
 
@@ -240,10 +212,28 @@
       --port-color: var(--port-connected-color-vec4);
     }
 
-    &:not(:disabled):hover .port-circle {
+    &.timeline-driven .port-circle,
+    &.timeline-driven.graph-connected .port-circle,
+    &.timeline-driven.audio-connected .port-circle,
+    &.timeline-driven.type-vec2 .port-circle,
+    &.timeline-driven.type-vec3 .port-circle,
+    &.timeline-driven.type-vec4 .port-circle {
+      --port-color: var(--color-yellow-100);
+      --shadow-color: var(--color-yellow-100);
+      color: var(--color-yellow-10);
+      border-color: color-mix(in srgb, var(--color-yellow-10) 25%, transparent 75%);
+    }
+
+    &:not(:disabled):not(.timeline-driven):hover .port-circle {
       background: var(--port-hover-color);
       transform: scale(1.15);
       box-shadow: 0 0 2px 6px var(--color-teal-gray-40);
+    }
+
+    &:not(:disabled).timeline-driven:hover .port-circle {
+      transform: scale(1.15);
+      background: var(--color-yellow-110);
+      box-shadow: 0 0 2px 6px color-mix(in srgb, var(--color-yellow-100) 45%, transparent 55%);
     }
 
     .signal-name {

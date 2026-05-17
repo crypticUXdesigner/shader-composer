@@ -19,10 +19,10 @@ function expectedOutputVariableName(nodeId: string, portName: string): string {
 }
 
 describe('presetManager scenario tests', () => {
-  it('loads testing preset via loadPreset and compiles without errors', async () => {
+  it('loads blur-softening preset via loadPreset and compiles without errors', async () => {
     const validationSpecs = toValidationSpecs(nodeSystemSpecs);
 
-    const loadResult = await loadPreset('testing', validationSpecs);
+    const loadResult = await loadPreset('blur-softening', validationSpecs);
 
     expect(loadResult.errors, loadResult.errors.join('; ')).toHaveLength(0);
     expect(loadResult.graph).not.toBeNull();
@@ -50,9 +50,9 @@ describe('presetManager scenario tests', () => {
     expect(hasFinalOutputNode).toBe(true);
   });
 
-  it('loads testing preset via loadPresetFromJson and compiles without errors', async () => {
+  it('loads blur-softening preset via loadPresetFromJson and compiles without errors', async () => {
     const validationSpecs = toValidationSpecs(nodeSystemSpecs);
-    const presetPath = join(__dirname, '../presets', 'testing.json');
+    const presetPath = join(__dirname, '../presets', 'blur-softening.json');
     const json = readFileSync(presetPath, 'utf-8');
 
     const loadResult = await loadPresetFromJson(json, validationSpecs);
@@ -139,7 +139,7 @@ describe('presetManager scenario tests', () => {
 
   it('Scenario 4 — Load + undo: load preset, apply one change, undo restores graph invariants', async () => {
     const validationSpecs = toValidationSpecs(nodeSystemSpecs);
-    const presetPath = join(__dirname, '../presets', 'testing.json');
+    const presetPath = join(__dirname, '../presets', 'blur-softening.json');
     const json = readFileSync(presetPath, 'utf-8');
 
     const loadResult = await loadPresetFromJson(json, validationSpecs);
@@ -147,12 +147,11 @@ describe('presetManager scenario tests', () => {
     expect(loadResult.graph).not.toBeNull();
     const graphAfterLoad = loadResult.graph!;
 
-    // testing.json is intentionally lightweight; pick a stable node+param to exercise undo behavior.
-    const noiseNode = graphAfterLoad.nodes.find((n) => n.type === 'noise');
-    expect(noiseNode).toBeDefined();
-    const nodeId = noiseNode!.id;
-    const paramName = 'noiseIntensity';
-    const originalValue = noiseNode!.parameters[paramName] ?? 0;
+    const blurNode = graphAfterLoad.nodes.find((n) => n.type === 'blur');
+    expect(blurNode).toBeDefined();
+    const nodeId = blurNode!.id;
+    const paramName = 'blurAmount';
+    const originalValue = blurNode!.parameters[paramName] ?? 0;
 
     const undoManager = new UndoRedoManager();
     undoManager.clear();
@@ -186,7 +185,7 @@ describe('presetManager scenario tests', () => {
 
   it('Scenario 5 — Load + undo + redo: redo restores edited state', async () => {
     const validationSpecs = toValidationSpecs(nodeSystemSpecs);
-    const presetPath = join(__dirname, '../presets', 'testing.json');
+    const presetPath = join(__dirname, '../presets', 'blur-softening.json');
     const json = readFileSync(presetPath, 'utf-8');
 
     const loadResult = await loadPresetFromJson(json, validationSpecs);
@@ -194,11 +193,10 @@ describe('presetManager scenario tests', () => {
     expect(loadResult.graph).not.toBeNull();
     const graphAfterLoad = loadResult.graph!;
 
-    // testing.json is intentionally lightweight; pick a stable node+param to exercise undo/redo behavior.
-    const noiseNode = graphAfterLoad.nodes.find((n) => n.type === 'noise');
-    expect(noiseNode).toBeDefined();
-    const nodeId = noiseNode!.id;
-    const paramName = 'noiseIntensity';
+    const blurNode = graphAfterLoad.nodes.find((n) => n.type === 'blur');
+    expect(blurNode).toBeDefined();
+    const nodeId = blurNode!.id;
+    const paramName = 'blurAmount';
     const editedValue = 0.5;
 
     const undoManager = new UndoRedoManager();
@@ -290,110 +288,21 @@ describe('presetManager scenario tests', () => {
     expect(graph.nodes.some((n) => n.id === finalOutputId)).toBe(true);
   });
 
-  it('loads sdf-raymarcher-ether-audio preset and compiles with audio uniform on ether-sdf param', async () => {
-    const validationSpecs = toValidationSpecs(nodeSystemSpecs);
+  it.each(['color-lut-demo', 'color-gradient-demo'])(
+    'loads %s preset via loadPreset and compiles without errors',
+    async (presetName) => {
+      const validationSpecs = toValidationSpecs(nodeSystemSpecs);
+      const loadResult = await loadPreset(presetName, validationSpecs);
+      expect(loadResult.errors, loadResult.errors.join('; ')).toHaveLength(0);
+      expect(loadResult.graph).not.toBeNull();
 
-    const loadResult = await loadPreset('sdf-raymarcher-ether-audio', validationSpecs);
-
-    expect(loadResult.errors, loadResult.errors.join('; ')).toHaveLength(0);
-    expect(loadResult.graph).not.toBeNull();
-
-    const graph = loadResult.graph!;
-    const audioSetup = loadResult.audioSetup ?? null;
-
-    const etherNode = graph.nodes.find((n) => n.type === 'ether-sdf');
-    expect(etherNode).toBeDefined();
-    const etherId = etherNode!.id;
-
-    const paramConn = graph.connections.find(
-      (c) => c.targetNodeId === etherId && c.targetParameter === 'timeOffset'
-    );
-    expect(paramConn).toBeDefined();
-    expect(paramConn!.sourceNodeId).toBe('audio-signal:remap-ether-audio-remap');
-
-    const nodeSpecsMap = new Map(nodeSystemSpecs.map((s) => [s.id, s]));
-    const compiler = new NodeShaderCompiler(nodeSpecsMap);
-
-    const compileResult = compiler.compile(graph, audioSetup);
-
-    expect(compileResult.metadata.errors, compileResult.metadata.errors.join('; ')).toHaveLength(
-      0
-    );
-
-    // Expected uniform for remap-ether-audio-remap.out (must match UniformGenerator.sanitizeUniformName)
-    const sanitizeUniformName = (nodeId: string, paramName: string): string => {
-      let sanitizedId = nodeId.replace(/[^a-zA-Z0-9]/g, '_');
-      if (/^\d/.test(sanitizedId)) {
-        sanitizedId = 'n' + sanitizedId;
-      }
-      let sanitizedParam = paramName.replace(/[^a-zA-Z0-9]/g, '');
-      sanitizedParam = sanitizedParam.charAt(0).toUpperCase() + sanitizedParam.slice(1);
-      return `u${sanitizedId}${sanitizedParam}`;
-    };
-
-    const expectedUniform = sanitizeUniformName('remap-ether-audio-remap', 'out');
-
-    expect(
-      compileResult.shaderCode,
-      'Compiled shader must reference audio uniform for ether-sdf.timeOffset'
-    ).toContain(expectedUniform);
-    expect(
-      compileResult.shaderCode,
-      'Compiled shader must not contain raw $param.timeOffset placeholder when audio connection is present'
-    ).not.toContain('$param.timeOffset');
-  });
-
-  it('loads sdf-raymarcher-hex-audio preset and compiles with audio uniform on hex SDF param', async () => {
-    const validationSpecs = toValidationSpecs(nodeSystemSpecs);
-
-    const loadResult = await loadPreset('sdf-raymarcher-hex-audio', validationSpecs);
-
-    expect(loadResult.errors, loadResult.errors.join('; ')).toHaveLength(0);
-    expect(loadResult.graph).not.toBeNull();
-
-    const graph = loadResult.graph!;
-    const audioSetup = loadResult.audioSetup ?? null;
-
-    const hexNode = graph.nodes.find((n) => n.type === 'repeated-hex-prism-sdf');
-    expect(hexNode).toBeDefined();
-    const hexId = hexNode!.id;
-
-    const paramConn = graph.connections.find(
-      (c) => c.targetNodeId === hexId && c.targetParameter === 'hexRadius'
-    );
-    expect(paramConn).toBeDefined();
-    expect(paramConn!.sourceNodeId).toBe('audio-signal:remap-hex-audio-remap');
-
-    const nodeSpecsMap = new Map(nodeSystemSpecs.map((s) => [s.id, s]));
-    const compiler = new NodeShaderCompiler(nodeSpecsMap);
-
-    const compileResult = compiler.compile(graph, audioSetup);
-
-    expect(compileResult.metadata.errors, compileResult.metadata.errors.join('; ')).toHaveLength(
-      0
-    );
-
-    const sanitizeUniformName = (nodeId: string, paramName: string): string => {
-      let sanitizedId = nodeId.replace(/[^a-zA-Z0-9]/g, '_');
-      if (/^\d/.test(sanitizedId)) {
-        sanitizedId = 'n' + sanitizedId;
-      }
-      let sanitizedParam = paramName.replace(/[^a-zA-Z0-9]/g, '');
-      sanitizedParam = sanitizedParam.charAt(0).toUpperCase() + sanitizedParam.slice(1);
-      return `u${sanitizedId}${sanitizedParam}`;
-    };
-
-    const expectedUniform = sanitizeUniformName('remap-hex-audio-remap', 'out');
-
-    expect(
-      compileResult.shaderCode,
-      'Compiled shader must reference audio uniform for repeated-hex-prism-sdf.hexRadius'
-    ).toContain(expectedUniform);
-    expect(
-      compileResult.shaderCode,
-      'Compiled shader must not contain raw $param.hexRadius placeholder when audio connection is present'
-    ).not.toContain('$param.hexRadius');
-  });
+      const compiler = new NodeShaderCompiler(new Map(nodeSystemSpecs.map((s) => [s.id, s])));
+      const compileResult = compiler.compile(loadResult.graph!, loadResult.audioSetup ?? null);
+      expect(compileResult.metadata.errors, compileResult.metadata.errors.join('; ')).toHaveLength(
+        0
+      );
+    }
+  );
 
   it('all bundled presets pass validateGraph (incl. automation hard rules)', async () => {
     const validationSpecs = toValidationSpecs(nodeSystemSpecs);

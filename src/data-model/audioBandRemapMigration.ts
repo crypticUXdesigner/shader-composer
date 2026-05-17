@@ -1,10 +1,12 @@
 /**
- * Migration: Band-level remap → audioSetup remappers
+ * Migration: Band-level audio signals → audioSetup remappers
  *
- * Presets and graphs can use the legacy band remap signal (audio-signal:band-{bandId}-remap),
- * which reads remap range from the band's remapInMin/Max/remapOutMin/Max. This migration
- * creates one remapper per band (stored in audioSetup.remappers), rewrites connections to
- * use audio-signal:remap-{remapperId}, with audioSetup as the single source of truth.
+ * Presets and graphs can use legacy virtual sources:
+ * - `audio-signal:band-{bandId}-remap` — band-level remap fields on the band row
+ * - `audio-signal:band-{bandId}-raw` — raw band analyzer output
+ *
+ * This migration creates one default remapper per band (`band-{bandId}`), rewrites connections to
+ * `audio-signal:remap-{remapperId}`, with audioSetup as the single source of truth.
  *
  * - Remapper id for the default band remap is `band-{bandId}` (stable for idempotence).
  * - Band-level remap fields are left as-is for backward compat; runtime still resolves
@@ -17,12 +19,18 @@ import { getVirtualNodeId } from '../utils/virtualNodes';
 
 const BAND_REMAP_SIGNAL_PREFIX = 'band-';
 const BAND_REMAP_SIGNAL_SUFFIX = '-remap';
+const BAND_RAW_SIGNAL_SUFFIX = '-raw';
 
 /**
  * Returns the virtual node id for the legacy band remap signal.
  */
 function bandRemapVirtualNodeId(bandId: string): string {
   return getVirtualNodeId(`${BAND_REMAP_SIGNAL_PREFIX}${bandId}${BAND_REMAP_SIGNAL_SUFFIX}`);
+}
+
+/** Returns the virtual node id for the legacy band raw signal. */
+function bandRawVirtualNodeId(bandId: string): string {
+  return getVirtualNodeId(`${BAND_REMAP_SIGNAL_PREFIX}${bandId}${BAND_RAW_SIGNAL_SUFFIX}`);
 }
 
 /**
@@ -57,7 +65,7 @@ export function defaultRemapperEntryForBand(band: AudioBandEntry): AudioRemapper
  * Migrate band-level remap to audioSetup remappers.
  * - For each band, ensure there is a remapper with id `band-{bandId}`; if not, add one
  *   using the band's remap range (or 0,1,0,1).
- * - Rewrite all connections whose sourceNodeId is audio-signal:band-{bandId}-remap
+ * - Rewrite connections from audio-signal:band-{bandId}-remap or band-{bandId}-raw
  *   to audio-signal:remap-band-{bandId}.
  *
  * Idempotent: safe to run multiple times (e.g. on every load).
@@ -77,15 +85,16 @@ export function migrateBandRemapToRemappers(
     existingRemapperIds.add(remapperId);
   }
 
-  const bandRemapToRemapper = new Map<string, string>();
+  const legacySourceToRemapper = new Map<string, string>();
   for (const band of audioSetup.bands) {
-    const oldVirtual = bandRemapVirtualNodeId(band.id);
     const remapperId = defaultRemapperIdForBand(band.id);
-    bandRemapToRemapper.set(oldVirtual, remapperVirtualNodeId(remapperId));
+    const target = remapperVirtualNodeId(remapperId);
+    legacySourceToRemapper.set(bandRemapVirtualNodeId(band.id), target);
+    legacySourceToRemapper.set(bandRawVirtualNodeId(band.id), target);
   }
 
   const newConnections = graph.connections.map((c) => {
-    const newSource = bandRemapToRemapper.get(c.sourceNodeId);
+    const newSource = legacySourceToRemapper.get(c.sourceNodeId);
     if (newSource) return { ...c, sourceNodeId: newSource };
     return c;
   });

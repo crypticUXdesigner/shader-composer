@@ -8,6 +8,11 @@ import { automationLaneHasEvaluableRegions } from '../../utils/automationEvaluat
 import { replacePlaceholders, type PlaceholderContext } from './MainCodeGeneratorPlaceholders';
 import { resolveFloatParameterInputVarsFromConnections } from './resolveFloatParameterInputVarsFromConnections';
 import { arrangementNotesEvalStructName } from '../arrangement/packArrangementNotesForGlsl';
+import {
+  COLOR_LUT_GLSL_SAMPLE_PLACEHOLDER,
+  lutGlslSampleFunctionName,
+} from '../colorRamps/emitGlsl';
+import { getBakedLutPresetIndex } from '../colorRamps/lutPresets';
 
 export function generatePromotionCode(
   sourceVar: string,
@@ -278,7 +283,7 @@ export function generateNodeCode(
     // If individual floats are also wired via `targetParameter` (same logical vector as
     // `fallbackParameter` lists), merge: use port swizzles for unwired components and the
     // driven expression for wired ones — matches panel live values and fixes "hue param
-    // wire ignored when Start/End color ports are used" (e.g. oklch-color-map-bezier).
+    // wire ignored when Start/End color ports are used" (legacy graphs only).
     for (const input of nodeSpec.inputs) {
       if (!input.fallbackParameter) continue;
       const paramNames = input.fallbackParameter.split(',').map((s) => s.trim()).filter(Boolean);
@@ -425,6 +430,14 @@ export function generateNodeCode(
     nodeCode = nodeCode.replace(
       /\$arrNotesEvalStruct\b/g,
       arrangementNotesEvalStructName(node.id)
+    );
+  }
+
+  if (nodeSpec.id === 'color-lut') {
+    const sampleFn = lutGlslSampleFunctionName(getBakedLutPresetIndex(node, nodeSpec));
+    nodeCode = nodeCode.replace(
+      new RegExp(`\\b${COLOR_LUT_GLSL_SAMPLE_PLACEHOLDER}\\b`, 'g'),
+      sampleFn
     );
   }
 

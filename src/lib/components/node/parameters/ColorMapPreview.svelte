@@ -1,20 +1,20 @@
 <script lang="ts">
   /**
-   * ColorMapPreview - Visualizes color stops for OKLCH color map nodes.
-   * Stepped: row of N equal-width boxes (one per stop).
-   * Smooth: one gradient bar from the interpolated result.
+   * Color map strip preview: OKLCH color map (stepped/smooth), Color LUT preset, or Color Gradient 3-stop ramp.
    */
   import {
     getCurveFromParams,
     colorStopToCss,
   } from '../../../../utils/colorMapPreview';
+  import { sampleLutWithModifiers } from '../../../../shaders/colorRamps';
+  import { sampleThreeStopOklch } from '../../../../shaders/colorRamps/threeStopOklch';
   import type { NodeSpec } from '../../../../types/nodeSpec';
   import type { NodeInstance } from '../../../../data-model/types';
 
   interface Props {
     node: NodeInstance;
     spec: NodeSpec;
-    mode: 'stepped' | 'smooth';
+    mode: 'stepped' | 'smooth' | 'lut' | 'three-stop';
     height?: number;
     class?: string;
   }
@@ -42,6 +42,9 @@
   const endH = $derived(getParam('endColorH'));
   const stops = $derived(Math.max(2, Math.min(50, Math.round(getParam('stops')))));
   const reverseHue = $derived(getParam('reverseHue'));
+  const swapColors = $derived(
+    spec.parameters.swapColors != null ? getParam('swapColors') : 0
+  );
 
   const params = $derived({
     lCurveX1: getParam('lCurveX1'),
@@ -76,9 +79,49 @@
         lCurve,
         cCurve,
         hCurve,
-        reverseHue
+        reverseHue,
+        swapColors
       );
     })
+  );
+
+  function rgbToCss(rgb: readonly [number, number, number]): string {
+    const [r, g, b] = rgb;
+    return `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`;
+  }
+
+  const STRIP_SAMPLES = 256;
+  const lutGradientStops = $derived(
+    Array.from({ length: STRIP_SAMPLES + 1 }, (_, i) => {
+      const t = i / STRIP_SAMPLES;
+      const rgb = sampleLutWithModifiers(
+        Math.round(getParam('preset')),
+        t,
+        getParam('reverse'),
+        getParam('gamma'),
+        getParam('contrast') + 1.0,
+        1.0
+      );
+      return `${rgbToCss(rgb)} ${(t * 100).toFixed(2)}%`;
+    }).join(', ')
+  );
+
+  const threeStopGradientStops = $derived(
+    Array.from({ length: STRIP_SAMPLES + 1 }, (_, i) => {
+      const t = i / STRIP_SAMPLES;
+      const t0 = getParam('stop0T');
+      const t1 = Math.max(getParam('stop1T'), t0);
+      const t2 = Math.max(getParam('stop2T'), t1);
+      const rgb = sampleThreeStopOklch(
+        [
+          { l: getParam('stop0L'), c: getParam('stop0C'), h: getParam('stop0H'), t: t0 },
+          { l: getParam('stop1L'), c: getParam('stop1C'), h: getParam('stop1H'), t: t1 },
+          { l: getParam('stop2L'), c: getParam('stop2C'), h: getParam('stop2H'), t: t2 },
+        ],
+        t
+      );
+      return `${rgbToCss(rgb)} ${(t * 100).toFixed(2)}%`;
+    }).join(', ')
   );
 
   const SMOOTH_SAMPLES = 64;
@@ -96,7 +139,8 @@
         lCurve,
         cCurve,
         hCurve,
-        reverseHue
+        reverseHue,
+        swapColors
       );
       return `${color} ${(t * 100).toFixed(2)}%`;
     }).join(', ')
@@ -115,6 +159,16 @@
         <div class="stop-box" style="background: {color};"></div>
       {/each}
     </div>
+  {:else if mode === 'lut'}
+    <div
+      class="gradient-bar"
+      style="background: linear-gradient(to right, {lutGradientStops});"
+    ></div>
+  {:else if mode === 'three-stop'}
+    <div
+      class="gradient-bar"
+      style="background: linear-gradient(to right, {threeStopGradientStops});"
+    ></div>
   {:else}
     <div
       class="gradient-bar"

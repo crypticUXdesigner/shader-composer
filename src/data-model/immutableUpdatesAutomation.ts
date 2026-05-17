@@ -3,7 +3,20 @@
  */
 
 import type { NodeGraph } from './types';
-import type { AutomationState, AutomationLane, AutomationRegion, AutomationCurve } from './types';
+import type {
+  AutomationState,
+  AutomationLane,
+  AutomationRegion,
+  AutomationCurve,
+  AutomationKeyframe,
+} from './types';
+import { sanitizeAutomationCurveKeyframes } from '../utils/automationKeyframes';
+
+function sanitizeAutomationRegionKeyframes(
+  keyframes: AutomationKeyframe[]
+): AutomationKeyframe[] {
+  return sanitizeAutomationCurveKeyframes(keyframes);
+}
 
 const DEFAULT_BPM = 120;
 const DEFAULT_DURATION_SECONDS = 30;
@@ -159,12 +172,21 @@ export function updateAutomationRegion(
   startTime = resolved.startTime;
   duration = resolved.duration;
 
+  const curveUpdate = updates.curve;
+  const resolvedCurve =
+    curveUpdate != null
+      ? {
+          ...curveUpdate,
+          keyframes: sanitizeAutomationRegionKeyframes(curveUpdate.keyframes ?? []),
+        }
+      : region.curve;
+
   const updatedRegion: AutomationRegion = {
     ...region,
     startTime,
     duration,
     loop: updates.loop ?? region.loop,
-    curve: updates.curve ?? region.curve,
+    curve: resolvedCurve,
   };
 
   const newRegions = [...lane.regions];

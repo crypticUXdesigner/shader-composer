@@ -115,7 +115,7 @@ export type NodeIconIdentifier =
   | 'settings-2'
   | 'layers-union'
   | 'layers-difference'
-  | 'blend-mode'
+  | 'blend'
   | 'mask'
   | 'transfer-out'
   | 'adjustments'
@@ -339,7 +339,7 @@ export const ALL_NODE_ICON_IDENTIFIERS: readonly NodeIconIdentifier[] = [
   'settings-2',
   'layers-union',
   'layers-difference',
-  'blend-mode',
+  'blend',
   'mask',
   'transfer-out',
   'adjustments',

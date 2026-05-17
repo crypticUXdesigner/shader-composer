@@ -27,6 +27,4 @@ export const GENERIC_RAYMARCHER_FULLSCREEN_WEBGPU_EXPORT_PRESETS = [
   'fractal-mandelbulb.json',
   'fractal-menger-sponge.json',
   'fractal-sierpinski-tetra.json',
-  'sdf-raymarcher-ether-audio.json',
-  'sdf-raymarcher-hex-audio.json',
 ] as const;

@@ -89,12 +89,13 @@
       },
       {
         "id": "node-1774041780868-luveiwno6",
-        "type": "oklch-color-map-bezier",
+        "type": "oklch-color-map",
         "position": {
           "x": -68,
           "y": 1658
         },
         "parameters": {
+          "mapMode": 0,
           "startColorL": 0.45582984926719844,
           "startColorC": 0.04744580591988629,
           "startColorH": 283.1315653240594,
@@ -118,12 +119,13 @@
       },
       {
         "id": "node-1774041780868-uedb557fd",
-        "type": "oklch-color-map-bezier",
+        "type": "oklch-color-map",
         "position": {
           "x": 566,
           "y": -1885
         },
         "parameters": {
+          "mapMode": 0,
           "startColorL": 0.3430038357658246,
           "startColorC": 0.006958090190399934,
           "startColorH": 86.82837325286599,

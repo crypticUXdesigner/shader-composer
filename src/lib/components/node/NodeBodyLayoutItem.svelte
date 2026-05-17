@@ -31,7 +31,7 @@
   import type { NodeSpec, ParameterSpec, ParameterUISelection, ParameterInputMode } from '../../../types/nodeSpec';
   import type { AudioSetup } from '../../../data-model/audioSetupTypes';
   import type { IAudioManager } from '../../../runtime/types';
-  import { layoutSectionVisible } from '../../../utils/parameterVisibility';
+  import { layoutParameterVisible, layoutSectionVisible } from '../../../utils/parameterVisibility';
 
   interface Props {
     nodeId: string;
@@ -292,7 +292,10 @@
           {/if}
         {/if}
         {@const validParams = gridEl.parameters.filter(
-          (p) => spec.parameters[p] && (!useHeaderToggle || p !== gridEl.headerToggleParameter)
+          (p) =>
+            spec.parameters[p] &&
+            (!useHeaderToggle || p !== gridEl.headerToggleParameter) &&
+            layoutParameterVisible(gridEl.parameterVisibleWhen?.[p], node, spec)
         )}
         {@const gridCols = gridEl.layout?.columns}
         <div
@@ -394,6 +397,7 @@
                     <EnumSelector
                       value={displayValue}
                       options={enumMap}
+                      showSteppers={spec.id === 'color-lut' && paramName === 'preset'}
                       onChange={(v) => onParameterChange(paramName, useConfigForInput ? v : effectiveToConfig(paramName, v))}
                     />
                   {/if}
@@ -559,6 +563,7 @@
                       <EnumSelector
                         value={displayValue}
                         options={enumMap}
+                        showSteppers={spec.id === 'color-lut' && paramName === 'preset'}
                         onChange={(v) => onParameterChange(paramName, useConfigForInput ? v : effectiveToConfig(paramName, v))}
                       />
                     {/if}
@@ -745,17 +750,19 @@
           {/each}
         </div>
       {:else if element.type === 'color-map-preview'}
-        {#if element.label}
-          <div class="group-header">{element.label}</div>
+        {#if layoutSectionVisible(element.visibleWhen, node, spec)}
+          {#if element.label}
+            <div class="group-header">{element.label}</div>
+          {/if}
+          <div class="element color-map-preview-wrap">
+            <ColorMapPreview
+              node={node}
+              spec={spec}
+              mode={element.mode}
+              height={element.height}
+            />
+          </div>
         {/if}
-        <div class="element color-map-preview-wrap">
-          <ColorMapPreview
-            node={node}
-            spec={spec}
-            mode={element.mode}
-            height={element.height}
-          />
-        </div>
       {:else if element.type === 'color-picker'}
         {@const paramNames = element.parameters ?? ['l', 'c', 'h']}
         {@const color = {
@@ -775,16 +782,22 @@
         </div>
       {:else if element.type === 'color-picker-row'}
         {#if layoutSectionVisible(element.visibleWhen, node, spec)}
-          {@const [startParams, endParams] = element.pickers}
           {#if element.label}
+            {@const [startParams, endParams] = element.pickers}
+            {@const hasSwapColorsToggle = spec.parameters?.swapColors != null}
+            {@const swapColorsOn = hasSwapColorsToggle && getParamValue('swapColors') > 0}
             <div class="group-header group-header-with-actions">
               <span class="group-header-label">{element.label}</span>
               <div class="group-header-actions">
                 <Button
                   variant="secondary"
                   size="sm"
-                  class="group-header-btn"
+                  class="group-header-btn group-header-btn-toggle {hasSwapColorsToggle && swapColorsOn ? 'is-active' : ''}"
                   onclick={() => {
+                    if (hasSwapColorsToggle) {
+                      onParameterChange('swapColors', swapColorsOn ? 0 : 1);
+                      return;
+                    }
                     const sL = getParamValue(startParams[0]);
                     const sC = getParamValue(startParams[1]);
                     const sH = getParamValue(startParams[2]);
@@ -815,30 +828,36 @@
               </div>
             </div>
           {/if}
-          {@const startColor = {
-            l: getParamValue(startParams[0]),
-            c: getParamValue(startParams[1]),
-            h: getParamValue(startParams[2])
-          }}
-          {@const endColor = {
-            l: getParamValue(endParams[0]),
-            c: getParamValue(endParams[1]),
-            h: getParamValue(endParams[2])
-          }}
+          {@const pickerParams = element.pickers}
+          {@const pickerColors = element.pickers.map(([lParam, cParam, hParam]) => ({
+            l: getParamValue(lParam),
+            c: getParamValue(cParam),
+            h: getParamValue(hParam),
+          }))}
+          {@const swapColorsOnRow =
+            element.pickers.length === 2 &&
+            spec.parameters?.swapColors != null &&
+            getParamValue('swapColors') > 0}
+          {@const displayColors =
+            swapColorsOnRow && pickerColors.length === 2
+              ? [pickerColors[1], pickerColors[0]]
+              : pickerColors}
+          {@const displayParams =
+            swapColorsOnRow && pickerParams.length === 2
+              ? [pickerParams[1], pickerParams[0]]
+              : pickerParams}
           <div class="element color-picker-row-wrap">
             <ColorPickerRow
-              startColor={startColor}
-              endColor={endColor}
-              onStartColorClick={(sx, sy) => showColorPicker(startColor, sx, sy, (l, c, h) => {
-                onParameterChange(startParams[0], l);
-                onParameterChange(startParams[1], c);
-                onParameterChange(startParams[2], h);
-              })}
-              onEndColorClick={(sx, sy) => showColorPicker(endColor, sx, sy, (l, c, h) => {
-                onParameterChange(endParams[0], l);
-                onParameterChange(endParams[1], c);
-                onParameterChange(endParams[2], h);
-              })}
+              colors={displayColors}
+              onColorClick={(index, sx, sy) => {
+                const params = displayParams[index];
+                const color = displayColors[index];
+                showColorPicker(color, sx, sy, (l, c, h) => {
+                  onParameterChange(params[0], l);
+                  onParameterChange(params[1], c);
+                  onParameterChange(params[2], h);
+                });
+              }}
             />
           </div>
         {/if}
@@ -948,7 +967,7 @@
             flex-shrink: 0;
           }
 
-          /* Button component receives these classes; styles apply via :global to its root */
+          /* Button: secondary + category tokens from .group-header-actions (base.css) */
           :global(.group-header-btn) {
             /* Layout */
             display: inline-flex;
@@ -958,14 +977,12 @@
             /* Box model */
             height: var(--color-map-row-button-height, 24px);
             padding: 0 var(--pd-md);
-            border: 1px solid var(--color-gray-70);
+            border: 1px solid var(--color-map-row-button-border);
             border-radius: var(--color-map-row-button-radius, var(--radius-md));
-            background: var(--color-gray-30);
 
             /* Typography */
             font-size: var(--color-map-row-button-font-size, var(--text-md));
             font-weight: var(--color-map-row-button-font-weight, 600);
-            color: var(--param-group-header-color);
 
             /* Other */
             cursor: default;
@@ -976,14 +993,19 @@
           }
 
           :global(.group-header-btn:hover) {
-            background: var(--color-gray-50);
-            border-color: var(--color-gray-80);
+            border-color: var(--color-map-row-button-border-hover);
           }
 
           :global(.group-header-btn.group-header-btn-toggle.is-active) {
-            background: var(--color-map-row-button-bg-active, var(--color-teal-100));
-            border-color: var(--color-map-row-button-border-active, var(--color-teal-120));
-            color: var(--color-map-row-button-color-active, var(--color-teal-10));
+            background: var(--color-map-row-button-bg-active);
+            border-color: var(--color-map-row-button-border-active);
+            color: var(--color-map-row-button-color-active);
+          }
+
+          :global(.group-header-btn.group-header-btn-toggle.is-active:hover) {
+            background: var(--color-map-row-button-bg-active);
+            border-color: var(--color-map-row-button-border-active);
+            color: var(--color-map-row-button-color-active);
           }
         }
       }

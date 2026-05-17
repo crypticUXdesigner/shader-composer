@@ -30,6 +30,7 @@ import {
   applyRadialPulseSpawnUniforms,
   clearRadialPulseSpawnArmingState
 } from './audio/radialPulsePreviewSpawn';
+import { applyArrangementNotesLoopUniforms } from './arrangement/arrangementNotesPreviewLoop';
 import { resolveWebGpuPreviewDependencyMaskForClock } from './webGpuPreviewDependencyClock';
 
 /** Callback when playlist advances (e.g. on track end or next); app updates store and calls setAudioSetup + playPrimary. */
@@ -118,6 +119,12 @@ export class RuntimeManager implements Disposable {
         shaderTime: instance.getTime(),
         audioSetup: this.currentAudioSetup,
         getAnalyzerNodeState: (id) => this.audioManager.getAnalyzerNodeState(id)
+      });
+      applyArrangementNotesLoopUniforms({
+        graph: this.currentGraph,
+        shaderInstance: instance,
+        timelineTime: instance.getTimelineTime(),
+        audioSetup: this.currentAudioSetup
       });
     });
 
@@ -365,6 +372,12 @@ export class RuntimeManager implements Disposable {
           shaderTime: time,
           audioSetup: this.currentAudioSetup,
           getAnalyzerNodeState: (id) => this.audioManager.getAnalyzerNodeState(id)
+        });
+        applyArrangementNotesLoopUniforms({
+          graph: this.currentGraph,
+          shaderInstance: si,
+          timelineTime: timelineState?.currentTime ?? time,
+          audioSetup: this.currentAudioSetup
         });
       },
       {

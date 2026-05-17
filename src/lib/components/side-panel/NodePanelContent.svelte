@@ -6,6 +6,11 @@
   import { tick } from 'svelte';
   import type { NodeSpec } from '../../../types/nodeSpec';
   import { getCategorySlug, getSubGroupSlug, CATEGORY_SUBGROUP_ORDER } from '../../../utils/cssTokens';
+  import {
+    compareNodeSpecsForPanel,
+    groupNodeSpecsByPanelCategory,
+  } from '../../../utils/nodePanelCategoryOrder';
+  import { matchesNodePanelSearch } from '../../../utils/nodePanelSearch';
   import { PALETTE_NODE_DRAG_MIME } from '../../../utils/paletteNodeDrag';
   import NodePanelHeader from './NodePanelHeader.svelte';
   import NodePanelResults from './NodePanelResults.svelte';
@@ -38,32 +43,6 @@
   /** Set of category names that are expanded; multiple sections can be open. */
   let expandedCategoriesSet = $state<Set<string>>(new Set());
 
-  const CATEGORY_ORDER: string[] = [
-    'Distort',
-    'Patterns',
-    'Shapes',
-    'SDF',
-    'Blend',
-    'Mask',
-    'Effects',
-    'Audio',
-    'Inputs',
-    'Output',
-    'Math',
-    'Utilities',
-  ];
-
-  function sortCategories(categories: string[]): string[] {
-    return [...categories].sort((a, b) => {
-      const aIndex = CATEGORY_ORDER.indexOf(a);
-      const bIndex = CATEGORY_ORDER.indexOf(b);
-      if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
-      if (aIndex !== -1) return -1;
-      if (bIndex !== -1) return 1;
-      return a.localeCompare(b);
-    });
-  }
-
   const allTypes = $derived.by(() => {
     const set = new Set<string>();
     for (const spec of nodeSpecs) {
@@ -82,12 +61,7 @@
     let filtered = nodeSpecs;
 
     if (query !== '') {
-      filtered = filtered.filter(
-        (spec) =>
-          spec.displayName.toLowerCase().includes(query) ||
-          (spec.description?.toLowerCase().includes(query) ?? false) ||
-          spec.category.toLowerCase().includes(query)
-      );
+      filtered = filtered.filter((spec) => matchesNodePanelSearch(spec, query));
     }
 
     if (selectedTypes.size > 0) {
@@ -101,30 +75,12 @@
       });
     }
 
-    filtered = [...filtered].sort((a, b) => {
-      if (query !== '') {
-        const aExact = a.displayName.toLowerCase() === query;
-        const bExact = b.displayName.toLowerCase() === query;
-        if (aExact && !bExact) return -1;
-        if (!aExact && bExact) return 1;
-      }
-      const cat = a.category.localeCompare(b.category);
-      if (cat !== 0) return cat;
-      return a.displayName.localeCompare(b.displayName);
-    });
+    filtered = [...filtered].sort((a, b) => compareNodeSpecsForPanel(a, b, query));
 
     return filtered;
   });
 
-  const groupedSpecs = $derived.by(() => {
-    const map = new Map<string, NodeSpec[]>();
-    for (const spec of filteredSpecs) {
-      if (!map.has(spec.category)) map.set(spec.category, []);
-      map.get(spec.category)!.push(spec);
-    }
-    const sorted = sortCategories(Array.from(map.keys()));
-    return sorted.map((category) => ({ category, nodes: map.get(category)! }));
-  });
+  const groupedSpecs = $derived.by(() => groupNodeSpecsByPanelCategory(filteredSpecs));
 
   // Determine which categories should be expanded
   const expandedCategories = $derived.by(() => {

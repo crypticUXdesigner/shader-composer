@@ -16,6 +16,7 @@ import { mixedWaveSignalNodeSpec } from './mixed-wave-signal';
 import { arrangementLanesNodeSpec } from './arrangement-lanes';
 import { arrangementNotesNodeSpec } from './arrangement-notes';
 import { oscillator2dNodeSpec } from './oscillator-2d';
+import { pathDriveNodeSpec } from './path-drive';
 import { orbitCameraNodeSpec } from './orbit-camera';
 import { lookAtCameraNodeSpec } from './look-at-camera';
 import { transform2dNodeSpec } from './transform-2d';
@@ -115,7 +116,7 @@ import {
   reflectNodeSpec,
   refractNodeSpec
 } from './math-operations';
-import { blendColorNodeSpec, blendModeNodeSpec } from './blending-nodes';
+import { blendNodeSpec } from './blending-nodes';
 import {
   compareNodeSpec,
   selectNodeSpec,
@@ -153,8 +154,9 @@ import {
   oklchColorNodeSpec,
   bezierCurveNodeSpec,
   bayerDitherNodeSpec,
-  oklchColorMapBezierNodeSpec,
-  oklchColorMapThresholdNodeSpec,
+  oklchColorMapNodeSpec,
+  colorLutNodeSpec,
+  colorGradientNodeSpec,
   toneMappingNodeSpec
 } from './color-system-nodes';
 const _metaballs = metaballsNodeSpec;
@@ -172,6 +174,7 @@ export const nodeSystemSpecs: NodeSpec[] = [
   arrangementLanesNodeSpec,
   arrangementNotesNodeSpec,
   oscillator2dNodeSpec,
+  pathDriveNodeSpec,
   orbitCameraNodeSpec,
   lookAtCameraNodeSpec,
   oklchColorNodeSpec,
@@ -281,8 +284,7 @@ export const nodeSystemSpecs: NodeSpec[] = [
   refractNodeSpec,
   
   // Blending nodes
-  blendModeNodeSpec,
-  blendColorNodeSpec,
+  blendNodeSpec,
   
   // Masking/Control nodes
   compareNodeSpec,
@@ -319,8 +321,9 @@ export const nodeSystemSpecs: NodeSpec[] = [
   combineVectorNodeSpec,
   
   // Color System nodes
-  oklchColorMapBezierNodeSpec,
-  oklchColorMapThresholdNodeSpec,
+  oklchColorMapNodeSpec,
+  colorLutNodeSpec,
+  colorGradientNodeSpec,
   bayerDitherNodeSpec,
   toneMappingNodeSpec,
   

@@ -3,6 +3,12 @@
  * Used by NodeBody (EnumSelector) and OverlayManager dropdown so the same labels appear.
  */
 
+import { LUT_PRESET_META } from '../shaders/colorRamps/lutPresetData.generated';
+
+const COLOR_LUT_PRESET_LABELS: Record<number, string> = Object.fromEntries(
+  LUT_PRESET_META.map((p) => [p.index, p.label])
+);
+
 export function isEnumParameter(specId: string, paramName: string): boolean {
   return getParameterEnumMappings(specId, paramName) !== null;
 }
@@ -23,8 +29,7 @@ export function getParameterEnumMappings(
     };
   }
 
-  // blend-mode node - mode
-  if (nodeId === 'blend-mode' && paramName === 'mode') {
+  if (nodeId === 'blend' && paramName === 'mode') {
     return {
       0: 'Normal',
       1: 'Multiply',
@@ -41,21 +46,10 @@ export function getParameterEnumMappings(
     };
   }
 
-  // blend-color — same mode index semantics as blend-mode
-  if (nodeId === 'blend-color' && paramName === 'mode') {
+  if (nodeId === 'blend' && paramName === 'alphaMode') {
     return {
-      0: 'Normal',
-      1: 'Multiply',
-      2: 'Screen',
-      3: 'Overlay',
-      4: 'Soft Light',
-      5: 'Hard Light',
-      6: 'Color Dodge',
-      7: 'Color Burn',
-      8: 'Linear Dodge',
-      9: 'Linear Burn',
-      10: 'Difference',
-      11: 'Exclusion'
+      0: 'Lerp',
+      1: 'Blend'
     };
   }
 
@@ -119,6 +113,18 @@ export function getParameterEnumMappings(
 
   // gradient
   if (nodeId === 'gradient' && paramName === 'gradientType') {
+    return { 0: 'Radial', 1: 'Linear' };
+  }
+
+  if (nodeId === 'oklch-color-map' && paramName === 'mapMode') {
+    return { 0: 'Smooth', 1: 'Stepped' };
+  }
+
+  if (nodeId === 'color-lut' && paramName === 'preset') {
+    return COLOR_LUT_PRESET_LABELS;
+  }
+
+  if (nodeId === 'color-gradient' && paramName === 'gradientMode') {
     return { 0: 'Radial', 1: 'Linear' };
   }
 
@@ -201,6 +207,17 @@ export function getParameterEnumMappings(
   // ripple
   if (nodeId === 'ripple' && paramName === 'rippleMode') {
     return { 0: 'Concentric', 1: 'Directional' };
+  }
+
+  // path-drive - path preset
+  if (nodeId === 'path-drive' && paramName === 'pathPreset') {
+    return {
+      0: 'Orbit',
+      1: 'Figure-8',
+      2: 'Drift',
+      3: 'Pulse',
+      4: 'Line',
+    };
   }
 
   // oscillator-2d - layerCombine (same merge rule on X and Y stacks)
@@ -299,6 +316,15 @@ export function getParameterEnumMappings(
     }
     if (paramName === 'timelineAnchor') {
       return { 0: 'Center', 1: 'Start' };
+    }
+    if (paramName === 'noteColorMode') {
+      return {
+        0: 'Light',
+        1: 'Dark',
+        2: 'Project',
+        3: 'Custom',
+        4: 'Pitch',
+      };
     }
   }
 

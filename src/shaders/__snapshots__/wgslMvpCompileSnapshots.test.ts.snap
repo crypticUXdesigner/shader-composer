@@ -1103,21 +1103,22 @@ fn applyBlendMode(base: f32, blend: f32, mode: f32) -> f32 {
 }
 @fragment
 fn fs(in : VsOut) -> @location(0) vec4<f32> {
-  return vec4<f32>(vec4<f32>(mix(vec4<f32>(params[3].x, params[4].x, params[5].x, params[2].x).xyz, vec3<f32>(applyBlendMode(vec4<f32>(params[3].x, params[4].x, params[5].x, params[2].x).x, vec4<f32>(params[7].x, params[8].x, params[9].x, params[6].x).x, params[0].x), applyBlendMode(vec4<f32>(params[3].x, params[4].x, params[5].x, params[2].x).y, vec4<f32>(params[7].x, params[8].x, params[9].x, params[6].x).y, params[0].x), applyBlendMode(vec4<f32>(params[3].x, params[4].x, params[5].x, params[2].x).z, vec4<f32>(params[7].x, params[8].x, params[9].x, params[6].x).z, params[0].x)), params[1].x), mix(vec4<f32>(params[3].x, params[4].x, params[5].x, params[2].x).w, vec4<f32>(params[7].x, params[8].x, params[9].x, params[6].x).w, params[1].x)).xyz, 1.0);
+  return vec4<f32>(vec4<f32>(mix(vec4<f32>(params[4].x, params[5].x, params[6].x, params[3].x).xyz, vec3<f32>(applyBlendMode(vec4<f32>(params[4].x, params[5].x, params[6].x, params[3].x).x, vec4<f32>(params[8].x, params[9].x, params[10].x, params[7].x).x, params[1].x), applyBlendMode(vec4<f32>(params[4].x, params[5].x, params[6].x, params[3].x).y, vec4<f32>(params[8].x, params[9].x, params[10].x, params[7].x).y, params[1].x), applyBlendMode(vec4<f32>(params[4].x, params[5].x, params[6].x, params[3].x).z, vec4<f32>(params[8].x, params[9].x, params[10].x, params[7].x).z, params[1].x)), params[2].x), mix(vec4<f32>(params[4].x, params[5].x, params[6].x, params[3].x).w, vec4<f32>(params[8].x, params[9].x, params[10].x, params[7].x).w, params[2].x)).xyz, 1.0);
 }
 ",
   "fixtureId": "mvpBlendColor",
   "paramLayout": {
-    "n-bc.mode": 0,
-    "n-bc.opacity": 1,
-    "n-bg.w": 2,
-    "n-bg.x": 3,
-    "n-bg.y": 4,
-    "n-bg.z": 5,
-    "n-fg.w": 6,
-    "n-fg.x": 7,
-    "n-fg.y": 8,
-    "n-fg.z": 9,
+    "n-bc.alphaMode": 0,
+    "n-bc.mode": 1,
+    "n-bc.opacity": 2,
+    "n-bg.w": 3,
+    "n-bg.x": 4,
+    "n-bg.y": 5,
+    "n-bg.z": 6,
+    "n-fg.w": 7,
+    "n-fg.x": 8,
+    "n-fg.y": 9,
+    "n-fg.z": 10,
   },
   "previewDependencies": {
     "usesAudioUniforms": false,
@@ -1209,7 +1210,6 @@ fn applyBlendMode(base: f32, blend: f32, mode: f32) -> f32 {
   let r10 = blendDifference(base, blend);
   let r11 = blendExclusion(base, blend);
 
-  // Weighted selection to avoid deep if ladders; keep deterministic with float masks.
   return
     blend * select(0.0, 1.0, m0) +
     r1 * select(0.0, 1.0, m1) +
@@ -1226,14 +1226,15 @@ fn applyBlendMode(base: f32, blend: f32, mode: f32) -> f32 {
 }
 @fragment
 fn fs(in : VsOut) -> @location(0) vec4<f32> {
-  return vec4<f32>(mix(globals.v0.x, applyBlendMode(globals.v0.x, params[0].x, params[1].x), params[2].x), mix(globals.v0.x, applyBlendMode(globals.v0.x, params[0].x, params[1].x), params[2].x), mix(globals.v0.x, applyBlendMode(globals.v0.x, params[0].x, params[1].x), params[2].x), 1.0);
+  return vec4<f32>(mix(globals.v0.x, applyBlendMode(globals.v0.x, params[0].x, params[2].x), params[3].x), mix(globals.v0.x, applyBlendMode(globals.v0.x, params[0].x, params[2].x), params[3].x), mix(globals.v0.x, applyBlendMode(globals.v0.x, params[0].x, params[2].x), params[3].x), 1.0);
 }
 ",
   "fixtureId": "mvpBlendMode",
   "paramLayout": {
     "n-b.value": 0,
-    "n-blend.mode": 1,
-    "n-blend.opacity": 2,
+    "n-blend.alphaMode": 1,
+    "n-blend.mode": 2,
+    "n-blend.opacity": 3,
   },
   "previewDependencies": {
     "usesAudioUniforms": false,
@@ -2882,6 +2883,794 @@ fn fs(in : VsOut) -> @location(0) vec4<f32> {
 }
 `;
 
+exports[`WGSL MVP compile snapshots > matches snapshot for mvpColorGradientLinear 1`] = `
+{
+  "code": "
+struct Globals {
+  v0 : vec4<f32>,
+  v1 : vec4<f32>,
+}
+
+@group(0) @binding(0) var<uniform> globals : Globals;
+@group(0) @binding(1) var<storage, read> params : array<vec4<f32>>;
+
+struct VsOut {
+  @builtin(position) pos : vec4<f32>,
+  @location(0) uv : vec2<f32>,
+}
+
+@vertex
+fn vs(@builtin(vertex_index) vid : u32) -> VsOut {
+  var p = array<vec2<f32>, 3>(
+    vec2<f32>(-1.0, -1.0),
+    vec2<f32>( 3.0, -1.0),
+    vec2<f32>(-1.0,  3.0)
+  );
+  var o : VsOut;
+  o.pos = vec4<f32>(p[vid], 0.0, 1.0);
+  o.uv = (o.pos.xy * 0.5) + vec2<f32>(0.5, 0.5);
+  return o;
+}
+
+fn cr_oklch_to_rgb(oklch: vec3<f32>) -> vec3<f32> {
+
+  let l = oklch.x;
+
+  let c = oklch.y;
+
+  let h = oklch.z * 3.14159265359 / 180.0;
+
+  let a = c * cos(h);
+
+  let b = c * sin(h);
+
+  let l_ = l + 0.3963377774 * a + 0.2158037573 * b;
+
+  let m_ = l - 0.1055613458 * a - 0.0638541728 * b;
+
+  let s_ = l - 0.0894841775 * a - 1.2914855480 * b;
+
+  let l3 = l_ * l_ * l_;
+
+  let m3 = m_ * m_ * m_;
+
+  let s3 = s_ * s_ * s_;
+
+  let r = +4.0767416621 * l3 - 3.3077115913 * m3 + 0.2309699292 * s3;
+
+  let g = -1.2684380046 * l3 + 2.6097574011 * m3 - 0.3413193965 * s3;
+
+  let bl = -0.0041960863 * l3 - 0.7034186147 * m3 + 1.7076147010 * s3;
+
+  return clamp(vec3<f32>(r, g, bl), vec3<f32>(0.0), vec3<f32>(1.0));
+
+}
+
+
+
+fn cr_interpolate_hue(startH: f32, endH: f32, u: f32) -> f32 {
+
+  let adjustedEndH = select(endH, endH + 360.0, endH < startH);
+
+  var h = mix(startH, adjustedEndH, u);
+
+  h = h - floor(h / 360.0) * 360.0;
+
+  if (h < 0.0) { h = h + 360.0; }
+
+  return h;
+
+}
+
+
+
+fn cr_sample_three_stop_oklch(
+
+  ok0: vec3<f32>, t0: f32,
+
+  ok1: vec3<f32>, t1: f32,
+
+  ok2: vec3<f32>, t2: f32,
+
+  t: f32
+
+) -> vec3<f32> {
+
+  let x = clamp(t, 0.0, 1.0);
+
+  if (x <= t0) { return cr_oklch_to_rgb(ok0); }
+
+  if (x >= t2) { return cr_oklch_to_rgb(ok2); }
+
+  var a: vec3<f32>;
+
+  var b: vec3<f32>;
+
+  var ta: f32;
+
+  var tb: f32;
+
+  if (x <= t1) {
+
+    a = ok0; b = ok1; ta = t0; tb = t1;
+
+  } else {
+
+    a = ok1; b = ok2; ta = t1; tb = t2;
+
+  }
+
+  let span = max(tb - ta, 0.00001);
+
+  let u = (x - ta) / span;
+
+  let l = mix(a.x, b.x, u);
+
+  let c = mix(a.y, b.y, u);
+
+  let h = cr_interpolate_hue(a.z, b.z, u);
+
+  return cr_oklch_to_rgb(vec3<f32>(l, c, h));
+
+}
+
+fn cr_apply_color_gradient_value(v: f32, gain: f32, power: f32, softness: f32) -> f32 {
+  var u = clamp(v, 0.0, 1.0);
+  u = pow(u * gain, power);
+  if (softness <= 0.0001) {
+    return u;
+  }
+  return u * smoothstep(0.0, softness, u);
+}
+
+fn gradientRadial(p: vec2<f32>, center: vec2<f32>, radius: f32, falloff: f32) -> f32 {
+  let d = length(p - center);
+  let edge0 = max(0.0, radius - falloff);
+  let edge1 = radius;
+  return 1.0 - smoothstep(edge0, edge1, d);
+}
+
+fn gradientLinear(p: vec2<f32>, angleDeg: f32, scale: f32) -> f32 {
+  let angleRad = angleDeg * 0.017453292519943295;
+  let dir = vec2<f32>(cos(angleRad), sin(angleRad));
+  let t = dot(p, dir) * scale + 0.5;
+  return clamp(t, 0.0, 1.0);
+}
+
+fn noise_hash(n: f32) -> f32 {
+  return fract(sin(n) * 43758.5453);
+}
+
+fn noise_hash3(v: vec3<f32>) -> vec3<f32> {
+  let p = vec3<f32>(
+    dot(v, vec3<f32>(127.1, 311.7, 74.7)),
+    dot(v, vec3<f32>(269.5, 183.3, 246.1)),
+    dot(v, vec3<f32>(113.5, 271.9, 124.6))
+  );
+  return fract(sin(p) * 43758.5453);
+}
+
+// ----- Simplex 2D -----
+fn noise_simplex2d(v: vec2<f32>, time: f32) -> f32 {
+  let C = vec4<f32>(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
+  var i = floor(v + dot(v, C.yy));
+  let x0 = v - i + dot(i, C.xx);
+  let i1 = select(vec2<f32>(0.0, 1.0), vec2<f32>(1.0, 0.0), x0.x > x0.y);
+  var x12 = vec4<f32>(x0.x, x0.y, x0.x, x0.y) + C.xxzz;
+  x12.x = x12.x - i1.x;
+  x12.y = x12.y - i1.y;
+  i = i - 289.0 * floor(i / 289.0);
+
+  var p = noise_hash3(vec3<f32>(i.x, i.y, time));
+  p = p - 289.0 * floor(p / 289.0);
+  var m = max(0.5 - vec3<f32>(dot(x0, x0), dot(x12.xy, x12.xy), dot(x12.zw, x12.zw)), vec3<f32>(0.0));
+  m = m * m;
+  m = m * m;
+  let x = 2.0 * fract(p * C.www) - 1.0;
+  let h = abs(x) - 0.5;
+  let ox = floor(x + 0.5);
+  let a0 = x - ox;
+  m = m * (1.79284291400159 - 0.85373472095314 * (a0 * a0 + h * h));
+
+  var g = vec3<f32>(0.0);
+  g.x = a0.x * x0.x + h.x * x0.y;
+  g.y = a0.y * x12.x + h.y * x12.y;
+  g.z = a0.z * x12.z + h.z * x12.w;
+  return 130.0 * dot(m, g);
+}
+
+fn noise_simplex2d_fbm(p: vec2<f32>, time: f32, octaves: i32, lacunarity: f32, gain: f32) -> f32 {
+  var value = 0.0;
+  var amplitude = 0.5;
+  var frequency = 1.0;
+  for (var i = 0; i < 10; i = i + 1) {
+    if (i >= octaves) { break; }
+    let octaveTime = time * (0.5 + f32(i) * 0.2);
+    value = value + amplitude * noise_simplex2d(p * frequency + vec2<f32>(octaveTime * 0.1, octaveTime * 0.15), octaveTime);
+    frequency = frequency * lacunarity;
+    amplitude = amplitude * gain;
+  }
+  return value;
+}
+
+// ----- Simplex 3D -----
+fn noise_mod289_3d3(x: vec3<f32>) -> vec3<f32> {
+  return x - floor(x * (1.0 / 289.0)) * 289.0;
+}
+
+fn noise_mod289_3d4(x: vec4<f32>) -> vec4<f32> {
+  return x - floor(x * (1.0 / 289.0)) * 289.0;
+}
+
+fn noise_permute_3d(x: vec4<f32>) -> vec4<f32> {
+  return noise_mod289_3d4(((x * 34.0) + 1.0) * x);
+}
+
+fn noise_taylorInvSqrt_3d(r: vec4<f32>) -> vec4<f32> {
+  return 1.79284291400159 - 0.85373472095314 * r;
+}
+
+fn noise_simplex3d(v: vec3<f32>) -> f32 {
+  let C = vec2<f32>(1.0 / 6.0, 1.0 / 3.0);
+  let D = vec4<f32>(0.0, 0.5, 1.0, 2.0);
+
+  var i = floor(v + dot(v, C.yyy));
+  let x0 = v - i + dot(i, C.xxx);
+
+  let g = step(x0.yzx, x0.xyz);
+  let l = 1.0 - g;
+  let i1 = min(g.xyz, l.zxy);
+  let i2 = max(g.xyz, l.zxy);
+
+  let x1 = x0 - i1 + C.xxx;
+  let x2 = x0 - i2 + C.yyy;
+  let x3 = x0 - D.yyy;
+
+  i = noise_mod289_3d3(i);
+
+  let p = noise_permute_3d(
+    noise_permute_3d(
+      noise_permute_3d(i.z + vec4<f32>(0.0, i1.z, i2.z, 1.0)) +
+      i.y + vec4<f32>(0.0, i1.y, i2.y, 1.0)
+    ) +
+    i.x + vec4<f32>(0.0, i1.x, i2.x, 1.0)
+  );
+
+  let n_ = 0.142857142857;
+  let ns = n_ * D.wyz - D.xzx;
+
+  let j = p - 49.0 * floor(p * ns.z * ns.z);
+  let x_ = floor(j * ns.z);
+  let y_ = floor(j - 7.0 * x_);
+
+  let x = x_ * ns.x + ns.yyyy;
+  let y = y_ * ns.x + ns.yyyy;
+  let h = 1.0 - abs(x) - abs(y);
+
+  let b0 = vec4<f32>(x.xy, y.xy);
+  let b1 = vec4<f32>(x.zw, y.zw);
+
+  let s0 = floor(b0) * 2.0 + 1.0;
+  let s1 = floor(b1) * 2.0 + 1.0;
+  let sh = -step(h, vec4<f32>(0.0));
+
+  let a0 = vec4<f32>(b0.x, b0.z, b0.y, b0.w) + vec4<f32>(s0.x, s0.z, s0.y, s0.w) * vec4<f32>(sh.x, sh.x, sh.y, sh.y);
+  let a1 = vec4<f32>(b1.x, b1.z, b1.y, b1.w) + vec4<f32>(s1.x, s1.z, s1.y, s1.w) * vec4<f32>(sh.z, sh.z, sh.w, sh.w);
+
+  var p0 = vec3<f32>(a0.x, a0.y, h.x);
+  var p1 = vec3<f32>(a0.z, a0.w, h.y);
+  var p2 = vec3<f32>(a1.x, a1.y, h.z);
+  var p3 = vec3<f32>(a1.z, a1.w, h.w);
+
+  let norm = noise_taylorInvSqrt_3d(vec4<f32>(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3)));
+  p0 = p0 * norm.x;
+  p1 = p1 * norm.y;
+  p2 = p2 * norm.z;
+  p3 = p3 * norm.w;
+
+  var m = max(0.6 - vec4<f32>(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3)), vec4<f32>(0.0));
+  m = m * m;
+  return 42.0 * dot(m * m, vec4<f32>(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3)));
+}
+
+fn noise_simplex3d_fbm(p: vec3<f32>, octaves: i32, lacunarity: f32, gain: f32) -> f32 {
+  var value = 0.0;
+  var amplitude = 0.5;
+  var frequency = 1.0;
+  for (var i = 0; i < 10; i = i + 1) {
+    if (i >= octaves) { break; }
+    value = value + amplitude * noise_simplex3d(p * frequency);
+    frequency = frequency * lacunarity;
+    amplitude = amplitude * gain;
+  }
+  return value;
+}
+
+// ----- Value fBm -----
+fn noise_hash11(n: f32) -> f32 {
+  return fract(sin(n) * 43758.5453);
+}
+
+fn noise_vnoise(p: vec3<f32>) -> f32 {
+  let ip = floor(p);
+  let fp = fract(p);
+  let n000 = noise_hash11(dot(ip + vec3<f32>(0.0, 0.0, 0.0), vec3<f32>(1.0, 57.0, 113.0)));
+  let n100 = noise_hash11(dot(ip + vec3<f32>(1.0, 0.0, 0.0), vec3<f32>(1.0, 57.0, 113.0)));
+  let n010 = noise_hash11(dot(ip + vec3<f32>(0.0, 1.0, 0.0), vec3<f32>(1.0, 57.0, 113.0)));
+  let n110 = noise_hash11(dot(ip + vec3<f32>(1.0, 1.0, 0.0), vec3<f32>(1.0, 57.0, 113.0)));
+  let n001 = noise_hash11(dot(ip + vec3<f32>(0.0, 0.0, 1.0), vec3<f32>(1.0, 57.0, 113.0)));
+  let n101 = noise_hash11(dot(ip + vec3<f32>(1.0, 0.0, 1.0), vec3<f32>(1.0, 57.0, 113.0)));
+  let n011 = noise_hash11(dot(ip + vec3<f32>(0.0, 1.0, 1.0), vec3<f32>(1.0, 57.0, 113.0)));
+  let n111 = noise_hash11(dot(ip + vec3<f32>(1.0, 1.0, 1.0), vec3<f32>(1.0, 57.0, 113.0)));
+  let w = fp * fp * fp * (fp * (fp * 6.0 - 15.0) + 10.0);
+  let x00 = mix(n000, n100, w.x);
+  let x10 = mix(n010, n110, w.x);
+  let x01 = mix(n001, n101, w.x);
+  let x11 = mix(n011, n111, w.x);
+  let y0 = mix(x00, x10, w.y);
+  let y1 = mix(x01, x11, w.y);
+  return mix(y0, y1, w.z) * 2.0 - 1.0;
+}
+
+fn noise_value_fbm(uv: vec2<f32>, t: f32, scale: f32, octaves: i32, lacunarity: f32, gain: f32) -> f32 {
+  let p = vec3<f32>(uv * scale, t);
+  var amp = 1.0;
+  var freq = 1.0;
+  var sum = 0.0;
+  for (var i = 0; i < 10; i = i + 1) {
+    if (i >= octaves) { break; }
+    sum = sum + amp * noise_vnoise(p * freq);
+    freq = freq * lacunarity;
+    amp = amp * gain;
+  }
+  return sum * 0.5 + 0.5;
+}
+@fragment
+fn fs(in : VsOut) -> @location(0) vec4<f32> {
+  return vec4<f32>(cr_sample_three_stop_oklch(vec3<f32>(params[10].x, params[8].x, params[9].x), clamp(params[11].x, 0.0, 1.0), vec3<f32>(params[14].x, params[12].x, params[13].x), clamp(params[15].x, clamp(params[11].x, 0.0, 1.0), 1.0), vec3<f32>(params[18].x, params[16].x, params[17].x), clamp(max(params[19].x, clamp(params[15].x, clamp(params[11].x, 0.0, 1.0), 1.0)), clamp(params[11].x, 0.0, 1.0), 1.0), clamp(select(gradientLinear((((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)) - vec2<f32>(params[1].x, params[2].x)), params[0].x, params[6].x), gradientRadial((((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)) - vec2<f32>(params[1].x, params[2].x)), vec2<f32>(0.0), params[7].x, params[3].x), params[4].x < 0.5), 0.0, 1.0)) * cr_apply_color_gradient_value(select((noise_value_fbm((((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)) - vec2<f32>(0.5, 0.5)) * vec2<f32>((globals.v0.z / globals.v0.w), 1.0), (globals.v0.x + params[29].x) * params[30].x, params[28].x, i32(clamp(params[27].x, 1.0, 10.0) + 0.5), params[25].x, params[23].x) * params[24].x), select((clamp(noise_simplex3d_fbm(vec3<f32>((((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0))).x * params[28].x, (((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0))).y * params[28].x, ((globals.v0.x + params[29].x) * params[30].x * params[28].x)), i32(clamp(params[27].x, 1.0, 10.0) + 0.5), params[25].x, params[23].x) * 0.5 + 0.5, 0.0, 1.0) * params[24].x), (noise_simplex2d_fbm(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)) * params[28].x, (globals.v0.x + params[29].x) * params[30].x, i32(clamp(params[27].x, 1.0, 10.0) + 0.5), params[25].x, params[23].x) * params[24].x), (params[26].x < 0.5)), (params[26].x >= 0.5 && params[26].x < 1.5)), params[20].x, params[21].x, params[22].x) * params[5].x, 1.0);
+}
+",
+  "fixtureId": "mvpColorGradientLinear",
+  "paramLayout": {
+    "n-grad.angle": 0,
+    "n-grad.centerX": 1,
+    "n-grad.centerY": 2,
+    "n-grad.falloff": 3,
+    "n-grad.gradientMode": 4,
+    "n-grad.intensity": 5,
+    "n-grad.linearScale": 6,
+    "n-grad.radius": 7,
+    "n-grad.stop0C": 8,
+    "n-grad.stop0H": 9,
+    "n-grad.stop0L": 10,
+    "n-grad.stop0T": 11,
+    "n-grad.stop1C": 12,
+    "n-grad.stop1H": 13,
+    "n-grad.stop1L": 14,
+    "n-grad.stop1T": 15,
+    "n-grad.stop2C": 16,
+    "n-grad.stop2H": 17,
+    "n-grad.stop2L": 18,
+    "n-grad.stop2T": 19,
+    "n-grad.valueGain": 20,
+    "n-grad.valuePower": 21,
+    "n-grad.valueSoftness": 22,
+    "n-noise.noiseGain": 23,
+    "n-noise.noiseIntensity": 24,
+    "n-noise.noiseLacunarity": 25,
+    "n-noise.noiseMode": 26,
+    "n-noise.noiseOctaves": 27,
+    "n-noise.noiseScale": 28,
+    "n-noise.noiseTimeOffset": 29,
+    "n-noise.noiseTimeSpeed": 30,
+  },
+  "previewDependencies": {
+    "usesAudioUniforms": false,
+    "usesFrameIndex": false,
+    "usesMouseUniforms": false,
+    "usesRadialPulseSpawnUniformPass": false,
+    "usesRadialPulseVirtualDrive": false,
+    "usesResolutionUniform": false,
+    "usesTimelineTime": false,
+    "usesWallTime": true,
+  },
+}
+`;
+
+exports[`WGSL MVP compile snapshots > matches snapshot for mvpColorGradientRadial 1`] = `
+{
+  "code": "
+struct Globals {
+  v0 : vec4<f32>,
+  v1 : vec4<f32>,
+}
+
+@group(0) @binding(0) var<uniform> globals : Globals;
+@group(0) @binding(1) var<storage, read> params : array<vec4<f32>>;
+
+struct VsOut {
+  @builtin(position) pos : vec4<f32>,
+  @location(0) uv : vec2<f32>,
+}
+
+@vertex
+fn vs(@builtin(vertex_index) vid : u32) -> VsOut {
+  var p = array<vec2<f32>, 3>(
+    vec2<f32>(-1.0, -1.0),
+    vec2<f32>( 3.0, -1.0),
+    vec2<f32>(-1.0,  3.0)
+  );
+  var o : VsOut;
+  o.pos = vec4<f32>(p[vid], 0.0, 1.0);
+  o.uv = (o.pos.xy * 0.5) + vec2<f32>(0.5, 0.5);
+  return o;
+}
+
+fn cr_oklch_to_rgb(oklch: vec3<f32>) -> vec3<f32> {
+
+  let l = oklch.x;
+
+  let c = oklch.y;
+
+  let h = oklch.z * 3.14159265359 / 180.0;
+
+  let a = c * cos(h);
+
+  let b = c * sin(h);
+
+  let l_ = l + 0.3963377774 * a + 0.2158037573 * b;
+
+  let m_ = l - 0.1055613458 * a - 0.0638541728 * b;
+
+  let s_ = l - 0.0894841775 * a - 1.2914855480 * b;
+
+  let l3 = l_ * l_ * l_;
+
+  let m3 = m_ * m_ * m_;
+
+  let s3 = s_ * s_ * s_;
+
+  let r = +4.0767416621 * l3 - 3.3077115913 * m3 + 0.2309699292 * s3;
+
+  let g = -1.2684380046 * l3 + 2.6097574011 * m3 - 0.3413193965 * s3;
+
+  let bl = -0.0041960863 * l3 - 0.7034186147 * m3 + 1.7076147010 * s3;
+
+  return clamp(vec3<f32>(r, g, bl), vec3<f32>(0.0), vec3<f32>(1.0));
+
+}
+
+
+
+fn cr_interpolate_hue(startH: f32, endH: f32, u: f32) -> f32 {
+
+  let adjustedEndH = select(endH, endH + 360.0, endH < startH);
+
+  var h = mix(startH, adjustedEndH, u);
+
+  h = h - floor(h / 360.0) * 360.0;
+
+  if (h < 0.0) { h = h + 360.0; }
+
+  return h;
+
+}
+
+
+
+fn cr_sample_three_stop_oklch(
+
+  ok0: vec3<f32>, t0: f32,
+
+  ok1: vec3<f32>, t1: f32,
+
+  ok2: vec3<f32>, t2: f32,
+
+  t: f32
+
+) -> vec3<f32> {
+
+  let x = clamp(t, 0.0, 1.0);
+
+  if (x <= t0) { return cr_oklch_to_rgb(ok0); }
+
+  if (x >= t2) { return cr_oklch_to_rgb(ok2); }
+
+  var a: vec3<f32>;
+
+  var b: vec3<f32>;
+
+  var ta: f32;
+
+  var tb: f32;
+
+  if (x <= t1) {
+
+    a = ok0; b = ok1; ta = t0; tb = t1;
+
+  } else {
+
+    a = ok1; b = ok2; ta = t1; tb = t2;
+
+  }
+
+  let span = max(tb - ta, 0.00001);
+
+  let u = (x - ta) / span;
+
+  let l = mix(a.x, b.x, u);
+
+  let c = mix(a.y, b.y, u);
+
+  let h = cr_interpolate_hue(a.z, b.z, u);
+
+  return cr_oklch_to_rgb(vec3<f32>(l, c, h));
+
+}
+
+fn cr_apply_color_gradient_value(v: f32, gain: f32, power: f32, softness: f32) -> f32 {
+  var u = clamp(v, 0.0, 1.0);
+  u = pow(u * gain, power);
+  if (softness <= 0.0001) {
+    return u;
+  }
+  return u * smoothstep(0.0, softness, u);
+}
+
+fn gradientRadial(p: vec2<f32>, center: vec2<f32>, radius: f32, falloff: f32) -> f32 {
+  let d = length(p - center);
+  let edge0 = max(0.0, radius - falloff);
+  let edge1 = radius;
+  return 1.0 - smoothstep(edge0, edge1, d);
+}
+
+fn gradientLinear(p: vec2<f32>, angleDeg: f32, scale: f32) -> f32 {
+  let angleRad = angleDeg * 0.017453292519943295;
+  let dir = vec2<f32>(cos(angleRad), sin(angleRad));
+  let t = dot(p, dir) * scale + 0.5;
+  return clamp(t, 0.0, 1.0);
+}
+
+fn noise_hash(n: f32) -> f32 {
+  return fract(sin(n) * 43758.5453);
+}
+
+fn noise_hash3(v: vec3<f32>) -> vec3<f32> {
+  let p = vec3<f32>(
+    dot(v, vec3<f32>(127.1, 311.7, 74.7)),
+    dot(v, vec3<f32>(269.5, 183.3, 246.1)),
+    dot(v, vec3<f32>(113.5, 271.9, 124.6))
+  );
+  return fract(sin(p) * 43758.5453);
+}
+
+// ----- Simplex 2D -----
+fn noise_simplex2d(v: vec2<f32>, time: f32) -> f32 {
+  let C = vec4<f32>(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
+  var i = floor(v + dot(v, C.yy));
+  let x0 = v - i + dot(i, C.xx);
+  let i1 = select(vec2<f32>(0.0, 1.0), vec2<f32>(1.0, 0.0), x0.x > x0.y);
+  var x12 = vec4<f32>(x0.x, x0.y, x0.x, x0.y) + C.xxzz;
+  x12.x = x12.x - i1.x;
+  x12.y = x12.y - i1.y;
+  i = i - 289.0 * floor(i / 289.0);
+
+  var p = noise_hash3(vec3<f32>(i.x, i.y, time));
+  p = p - 289.0 * floor(p / 289.0);
+  var m = max(0.5 - vec3<f32>(dot(x0, x0), dot(x12.xy, x12.xy), dot(x12.zw, x12.zw)), vec3<f32>(0.0));
+  m = m * m;
+  m = m * m;
+  let x = 2.0 * fract(p * C.www) - 1.0;
+  let h = abs(x) - 0.5;
+  let ox = floor(x + 0.5);
+  let a0 = x - ox;
+  m = m * (1.79284291400159 - 0.85373472095314 * (a0 * a0 + h * h));
+
+  var g = vec3<f32>(0.0);
+  g.x = a0.x * x0.x + h.x * x0.y;
+  g.y = a0.y * x12.x + h.y * x12.y;
+  g.z = a0.z * x12.z + h.z * x12.w;
+  return 130.0 * dot(m, g);
+}
+
+fn noise_simplex2d_fbm(p: vec2<f32>, time: f32, octaves: i32, lacunarity: f32, gain: f32) -> f32 {
+  var value = 0.0;
+  var amplitude = 0.5;
+  var frequency = 1.0;
+  for (var i = 0; i < 10; i = i + 1) {
+    if (i >= octaves) { break; }
+    let octaveTime = time * (0.5 + f32(i) * 0.2);
+    value = value + amplitude * noise_simplex2d(p * frequency + vec2<f32>(octaveTime * 0.1, octaveTime * 0.15), octaveTime);
+    frequency = frequency * lacunarity;
+    amplitude = amplitude * gain;
+  }
+  return value;
+}
+
+// ----- Simplex 3D -----
+fn noise_mod289_3d3(x: vec3<f32>) -> vec3<f32> {
+  return x - floor(x * (1.0 / 289.0)) * 289.0;
+}
+
+fn noise_mod289_3d4(x: vec4<f32>) -> vec4<f32> {
+  return x - floor(x * (1.0 / 289.0)) * 289.0;
+}
+
+fn noise_permute_3d(x: vec4<f32>) -> vec4<f32> {
+  return noise_mod289_3d4(((x * 34.0) + 1.0) * x);
+}
+
+fn noise_taylorInvSqrt_3d(r: vec4<f32>) -> vec4<f32> {
+  return 1.79284291400159 - 0.85373472095314 * r;
+}
+
+fn noise_simplex3d(v: vec3<f32>) -> f32 {
+  let C = vec2<f32>(1.0 / 6.0, 1.0 / 3.0);
+  let D = vec4<f32>(0.0, 0.5, 1.0, 2.0);
+
+  var i = floor(v + dot(v, C.yyy));
+  let x0 = v - i + dot(i, C.xxx);
+
+  let g = step(x0.yzx, x0.xyz);
+  let l = 1.0 - g;
+  let i1 = min(g.xyz, l.zxy);
+  let i2 = max(g.xyz, l.zxy);
+
+  let x1 = x0 - i1 + C.xxx;
+  let x2 = x0 - i2 + C.yyy;
+  let x3 = x0 - D.yyy;
+
+  i = noise_mod289_3d3(i);
+
+  let p = noise_permute_3d(
+    noise_permute_3d(
+      noise_permute_3d(i.z + vec4<f32>(0.0, i1.z, i2.z, 1.0)) +
+      i.y + vec4<f32>(0.0, i1.y, i2.y, 1.0)
+    ) +
+    i.x + vec4<f32>(0.0, i1.x, i2.x, 1.0)
+  );
+
+  let n_ = 0.142857142857;
+  let ns = n_ * D.wyz - D.xzx;
+
+  let j = p - 49.0 * floor(p * ns.z * ns.z);
+  let x_ = floor(j * ns.z);
+  let y_ = floor(j - 7.0 * x_);
+
+  let x = x_ * ns.x + ns.yyyy;
+  let y = y_ * ns.x + ns.yyyy;
+  let h = 1.0 - abs(x) - abs(y);
+
+  let b0 = vec4<f32>(x.xy, y.xy);
+  let b1 = vec4<f32>(x.zw, y.zw);
+
+  let s0 = floor(b0) * 2.0 + 1.0;
+  let s1 = floor(b1) * 2.0 + 1.0;
+  let sh = -step(h, vec4<f32>(0.0));
+
+  let a0 = vec4<f32>(b0.x, b0.z, b0.y, b0.w) + vec4<f32>(s0.x, s0.z, s0.y, s0.w) * vec4<f32>(sh.x, sh.x, sh.y, sh.y);
+  let a1 = vec4<f32>(b1.x, b1.z, b1.y, b1.w) + vec4<f32>(s1.x, s1.z, s1.y, s1.w) * vec4<f32>(sh.z, sh.z, sh.w, sh.w);
+
+  var p0 = vec3<f32>(a0.x, a0.y, h.x);
+  var p1 = vec3<f32>(a0.z, a0.w, h.y);
+  var p2 = vec3<f32>(a1.x, a1.y, h.z);
+  var p3 = vec3<f32>(a1.z, a1.w, h.w);
+
+  let norm = noise_taylorInvSqrt_3d(vec4<f32>(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3)));
+  p0 = p0 * norm.x;
+  p1 = p1 * norm.y;
+  p2 = p2 * norm.z;
+  p3 = p3 * norm.w;
+
+  var m = max(0.6 - vec4<f32>(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3)), vec4<f32>(0.0));
+  m = m * m;
+  return 42.0 * dot(m * m, vec4<f32>(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3)));
+}
+
+fn noise_simplex3d_fbm(p: vec3<f32>, octaves: i32, lacunarity: f32, gain: f32) -> f32 {
+  var value = 0.0;
+  var amplitude = 0.5;
+  var frequency = 1.0;
+  for (var i = 0; i < 10; i = i + 1) {
+    if (i >= octaves) { break; }
+    value = value + amplitude * noise_simplex3d(p * frequency);
+    frequency = frequency * lacunarity;
+    amplitude = amplitude * gain;
+  }
+  return value;
+}
+
+// ----- Value fBm -----
+fn noise_hash11(n: f32) -> f32 {
+  return fract(sin(n) * 43758.5453);
+}
+
+fn noise_vnoise(p: vec3<f32>) -> f32 {
+  let ip = floor(p);
+  let fp = fract(p);
+  let n000 = noise_hash11(dot(ip + vec3<f32>(0.0, 0.0, 0.0), vec3<f32>(1.0, 57.0, 113.0)));
+  let n100 = noise_hash11(dot(ip + vec3<f32>(1.0, 0.0, 0.0), vec3<f32>(1.0, 57.0, 113.0)));
+  let n010 = noise_hash11(dot(ip + vec3<f32>(0.0, 1.0, 0.0), vec3<f32>(1.0, 57.0, 113.0)));
+  let n110 = noise_hash11(dot(ip + vec3<f32>(1.0, 1.0, 0.0), vec3<f32>(1.0, 57.0, 113.0)));
+  let n001 = noise_hash11(dot(ip + vec3<f32>(0.0, 0.0, 1.0), vec3<f32>(1.0, 57.0, 113.0)));
+  let n101 = noise_hash11(dot(ip + vec3<f32>(1.0, 0.0, 1.0), vec3<f32>(1.0, 57.0, 113.0)));
+  let n011 = noise_hash11(dot(ip + vec3<f32>(0.0, 1.0, 1.0), vec3<f32>(1.0, 57.0, 113.0)));
+  let n111 = noise_hash11(dot(ip + vec3<f32>(1.0, 1.0, 1.0), vec3<f32>(1.0, 57.0, 113.0)));
+  let w = fp * fp * fp * (fp * (fp * 6.0 - 15.0) + 10.0);
+  let x00 = mix(n000, n100, w.x);
+  let x10 = mix(n010, n110, w.x);
+  let x01 = mix(n001, n101, w.x);
+  let x11 = mix(n011, n111, w.x);
+  let y0 = mix(x00, x10, w.y);
+  let y1 = mix(x01, x11, w.y);
+  return mix(y0, y1, w.z) * 2.0 - 1.0;
+}
+
+fn noise_value_fbm(uv: vec2<f32>, t: f32, scale: f32, octaves: i32, lacunarity: f32, gain: f32) -> f32 {
+  let p = vec3<f32>(uv * scale, t);
+  var amp = 1.0;
+  var freq = 1.0;
+  var sum = 0.0;
+  for (var i = 0; i < 10; i = i + 1) {
+    if (i >= octaves) { break; }
+    sum = sum + amp * noise_vnoise(p * freq);
+    freq = freq * lacunarity;
+    amp = amp * gain;
+  }
+  return sum * 0.5 + 0.5;
+}
+@fragment
+fn fs(in : VsOut) -> @location(0) vec4<f32> {
+  return vec4<f32>(cr_sample_three_stop_oklch(vec3<f32>(params[10].x, params[8].x, params[9].x), clamp(params[11].x, 0.0, 1.0), vec3<f32>(params[14].x, params[12].x, params[13].x), clamp(params[15].x, clamp(params[11].x, 0.0, 1.0), 1.0), vec3<f32>(params[18].x, params[16].x, params[17].x), clamp(max(params[19].x, clamp(params[15].x, clamp(params[11].x, 0.0, 1.0), 1.0)), clamp(params[11].x, 0.0, 1.0), 1.0), clamp(select(gradientLinear((((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)) - vec2<f32>(params[1].x, params[2].x)), params[0].x, params[6].x), gradientRadial((((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)) - vec2<f32>(params[1].x, params[2].x)), vec2<f32>(0.0), params[7].x, params[3].x), params[4].x < 0.5), 0.0, 1.0)) * cr_apply_color_gradient_value(select((noise_value_fbm((((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)) - vec2<f32>(0.5, 0.5)) * vec2<f32>((globals.v0.z / globals.v0.w), 1.0), (globals.v0.x + params[29].x) * params[30].x, params[28].x, i32(clamp(params[27].x, 1.0, 10.0) + 0.5), params[25].x, params[23].x) * params[24].x), select((clamp(noise_simplex3d_fbm(vec3<f32>((((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0))).x * params[28].x, (((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0))).y * params[28].x, ((globals.v0.x + params[29].x) * params[30].x * params[28].x)), i32(clamp(params[27].x, 1.0, 10.0) + 0.5), params[25].x, params[23].x) * 0.5 + 0.5, 0.0, 1.0) * params[24].x), (noise_simplex2d_fbm(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)) * params[28].x, (globals.v0.x + params[29].x) * params[30].x, i32(clamp(params[27].x, 1.0, 10.0) + 0.5), params[25].x, params[23].x) * params[24].x), (params[26].x < 0.5)), (params[26].x >= 0.5 && params[26].x < 1.5)), params[20].x, params[21].x, params[22].x) * params[5].x, 1.0);
+}
+",
+  "fixtureId": "mvpColorGradientRadial",
+  "paramLayout": {
+    "n-grad.angle": 0,
+    "n-grad.centerX": 1,
+    "n-grad.centerY": 2,
+    "n-grad.falloff": 3,
+    "n-grad.gradientMode": 4,
+    "n-grad.intensity": 5,
+    "n-grad.linearScale": 6,
+    "n-grad.radius": 7,
+    "n-grad.stop0C": 8,
+    "n-grad.stop0H": 9,
+    "n-grad.stop0L": 10,
+    "n-grad.stop0T": 11,
+    "n-grad.stop1C": 12,
+    "n-grad.stop1H": 13,
+    "n-grad.stop1L": 14,
+    "n-grad.stop1T": 15,
+    "n-grad.stop2C": 16,
+    "n-grad.stop2H": 17,
+    "n-grad.stop2L": 18,
+    "n-grad.stop2T": 19,
+    "n-grad.valueGain": 20,
+    "n-grad.valuePower": 21,
+    "n-grad.valueSoftness": 22,
+    "n-noise.noiseGain": 23,
+    "n-noise.noiseIntensity": 24,
+    "n-noise.noiseLacunarity": 25,
+    "n-noise.noiseMode": 26,
+    "n-noise.noiseOctaves": 27,
+    "n-noise.noiseScale": 28,
+    "n-noise.noiseTimeOffset": 29,
+    "n-noise.noiseTimeSpeed": 30,
+  },
+  "previewDependencies": {
+    "usesAudioUniforms": false,
+    "usesFrameIndex": false,
+    "usesMouseUniforms": false,
+    "usesRadialPulseSpawnUniformPass": false,
+    "usesRadialPulseVirtualDrive": false,
+    "usesResolutionUniform": false,
+    "usesTimelineTime": false,
+    "usesWallTime": true,
+  },
+}
+`;
+
 exports[`WGSL MVP compile snapshots > matches snapshot for mvpColorGrading 1`] = `
 {
   "code": "
@@ -2980,6 +3769,438 @@ fn fs(in : VsOut) -> @location(0) vec4<f32> {
     "usesResolutionUniform": false,
     "usesTimelineTime": false,
     "usesWallTime": false,
+  },
+}
+`;
+
+exports[`WGSL MVP compile snapshots > matches snapshot for mvpColorLutViridis 1`] = `
+{
+  "code": "
+struct Globals {
+  v0 : vec4<f32>,
+  v1 : vec4<f32>,
+}
+
+@group(0) @binding(0) var<uniform> globals : Globals;
+@group(0) @binding(1) var<storage, read> params : array<vec4<f32>>;
+
+struct VsOut {
+  @builtin(position) pos : vec4<f32>,
+  @location(0) uv : vec2<f32>,
+}
+
+@vertex
+fn vs(@builtin(vertex_index) vid : u32) -> VsOut {
+  var p = array<vec2<f32>, 3>(
+    vec2<f32>(-1.0, -1.0),
+    vec2<f32>( 3.0, -1.0),
+    vec2<f32>(-1.0,  3.0)
+  );
+  var o : VsOut;
+  o.pos = vec4<f32>(p[vid], 0.0, 1.0);
+  o.uv = (o.pos.xy * 0.5) + vec2<f32>(0.5, 0.5);
+  return o;
+}
+
+const cr_lut_tables_p0: array<f32, 768> = array<f32, 768>(
+  0.266667f, 0.003922f, 0.329412f, 0.267647f, 0.009559f, 0.334804f,
+  0.268627f, 0.015196f, 0.340196f, 0.269608f, 0.020833f, 0.345588f,
+  0.270588f, 0.026471f, 0.350980f, 0.271569f, 0.032108f, 0.356373f,
+  0.272549f, 0.037745f, 0.361765f, 0.273529f, 0.043382f, 0.367157f,
+  0.274510f, 0.049020f, 0.372549f, 0.275490f, 0.054657f, 0.377941f,
+  0.276471f, 0.060294f, 0.383333f, 0.277451f, 0.065931f, 0.388725f,
+  0.278431f, 0.071569f, 0.394118f, 0.279412f, 0.077206f, 0.399510f,
+  0.280392f, 0.082843f, 0.404902f, 0.281373f, 0.088480f, 0.410294f,
+  0.282353f, 0.094118f, 0.415686f, 0.282108f, 0.099265f, 0.419853f,
+  0.281863f, 0.104412f, 0.424020f, 0.281618f, 0.109559f, 0.428186f,
+  0.281373f, 0.114706f, 0.432353f, 0.281127f, 0.119853f, 0.436520f,
+  0.280882f, 0.125000f, 0.440686f, 0.280637f, 0.130147f, 0.444853f,
+  0.280392f, 0.135294f, 0.449020f, 0.280147f, 0.140441f, 0.453186f,
+  0.279902f, 0.145588f, 0.457353f, 0.279657f, 0.150735f, 0.461520f,
+  0.279412f, 0.155882f, 0.465686f, 0.279167f, 0.161029f, 0.469853f,
+  0.278922f, 0.166176f, 0.474020f, 0.278676f, 0.171324f, 0.478186f,
+  0.278431f, 0.176471f, 0.482353f, 0.277206f, 0.181127f, 0.485049f,
+  0.275980f, 0.185784f, 0.487745f, 0.274755f, 0.190441f, 0.490441f,
+  0.273529f, 0.195098f, 0.493137f, 0.272304f, 0.199755f, 0.495833f,
+  0.271078f, 0.204412f, 0.498529f, 0.269853f, 0.209069f, 0.501225f,
+  0.268627f, 0.213725f, 0.503922f, 0.267402f, 0.218382f, 0.506618f,
+  0.266176f, 0.223039f, 0.509314f, 0.264951f, 0.227696f, 0.512010f,
+  0.263725f, 0.232353f, 0.514706f, 0.262500f, 0.237010f, 0.517402f,
+  0.261275f, 0.241667f, 0.520098f, 0.260049f, 0.246324f, 0.522794f,
+  0.258824f, 0.250980f, 0.525490f, 0.257108f, 0.255392f, 0.526716f,
+  0.255392f, 0.259804f, 0.527941f, 0.253676f, 0.264216f, 0.529167f,
+  0.251961f, 0.268627f, 0.530392f, 0.250245f, 0.273039f, 0.531618f,
+  0.248529f, 0.277451f, 0.532843f, 0.246814f, 0.281863f, 0.534069f,
+  0.245098f, 0.286275f, 0.535294f, 0.243382f, 0.290686f, 0.536520f,
+  0.241667f, 0.295098f, 0.537745f, 0.239951f, 0.299510f, 0.538971f,
+  0.238235f, 0.303922f, 0.540196f, 0.236520f, 0.308333f, 0.541422f,
+  0.234804f, 0.312745f, 0.542647f, 0.233088f, 0.317157f, 0.543873f,
+  0.231373f, 0.321569f, 0.545098f, 0.229412f, 0.325735f, 0.545588f,
+  0.227451f, 0.329902f, 0.546078f, 0.225490f, 0.334069f, 0.546569f,
+  0.223529f, 0.338235f, 0.547059f, 0.221569f, 0.342402f, 0.547549f,
+  0.219608f, 0.346569f, 0.548039f, 0.217647f, 0.350735f, 0.548529f,
+  0.215686f, 0.354902f, 0.549020f, 0.213725f, 0.359069f, 0.549510f,
+  0.211765f, 0.363235f, 0.550000f, 0.209804f, 0.367402f, 0.550490f,
+  0.207843f, 0.371569f, 0.550980f, 0.205882f, 0.375735f, 0.551471f,
+  0.203922f, 0.379902f, 0.551961f, 0.201961f, 0.384069f, 0.552451f,
+  0.200000f, 0.388235f, 0.552941f, 0.198284f, 0.391912f, 0.553186f,
+  0.196569f, 0.395588f, 0.553431f, 0.194853f, 0.399265f, 0.553676f,
+  0.193137f, 0.402941f, 0.553922f, 0.191422f, 0.406618f, 0.554167f,
+  0.189706f, 0.410294f, 0.554412f, 0.187990f, 0.413971f, 0.554657f,
+  0.186275f, 0.417647f, 0.554902f, 0.184559f, 0.421324f, 0.555147f,
+  0.182843f, 0.425000f, 0.555392f, 0.181127f, 0.428676f, 0.555637f,
+  0.179412f, 0.432353f, 0.555882f, 0.177696f, 0.436029f, 0.556127f,
+  0.175980f, 0.439706f, 0.556373f, 0.174265f, 0.443382f, 0.556618f,
+  0.172549f, 0.447059f, 0.556863f, 0.171078f, 0.450980f, 0.556863f,
+  0.169608f, 0.454902f, 0.556863f, 0.168137f, 0.458824f, 0.556863f,
+  0.166667f, 0.462745f, 0.556863f, 0.165196f, 0.466667f, 0.556863f,
+  0.163725f, 0.470588f, 0.556863f, 0.162255f, 0.474510f, 0.556863f,
+  0.160784f, 0.478431f, 0.556863f, 0.159314f, 0.482353f, 0.556863f,
+  0.157843f, 0.486275f, 0.556863f, 0.156373f, 0.490196f, 0.556863f,
+  0.154902f, 0.494118f, 0.556863f, 0.153431f, 0.498039f, 0.556863f,
+  0.151961f, 0.501961f, 0.556863f, 0.150490f, 0.505882f, 0.556863f,
+  0.149020f, 0.509804f, 0.556863f, 0.147794f, 0.513480f, 0.556373f,
+  0.146569f, 0.517157f, 0.555882f, 0.145343f, 0.520833f, 0.555392f,
+  0.144118f, 0.524510f, 0.554902f, 0.142892f, 0.528186f, 0.554412f,
+  0.141667f, 0.531863f, 0.553922f, 0.140441f, 0.535539f, 0.553431f,
+  0.139216f, 0.539216f, 0.552941f, 0.137990f, 0.542892f, 0.552451f,
+  0.136765f, 0.546569f, 0.551961f, 0.135539f, 0.550245f, 0.551471f,
+  0.134314f, 0.553922f, 0.550980f, 0.133088f, 0.557598f, 0.550490f,
+  0.131863f, 0.561275f, 0.550000f, 0.130637f, 0.564951f, 0.549510f,
+  0.129412f, 0.568627f, 0.549020f, 0.128922f, 0.572304f, 0.548039f,
+  0.128431f, 0.575980f, 0.547059f, 0.127941f, 0.579657f, 0.546078f,
+  0.127451f, 0.583333f, 0.545098f, 0.126961f, 0.587010f, 0.544118f,
+  0.126471f, 0.590686f, 0.543137f, 0.125980f, 0.594363f, 0.542157f,
+  0.125490f, 0.598039f, 0.541176f, 0.125000f, 0.601716f, 0.540196f,
+  0.124510f, 0.605392f, 0.539216f, 0.124020f, 0.609069f, 0.538235f,
+  0.123529f, 0.612745f, 0.537255f, 0.123039f, 0.616422f, 0.536275f,
+  0.122549f, 0.620098f, 0.535294f, 0.122059f, 0.623775f, 0.534314f,
+  0.121569f, 0.627451f, 0.533333f, 0.123775f, 0.630882f, 0.531373f,
+  0.125980f, 0.634314f, 0.529412f, 0.128186f, 0.637745f, 0.527451f,
+  0.130392f, 0.641176f, 0.525490f, 0.132598f, 0.644608f, 0.523529f,
+  0.134804f, 0.648039f, 0.521569f, 0.137010f, 0.651471f, 0.519608f,
+  0.139216f, 0.654902f, 0.517647f, 0.141422f, 0.658333f, 0.515686f,
+  0.143627f, 0.661765f, 0.513725f, 0.145833f, 0.665196f, 0.511765f,
+  0.148039f, 0.668627f, 0.509804f, 0.150245f, 0.672059f, 0.507843f,
+  0.152451f, 0.675490f, 0.505882f, 0.154657f, 0.678922f, 0.503922f,
+  0.156863f, 0.682353f, 0.501961f, 0.162500f, 0.685784f, 0.498775f,
+  0.168137f, 0.689216f, 0.495588f, 0.173775f, 0.692647f, 0.492402f,
+  0.179412f, 0.696078f, 0.489216f, 0.185049f, 0.699510f, 0.486029f,
+  0.190686f, 0.702941f, 0.482843f, 0.196324f, 0.706373f, 0.479657f,
+  0.201961f, 0.709804f, 0.476471f, 0.207598f, 0.713235f, 0.473284f,
+  0.213235f, 0.716667f, 0.470098f, 0.218873f, 0.720098f, 0.466912f,
+  0.224510f, 0.723529f, 0.463725f, 0.230147f, 0.726961f, 0.460539f,
+  0.235784f, 0.730392f, 0.457353f, 0.241422f, 0.733824f, 0.454167f,
+  0.247059f, 0.737255f, 0.450980f, 0.254657f, 0.740441f, 0.446814f,
+  0.262255f, 0.743627f, 0.442647f, 0.269853f, 0.746814f, 0.438480f,
+  0.277451f, 0.750000f, 0.434314f, 0.285049f, 0.753186f, 0.430147f,
+  0.292647f, 0.756373f, 0.425980f, 0.300245f, 0.759559f, 0.421814f,
+  0.307843f, 0.762745f, 0.417647f, 0.315441f, 0.765931f, 0.413480f,
+  0.323039f, 0.769118f, 0.409314f, 0.330637f, 0.772304f, 0.405147f,
+  0.338235f, 0.775490f, 0.400980f, 0.345833f, 0.778676f, 0.396814f,
+  0.353431f, 0.781863f, 0.392647f, 0.361029f, 0.785049f, 0.388480f,
+  0.368627f, 0.788235f, 0.384314f, 0.377941f, 0.790931f, 0.378676f,
+  0.387255f, 0.793627f, 0.373039f, 0.396569f, 0.796324f, 0.367402f,
+  0.405882f, 0.799020f, 0.361765f, 0.415196f, 0.801716f, 0.356127f,
+  0.424510f, 0.804412f, 0.350490f, 0.433824f, 0.807108f, 0.344853f,
+  0.443137f, 0.809804f, 0.339216f, 0.452451f, 0.812500f, 0.333578f,
+  0.461765f, 0.815196f, 0.327941f, 0.471078f, 0.817892f, 0.322304f,
+  0.480392f, 0.820588f, 0.316667f, 0.489706f, 0.823284f, 0.311029f,
+  0.499020f, 0.825980f, 0.305392f, 0.508333f, 0.828676f, 0.299755f,
+  0.517647f, 0.831373f, 0.294118f, 0.527696f, 0.833333f, 0.287500f,
+  0.537745f, 0.835294f, 0.280882f, 0.547794f, 0.837255f, 0.274265f,
+  0.557843f, 0.839216f, 0.267647f, 0.567892f, 0.841176f, 0.261029f,
+  0.577941f, 0.843137f, 0.254412f, 0.587990f, 0.845098f, 0.247794f,
+  0.598039f, 0.847059f, 0.241176f, 0.608088f, 0.849020f, 0.234559f,
+  0.618137f, 0.850980f, 0.227941f, 0.628186f, 0.852941f, 0.221324f,
+  0.638235f, 0.854902f, 0.214706f, 0.648284f, 0.856863f, 0.208088f,
+  0.658333f, 0.858824f, 0.201471f, 0.668382f, 0.860784f, 0.194853f,
+  0.678431f, 0.862745f, 0.188235f, 0.688971f, 0.864216f, 0.182598f,
+  0.699510f, 0.865686f, 0.176961f, 0.710049f, 0.867157f, 0.171324f,
+  0.720588f, 0.868627f, 0.165686f, 0.731127f, 0.870098f, 0.160049f,
+  0.741667f, 0.871569f, 0.154412f, 0.752206f, 0.873039f, 0.148775f,
+  0.762745f, 0.874510f, 0.143137f, 0.773284f, 0.875980f, 0.137500f,
+  0.783824f, 0.877451f, 0.131863f, 0.794363f, 0.878922f, 0.126225f,
+  0.804902f, 0.880392f, 0.120588f, 0.815441f, 0.881863f, 0.114951f,
+  0.825980f, 0.883333f, 0.109314f, 0.836520f, 0.884804f, 0.103676f,
+  0.847059f, 0.886275f, 0.098039f, 0.856732f, 0.887582f, 0.101176f,
+  0.866405f, 0.888889f, 0.104314f, 0.876078f, 0.890196f, 0.107451f,
+  0.885752f, 0.891503f, 0.110588f, 0.895425f, 0.892810f, 0.113725f,
+  0.905098f, 0.894118f, 0.116863f, 0.914771f, 0.895425f, 0.120000f,
+  0.924444f, 0.896732f, 0.123137f, 0.934118f, 0.898039f, 0.126275f,
+  0.943791f, 0.899346f, 0.129412f, 0.953464f, 0.900654f, 0.132549f,
+  0.963137f, 0.901961f, 0.135686f, 0.972810f, 0.903268f, 0.138824f,
+  0.982484f, 0.904575f, 0.141961f, 0.992157f, 0.905882f, 0.145098f
+);
+
+
+
+fn cr_apply_lut_t(t: f32, reverse: f32, gamma: f32, contrast: f32) -> f32 {
+
+  var u = clamp(t, 0.0, 1.0);
+
+  if (reverse > 0.5) { u = 1.0 - u; }
+
+  if (abs(gamma - 1.0) > 0.0001) { u = pow(u, gamma); }
+
+  u = (u - 0.5) * contrast + 0.5;
+
+  return clamp(u, 0.0, 1.0);
+
+}
+
+
+
+fn cr_apply_intensity(rgb: vec3<f32>, intensity: f32) -> vec3<f32> {
+
+  return clamp(rgb * intensity, vec3<f32>(0.0), vec3<f32>(1.0));
+
+}
+
+
+
+fn cr_sample_lut_p0(t: f32) -> vec3<f32> {
+
+  let u = clamp(t, 0.0, 1.0);
+
+  let ft = u * 255.0;
+
+  let i0 = i32(floor(ft));
+
+  let i1 = min(i0 + 1, 255);
+
+  let f = fract(ft);
+
+  let o0 = i0 * 3;
+
+  let o1 = i1 * 3;
+
+  let c0 = vec3<f32>(cr_lut_tables_p0[o0], cr_lut_tables_p0[o0 + 1], cr_lut_tables_p0[o0 + 2]);
+
+  let c1 = vec3<f32>(cr_lut_tables_p0[o1], cr_lut_tables_p0[o1 + 1], cr_lut_tables_p0[o1 + 2]);
+
+  return mix(c0, c1, f);
+
+}
+
+fn noise_hash(n: f32) -> f32 {
+  return fract(sin(n) * 43758.5453);
+}
+
+fn noise_hash3(v: vec3<f32>) -> vec3<f32> {
+  let p = vec3<f32>(
+    dot(v, vec3<f32>(127.1, 311.7, 74.7)),
+    dot(v, vec3<f32>(269.5, 183.3, 246.1)),
+    dot(v, vec3<f32>(113.5, 271.9, 124.6))
+  );
+  return fract(sin(p) * 43758.5453);
+}
+
+// ----- Simplex 2D -----
+fn noise_simplex2d(v: vec2<f32>, time: f32) -> f32 {
+  let C = vec4<f32>(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
+  var i = floor(v + dot(v, C.yy));
+  let x0 = v - i + dot(i, C.xx);
+  let i1 = select(vec2<f32>(0.0, 1.0), vec2<f32>(1.0, 0.0), x0.x > x0.y);
+  var x12 = vec4<f32>(x0.x, x0.y, x0.x, x0.y) + C.xxzz;
+  x12.x = x12.x - i1.x;
+  x12.y = x12.y - i1.y;
+  i = i - 289.0 * floor(i / 289.0);
+
+  var p = noise_hash3(vec3<f32>(i.x, i.y, time));
+  p = p - 289.0 * floor(p / 289.0);
+  var m = max(0.5 - vec3<f32>(dot(x0, x0), dot(x12.xy, x12.xy), dot(x12.zw, x12.zw)), vec3<f32>(0.0));
+  m = m * m;
+  m = m * m;
+  let x = 2.0 * fract(p * C.www) - 1.0;
+  let h = abs(x) - 0.5;
+  let ox = floor(x + 0.5);
+  let a0 = x - ox;
+  m = m * (1.79284291400159 - 0.85373472095314 * (a0 * a0 + h * h));
+
+  var g = vec3<f32>(0.0);
+  g.x = a0.x * x0.x + h.x * x0.y;
+  g.y = a0.y * x12.x + h.y * x12.y;
+  g.z = a0.z * x12.z + h.z * x12.w;
+  return 130.0 * dot(m, g);
+}
+
+fn noise_simplex2d_fbm(p: vec2<f32>, time: f32, octaves: i32, lacunarity: f32, gain: f32) -> f32 {
+  var value = 0.0;
+  var amplitude = 0.5;
+  var frequency = 1.0;
+  for (var i = 0; i < 10; i = i + 1) {
+    if (i >= octaves) { break; }
+    let octaveTime = time * (0.5 + f32(i) * 0.2);
+    value = value + amplitude * noise_simplex2d(p * frequency + vec2<f32>(octaveTime * 0.1, octaveTime * 0.15), octaveTime);
+    frequency = frequency * lacunarity;
+    amplitude = amplitude * gain;
+  }
+  return value;
+}
+
+// ----- Simplex 3D -----
+fn noise_mod289_3d3(x: vec3<f32>) -> vec3<f32> {
+  return x - floor(x * (1.0 / 289.0)) * 289.0;
+}
+
+fn noise_mod289_3d4(x: vec4<f32>) -> vec4<f32> {
+  return x - floor(x * (1.0 / 289.0)) * 289.0;
+}
+
+fn noise_permute_3d(x: vec4<f32>) -> vec4<f32> {
+  return noise_mod289_3d4(((x * 34.0) + 1.0) * x);
+}
+
+fn noise_taylorInvSqrt_3d(r: vec4<f32>) -> vec4<f32> {
+  return 1.79284291400159 - 0.85373472095314 * r;
+}
+
+fn noise_simplex3d(v: vec3<f32>) -> f32 {
+  let C = vec2<f32>(1.0 / 6.0, 1.0 / 3.0);
+  let D = vec4<f32>(0.0, 0.5, 1.0, 2.0);
+
+  var i = floor(v + dot(v, C.yyy));
+  let x0 = v - i + dot(i, C.xxx);
+
+  let g = step(x0.yzx, x0.xyz);
+  let l = 1.0 - g;
+  let i1 = min(g.xyz, l.zxy);
+  let i2 = max(g.xyz, l.zxy);
+
+  let x1 = x0 - i1 + C.xxx;
+  let x2 = x0 - i2 + C.yyy;
+  let x3 = x0 - D.yyy;
+
+  i = noise_mod289_3d3(i);
+
+  let p = noise_permute_3d(
+    noise_permute_3d(
+      noise_permute_3d(i.z + vec4<f32>(0.0, i1.z, i2.z, 1.0)) +
+      i.y + vec4<f32>(0.0, i1.y, i2.y, 1.0)
+    ) +
+    i.x + vec4<f32>(0.0, i1.x, i2.x, 1.0)
+  );
+
+  let n_ = 0.142857142857;
+  let ns = n_ * D.wyz - D.xzx;
+
+  let j = p - 49.0 * floor(p * ns.z * ns.z);
+  let x_ = floor(j * ns.z);
+  let y_ = floor(j - 7.0 * x_);
+
+  let x = x_ * ns.x + ns.yyyy;
+  let y = y_ * ns.x + ns.yyyy;
+  let h = 1.0 - abs(x) - abs(y);
+
+  let b0 = vec4<f32>(x.xy, y.xy);
+  let b1 = vec4<f32>(x.zw, y.zw);
+
+  let s0 = floor(b0) * 2.0 + 1.0;
+  let s1 = floor(b1) * 2.0 + 1.0;
+  let sh = -step(h, vec4<f32>(0.0));
+
+  let a0 = vec4<f32>(b0.x, b0.z, b0.y, b0.w) + vec4<f32>(s0.x, s0.z, s0.y, s0.w) * vec4<f32>(sh.x, sh.x, sh.y, sh.y);
+  let a1 = vec4<f32>(b1.x, b1.z, b1.y, b1.w) + vec4<f32>(s1.x, s1.z, s1.y, s1.w) * vec4<f32>(sh.z, sh.z, sh.w, sh.w);
+
+  var p0 = vec3<f32>(a0.x, a0.y, h.x);
+  var p1 = vec3<f32>(a0.z, a0.w, h.y);
+  var p2 = vec3<f32>(a1.x, a1.y, h.z);
+  var p3 = vec3<f32>(a1.z, a1.w, h.w);
+
+  let norm = noise_taylorInvSqrt_3d(vec4<f32>(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3)));
+  p0 = p0 * norm.x;
+  p1 = p1 * norm.y;
+  p2 = p2 * norm.z;
+  p3 = p3 * norm.w;
+
+  var m = max(0.6 - vec4<f32>(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3)), vec4<f32>(0.0));
+  m = m * m;
+  return 42.0 * dot(m * m, vec4<f32>(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3)));
+}
+
+fn noise_simplex3d_fbm(p: vec3<f32>, octaves: i32, lacunarity: f32, gain: f32) -> f32 {
+  var value = 0.0;
+  var amplitude = 0.5;
+  var frequency = 1.0;
+  for (var i = 0; i < 10; i = i + 1) {
+    if (i >= octaves) { break; }
+    value = value + amplitude * noise_simplex3d(p * frequency);
+    frequency = frequency * lacunarity;
+    amplitude = amplitude * gain;
+  }
+  return value;
+}
+
+// ----- Value fBm -----
+fn noise_hash11(n: f32) -> f32 {
+  return fract(sin(n) * 43758.5453);
+}
+
+fn noise_vnoise(p: vec3<f32>) -> f32 {
+  let ip = floor(p);
+  let fp = fract(p);
+  let n000 = noise_hash11(dot(ip + vec3<f32>(0.0, 0.0, 0.0), vec3<f32>(1.0, 57.0, 113.0)));
+  let n100 = noise_hash11(dot(ip + vec3<f32>(1.0, 0.0, 0.0), vec3<f32>(1.0, 57.0, 113.0)));
+  let n010 = noise_hash11(dot(ip + vec3<f32>(0.0, 1.0, 0.0), vec3<f32>(1.0, 57.0, 113.0)));
+  let n110 = noise_hash11(dot(ip + vec3<f32>(1.0, 1.0, 0.0), vec3<f32>(1.0, 57.0, 113.0)));
+  let n001 = noise_hash11(dot(ip + vec3<f32>(0.0, 0.0, 1.0), vec3<f32>(1.0, 57.0, 113.0)));
+  let n101 = noise_hash11(dot(ip + vec3<f32>(1.0, 0.0, 1.0), vec3<f32>(1.0, 57.0, 113.0)));
+  let n011 = noise_hash11(dot(ip + vec3<f32>(0.0, 1.0, 1.0), vec3<f32>(1.0, 57.0, 113.0)));
+  let n111 = noise_hash11(dot(ip + vec3<f32>(1.0, 1.0, 1.0), vec3<f32>(1.0, 57.0, 113.0)));
+  let w = fp * fp * fp * (fp * (fp * 6.0 - 15.0) + 10.0);
+  let x00 = mix(n000, n100, w.x);
+  let x10 = mix(n010, n110, w.x);
+  let x01 = mix(n001, n101, w.x);
+  let x11 = mix(n011, n111, w.x);
+  let y0 = mix(x00, x10, w.y);
+  let y1 = mix(x01, x11, w.y);
+  return mix(y0, y1, w.z) * 2.0 - 1.0;
+}
+
+fn noise_value_fbm(uv: vec2<f32>, t: f32, scale: f32, octaves: i32, lacunarity: f32, gain: f32) -> f32 {
+  let p = vec3<f32>(uv * scale, t);
+  var amp = 1.0;
+  var freq = 1.0;
+  var sum = 0.0;
+  for (var i = 0; i < 10; i = i + 1) {
+    if (i >= octaves) { break; }
+    sum = sum + amp * noise_vnoise(p * freq);
+    freq = freq * lacunarity;
+    amp = amp * gain;
+  }
+  return sum * 0.5 + 0.5;
+}
+@fragment
+fn fs(in : VsOut) -> @location(0) vec4<f32> {
+  return vec4<f32>(cr_apply_intensity(cr_sample_lut_p0(cr_apply_lut_t(clamp(select((noise_value_fbm((((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)) - vec2<f32>(0.5, 0.5)) * vec2<f32>((globals.v0.z / globals.v0.w), 1.0), (globals.v0.x + params[11].x) * params[12].x, params[10].x, i32(clamp(params[9].x, 1.0, 10.0) + 0.5), params[7].x, params[5].x) * params[6].x), select((clamp(noise_simplex3d_fbm(vec3<f32>((((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0))).x * params[10].x, (((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0))).y * params[10].x, ((globals.v0.x + params[11].x) * params[12].x * params[10].x)), i32(clamp(params[9].x, 1.0, 10.0) + 0.5), params[7].x, params[5].x) * 0.5 + 0.5, 0.0, 1.0) * params[6].x), (noise_simplex2d_fbm(((in.uv * 2.0 - vec2<f32>(1.0, 1.0)) * vec2<f32>((globals.v0.z / max(1.0, globals.v0.w)), 1.0)) * params[10].x, (globals.v0.x + params[11].x) * params[12].x, i32(clamp(params[9].x, 1.0, 10.0) + 0.5), params[7].x, params[5].x) * params[6].x), (params[8].x < 0.5)), (params[8].x >= 0.5 && params[8].x < 1.5)), 0.0, 1.0), params[4].x, params[1].x, (params[0].x + 1.0))), params[2].x), 1.0);
+}
+",
+  "fixtureId": "mvpColorLutViridis",
+  "paramLayout": {
+    "n-lut.contrast": 0,
+    "n-lut.gamma": 1,
+    "n-lut.intensity": 2,
+    "n-lut.preset": 3,
+    "n-lut.reverse": 4,
+    "n-noise.noiseGain": 5,
+    "n-noise.noiseIntensity": 6,
+    "n-noise.noiseLacunarity": 7,
+    "n-noise.noiseMode": 8,
+    "n-noise.noiseOctaves": 9,
+    "n-noise.noiseScale": 10,
+    "n-noise.noiseTimeOffset": 11,
+    "n-noise.noiseTimeSpeed": 12,
+  },
+  "previewDependencies": {
+    "usesAudioUniforms": false,
+    "usesFrameIndex": false,
+    "usesMouseUniforms": false,
+    "usesRadialPulseSpawnUniformPass": false,
+    "usesRadialPulseVirtualDrive": false,
+    "usesResolutionUniform": false,
+    "usesTimelineTime": false,
+    "usesWallTime": true,
   },
 }
 `;
@@ -9806,54 +11027,65 @@ fn interpolateHue(startH: f32, endH: f32, t: f32, reverseHue: f32) -> f32 {
   return h;
 }
 
+fn generateColorStop(t: f32, startColor: vec3<f32>, endColor: vec3<f32>, lCurve: vec4<f32>, cCurve: vec4<f32>, hCurve: vec4<f32>, reverseHue: f32) -> vec3<f32> {
+  let lT = cubicBezier(t, lCurve);
+  let cT = cubicBezier(t, cCurve);
+  let hT = cubicBezier(t, hCurve);
+  let l = mix(startColor.x, endColor.x, lT);
+  let c = mix(startColor.y, endColor.y, cT);
+  let h = interpolateHue(startColor.z, endColor.z, hT, reverseHue);
+  return vec3<f32>(l, c, h);
+}
+
+fn bayer2(aIn: vec2<f32>) -> f32 {
+  let a = floor(aIn);
+  return fract(a.x / 2.0 + a.y * a.y * 0.75);
+}
+
+fn bayer4(a: vec2<f32>) -> f32 {
+  return bayer2(0.5 * a) * 0.25 + bayer2(a);
+}
+
+fn bayer8(a: vec2<f32>) -> f32 {
+  return bayer4(0.5 * a) * 0.25 + bayer2(a);
+}
+
 fn wgslMod(a: f32, b: f32) -> f32 {
   return a - b * floor(a / b);
 }
 @fragment
 fn fs(in : VsOut) -> @location(0) vec4<f32> {
-  return vec4<f32>(oklchToRgb(vec3<f32>(mix((vec3<f32>(params[36].x, params[34].x, params[35].x)).x, (vec3<f32>(params[6].x, params[4].x, params[5].x)).x, cubicBezier(clamp(params[37].x, 0.0, 1.0), vec4<f32>(params[11].x, params[13].x, params[12].x, params[14].x))), mix((vec3<f32>(params[36].x, params[34].x, params[35].x)).y, (vec3<f32>(params[6].x, params[4].x, params[5].x)).y, cubicBezier(clamp(params[37].x, 0.0, 1.0), vec4<f32>(params[0].x, params[2].x, params[1].x, params[3].x))), interpolateHue((vec3<f32>(params[36].x, params[34].x, params[35].x)).z, (vec3<f32>(params[6].x, params[4].x, params[5].x)).z, cubicBezier(clamp(params[37].x, 0.0, 1.0), vec4<f32>(params[7].x, params[9].x, params[8].x, params[10].x)), params[30].x))), 1.0);
+  return vec4<f32>(select(oklchToRgb(vec3<f32>(mix((select(vec3<f32>(params[21].x, params[19].x, params[20].x), vec3<f32>(params[7].x, params[5].x, params[6].x), params[23].x > 0.5)).x, (select(vec3<f32>(params[7].x, params[5].x, params[6].x), vec3<f32>(params[21].x, params[19].x, params[20].x), params[23].x > 0.5)).x, cubicBezier(clamp(params[25].x, 0.0, 1.0), vec4<f32>(params[12].x, params[14].x, params[13].x, params[15].x))), mix((select(vec3<f32>(params[21].x, params[19].x, params[20].x), vec3<f32>(params[7].x, params[5].x, params[6].x), params[23].x > 0.5)).y, (select(vec3<f32>(params[7].x, params[5].x, params[6].x), vec3<f32>(params[21].x, params[19].x, params[20].x), params[23].x > 0.5)).y, cubicBezier(clamp(params[25].x, 0.0, 1.0), vec4<f32>(params[0].x, params[2].x, params[1].x, params[3].x))), interpolateHue((select(vec3<f32>(params[21].x, params[19].x, params[20].x), vec3<f32>(params[7].x, params[5].x, params[6].x), params[23].x > 0.5)).z, (select(vec3<f32>(params[7].x, params[5].x, params[6].x), vec3<f32>(params[21].x, params[19].x, params[20].x), params[23].x > 0.5)).z, cubicBezier(clamp(params[25].x, 0.0, 1.0), vec4<f32>(params[8].x, params[10].x, params[9].x, params[11].x)), params[18].x))), mix(oklchToRgb(generateColorStop((f32(clamp(i32(floor((clamp(clamp(params[25].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)) / f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)), select(vec3<f32>(params[21].x, params[19].x, params[20].x), vec3<f32>(params[7].x, params[5].x, params[6].x), params[23].x > 0.5), select(vec3<f32>(params[7].x, params[5].x, params[6].x), vec3<f32>(params[21].x, params[19].x, params[20].x), params[23].x > 0.5), vec4<f32>(params[12].x, params[14].x, params[13].x, params[15].x), vec4<f32>(params[0].x, params[2].x, params[1].x, params[3].x), vec4<f32>(params[8].x, params[10].x, params[9].x, params[11].x), params[18].x)), oklchToRgb(generateColorStop((f32(clamp(min(clamp(i32(floor((clamp(clamp(params[25].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1) + 1, i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1), 0, i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)) / f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)), select(vec3<f32>(params[21].x, params[19].x, params[20].x), vec3<f32>(params[7].x, params[5].x, params[6].x), params[23].x > 0.5), select(vec3<f32>(params[7].x, params[5].x, params[6].x), vec3<f32>(params[21].x, params[19].x, params[20].x), params[23].x > 0.5), vec4<f32>(params[12].x, params[14].x, params[13].x, params[15].x), vec4<f32>(params[0].x, params[2].x, params[1].x, params[3].x), vec4<f32>(params[8].x, params[10].x, params[9].x, params[11].x), params[18].x)), select(0.0, smoothstep(clamp((f32(clamp(i32(floor((clamp(clamp(params[25].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1) + 1) / f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5)) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)) * 0.05), 0.0, 1.0) - select(0.005, params[24].x, params[24].x > 0.0), clamp((f32(clamp(i32(floor((clamp(clamp(params[25].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1) + 1) / f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5)) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)) * 0.05), 0.0, 1.0) + select(0.005, params[24].x, params[24].x > 0.0), clamp(clamp(params[25].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)), 0.0, 1.0)), (clamp(i32(floor((clamp(clamp(params[25].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1) < (i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)))), params[16].x > 0.5), 1.0);
 }
 ",
   "fixtureId": "mvpOklchColorMapBezier",
   "paramLayout": {
-    "n-c.x1": 0,
-    "n-c.x2": 1,
-    "n-c.y1": 2,
-    "n-c.y2": 3,
-    "n-end.c": 4,
-    "n-end.h": 5,
-    "n-end.l": 6,
-    "n-h.x1": 7,
-    "n-h.x2": 8,
-    "n-h.y1": 9,
-    "n-h.y2": 10,
-    "n-l.x1": 11,
-    "n-l.x2": 12,
-    "n-l.y1": 13,
-    "n-l.y2": 14,
-    "n-map.cCurveX1": 15,
-    "n-map.cCurveX2": 16,
-    "n-map.cCurveY1": 17,
-    "n-map.cCurveY2": 18,
-    "n-map.endColorC": 19,
-    "n-map.endColorH": 20,
-    "n-map.endColorL": 21,
-    "n-map.hCurveX1": 22,
-    "n-map.hCurveX2": 23,
-    "n-map.hCurveY1": 24,
-    "n-map.hCurveY2": 25,
-    "n-map.lCurveX1": 26,
-    "n-map.lCurveX2": 27,
-    "n-map.lCurveY1": 28,
-    "n-map.lCurveY2": 29,
-    "n-map.reverseHue": 30,
-    "n-map.startColorC": 31,
-    "n-map.startColorH": 32,
-    "n-map.startColorL": 33,
-    "n-start.c": 34,
-    "n-start.h": 35,
-    "n-start.l": 36,
-    "n-v.value": 37,
+    "n-map.cCurveX1": 0,
+    "n-map.cCurveX2": 1,
+    "n-map.cCurveY1": 2,
+    "n-map.cCurveY2": 3,
+    "n-map.ditherStrength": 4,
+    "n-map.endColorC": 5,
+    "n-map.endColorH": 6,
+    "n-map.endColorL": 7,
+    "n-map.hCurveX1": 8,
+    "n-map.hCurveX2": 9,
+    "n-map.hCurveY1": 10,
+    "n-map.hCurveY2": 11,
+    "n-map.lCurveX1": 12,
+    "n-map.lCurveX2": 13,
+    "n-map.lCurveY1": 14,
+    "n-map.lCurveY2": 15,
+    "n-map.mapMode": 16,
+    "n-map.pixelSize": 17,
+    "n-map.reverseHue": 18,
+    "n-map.startColorC": 19,
+    "n-map.startColorH": 20,
+    "n-map.startColorL": 21,
+    "n-map.stops": 22,
+    "n-map.swapColors": 23,
+    "n-map.transitionWidth": 24,
+    "n-v.value": 25,
   },
   "previewDependencies": {
     "usesAudioUniforms": false,
@@ -9944,48 +11176,65 @@ fn interpolateHue(startH: f32, endH: f32, t: f32, reverseHue: f32) -> f32 {
   return h;
 }
 
+fn generateColorStop(t: f32, startColor: vec3<f32>, endColor: vec3<f32>, lCurve: vec4<f32>, cCurve: vec4<f32>, hCurve: vec4<f32>, reverseHue: f32) -> vec3<f32> {
+  let lT = cubicBezier(t, lCurve);
+  let cT = cubicBezier(t, cCurve);
+  let hT = cubicBezier(t, hCurve);
+  let l = mix(startColor.x, endColor.x, lT);
+  let c = mix(startColor.y, endColor.y, cT);
+  let h = interpolateHue(startColor.z, endColor.z, hT, reverseHue);
+  return vec3<f32>(l, c, h);
+}
+
+fn bayer2(aIn: vec2<f32>) -> f32 {
+  let a = floor(aIn);
+  return fract(a.x / 2.0 + a.y * a.y * 0.75);
+}
+
+fn bayer4(a: vec2<f32>) -> f32 {
+  return bayer2(0.5 * a) * 0.25 + bayer2(a);
+}
+
+fn bayer8(a: vec2<f32>) -> f32 {
+  return bayer4(0.5 * a) * 0.25 + bayer2(a);
+}
+
 fn wgslMod(a: f32, b: f32) -> f32 {
   return a - b * floor(a / b);
 }
 @fragment
 fn fs(in : VsOut) -> @location(0) vec4<f32> {
-  return vec4<f32>(oklchToRgb(vec3<f32>(mix((vec3<f32>(params[30].x, params[28].x, params[29].x)).x, (vec3<f32>(params[18].x, params[16].x, params[17].x)).x, cubicBezier(clamp(params[31].x, 0.0, 1.0), vec4<f32>(params[8].x, params[10].x, params[9].x, params[11].x))), mix((vec3<f32>(params[30].x, params[28].x, params[29].x)).y, (vec3<f32>(params[18].x, params[16].x, params[17].x)).y, cubicBezier(clamp(params[31].x, 0.0, 1.0), vec4<f32>(params[0].x, params[2].x, params[1].x, params[3].x))), interpolateHue((vec3<f32>(params[30].x, params[28].x, params[29].x)).z, (vec3<f32>(params[18].x, params[16].x, params[17].x)).z, cubicBezier(clamp(params[31].x, 0.0, 1.0), vec4<f32>(params[4].x, params[6].x, params[5].x, params[7].x)), params[27].x))), 1.0);
+  return vec4<f32>(select(oklchToRgb(vec3<f32>(mix((select(vec3<f32>(params[21].x, params[19].x, params[20].x), vec3<f32>(params[7].x, params[5].x, params[6].x), params[23].x > 0.5)).x, (select(vec3<f32>(params[7].x, params[5].x, params[6].x), vec3<f32>(params[21].x, params[19].x, params[20].x), params[23].x > 0.5)).x, cubicBezier(clamp(params[25].x, 0.0, 1.0), vec4<f32>(params[12].x, params[14].x, params[13].x, params[15].x))), mix((select(vec3<f32>(params[21].x, params[19].x, params[20].x), vec3<f32>(params[7].x, params[5].x, params[6].x), params[23].x > 0.5)).y, (select(vec3<f32>(params[7].x, params[5].x, params[6].x), vec3<f32>(params[21].x, params[19].x, params[20].x), params[23].x > 0.5)).y, cubicBezier(clamp(params[25].x, 0.0, 1.0), vec4<f32>(params[0].x, params[2].x, params[1].x, params[3].x))), interpolateHue((select(vec3<f32>(params[21].x, params[19].x, params[20].x), vec3<f32>(params[7].x, params[5].x, params[6].x), params[23].x > 0.5)).z, (select(vec3<f32>(params[7].x, params[5].x, params[6].x), vec3<f32>(params[21].x, params[19].x, params[20].x), params[23].x > 0.5)).z, cubicBezier(clamp(params[25].x, 0.0, 1.0), vec4<f32>(params[8].x, params[10].x, params[9].x, params[11].x)), params[18].x))), mix(oklchToRgb(generateColorStop((f32(clamp(i32(floor((clamp(clamp(params[25].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)) / f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)), select(vec3<f32>(params[21].x, params[19].x, params[20].x), vec3<f32>(params[7].x, params[5].x, params[6].x), params[23].x > 0.5), select(vec3<f32>(params[7].x, params[5].x, params[6].x), vec3<f32>(params[21].x, params[19].x, params[20].x), params[23].x > 0.5), vec4<f32>(params[12].x, params[14].x, params[13].x, params[15].x), vec4<f32>(params[0].x, params[2].x, params[1].x, params[3].x), vec4<f32>(params[8].x, params[10].x, params[9].x, params[11].x), params[18].x)), oklchToRgb(generateColorStop((f32(clamp(min(clamp(i32(floor((clamp(clamp(params[25].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1) + 1, i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1), 0, i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)) / f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)), select(vec3<f32>(params[21].x, params[19].x, params[20].x), vec3<f32>(params[7].x, params[5].x, params[6].x), params[23].x > 0.5), select(vec3<f32>(params[7].x, params[5].x, params[6].x), vec3<f32>(params[21].x, params[19].x, params[20].x), params[23].x > 0.5), vec4<f32>(params[12].x, params[14].x, params[13].x, params[15].x), vec4<f32>(params[0].x, params[2].x, params[1].x, params[3].x), vec4<f32>(params[8].x, params[10].x, params[9].x, params[11].x), params[18].x)), select(0.0, smoothstep(clamp((f32(clamp(i32(floor((clamp(clamp(params[25].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1) + 1) / f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5)) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)) * 0.05), 0.0, 1.0) - select(0.005, params[24].x, params[24].x > 0.0), clamp((f32(clamp(i32(floor((clamp(clamp(params[25].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1) + 1) / f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5)) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)) * 0.05), 0.0, 1.0) + select(0.005, params[24].x, params[24].x > 0.0), clamp(clamp(params[25].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)), 0.0, 1.0)), (clamp(i32(floor((clamp(clamp(params[25].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1) < (i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)))), params[16].x > 0.5), 1.0);
 }
 ",
   "fixtureId": "mvpOklchColorMapBezierSolid",
   "paramLayout": {
-    "n-c.x1": 0,
-    "n-c.x2": 1,
-    "n-c.y1": 2,
-    "n-c.y2": 3,
-    "n-h.x1": 4,
-    "n-h.x2": 5,
-    "n-h.y1": 6,
-    "n-h.y2": 7,
-    "n-l.x1": 8,
-    "n-l.x2": 9,
-    "n-l.y1": 10,
-    "n-l.y2": 11,
-    "n-map.cCurveX1": 12,
-    "n-map.cCurveX2": 13,
-    "n-map.cCurveY1": 14,
-    "n-map.cCurveY2": 15,
-    "n-map.endColorC": 16,
-    "n-map.endColorH": 17,
-    "n-map.endColorL": 18,
-    "n-map.hCurveX1": 19,
-    "n-map.hCurveX2": 20,
-    "n-map.hCurveY1": 21,
-    "n-map.hCurveY2": 22,
-    "n-map.lCurveX1": 23,
-    "n-map.lCurveX2": 24,
-    "n-map.lCurveY1": 25,
-    "n-map.lCurveY2": 26,
-    "n-map.reverseHue": 27,
-    "n-map.startColorC": 28,
-    "n-map.startColorH": 29,
-    "n-map.startColorL": 30,
-    "n-v.value": 31,
+    "n-map.cCurveX1": 0,
+    "n-map.cCurveX2": 1,
+    "n-map.cCurveY1": 2,
+    "n-map.cCurveY2": 3,
+    "n-map.ditherStrength": 4,
+    "n-map.endColorC": 5,
+    "n-map.endColorH": 6,
+    "n-map.endColorL": 7,
+    "n-map.hCurveX1": 8,
+    "n-map.hCurveX2": 9,
+    "n-map.hCurveY1": 10,
+    "n-map.hCurveY2": 11,
+    "n-map.lCurveX1": 12,
+    "n-map.lCurveX2": 13,
+    "n-map.lCurveY1": 14,
+    "n-map.lCurveY2": 15,
+    "n-map.mapMode": 16,
+    "n-map.pixelSize": 17,
+    "n-map.reverseHue": 18,
+    "n-map.startColorC": 19,
+    "n-map.startColorH": 20,
+    "n-map.startColorL": 21,
+    "n-map.stops": 22,
+    "n-map.swapColors": 23,
+    "n-map.transitionWidth": 24,
+    "n-v.value": 25,
   },
   "previewDependencies": {
     "usesAudioUniforms": false,
@@ -10104,53 +11353,37 @@ fn wgslMod(a: f32, b: f32) -> f32 {
 }
 @fragment
 fn fs(in : VsOut) -> @location(0) vec4<f32> {
-  return vec4<f32>(mix(oklchToRgb(generateColorStop((f32(clamp(i32(floor((clamp(clamp(params[41].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[31].x, 0.0001)) - 0.5) * params[19].x), (params[19].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[36].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[36].x, 2.0, 50.0) + 0.5) - 1)) / f32(i32(clamp(params[36].x, 2.0, 50.0) + 0.5) - 1)), vec3<f32>(params[35].x, params[33].x, params[34].x), vec3<f32>(params[22].x, params[20].x, params[21].x), vec4<f32>(params[11].x, params[13].x, params[12].x, params[14].x), vec4<f32>(params[0].x, params[2].x, params[1].x, params[3].x), vec4<f32>(params[7].x, params[9].x, params[8].x, params[10].x), params[32].x)), oklchToRgb(generateColorStop((f32(clamp(min(clamp(i32(floor((clamp(clamp(params[41].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[31].x, 0.0001)) - 0.5) * params[19].x), (params[19].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[36].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[36].x, 2.0, 50.0) + 0.5) - 1) + 1, i32(clamp(params[36].x, 2.0, 50.0) + 0.5) - 1), 0, i32(clamp(params[36].x, 2.0, 50.0) + 0.5) - 1)) / f32(i32(clamp(params[36].x, 2.0, 50.0) + 0.5) - 1)), vec3<f32>(params[35].x, params[33].x, params[34].x), vec3<f32>(params[22].x, params[20].x, params[21].x), vec4<f32>(params[11].x, params[13].x, params[12].x, params[14].x), vec4<f32>(params[0].x, params[2].x, params[1].x, params[3].x), vec4<f32>(params[7].x, params[9].x, params[8].x, params[10].x), params[32].x)), select(0.0, smoothstep(clamp((f32(clamp(i32(floor((clamp(clamp(params[41].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[31].x, 0.0001)) - 0.5) * params[19].x), (params[19].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[36].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[36].x, 2.0, 50.0) + 0.5) - 1) + 1) / f32(i32(clamp(params[36].x, 2.0, 50.0) + 0.5)) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[31].x, 0.0001)) - 0.5) * params[19].x), (params[19].x > 0.001)) * 0.05), 0.0, 1.0) - select(0.005, params[37].x, params[37].x > 0.0), clamp((f32(clamp(i32(floor((clamp(clamp(params[41].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[31].x, 0.0001)) - 0.5) * params[19].x), (params[19].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[36].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[36].x, 2.0, 50.0) + 0.5) - 1) + 1) / f32(i32(clamp(params[36].x, 2.0, 50.0) + 0.5)) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[31].x, 0.0001)) - 0.5) * params[19].x), (params[19].x > 0.001)) * 0.05), 0.0, 1.0) + select(0.005, params[37].x, params[37].x > 0.0), clamp(clamp(params[41].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[31].x, 0.0001)) - 0.5) * params[19].x), (params[19].x > 0.001)), 0.0, 1.0)), (clamp(i32(floor((clamp(clamp(params[41].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[31].x, 0.0001)) - 0.5) * params[19].x), (params[19].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[36].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[36].x, 2.0, 50.0) + 0.5) - 1) < (i32(clamp(params[36].x, 2.0, 50.0) + 0.5) - 1)))), 1.0);
+  return vec4<f32>(select(oklchToRgb(vec3<f32>(mix((select(vec3<f32>(params[21].x, params[19].x, params[20].x), vec3<f32>(params[7].x, params[5].x, params[6].x), params[23].x > 0.5)).x, (select(vec3<f32>(params[7].x, params[5].x, params[6].x), vec3<f32>(params[21].x, params[19].x, params[20].x), params[23].x > 0.5)).x, cubicBezier(clamp(params[25].x, 0.0, 1.0), vec4<f32>(params[12].x, params[14].x, params[13].x, params[15].x))), mix((select(vec3<f32>(params[21].x, params[19].x, params[20].x), vec3<f32>(params[7].x, params[5].x, params[6].x), params[23].x > 0.5)).y, (select(vec3<f32>(params[7].x, params[5].x, params[6].x), vec3<f32>(params[21].x, params[19].x, params[20].x), params[23].x > 0.5)).y, cubicBezier(clamp(params[25].x, 0.0, 1.0), vec4<f32>(params[0].x, params[2].x, params[1].x, params[3].x))), interpolateHue((select(vec3<f32>(params[21].x, params[19].x, params[20].x), vec3<f32>(params[7].x, params[5].x, params[6].x), params[23].x > 0.5)).z, (select(vec3<f32>(params[7].x, params[5].x, params[6].x), vec3<f32>(params[21].x, params[19].x, params[20].x), params[23].x > 0.5)).z, cubicBezier(clamp(params[25].x, 0.0, 1.0), vec4<f32>(params[8].x, params[10].x, params[9].x, params[11].x)), params[18].x))), mix(oklchToRgb(generateColorStop((f32(clamp(i32(floor((clamp(clamp(params[25].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)) / f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)), select(vec3<f32>(params[21].x, params[19].x, params[20].x), vec3<f32>(params[7].x, params[5].x, params[6].x), params[23].x > 0.5), select(vec3<f32>(params[7].x, params[5].x, params[6].x), vec3<f32>(params[21].x, params[19].x, params[20].x), params[23].x > 0.5), vec4<f32>(params[12].x, params[14].x, params[13].x, params[15].x), vec4<f32>(params[0].x, params[2].x, params[1].x, params[3].x), vec4<f32>(params[8].x, params[10].x, params[9].x, params[11].x), params[18].x)), oklchToRgb(generateColorStop((f32(clamp(min(clamp(i32(floor((clamp(clamp(params[25].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1) + 1, i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1), 0, i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)) / f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)), select(vec3<f32>(params[21].x, params[19].x, params[20].x), vec3<f32>(params[7].x, params[5].x, params[6].x), params[23].x > 0.5), select(vec3<f32>(params[7].x, params[5].x, params[6].x), vec3<f32>(params[21].x, params[19].x, params[20].x), params[23].x > 0.5), vec4<f32>(params[12].x, params[14].x, params[13].x, params[15].x), vec4<f32>(params[0].x, params[2].x, params[1].x, params[3].x), vec4<f32>(params[8].x, params[10].x, params[9].x, params[11].x), params[18].x)), select(0.0, smoothstep(clamp((f32(clamp(i32(floor((clamp(clamp(params[25].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1) + 1) / f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5)) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)) * 0.05), 0.0, 1.0) - select(0.005, params[24].x, params[24].x > 0.0), clamp((f32(clamp(i32(floor((clamp(clamp(params[25].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1) + 1) / f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5)) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)) * 0.05), 0.0, 1.0) + select(0.005, params[24].x, params[24].x > 0.0), clamp(clamp(params[25].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)), 0.0, 1.0)), (clamp(i32(floor((clamp(clamp(params[25].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1) < (i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)))), params[16].x > 0.5), 1.0);
 }
 ",
   "fixtureId": "mvpOklchColorMapThreshold",
   "paramLayout": {
-    "n-c.x1": 0,
-    "n-c.x2": 1,
-    "n-c.y1": 2,
-    "n-c.y2": 3,
-    "n-end.c": 4,
-    "n-end.h": 5,
-    "n-end.l": 6,
-    "n-h.x1": 7,
-    "n-h.x2": 8,
-    "n-h.y1": 9,
-    "n-h.y2": 10,
-    "n-l.x1": 11,
-    "n-l.x2": 12,
-    "n-l.y1": 13,
-    "n-l.y2": 14,
-    "n-map.cCurveX1": 15,
-    "n-map.cCurveX2": 16,
-    "n-map.cCurveY1": 17,
-    "n-map.cCurveY2": 18,
-    "n-map.ditherStrength": 19,
-    "n-map.endColorC": 20,
-    "n-map.endColorH": 21,
-    "n-map.endColorL": 22,
-    "n-map.hCurveX1": 23,
-    "n-map.hCurveX2": 24,
-    "n-map.hCurveY1": 25,
-    "n-map.hCurveY2": 26,
-    "n-map.lCurveX1": 27,
-    "n-map.lCurveX2": 28,
-    "n-map.lCurveY1": 29,
-    "n-map.lCurveY2": 30,
-    "n-map.pixelSize": 31,
-    "n-map.reverseHue": 32,
-    "n-map.startColorC": 33,
-    "n-map.startColorH": 34,
-    "n-map.startColorL": 35,
-    "n-map.stops": 36,
-    "n-map.transitionWidth": 37,
-    "n-start.c": 38,
-    "n-start.h": 39,
-    "n-start.l": 40,
-    "n-v.value": 41,
+    "n-map.cCurveX1": 0,
+    "n-map.cCurveX2": 1,
+    "n-map.cCurveY1": 2,
+    "n-map.cCurveY2": 3,
+    "n-map.ditherStrength": 4,
+    "n-map.endColorC": 5,
+    "n-map.endColorH": 6,
+    "n-map.endColorL": 7,
+    "n-map.hCurveX1": 8,
+    "n-map.hCurveX2": 9,
+    "n-map.hCurveY1": 10,
+    "n-map.hCurveY2": 11,
+    "n-map.lCurveX1": 12,
+    "n-map.lCurveX2": 13,
+    "n-map.lCurveY1": 14,
+    "n-map.lCurveY2": 15,
+    "n-map.mapMode": 16,
+    "n-map.pixelSize": 17,
+    "n-map.reverseHue": 18,
+    "n-map.startColorC": 19,
+    "n-map.startColorH": 20,
+    "n-map.startColorL": 21,
+    "n-map.stops": 22,
+    "n-map.swapColors": 23,
+    "n-map.transitionWidth": 24,
+    "n-v.value": 25,
   },
   "previewDependencies": {
     "usesAudioUniforms": false,
@@ -10158,7 +11391,7 @@ fn fs(in : VsOut) -> @location(0) vec4<f32> {
     "usesMouseUniforms": false,
     "usesRadialPulseSpawnUniformPass": false,
     "usesRadialPulseVirtualDrive": false,
-    "usesResolutionUniform": true,
+    "usesResolutionUniform": false,
     "usesTimelineTime": false,
     "usesWallTime": false,
   },
@@ -10269,47 +11502,37 @@ fn wgslMod(a: f32, b: f32) -> f32 {
 }
 @fragment
 fn fs(in : VsOut) -> @location(0) vec4<f32> {
-  return vec4<f32>(mix(oklchToRgb(generateColorStop((f32(clamp(i32(floor((clamp(clamp(params[35].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[28].x, 0.0001)) - 0.5) * params[16].x), (params[16].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[33].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[33].x, 2.0, 50.0) + 0.5) - 1)) / f32(i32(clamp(params[33].x, 2.0, 50.0) + 0.5) - 1)), vec3<f32>(params[32].x, params[30].x, params[31].x), vec3<f32>(params[19].x, params[17].x, params[18].x), vec4<f32>(params[8].x, params[10].x, params[9].x, params[11].x), vec4<f32>(params[0].x, params[2].x, params[1].x, params[3].x), vec4<f32>(params[4].x, params[6].x, params[5].x, params[7].x), params[29].x)), oklchToRgb(generateColorStop((f32(clamp(min(clamp(i32(floor((clamp(clamp(params[35].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[28].x, 0.0001)) - 0.5) * params[16].x), (params[16].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[33].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[33].x, 2.0, 50.0) + 0.5) - 1) + 1, i32(clamp(params[33].x, 2.0, 50.0) + 0.5) - 1), 0, i32(clamp(params[33].x, 2.0, 50.0) + 0.5) - 1)) / f32(i32(clamp(params[33].x, 2.0, 50.0) + 0.5) - 1)), vec3<f32>(params[32].x, params[30].x, params[31].x), vec3<f32>(params[19].x, params[17].x, params[18].x), vec4<f32>(params[8].x, params[10].x, params[9].x, params[11].x), vec4<f32>(params[0].x, params[2].x, params[1].x, params[3].x), vec4<f32>(params[4].x, params[6].x, params[5].x, params[7].x), params[29].x)), select(0.0, smoothstep(clamp((f32(clamp(i32(floor((clamp(clamp(params[35].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[28].x, 0.0001)) - 0.5) * params[16].x), (params[16].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[33].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[33].x, 2.0, 50.0) + 0.5) - 1) + 1) / f32(i32(clamp(params[33].x, 2.0, 50.0) + 0.5)) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[28].x, 0.0001)) - 0.5) * params[16].x), (params[16].x > 0.001)) * 0.05), 0.0, 1.0) - select(0.005, params[34].x, params[34].x > 0.0), clamp((f32(clamp(i32(floor((clamp(clamp(params[35].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[28].x, 0.0001)) - 0.5) * params[16].x), (params[16].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[33].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[33].x, 2.0, 50.0) + 0.5) - 1) + 1) / f32(i32(clamp(params[33].x, 2.0, 50.0) + 0.5)) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[28].x, 0.0001)) - 0.5) * params[16].x), (params[16].x > 0.001)) * 0.05), 0.0, 1.0) + select(0.005, params[34].x, params[34].x > 0.0), clamp(clamp(params[35].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[28].x, 0.0001)) - 0.5) * params[16].x), (params[16].x > 0.001)), 0.0, 1.0)), (clamp(i32(floor((clamp(clamp(params[35].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[28].x, 0.0001)) - 0.5) * params[16].x), (params[16].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[33].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[33].x, 2.0, 50.0) + 0.5) - 1) < (i32(clamp(params[33].x, 2.0, 50.0) + 0.5) - 1)))), 1.0);
+  return vec4<f32>(select(oklchToRgb(vec3<f32>(mix((select(vec3<f32>(params[21].x, params[19].x, params[20].x), vec3<f32>(params[7].x, params[5].x, params[6].x), params[23].x > 0.5)).x, (select(vec3<f32>(params[7].x, params[5].x, params[6].x), vec3<f32>(params[21].x, params[19].x, params[20].x), params[23].x > 0.5)).x, cubicBezier(clamp(params[25].x, 0.0, 1.0), vec4<f32>(params[12].x, params[14].x, params[13].x, params[15].x))), mix((select(vec3<f32>(params[21].x, params[19].x, params[20].x), vec3<f32>(params[7].x, params[5].x, params[6].x), params[23].x > 0.5)).y, (select(vec3<f32>(params[7].x, params[5].x, params[6].x), vec3<f32>(params[21].x, params[19].x, params[20].x), params[23].x > 0.5)).y, cubicBezier(clamp(params[25].x, 0.0, 1.0), vec4<f32>(params[0].x, params[2].x, params[1].x, params[3].x))), interpolateHue((select(vec3<f32>(params[21].x, params[19].x, params[20].x), vec3<f32>(params[7].x, params[5].x, params[6].x), params[23].x > 0.5)).z, (select(vec3<f32>(params[7].x, params[5].x, params[6].x), vec3<f32>(params[21].x, params[19].x, params[20].x), params[23].x > 0.5)).z, cubicBezier(clamp(params[25].x, 0.0, 1.0), vec4<f32>(params[8].x, params[10].x, params[9].x, params[11].x)), params[18].x))), mix(oklchToRgb(generateColorStop((f32(clamp(i32(floor((clamp(clamp(params[25].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)) / f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)), select(vec3<f32>(params[21].x, params[19].x, params[20].x), vec3<f32>(params[7].x, params[5].x, params[6].x), params[23].x > 0.5), select(vec3<f32>(params[7].x, params[5].x, params[6].x), vec3<f32>(params[21].x, params[19].x, params[20].x), params[23].x > 0.5), vec4<f32>(params[12].x, params[14].x, params[13].x, params[15].x), vec4<f32>(params[0].x, params[2].x, params[1].x, params[3].x), vec4<f32>(params[8].x, params[10].x, params[9].x, params[11].x), params[18].x)), oklchToRgb(generateColorStop((f32(clamp(min(clamp(i32(floor((clamp(clamp(params[25].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1) + 1, i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1), 0, i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)) / f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)), select(vec3<f32>(params[21].x, params[19].x, params[20].x), vec3<f32>(params[7].x, params[5].x, params[6].x), params[23].x > 0.5), select(vec3<f32>(params[7].x, params[5].x, params[6].x), vec3<f32>(params[21].x, params[19].x, params[20].x), params[23].x > 0.5), vec4<f32>(params[12].x, params[14].x, params[13].x, params[15].x), vec4<f32>(params[0].x, params[2].x, params[1].x, params[3].x), vec4<f32>(params[8].x, params[10].x, params[9].x, params[11].x), params[18].x)), select(0.0, smoothstep(clamp((f32(clamp(i32(floor((clamp(clamp(params[25].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1) + 1) / f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5)) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)) * 0.05), 0.0, 1.0) - select(0.005, params[24].x, params[24].x > 0.0), clamp((f32(clamp(i32(floor((clamp(clamp(params[25].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1) + 1) / f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5)) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)) * 0.05), 0.0, 1.0) + select(0.005, params[24].x, params[24].x > 0.0), clamp(clamp(params[25].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)), 0.0, 1.0)), (clamp(i32(floor((clamp(clamp(params[25].x, 0.0, 1.0) + select(0.0, ((bayer8(((in.uv * globals.v0.zw) - globals.v0.zw * 0.5) / max(params[17].x, 0.0001)) - 0.5) * params[4].x), (params[4].x > 0.001)), 0.0, 1.0) * f32(i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)))), 0, i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1) < (i32(clamp(params[22].x, 2.0, 50.0) + 0.5) - 1)))), params[16].x > 0.5), 1.0);
 }
 ",
   "fixtureId": "mvpOklchColorMapThresholdNoDither",
   "paramLayout": {
-    "n-c.x1": 0,
-    "n-c.x2": 1,
-    "n-c.y1": 2,
-    "n-c.y2": 3,
-    "n-h.x1": 4,
-    "n-h.x2": 5,
-    "n-h.y1": 6,
-    "n-h.y2": 7,
-    "n-l.x1": 8,
-    "n-l.x2": 9,
-    "n-l.y1": 10,
-    "n-l.y2": 11,
-    "n-map.cCurveX1": 12,
-    "n-map.cCurveX2": 13,
-    "n-map.cCurveY1": 14,
-    "n-map.cCurveY2": 15,
-    "n-map.ditherStrength": 16,
-    "n-map.endColorC": 17,
-    "n-map.endColorH": 18,
-    "n-map.endColorL": 19,
-    "n-map.hCurveX1": 20,
-    "n-map.hCurveX2": 21,
-    "n-map.hCurveY1": 22,
-    "n-map.hCurveY2": 23,
-    "n-map.lCurveX1": 24,
-    "n-map.lCurveX2": 25,
-    "n-map.lCurveY1": 26,
-    "n-map.lCurveY2": 27,
-    "n-map.pixelSize": 28,
-    "n-map.reverseHue": 29,
-    "n-map.startColorC": 30,
-    "n-map.startColorH": 31,
-    "n-map.startColorL": 32,
-    "n-map.stops": 33,
-    "n-map.transitionWidth": 34,
-    "n-v.value": 35,
+    "n-map.cCurveX1": 0,
+    "n-map.cCurveX2": 1,
+    "n-map.cCurveY1": 2,
+    "n-map.cCurveY2": 3,
+    "n-map.ditherStrength": 4,
+    "n-map.endColorC": 5,
+    "n-map.endColorH": 6,
+    "n-map.endColorL": 7,
+    "n-map.hCurveX1": 8,
+    "n-map.hCurveX2": 9,
+    "n-map.hCurveY1": 10,
+    "n-map.hCurveY2": 11,
+    "n-map.lCurveX1": 12,
+    "n-map.lCurveX2": 13,
+    "n-map.lCurveY1": 14,
+    "n-map.lCurveY2": 15,
+    "n-map.mapMode": 16,
+    "n-map.pixelSize": 17,
+    "n-map.reverseHue": 18,
+    "n-map.startColorC": 19,
+    "n-map.startColorH": 20,
+    "n-map.startColorL": 21,
+    "n-map.stops": 22,
+    "n-map.swapColors": 23,
+    "n-map.transitionWidth": 24,
+    "n-v.value": 25,
   },
   "previewDependencies": {
     "usesAudioUniforms": false,

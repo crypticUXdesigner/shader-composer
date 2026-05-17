@@ -75,11 +75,12 @@
     };
   };
 
-  type PresetCategoryId = 'demos' | 'idle' | 'tests';
+  type PresetCategoryId = 'demos' | 'idle';
 
   const presetCategoryByName: Partial<Record<string, PresetCategoryId>> = {
     sphere: 'demos',
     'living-speaker': 'demos',
+    'hysteria-ben-erb-floydpjasper': 'demos',
     'drive-home-lights': 'idle',
     'glass-shell': 'idle',
     'warped-drops': 'idle',
@@ -89,18 +90,12 @@
     'bokeh-point': 'idle',
     'hex-prism-sdf': 'idle',
     'vector-field-noise': 'demos',
-    'sdf-raymarcher-hex-audio': 'tests',
-    'sdf-raymarcher-ether-audio': 'tests',
-    new: 'tests',
-    testing: 'tests',
-    weird: 'tests',
   };
 
   const presetIconByName: Partial<Record<string, IconName>> = {
     'living-speaker': 'waveform',
+    'hysteria-ben-erb-floydpjasper': 'waveform',
     'drive-home-lights': 'photo',
-    'sdf-raymarcher-hex-audio': 'wave-sine',
-    'sdf-raymarcher-ether-audio': 'sparkles',
     'glass-shell': 'sparkles',
     'warped-drops': 'wave-sine',
     'swirly-whirly': 'curly-loop',
@@ -110,9 +105,6 @@
     'hex-prism-sdf': 'matrix',
     sphere: 'sparkles',
     'vector-field-noise': 'matrix',
-    new: 'plus',
-    testing: 'warning',
-    weird: 'multiply',
   };
 
   interface PresetCategory {
@@ -123,7 +115,6 @@
   const categories: PresetCategory[] = [
     { id: 'demos', label: 'Demos' },
     { id: 'idle', label: 'Idle animations' },
-    { id: 'tests', label: 'Early tests' },
   ];
 
   /** ~30 calendar days — recency gate for “Recent” on Start tab */
@@ -138,7 +129,6 @@
   function resolveChipCategory(p: PresetRow): ChipCategorySlug {
     const c = resolveCategory(p);
     if (c === 'demos') return 'audio';
-    if (c === 'tests') return 'sdf';
     return 'effects';
   }
 
@@ -148,6 +138,7 @@
 
   function resolvePresetDisplayName(p: PresetRow): string {
     if (p.name === 'vector-field-noise') return 'Spinning Disc';
+    if (p.name === 'hysteria-ben-erb-floydpjasper') return 'HYSTERIA (Ben Erb floydpjasper)';
     return p.displayName;
   }
 
@@ -212,7 +203,7 @@
 
   const filteredPresetsByCategory = $derived.by(() => {
     const q = normalize(searchQuery);
-    const buckets: Record<PresetCategoryId, PresetRow[]> = { demos: [], idle: [], tests: [] };
+    const buckets: Record<PresetCategoryId, PresetRow[]> = { demos: [], idle: [] };
     if (q === '') {
       for (const p of hubPresets) buckets[resolveCategory(p)].push(p);
     } else {
@@ -232,7 +223,7 @@
 
   const totalFilteredPresets = $derived.by(() => {
     const b = filteredPresetsByCategory;
-    return b.demos.length + b.idle.length + b.tests.length;
+    return b.demos.length + b.idle.length;
   });
 
   const startTabHasResults = $derived(

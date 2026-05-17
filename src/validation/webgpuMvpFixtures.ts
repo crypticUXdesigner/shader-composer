@@ -1159,6 +1159,131 @@ export function mvpOklchColorGraph(): NodeGraph {
   };
 }
 
+/** UV → noise → color-lut (Viridis preset 0) → final-output. */
+export function mvpColorLutViridisGraph(): NodeGraph {
+  return {
+    id: 'fixture-mvp-color-lut-viridis',
+    name: 'MVP color LUT viridis',
+    version: '2.0',
+    nodes: [
+      { id: 'n-uv', type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+      {
+        id: 'n-noise',
+        type: 'noise',
+        position: { x: 0, y: 0 },
+        parameters: {
+          noiseMode: 0,
+          noiseScale: 2.5,
+          noiseOctaves: 4,
+          noiseLacunarity: 2.0,
+          noiseGain: 0.5,
+          noiseTimeSpeed: 0.0,
+          noiseTimeOffset: 0.0,
+          noiseIntensity: 1.0,
+        },
+        parameterInputModes: {},
+      },
+      {
+        id: 'n-lut',
+        type: 'color-lut',
+        position: { x: 0, y: 0 },
+        parameters: { preset: 0, reverse: 0, gamma: 1.0, contrast: 0.0, intensity: 1.0 },
+        parameterInputModes: {},
+      },
+      { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+    ],
+    connections: [
+      { id: 'c1', sourceNodeId: 'n-uv', sourcePort: 'out', targetNodeId: 'n-noise', targetPort: 'in' },
+      { id: 'c2', sourceNodeId: 'n-noise', sourcePort: 'out', targetNodeId: 'n-lut', targetPort: 'in' },
+      { id: 'c3', sourceNodeId: 'n-lut', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
+    ],
+  };
+}
+
+/** UV → position, noise → value → color-gradient (radial) → final-output. */
+export function mvpColorGradientRadialGraph(): NodeGraph {
+  return {
+    id: 'fixture-mvp-color-gradient-radial',
+    name: 'MVP color gradient radial',
+    version: '2.0',
+    nodes: [
+      { id: 'n-uv', type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+      {
+        id: 'n-noise',
+        type: 'noise',
+        position: { x: 0, y: 0 },
+        parameters: {
+          noiseMode: 0,
+          noiseScale: 2.5,
+          noiseOctaves: 4,
+          noiseLacunarity: 2.0,
+          noiseGain: 0.5,
+          noiseTimeSpeed: 0.0,
+          noiseTimeOffset: 0.0,
+          noiseIntensity: 1.0,
+        },
+        parameterInputModes: {},
+      },
+      {
+        id: 'n-grad',
+        type: 'color-gradient',
+        position: { x: 0, y: 0 },
+        parameters: { gradientMode: 0 },
+        parameterInputModes: {},
+      },
+      { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+    ],
+    connections: [
+      { id: 'c1', sourceNodeId: 'n-uv', sourcePort: 'out', targetNodeId: 'n-grad', targetPort: 'position' },
+      { id: 'c2', sourceNodeId: 'n-noise', sourcePort: 'out', targetNodeId: 'n-grad', targetPort: 'value' },
+      { id: 'c3', sourceNodeId: 'n-uv', sourcePort: 'out', targetNodeId: 'n-noise', targetPort: 'in' },
+      { id: 'c4', sourceNodeId: 'n-grad', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
+    ],
+  };
+}
+
+/** UV → position, noise → value → color-gradient (linear mode) → final-output. */
+export function mvpColorGradientLinearGraph(): NodeGraph {
+  return {
+    id: 'fixture-mvp-color-gradient-linear',
+    name: 'MVP color gradient linear',
+    version: '2.0',
+    nodes: [
+      { id: 'n-uv', type: 'uv-coordinates', position: { x: 0, y: 0 }, parameters: {} },
+      {
+        id: 'n-noise',
+        type: 'noise',
+        position: { x: 0, y: 0 },
+        parameters: {
+          noiseMode: 0,
+          noiseScale: 2.5,
+          noiseOctaves: 4,
+          noiseLacunarity: 2.0,
+          noiseGain: 0.5,
+          noiseTimeSpeed: 0.0,
+          noiseTimeOffset: 0.0,
+          noiseIntensity: 1.0,
+        },
+        parameterInputModes: {},
+      },
+      {
+        id: 'n-grad',
+        type: 'color-gradient',
+        position: { x: 0, y: 0 },
+        parameters: { gradientMode: 1 },
+        parameterInputModes: {},
+      },
+      { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
+    ],
+    connections: [
+      { id: 'c1', sourceNodeId: 'n-uv', sourcePort: 'out', targetNodeId: 'n-grad', targetPort: 'position' },
+      { id: 'c2', sourceNodeId: 'n-noise', sourcePort: 'out', targetNodeId: 'n-grad', targetPort: 'value' },
+      { id: 'c3', sourceNodeId: 'n-uv', sourcePort: 'out', targetNodeId: 'n-noise', targetPort: 'in' },
+      { id: 'c4', sourceNodeId: 'n-grad', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
+    ],
+  };
+}
+
 /** Constant float → final-output (float→vec3 promotion); legacy `color-map` id kept for harness stability. */
 export function mvpColorMapGraph(): NodeGraph {
   return {
@@ -1173,20 +1298,20 @@ export function mvpColorMapGraph(): NodeGraph {
   };
 }
 
-/** Blend mode: time (base) blended with constant float using a non-trivial mode + opacity. */
+/** Blend (float): time (base) blended with constant float using a non-trivial mode + opacity. */
 export function mvpBlendModeGraph(): NodeGraph {
   return {
-    id: 'fixture-mvp-blend-mode',
-    name: 'MVP blend mode',
+    id: 'fixture-mvp-blend-float',
+    name: 'MVP blend float',
     version: '2.0',
     nodes: [
       { id: 'n-time', type: 'time', position: { x: 0, y: 0 }, parameters: {} },
       { id: 'n-b', type: 'constant-float', position: { x: 0, y: 0 }, parameters: { value: 0.65 } },
       {
         id: 'n-blend',
-        type: 'blend-mode',
+        type: 'blend',
         position: { x: 0, y: 0 },
-        parameters: { mode: 3, opacity: 0.75, blend: 0.5 },
+        parameters: { mode: 3, opacity: 0.75, alphaMode: 0 },
         parameterInputModes: {},
       },
       { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
@@ -1199,11 +1324,11 @@ export function mvpBlendModeGraph(): NodeGraph {
   };
 }
 
-/** Blend Color: two constant vec4s merged with Overlay + fractional opacity (per-channel + alpha mix). */
+/** Blend (vec4): two constant vec4s merged with Overlay + fractional opacity (per-channel + alpha lerp). */
 export function mvpBlendColorGraph(): NodeGraph {
   return {
-    id: 'fixture-mvp-blend-color',
-    name: 'MVP blend color',
+    id: 'fixture-mvp-blend-vec4',
+    name: 'MVP blend vec4',
     version: '2.0',
     nodes: [
       {
@@ -1222,9 +1347,9 @@ export function mvpBlendColorGraph(): NodeGraph {
       },
       {
         id: 'n-bc',
-        type: 'blend-color',
+        type: 'blend',
         position: { x: 0, y: 0 },
-        parameters: { mode: 3, opacity: 0.7 },
+        parameters: { mode: 3, opacity: 0.7, alphaMode: 0 },
         parameterInputModes: {},
       },
       { id: 'n-out', type: 'final-output', position: { x: 0, y: 0 }, parameters: {} },
@@ -1649,26 +1774,20 @@ export function mvpColorGradingGraph(): NodeGraph {
   };
 }
 
-/** OKLCH stepped color map: value + start/end + curves + dithering inputs -> vec3 output. */
+/** OKLCH stepped color map: value in, panel colors/curves, optional dither -> vec3 output. */
 export function mvpOklchColorMapThresholdGraph(): NodeGraph {
   return {
-    id: 'fixture-mvp-oklch-color-map-threshold',
+    id: 'fixture-mvp-oklch-color-map-stepped',
     name: 'MVP OKLCH stepped color map',
     version: '2.0',
     nodes: [
       { id: 'n-v', type: 'constant-float', position: { x: 0, y: 0 }, parameters: { value: 0.42 } },
-      { id: 'n-start', type: 'oklch-color', position: { x: 0, y: 0 }, parameters: { l: 0.45, c: 0.12, h: 20.0 } },
-      { id: 'n-end', type: 'oklch-color', position: { x: 0, y: 0 }, parameters: { l: 0.85, c: 0.12, h: 220.0 } },
-      { id: 'n-l', type: 'bezier-curve', position: { x: 0, y: 0 }, parameters: { x1: 0.0, y1: 0.0, x2: 1.0, y2: 1.0 } },
-      { id: 'n-c', type: 'bezier-curve', position: { x: 0, y: 0 }, parameters: { x1: 0.0, y1: 0.0, x2: 1.0, y2: 1.0 } },
-      { id: 'n-h', type: 'bezier-curve', position: { x: 0, y: 0 }, parameters: { x1: 0.0, y1: 0.0, x2: 1.0, y2: 1.0 } },
-      { id: 'n-fc', type: 'fragment-coordinates', position: { x: 0, y: 0 }, parameters: {} },
-      { id: 'n-res', type: 'resolution', position: { x: 0, y: 0 }, parameters: {} },
       {
         id: 'n-map',
-        type: 'oklch-color-map-threshold',
+        type: 'oklch-color-map',
         position: { x: 0, y: 0 },
         parameters: {
+          mapMode: 1,
           stops: 6,
           transitionWidth: 0.01,
           ditherStrength: 0.8,
@@ -1691,6 +1810,7 @@ export function mvpOklchColorMapThresholdGraph(): NodeGraph {
           hCurveY1: 0.0,
           hCurveX2: 1.0,
           hCurveY2: 1.0,
+          swapColors: 0,
           reverseHue: 0,
         },
         parameterInputModes: {},
@@ -1699,13 +1819,6 @@ export function mvpOklchColorMapThresholdGraph(): NodeGraph {
     ],
     connections: [
       { id: 'c1', sourceNodeId: 'n-v', sourcePort: 'out', targetNodeId: 'n-map', targetPort: 'in' },
-      { id: 'c2', sourceNodeId: 'n-start', sourcePort: 'out', targetNodeId: 'n-map', targetPort: 'startColor' },
-      { id: 'c3', sourceNodeId: 'n-end', sourcePort: 'out', targetNodeId: 'n-map', targetPort: 'endColor' },
-      { id: 'c4', sourceNodeId: 'n-l', sourcePort: 'out', targetNodeId: 'n-map', targetPort: 'lCurve' },
-      { id: 'c5', sourceNodeId: 'n-c', sourcePort: 'out', targetNodeId: 'n-map', targetPort: 'cCurve' },
-      { id: 'c6', sourceNodeId: 'n-h', sourcePort: 'out', targetNodeId: 'n-map', targetPort: 'hCurve' },
-      { id: 'c7', sourceNodeId: 'n-fc', sourcePort: 'out', targetNodeId: 'n-map', targetPort: 'fragCoord' },
-      { id: 'c8', sourceNodeId: 'n-res', sourcePort: 'out', targetNodeId: 'n-map', targetPort: 'resolution' },
       { id: 'c9', sourceNodeId: 'n-map', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
     ],
   };
@@ -1714,19 +1827,17 @@ export function mvpOklchColorMapThresholdGraph(): NodeGraph {
 /** OKLCH stepped color map without dither: isolates stops/thresholds from bayer/fragCoord behavior. */
 export function mvpOklchColorMapThresholdNoDitherGraph(): NodeGraph {
   return {
-    id: 'fixture-mvp-oklch-color-map-threshold-no-dither',
+    id: 'fixture-mvp-oklch-color-map-no-dither',
     name: 'MVP OKLCH stepped color map no dither',
     version: '2.0',
     nodes: [
       { id: 'n-v', type: 'constant-float', position: { x: 0, y: 0 }, parameters: { value: 0.42 } },
-      { id: 'n-l', type: 'bezier-curve', position: { x: 0, y: 0 }, parameters: { x1: 0.0, y1: 0.0, x2: 1.0, y2: 1.0 } },
-      { id: 'n-c', type: 'bezier-curve', position: { x: 0, y: 0 }, parameters: { x1: 0.0, y1: 0.0, x2: 1.0, y2: 1.0 } },
-      { id: 'n-h', type: 'bezier-curve', position: { x: 0, y: 0 }, parameters: { x1: 0.0, y1: 0.0, x2: 1.0, y2: 1.0 } },
       {
         id: 'n-map',
-        type: 'oklch-color-map-threshold',
+        type: 'oklch-color-map',
         position: { x: 0, y: 0 },
         parameters: {
+          mapMode: 1,
           stops: 6,
           transitionWidth: 0.01,
           ditherStrength: 0.0,
@@ -1749,6 +1860,7 @@ export function mvpOklchColorMapThresholdNoDitherGraph(): NodeGraph {
           hCurveY1: 0.0,
           hCurveX2: 1.0,
           hCurveY2: 1.0,
+          swapColors: 0,
           reverseHue: 0,
         },
         parameterInputModes: {},
@@ -1757,39 +1869,31 @@ export function mvpOklchColorMapThresholdNoDitherGraph(): NodeGraph {
     ],
     connections: [
       { id: 'c1', sourceNodeId: 'n-v', sourcePort: 'out', targetNodeId: 'n-map', targetPort: 'in' },
-      { id: 'c2', sourceNodeId: 'n-l', sourcePort: 'out', targetNodeId: 'n-map', targetPort: 'lCurve' },
-      { id: 'c3', sourceNodeId: 'n-c', sourcePort: 'out', targetNodeId: 'n-map', targetPort: 'cCurve' },
-      { id: 'c4', sourceNodeId: 'n-h', sourcePort: 'out', targetNodeId: 'n-map', targetPort: 'hCurve' },
       { id: 'c5', sourceNodeId: 'n-map', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
     ],
   };
 }
 
-/** OKLCH smooth color map: value + start/end + curves -> vec3 output. */
+/** OKLCH smooth color map: value -> vec3 output (panel colors and curves). */
 export function mvpOklchColorMapBezierGraph(): NodeGraph {
   return {
-    id: 'fixture-mvp-oklch-color-map-bezier',
+    id: 'fixture-mvp-oklch-color-map-smooth',
     name: 'MVP OKLCH smooth color map',
     version: '2.0',
     nodes: [
       { id: 'n-v', type: 'constant-float', position: { x: 0, y: 0 }, parameters: { value: 0.66 } },
-      { id: 'n-start', type: 'oklch-color', position: { x: 0, y: 0 }, parameters: { l: 0.4, c: 0.12, h: 320.0 } },
-      { id: 'n-end', type: 'oklch-color', position: { x: 0, y: 0 }, parameters: { l: 0.9, c: 0.12, h: 120.0 } },
-      { id: 'n-l', type: 'bezier-curve', position: { x: 0, y: 0 }, parameters: { x1: 0.2, y1: 0.0, x2: 0.8, y2: 1.0 } },
-      { id: 'n-c', type: 'bezier-curve', position: { x: 0, y: 0 }, parameters: { x1: 0.0, y1: 0.2, x2: 1.0, y2: 0.8 } },
-      { id: 'n-h', type: 'bezier-curve', position: { x: 0, y: 0 }, parameters: { x1: 0.0, y1: 0.0, x2: 1.0, y2: 1.0 } },
       {
         id: 'n-map',
-        type: 'oklch-color-map-bezier',
+        type: 'oklch-color-map',
         position: { x: 0, y: 0 },
         parameters: {
-          // Intentionally wrong vs n-start / n-end — ports are wired; shader must use OKLCH nodes.
-          startColorL: 0.05,
-          startColorC: 0.02,
-          startColorH: 10.0,
-          endColorL: 0.06,
-          endColorC: 0.03,
-          endColorH: 11.0,
+          mapMode: 0,
+          startColorL: 0.4,
+          startColorC: 0.12,
+          startColorH: 320.0,
+          endColorL: 0.9,
+          endColorC: 0.12,
+          endColorH: 120.0,
           lCurveX1: 0.2,
           lCurveY1: 0.0,
           lCurveX2: 0.8,
@@ -1802,6 +1906,7 @@ export function mvpOklchColorMapBezierGraph(): NodeGraph {
           hCurveY1: 0.0,
           hCurveX2: 1.0,
           hCurveY2: 1.0,
+          swapColors: 0,
           reverseHue: 0,
         },
         parameterInputModes: {},
@@ -1810,12 +1915,7 @@ export function mvpOklchColorMapBezierGraph(): NodeGraph {
     ],
     connections: [
       { id: 'c1', sourceNodeId: 'n-v', sourcePort: 'out', targetNodeId: 'n-map', targetPort: 'in' },
-      { id: 'c2', sourceNodeId: 'n-start', sourcePort: 'out', targetNodeId: 'n-map', targetPort: 'startColor' },
-      { id: 'c3', sourceNodeId: 'n-end', sourcePort: 'out', targetNodeId: 'n-map', targetPort: 'endColor' },
-      { id: 'c4', sourceNodeId: 'n-l', sourcePort: 'out', targetNodeId: 'n-map', targetPort: 'lCurve' },
-      { id: 'c5', sourceNodeId: 'n-c', sourcePort: 'out', targetNodeId: 'n-map', targetPort: 'cCurve' },
-      { id: 'c6', sourceNodeId: 'n-h', sourcePort: 'out', targetNodeId: 'n-map', targetPort: 'hCurve' },
-      { id: 'c7', sourceNodeId: 'n-map', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
+      { id: 'c2', sourceNodeId: 'n-map', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
     ],
   };
 }
@@ -1823,19 +1923,17 @@ export function mvpOklchColorMapBezierGraph(): NodeGraph {
 /** OKLCH smooth color map with start=end: isolates OKLCH-to-RGB conversion from interpolation. */
 export function mvpOklchColorMapBezierSolidGraph(): NodeGraph {
   return {
-    id: 'fixture-mvp-oklch-color-map-bezier-solid',
+    id: 'fixture-mvp-oklch-color-map-solid',
     name: 'MVP OKLCH smooth color map solid',
     version: '2.0',
     nodes: [
       { id: 'n-v', type: 'constant-float', position: { x: 0, y: 0 }, parameters: { value: 0.5 } },
-      { id: 'n-l', type: 'bezier-curve', position: { x: 0, y: 0 }, parameters: { x1: 0.0, y1: 0.0, x2: 1.0, y2: 1.0 } },
-      { id: 'n-c', type: 'bezier-curve', position: { x: 0, y: 0 }, parameters: { x1: 0.0, y1: 0.0, x2: 1.0, y2: 1.0 } },
-      { id: 'n-h', type: 'bezier-curve', position: { x: 0, y: 0 }, parameters: { x1: 0.0, y1: 0.0, x2: 1.0, y2: 1.0 } },
       {
         id: 'n-map',
-        type: 'oklch-color-map-bezier',
+        type: 'oklch-color-map',
         position: { x: 0, y: 0 },
         parameters: {
+          mapMode: 0,
           startColorL: 0.7,
           startColorC: 0.14,
           startColorH: 40.0,
@@ -1854,6 +1952,7 @@ export function mvpOklchColorMapBezierSolidGraph(): NodeGraph {
           hCurveY1: 0.0,
           hCurveX2: 1.0,
           hCurveY2: 1.0,
+          swapColors: 0,
           reverseHue: 0,
         },
         parameterInputModes: {},
@@ -1862,10 +1961,7 @@ export function mvpOklchColorMapBezierSolidGraph(): NodeGraph {
     ],
     connections: [
       { id: 'c1', sourceNodeId: 'n-v', sourcePort: 'out', targetNodeId: 'n-map', targetPort: 'in' },
-      { id: 'c2', sourceNodeId: 'n-l', sourcePort: 'out', targetNodeId: 'n-map', targetPort: 'lCurve' },
-      { id: 'c3', sourceNodeId: 'n-c', sourcePort: 'out', targetNodeId: 'n-map', targetPort: 'cCurve' },
-      { id: 'c4', sourceNodeId: 'n-h', sourcePort: 'out', targetNodeId: 'n-map', targetPort: 'hCurve' },
-      { id: 'c5', sourceNodeId: 'n-map', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
+      { id: 'c2', sourceNodeId: 'n-map', sourcePort: 'out', targetNodeId: 'n-out', targetPort: 'in' },
     ],
   };
 }
@@ -3752,6 +3848,9 @@ export const WEBGPU_MVP_FIXTURE_IDS = [
   'mvpBezierCurve',
   'mvpOklchColor',
   'mvpColorMap',
+  'mvpColorLutViridis',
+  'mvpColorGradientRadial',
+  'mvpColorGradientLinear',
   'mvpBlendMode',
   'mvpBlendColor',
   'mvpScanlines',
@@ -3891,6 +3990,12 @@ export function getWebgpuMvpFixtureGraph(id: WebgpuMvpFixtureId): NodeGraph {
       return mvpOklchColorGraph();
     case 'mvpColorMap':
       return mvpColorMapGraph();
+    case 'mvpColorLutViridis':
+      return mvpColorLutViridisGraph();
+    case 'mvpColorGradientRadial':
+      return mvpColorGradientRadialGraph();
+    case 'mvpColorGradientLinear':
+      return mvpColorGradientLinearGraph();
     case 'mvpBlendMode':
       return mvpBlendModeGraph();
     case 'mvpBlendColor':

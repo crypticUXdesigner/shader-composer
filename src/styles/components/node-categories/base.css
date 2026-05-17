@@ -15,6 +15,27 @@
 }
 
 /*
+ * Color map row header actions (Swap Colors / Reverse Hue): match param-cell control chips.
+ * Set on `.node` so category `--param-control-*` overrides apply on the same element.
+ */
+.node {
+  --color-map-row-button-bg: var(--param-control-bg);
+  --color-map-row-button-bg-hover: var(--param-control-bg-hover, var(--param-control-bg));
+  --color-map-row-button-color: var(--param-control-value-color);
+  --color-map-row-button-color-hover: var(--param-control-value-color);
+  --color-map-row-button-border: color-mix(
+    in srgb,
+    var(--color-map-row-button-color) 24%,
+    var(--color-map-row-button-bg)
+  );
+  --color-map-row-button-border-hover: color-mix(
+    in srgb,
+    var(--color-map-row-button-color) 38%,
+    var(--color-map-row-button-bg-hover)
+  );
+}
+
+/*
  * Param controls: buttons and enum selectors in param cells.
  * One class (param-controls) + token overrides. Uses --param-control-* (set per category on .node.X).
  * Interactions (hover, active) use the same tokens â€” no per-category repetition.
@@ -26,5 +47,15 @@
   --secondary-print: var(--param-control-value-color);
   --secondary-print-hover: var(--param-control-value-color);
   --secondary-print-active: var(--param-control-value-color);
+}
+
+/* Color-picker-row group header: same secondary mapping as param-cell controls. */
+.group-header-with-actions .group-header-actions {
+  --secondary-bg: var(--color-map-row-button-bg);
+  --secondary-bg-hover: var(--color-map-row-button-bg-hover);
+  --secondary-bg-active: var(--color-map-row-button-bg-hover);
+  --secondary-print: var(--color-map-row-button-color);
+  --secondary-print-hover: var(--color-map-row-button-color-hover);
+  --secondary-print-active: var(--color-map-row-button-color-hover);
 }
 

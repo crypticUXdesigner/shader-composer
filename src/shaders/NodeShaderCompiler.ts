@@ -16,6 +16,7 @@ import {
   mergeWebGpuPreviewDependencyMask
 } from './compilation/previewDependencyMask';
 import { computeEffectiveNodeSpecs } from './compilation/effectiveNodeSpecs';
+import { clearArrangementNotesBakeCache } from '../audiotool/arrangement/arrangementNotesBakeCache';
 import { compileWgslMvp } from './compilation/WgslMvpCompiler';
 import { buildCompileGraphView, filterExecutionOrderForBypass } from './compilation/CompileGraphView';
 import {
@@ -318,6 +319,7 @@ export class NodeShaderCompiler {
    * @param audioSetup - Optional panel audio setup for audio-derived uniforms (bands/remappers/files).
    */
   compile(graph: NodeGraph, audioSetup?: AudioSetup | null, options?: CompileTargetOptions): CompilationResult {
+    clearArrangementNotesBakeCache();
     const targetBackend: RenderBackendKind = options?.backend ?? 'webgl';
     const errors: string[] = [];
     const warnings: string[] = [];

@@ -103,8 +103,12 @@ export class CanvasResizeLifecycle {
     const newViewportWidth = rect.width;
     const newViewportHeight = rect.height;
 
-    this.cachedViewportWidth = newViewportWidth;
-    this.cachedViewportHeight = newViewportHeight;
+    // View 3 hides the node canvas (0×0). Keep the last visible size so pan/zoom restore when returning to 1/2.
+    const newViewportVisible = newViewportWidth > 0 && newViewportHeight > 0;
+    if (newViewportVisible) {
+      this.cachedViewportWidth = newViewportWidth;
+      this.cachedViewportHeight = newViewportHeight;
+    }
 
     const viewState = this.deps.getViewStateInternal();
     const isAtMinZoom = Math.abs(viewState.zoom - MIN_ZOOM) < 0.001;
@@ -112,6 +116,7 @@ export class CanvasResizeLifecycle {
     if (
       oldViewportWidth > 0 &&
       oldViewportHeight > 0 &&
+      newViewportVisible &&
       (oldViewportWidth !== newViewportWidth || oldViewportHeight !== newViewportHeight) &&
       !isAtMinZoom
     ) {

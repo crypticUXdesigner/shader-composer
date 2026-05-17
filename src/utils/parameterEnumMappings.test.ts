@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { getParameterEnumMappings } from './parameterEnumMappings';
 
 describe('getParameterEnumMappings', () => {
+  it('maps path-drive pathPreset to path labels', () => {
+    const m = getParameterEnumMappings('path-drive', 'pathPreset');
+    expect(m?.[0]).toBe('Orbit');
+    expect(m?.[4]).toBe('Line');
+    expect(m?.[5]).toBeUndefined();
+  });
+
   it('maps oscillator-2d layerCombine to merge mode labels', () => {
     const m = getParameterEnumMappings('oscillator-2d', 'layerCombine');
     expect(m).not.toBeNull();
@@ -46,6 +53,21 @@ describe('getParameterEnumMappings', () => {
     expect(m).not.toBeNull();
     expect(m![0]).toBe('Horizontal');
     expect(m![1]).toBe('Vertical');
+  });
+
+  it('maps color-lut preset to curated LUT labels', () => {
+    const m = getParameterEnumMappings('color-lut', 'preset');
+    expect(m).not.toBeNull();
+    expect(m![0]).toBe('Viridis');
+    expect(m![5]).toBe('Turbo');
+    expect(m![11]).toBe('Night');
+  });
+
+  it('maps color-gradient gradientMode to Radial / Linear', () => {
+    const m = getParameterEnumMappings('color-gradient', 'gradientMode');
+    expect(m).not.toBeNull();
+    expect(m![0]).toBe('Radial');
+    expect(m![1]).toBe('Linear');
   });
 
   it('maps bloom-sphere mode to lattice vs legacy bloom labels', () => {

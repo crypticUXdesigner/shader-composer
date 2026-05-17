@@ -111,13 +111,13 @@ export const STRUCTURED_PATTERN_NODE_IDS = new Set([
   'hexagonal-grid',
   'stripes',
   'dots',
-  'triangle-grid'
+  'triangle-grid',
+  'plane-grid'
 ]);
 
 /** Node IDs for derived shapes / scenes & surfaces (more prominent). Default = primitive (muted). */
 export const DERIVED_SHAPE_NODE_IDS = new Set([
   'fractal',
-  'plane-grid',
   'sky-dome',
   'bloom-sphere',
   'iridescent-tunnel',

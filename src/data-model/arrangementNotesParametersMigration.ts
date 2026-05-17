@@ -3,6 +3,7 @@
  * - `backgroundR/G/B` → OKLCH (`backgroundL/C/H`), rewires parameter-input connections accordingly.
  * - Removes deprecated `viewportMode` / `fixedStartSeconds` (always-follow timeline) and drops wires to those params.
  * - Drops legacy `uvInputMode` (notes always interpret **in** as **UV Coords** **p**, remapped to 0–1).
+ * - Drops removed `rowGap` and `edgeFade` (note thickness uses **noteSize** only; no viewport edge fade).
  */
 
 import type { NodeGraph, NodeInstance, Connection } from './types';
@@ -11,7 +12,13 @@ import { linearRgbToOklch } from '../utils/colorConversion';
 const NODE_TYPE = 'arrangement-notes';
 
 /** Removed from node spec — strip from saved graphs and drop parameter wires. */
-const REMOVED_ARR_NOTES_PARAMS = new Set(['viewportMode', 'fixedStartSeconds', 'uvInputMode']);
+const REMOVED_ARR_NOTES_PARAMS = new Set([
+  'viewportMode',
+  'fixedStartSeconds',
+  'uvInputMode',
+  'rowGap',
+  'edgeFade',
+]);
 
 const CONNECTION_PARAM_MAP: Record<string, string> = {
   backgroundR: 'backgroundL',
@@ -49,6 +56,16 @@ function migrateNode(node: NodeInstance): NodeInstance {
 
   for (const key of REMOVED_ARR_NOTES_PARAMS) {
     delete nextParams[key];
+  }
+
+  if (!('noteColorMode' in nextParams)) {
+    nextParams.noteColorMode = 2;
+  }
+  if (!('trackNoteColors' in nextParams) || typeof nextParams.trackNoteColors !== 'string') {
+    nextParams.trackNoteColors =
+      nextParams.trackNoteColors === 0 || nextParams.trackNoteColors === undefined
+        ? ''
+        : String(nextParams.trackNoteColors);
   }
 
   const prevModes = node.parameterInputModes;
@@ -93,6 +110,8 @@ export function migrateArrangementNotesParameters(graph: NodeGraph): NodeGraph {
       'backgroundR' in p ||
       'backgroundG' in p ||
       'backgroundB' in p ||
+      !('noteColorMode' in p) ||
+      !('trackNoteColors' in p) ||
       [...REMOVED_ARR_NOTES_PARAMS].some((k) => k in p)
     );
   });

@@ -12,6 +12,10 @@ export {
   type ArrangementTrackKind,
 } from './types';
 export { buildArrangementSnapshot } from './buildArrangementSnapshot';
+export {
+  pickDefaultArrangementNotesTrackId,
+  defaultArrangementNotesTrackFilter,
+} from './arrangementTrackFilter';
 export { importArrangementSnapshotFromProject } from './importArrangementSnapshotFromProject';
 export {
   importArrangementForPrimaryTrack,

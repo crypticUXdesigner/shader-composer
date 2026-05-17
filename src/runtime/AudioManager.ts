@@ -25,10 +25,32 @@ import { AudioLoader } from './audio/AudioLoader';
 import { AudioPlaybackController, type AudioNodeState } from './audio/AudioPlaybackController';
 import { FrequencyAnalyzer, type FrequencyBand, type AnalyzerNodeState } from './audio/FrequencyAnalyzer';
 import { collectAudioUniformUpdates } from './audio/audioUniformUpdates';
-import { createOfflineAudioProvider, type OfflineAudioProvider } from '../video-export/OfflineAudioProvider';
 import { audioAnalysisStatusStore } from '../lib/stores/audioAnalysisStatusStore';
 import { AudioAnalysisCurveSampler } from './audio-analysis/AudioAnalysisCurveSampler';
-import type { AudioAnalysisWorkerCanceled, AudioAnalysisWorkerError, AudioAnalysisWorkerProgress, AudioAnalysisWorkerResult } from './audio-analysis/audioAnalysisWorkerTypes';
+import type {
+  AudioAnalysisWorkerBandResult,
+  AudioAnalysisWorkerCanceled,
+  AudioAnalysisWorkerError,
+  AudioAnalysisWorkerProgress,
+  AudioAnalysisWorkerResult,
+} from './audio-analysis/audioAnalysisWorkerTypes';
+import {
+  bandAnalysisDigest,
+  bandIdsWithAnalysisChange,
+  classifyAudioSetupChange,
+  fileIdsWithBandsFromSetup,
+  type AudioInvalidationTier,
+} from './audio-analysis/audioAnalysisInvalidation';
+import {
+  isRemapperTopologyOnlyStructuralChange,
+  reshapeCurveCacheTopology,
+} from './audio-analysis/audioAnalysisStructuralPatch';
+import {
+  extractBandSmoothedSeriesFromCache,
+  patchBandAndRemapChannelsFromBandSeries,
+  patchRemapperChannelsFromBandCache,
+} from './audio-analysis/audioAnalysisRemapperPatch';
+import type { AudioAnalysisCurveCache } from './audio-analysis/AudioAnalysisCurveSampler';
 import { buildOfflineAudioAnalysisConfigs } from '../video-export/OfflineAudioProvider';
 import { normalizeUrlForAudioDedupe } from '../utils/normalizeUrlForAudioDedupe';
 
@@ -57,12 +79,11 @@ export class AudioManager implements Disposable {
     return `${nodeId}\0url:${normalizeUrlForAudioDedupe(file)}`;
   }
 
-  /**
-   * File-backed canonical analysis providers (Phase 2 live): map audio file id → provider that can
-   * sample band/remap/remapperOut uniforms by playback time.
-   */
-  private offlineProvidersByFileId: Map<string, OfflineAudioProvider> = new Map();
   private curveSamplersByFileId: Map<string, AudioAnalysisCurveSampler> = new Map();
+  /** Per-band smoothed series (index 0) retained after worker build for Tier A remapper patch. */
+  private bandSmoothedSeriesByFileId: Map<string, Map<string, Float32Array>> = new Map();
+  /** Last setup that produced ready curve samplers (for per-file invalidation classification). */
+  private lastOfflineAudioSetup: AudioSetup | null = null;
   private offlineBuildGeneration: number = 0;
   /** RAF id when a debounced offline rebuild is scheduled (coalesces rapid setAudioSetup / load bursts). */
   private offlineRebuildRafId: number | null = null;
@@ -74,6 +95,19 @@ export class AudioManager implements Disposable {
   /** Serializes offline worker builds so `worker.onmessage` and `pending` map are never contested by overlapping flights. */
   private audioWorkerBuildChain: Promise<void> = Promise.resolve();
   private activeWorkerBuildKeys: string[] = [];
+  /** Tier B: retained curve cache while sampler cleared for live fallback during band rebuild. */
+  private tierBPatchCacheByFileId: Map<string, AudioAnalysisCurveCache> = new Map();
+  private tierBDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private tierBBuildingToastTimer: ReturnType<typeof setTimeout> | null = null;
+  private tierBPendingBandIdsByFileId: Map<string, string[]> = new Map();
+  private tierBPendingFingerprint: string | null = null;
+  private tierCDDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private tierCDBuildingToastTimer: ReturnType<typeof setTimeout> | null = null;
+  private tierCDPendingFileIds: string[] = [];
+  private tierCDPendingFingerprint: string | null = null;
+  private static readonly TIER_B_DEBOUNCE_MS = 120;
+  private static readonly TIER_B_TOAST_DELAY_MS = 200;
+  private static readonly TIER_CD_DEBOUNCE_MS = 120;
   
   private previousUniformValues: Map<string, number> = new Map();
   private readonly VALUE_CHANGE_THRESHOLD = 0.001; // Only update if change > 0.1%
@@ -258,14 +292,20 @@ export class AudioManager implements Disposable {
       offlineUniforms
     );
     // Update status chip state opportunistically.
-    if (this.offlineProvidersByFileId.size > 0) {
-      const allReady = this.curveSamplersByFileId.size >= this.offlineProvidersByFileId.size;
-      if (allReady) {
-        audioAnalysisStatusStore.set({ state: 'ready' });
-      } else {
-        audioAnalysisStatusStore.update((s) =>
-          s.state === 'building' ? s : { state: 'fallback', label: 'Live preview until analysis finishes' }
-        );
+    const setup = this.audioSetup;
+    if (setup) {
+      const fileIdsWithBands = fileIdsWithBandsFromSetup(setup);
+      const audioNodeStates = this.playbackController.getAllAudioNodeStates();
+      const loadedWithBands = [...fileIdsWithBands].filter((id) => audioNodeStates.get(id)?.audioBuffer != null);
+      if (loadedWithBands.length > 0) {
+        const allReady = loadedWithBands.every((id) => this.curveSamplersByFileId.has(id));
+        if (allReady) {
+          audioAnalysisStatusStore.set({ state: 'ready' });
+        } else {
+          audioAnalysisStatusStore.update((s) =>
+            s.state === 'building' ? s : { state: 'fallback', label: 'Live preview until analysis finishes' }
+          );
+        }
       }
     }
     if (updates.length > 0) {
@@ -309,8 +349,9 @@ export class AudioManager implements Disposable {
     const setup = this.audioSetup;
     if (!setup) {
       this.cancelPendingOfflineRebuildSchedule();
-      this.offlineProvidersByFileId.clear();
       this.curveSamplersByFileId.clear();
+      this.bandSmoothedSeriesByFileId.clear();
+      this.lastOfflineAudioSetup = null;
       this.offlineAnalysisFingerprintReady = null;
       this.offlineRebuildTargetFingerprint = null;
       audioAnalysisStatusStore.set({ state: 'idle' });
@@ -318,11 +359,12 @@ export class AudioManager implements Disposable {
     }
 
     // Build providers only for file-backed sources that are loaded and referenced by bands.
-    const fileIdsWithBands = new Set(setup.bands.map((b) => b.sourceFileId));
+    const fileIdsWithBands = fileIdsWithBandsFromSetup(setup);
     if (fileIdsWithBands.size === 0) {
       this.cancelPendingOfflineRebuildSchedule();
-      this.offlineProvidersByFileId.clear();
       this.curveSamplersByFileId.clear();
+      this.bandSmoothedSeriesByFileId.clear();
+      this.lastOfflineAudioSetup = null;
       this.offlineAnalysisFingerprintReady = null;
       this.offlineRebuildTargetFingerprint = null;
       audioAnalysisStatusStore.set({ state: 'idle' });
@@ -333,13 +375,32 @@ export class AudioManager implements Disposable {
     const fingerprint = this.computeOfflineAnalysisFingerprintForSetup(setup, audioNodeStates, fileIdsWithBands);
 
     if (loadedIds.length === 0) {
-      this.offlineProvidersByFileId.clear();
       this.curveSamplersByFileId.clear();
+      this.bandSmoothedSeriesByFileId.clear();
+      this.lastOfflineAudioSetup = null;
       this.offlineAnalysisFingerprintReady = null;
       this.offlineRebuildTargetFingerprint = null;
       audioAnalysisStatusStore.set({ state: 'idle' });
       return;
     }
+
+    if (this.tryTierARemapperPatch(setup, loadedIds, audioNodeStates, fingerprint)) {
+      return;
+    }
+
+    if (this.tryScheduleTierBBandRebuild(setup, loadedIds, audioNodeStates, fingerprint)) {
+      return;
+    }
+
+    if (this.tryTierCRemapperTopologyPatch(setup, loadedIds, audioNodeStates, fingerprint)) {
+      return;
+    }
+
+    if (this.tryScheduleTierCDFileRebuild(setup, loadedIds, audioNodeStates, fingerprint)) {
+      return;
+    }
+
+    this.pruneStaleFileCaches(loadedIds);
 
     // Curves already match this setup + buffers — do not clear samplers or restart the worker.
     if (
@@ -354,53 +415,66 @@ export class AudioManager implements Disposable {
       return;
     }
 
-    const buildGen = ++this.offlineBuildGeneration;
-    const next = new Map<string, OfflineAudioProvider>();
+    this.cancelTierBDebounce();
+    this.clearTierBBuildingToastTimer();
+    this.cancelTierCDDebounce();
+    this.clearTierCDBuildingToastTimer();
+    this.tierBPatchCacheByFileId.clear();
+    this.tierBPendingBandIdsByFileId.clear();
+    this.tierBPendingFingerprint = null;
+    this.tierCDPendingFileIds = [];
+    this.tierCDPendingFingerprint = null;
 
-    for (const fileId of fileIdsWithBands) {
-      const state = audioNodeStates.get(fileId);
-      const buffer = state?.audioBuffer;
-      if (!buffer) continue;
-      const sampleRate = buffer.sampleRate;
-      const frameRate = 120; // canonical analysis rate
-      const maxFrames = Math.ceil(buffer.duration * frameRate) + 2;
-      next.set(
-        fileId,
-        createOfflineAudioProvider(setup, fileId, buffer, sampleRate, frameRate, 0, maxFrames, {
-          cacheBuildMode: 'async',
-          cacheYieldEveryFrames: 240,
-          onCacheBuildProgress01: (p01: number) => {
-            if (this.offlineBuildGeneration !== buildGen) return;
-            audioAnalysisStatusStore.set({ state: 'building', progress01: p01, label: 'Getting audio ready' });
-          },
-        })
-      );
-    }
-
-    this.offlineProvidersByFileId = next;
-    this.curveSamplersByFileId.clear();
-    this.offlineAnalysisFingerprintReady = null;
-    if (this.offlineProvidersByFileId.size === 0) {
-      // We have bands, but no loaded buffers yet; no build is running.
-      this.offlineAnalysisFingerprintReady = null;
-      this.offlineRebuildTargetFingerprint = null;
-      audioAnalysisStatusStore.set({ state: 'idle' });
+    const filesNeedingBuild = loadedIds.filter(
+      (id) => !this.curveSamplersByFileId.has(id) || fingerprint !== this.offlineAnalysisFingerprintReady
+    );
+    if (filesNeedingBuild.length === 0) {
       return;
     }
 
+    this.scheduleFullFileBuilds(filesNeedingBuild, fingerprint);
+  }
+
+  private pruneStaleFileCaches(loadedIds: string[]): void {
+    const loaded = new Set(loadedIds);
+    for (const fileId of this.curveSamplersByFileId.keys()) {
+      if (!loaded.has(fileId)) {
+        this.curveSamplersByFileId.delete(fileId);
+        this.bandSmoothedSeriesByFileId.delete(fileId);
+        this.tierBPatchCacheByFileId.delete(fileId);
+      }
+    }
+  }
+
+  private scheduleFullFileBuilds(fileIds: string[], fingerprint: string): void {
+    if (fileIds.length === 0) return;
+
+    this.cancelTierBDebounce();
+    this.clearTierBBuildingToastTimer();
+    this.cancelTierCDDebounce();
+    this.clearTierCDBuildingToastTimer();
+    this.tierBPatchCacheByFileId.clear();
+    this.tierBPendingBandIdsByFileId.clear();
+    this.tierBPendingFingerprint = null;
+    this.tierCDPendingFileIds = [];
+    this.tierCDPendingFingerprint = null;
+
+    const buildGen = ++this.offlineBuildGeneration;
+    for (const fileId of fileIds) {
+      this.curveSamplersByFileId.delete(fileId);
+      this.bandSmoothedSeriesByFileId.delete(fileId);
+      this.tierBPatchCacheByFileId.delete(fileId);
+    }
+    this.offlineAnalysisFingerprintReady = null;
     this.offlineRebuildTargetFingerprint = fingerprint;
-    // Note: progress updates are delivered via each provider's onCacheBuildProgress01 callback.
     audioAnalysisStatusStore.set({ state: 'building', progress01: 0, label: 'Getting audio ready' });
 
-    // Start worker build for the primary file-backed source. (Phase 2 perf)
-    // For now, we build one combined curve per file sequentially (keeps UX responsive; can parallelize later).
-    // MUST be serialized: overlapping async starts replace `worker.onmessage` mid-flight so worker replies
-    // can miss `pending` entries and deadlock on `await gate`, leaving analysis stuck at 0%.
     const genAtQueue = buildGen;
     const fingerprintAtQueue = fingerprint;
+    const fileIdsAtQueue = [...fileIds];
     this.audioWorkerBuildChain = this.audioWorkerBuildChain
       .catch(() => undefined)
-      .then(() => this.startWorkerBuildForFiles(genAtQueue, fingerprintAtQueue))
+      .then(() => this.runWorkerFullBuildForFileIds(genAtQueue, fingerprintAtQueue, fileIdsAtQueue))
       .catch((err) => {
         if (this.offlineBuildGeneration !== genAtQueue) return;
         if (this.offlineRebuildTargetFingerprint === fingerprintAtQueue) {
@@ -417,7 +491,14 @@ export class AudioManager implements Disposable {
     }
   }
 
-  private async startWorkerBuildForFiles(buildGen: number, targetFingerprint: string): Promise<void> {
+  private async runWorkerFullBuildForFileIds(
+    buildGen: number,
+    targetFingerprint: string,
+    fileIds: string[],
+    options?: { deferReadyCommit?: boolean; allowProgress?: () => boolean }
+  ): Promise<void> {
+    if (fileIds.length === 0) return;
+
     if (this.analysisWorker == null) {
       const { default: WorkerConstructor } = await import('./audio-analysis/audioAnalysisWorker.ts?worker');
       this.analysisWorker = new WorkerConstructor();
@@ -431,8 +512,6 @@ export class AudioManager implements Disposable {
       if (buildId && fileId) worker.postMessage({ type: 'cancel', buildId, fileId });
     }
     this.activeWorkerBuildKeys = [];
-
-    const fileIds = Array.from(this.offlineProvidersByFileId.keys());
     const totalFiles = Math.max(1, fileIds.length);
     const fileIndexById = new Map<string, number>(fileIds.map((id, i) => [id, i]));
 
@@ -451,12 +530,21 @@ export class AudioManager implements Disposable {
       pending.clear();
     };
 
-    worker.onmessage = (ev: MessageEvent<AudioAnalysisWorkerProgress | AudioAnalysisWorkerResult | AudioAnalysisWorkerError | AudioAnalysisWorkerCanceled>) => {
+    worker.onmessage = (
+      ev: MessageEvent<
+        | AudioAnalysisWorkerProgress
+        | AudioAnalysisWorkerResult
+        | AudioAnalysisWorkerBandResult
+        | AudioAnalysisWorkerError
+        | AudioAnalysisWorkerCanceled
+      >
+    ) => {
       const msg = ev.data;
       const isCurrentGen = this.offlineBuildGeneration === buildGen;
 
       if (msg.type === 'progress') {
         if (!isCurrentGen) return;
+        if (options?.allowProgress && !options.allowProgress()) return;
         const key = `${msg.buildId}::${msg.fileId}`;
         const p = pending.get(key);
         if (!p) return;
@@ -493,6 +581,23 @@ export class AudioManager implements Disposable {
         if (!p) return;
         if (isCurrentGen) {
           this.curveSamplersByFileId.set(msg.fileId, new AudioAnalysisCurveSampler(msg.cache));
+          this.bandSmoothedSeriesByFileId.set(
+            msg.fileId,
+            extractBandSmoothedSeriesFromCache(msg.cache)
+          );
+          this.tierBPatchCacheByFileId.delete(msg.fileId);
+        }
+        p.resolve();
+        pending.delete(key);
+        removeActiveKey(key);
+      }
+
+      if (msg.type === 'bandResult') {
+        const key = `${msg.buildId}::${msg.fileId}`;
+        const p = pending.get(key);
+        if (!p) return;
+        if (isCurrentGen) {
+          this.commitTierBBandResult(msg);
         }
         p.resolve();
         pending.delete(key);
@@ -567,10 +672,566 @@ export class AudioManager implements Disposable {
 
     if (this.offlineBuildGeneration !== buildGen) return;
 
+    if (!options?.deferReadyCommit) {
+      this.offlineAnalysisFingerprintReady = targetFingerprint;
+      this.lastOfflineAudioSetup = this.audioSetup;
+      if (this.offlineRebuildTargetFingerprint === targetFingerprint) {
+        this.offlineRebuildTargetFingerprint = null;
+      }
+      audioAnalysisStatusStore.set({ state: 'ready' });
+    }
+    this.activeWorkerBuildKeys = [];
+  }
+
+  /**
+   * Tier C: remapper add/remove with stable bands — reshape channel layout on main thread (no worker).
+   */
+  private tryTierCRemapperTopologyPatch(
+    setup: AudioSetup,
+    loadedIds: string[],
+    audioNodeStates: Map<string, { audioBuffer: AudioBuffer | null }>,
+    fingerprint: string
+  ): boolean {
+    const prevSetup = this.lastOfflineAudioSetup;
+    if (!prevSetup) return false;
+
+    const tierRank: Record<AudioInvalidationTier, number> = {
+      none: 0,
+      remapper: 1,
+      band: 2,
+      structural: 3,
+      file: 4,
+    };
+
+    for (const fileId of loadedIds) {
+      const tier = classifyAudioSetupChange(prevSetup, setup, fileId, {
+        prev: audioNodeStates.get(fileId)?.audioBuffer ?? null,
+        next: audioNodeStates.get(fileId)?.audioBuffer ?? null,
+      });
+      if (tier === 'none') continue;
+      if (tierRank[tier] < tierRank.structural) return false;
+      if (
+        tier === 'structural' &&
+        !isRemapperTopologyOnlyStructuralChange(prevSetup, setup, fileId, {
+          prev: audioNodeStates.get(fileId)?.audioBuffer ?? null,
+          next: audioNodeStates.get(fileId)?.audioBuffer ?? null,
+        })
+      ) {
+        return false;
+      }
+      if (tier === 'file') return false;
+    }
+
+    let patchedAny = false;
+    for (const fileId of loadedIds) {
+      const buffer = audioNodeStates.get(fileId)?.audioBuffer ?? null;
+      if (
+        !isRemapperTopologyOnlyStructuralChange(prevSetup, setup, fileId, {
+          prev: buffer,
+          next: buffer,
+        })
+      ) {
+        continue;
+      }
+
+      const sampler = this.curveSamplersByFileId.get(fileId);
+      const bandSeries = this.bandSmoothedSeriesByFileId.get(fileId);
+      if (!sampler || !bandSeries || bandSeries.size === 0) continue;
+
+      const nextCache = reshapeCurveCacheTopology(sampler.getCurveCache(), setup, fileId, bandSeries);
+      this.curveSamplersByFileId.set(fileId, new AudioAnalysisCurveSampler(nextCache));
+      patchedAny = true;
+    }
+
+    if (!patchedAny) return false;
+
+    this.lastOfflineAudioSetup = setup;
+    this.offlineAnalysisFingerprintReady = fingerprint;
+    audioAnalysisStatusStore.set({ state: 'ready' });
+    return true;
+  }
+
+  private cancelTierCDDebounce(): void {
+    if (this.tierCDDebounceTimer != null) {
+      clearTimeout(this.tierCDDebounceTimer);
+      this.tierCDDebounceTimer = null;
+    }
+  }
+
+  private clearTierCDBuildingToastTimer(): void {
+    if (this.tierCDBuildingToastTimer != null) {
+      clearTimeout(this.tierCDBuildingToastTimer);
+      this.tierCDBuildingToastTimer = null;
+    }
+  }
+
+  /**
+   * Tier C/D: structural band topology or decoded buffer changes — per-file full worker rebuild.
+   */
+  private tryScheduleTierCDFileRebuild(
+    setup: AudioSetup,
+    loadedIds: string[],
+    audioNodeStates: Map<string, { audioBuffer: AudioBuffer | null }>,
+    fingerprint: string
+  ): boolean {
+    const prevSetup = this.lastOfflineAudioSetup;
+    if (!prevSetup) return false;
+
+    const tierRank: Record<AudioInvalidationTier, number> = {
+      none: 0,
+      remapper: 1,
+      band: 2,
+      structural: 3,
+      file: 4,
+    };
+
+    const filesToRebuild: string[] = [];
+
+    for (const fileId of loadedIds) {
+      const tier = classifyAudioSetupChange(prevSetup, setup, fileId, {
+        prev: audioNodeStates.get(fileId)?.audioBuffer ?? null,
+        next: audioNodeStates.get(fileId)?.audioBuffer ?? null,
+      });
+      if (tierRank[tier] < tierRank.structural) continue;
+      if (
+        tier === 'structural' &&
+        isRemapperTopologyOnlyStructuralChange(prevSetup, setup, fileId, {
+          prev: audioNodeStates.get(fileId)?.audioBuffer ?? null,
+          next: audioNodeStates.get(fileId)?.audioBuffer ?? null,
+        })
+      ) {
+        continue;
+      }
+      filesToRebuild.push(fileId);
+    }
+
+    if (filesToRebuild.length === 0) return false;
+
+    this.cancelTierBDebounce();
+    this.clearTierBBuildingToastTimer();
+    this.cancelTierCDDebounce();
+    this.clearTierCDBuildingToastTimer();
+    this.tierBPatchCacheByFileId.clear();
+    this.tierBPendingBandIdsByFileId.clear();
+    this.tierBPendingFingerprint = null;
+
+    const buildGen = ++this.offlineBuildGeneration;
+    for (const fileId of filesToRebuild) {
+      this.curveSamplersByFileId.delete(fileId);
+      this.bandSmoothedSeriesByFileId.delete(fileId);
+      this.tierBPatchCacheByFileId.delete(fileId);
+    }
+
+    this.tierCDPendingFileIds = filesToRebuild;
+    this.tierCDPendingFingerprint = fingerprint;
+    this.offlineRebuildTargetFingerprint = fingerprint;
+
+    audioAnalysisStatusStore.update((s) =>
+      s.state === 'building' ? s : { state: 'fallback', label: 'Live preview until analysis finishes' }
+    );
+
+    this.tierCDDebounceTimer = setTimeout(() => {
+      this.tierCDDebounceTimer = null;
+      const genAtQueue = buildGen;
+      const fingerprintAtQueue = fingerprint;
+      const fileIdsAtQueue = [...this.tierCDPendingFileIds];
+
+      this.audioWorkerBuildChain = this.audioWorkerBuildChain
+        .catch(() => undefined)
+        .then(() => this.runTierCDFileBuilds(genAtQueue, fingerprintAtQueue, fileIdsAtQueue))
+        .catch((err) => {
+          if (this.offlineBuildGeneration !== genAtQueue) return;
+          if (this.offlineRebuildTargetFingerprint === fingerprintAtQueue) {
+            this.offlineRebuildTargetFingerprint = null;
+          }
+          this.clearTierCDBuildingToastTimer();
+          audioAnalysisStatusStore.set({ state: 'failed', label: err instanceof Error ? err.message : String(err) });
+        });
+    }, AudioManager.TIER_CD_DEBOUNCE_MS);
+
+    return true;
+  }
+
+  private async runTierCDFileBuilds(
+    buildGen: number,
+    targetFingerprint: string,
+    fileIds: string[]
+  ): Promise<void> {
+    if (this.offlineBuildGeneration !== buildGen) return;
+
+    let toastShown = false;
+    this.tierCDBuildingToastTimer = setTimeout(() => {
+      if (this.offlineBuildGeneration !== buildGen) return;
+      toastShown = true;
+      audioAnalysisStatusStore.set({ state: 'building', progress01: 0, label: 'Getting audio ready' });
+    }, AudioManager.TIER_B_TOAST_DELAY_MS);
+
+    await this.runWorkerFullBuildForFileIds(buildGen, targetFingerprint, fileIds, {
+      deferReadyCommit: true,
+      allowProgress: () => toastShown,
+    });
+
+    this.clearTierCDBuildingToastTimer();
+
+    if (this.offlineBuildGeneration !== buildGen) return;
+    if (this.tierCDPendingFingerprint != null && this.tierCDPendingFingerprint !== targetFingerprint) return;
+
+    this.lastOfflineAudioSetup = this.audioSetup;
     this.offlineAnalysisFingerprintReady = targetFingerprint;
     if (this.offlineRebuildTargetFingerprint === targetFingerprint) {
       this.offlineRebuildTargetFingerprint = null;
     }
+    this.tierCDPendingFileIds = [];
+    this.tierCDPendingFingerprint = null;
+    audioAnalysisStatusStore.set({ state: 'ready' });
+  }
+  
+  /**
+   * Tier A: remapper-only edits patch published curves on the main thread (no worker, no building toast).
+   * Returns true when handled; false to fall through to full rebuild or early-ready paths.
+   */
+  private tryTierARemapperPatch(
+    setup: AudioSetup,
+    loadedIds: string[],
+    audioNodeStates: Map<string, { audioBuffer: AudioBuffer | null }>,
+    fingerprint: string
+  ): boolean {
+    const prevSetup = this.lastOfflineAudioSetup;
+    if (!prevSetup) return false;
+
+    const tierRank: Record<AudioInvalidationTier, number> = {
+      none: 0,
+      remapper: 1,
+      band: 2,
+      structural: 3,
+      file: 4,
+    };
+    let worstTier: AudioInvalidationTier = 'none';
+    const tierByFileId = new Map<string, AudioInvalidationTier>();
+
+    for (const fileId of loadedIds) {
+      const tier = classifyAudioSetupChange(prevSetup, setup, fileId, {
+        prev: audioNodeStates.get(fileId)?.audioBuffer ?? null,
+        next: audioNodeStates.get(fileId)?.audioBuffer ?? null,
+      });
+      tierByFileId.set(fileId, tier);
+      if (tierRank[tier] > tierRank[worstTier]) worstTier = tier;
+    }
+
+    if (worstTier === 'none') return false;
+    if (tierRank[worstTier] > tierRank.remapper) return false;
+
+    let patchedAny = false;
+    for (const fileId of loadedIds) {
+      if (tierByFileId.get(fileId) !== 'remapper') continue;
+
+      const sampler = this.curveSamplersByFileId.get(fileId);
+      const bandSeries = this.bandSmoothedSeriesByFileId.get(fileId);
+      if (!sampler || !bandSeries || bandSeries.size === 0) continue;
+
+      const { remapperConfigs } = buildOfflineAudioAnalysisConfigs(setup, fileId);
+      patchRemapperChannelsFromBandCache(sampler.getCurveCache(), bandSeries, remapperConfigs);
+      patchedAny = true;
+    }
+
+    if (!patchedAny) return false;
+
+    this.lastOfflineAudioSetup = setup;
+    this.offlineAnalysisFingerprintReady = fingerprint;
+    audioAnalysisStatusStore.set({ state: 'ready' });
+    return true;
+  }
+
+  private cancelTierBDebounce(): void {
+    if (this.tierBDebounceTimer != null) {
+      clearTimeout(this.tierBDebounceTimer);
+      this.tierBDebounceTimer = null;
+    }
+  }
+
+  private clearTierBBuildingToastTimer(): void {
+    if (this.tierBBuildingToastTimer != null) {
+      clearTimeout(this.tierBBuildingToastTimer);
+      this.tierBBuildingToastTimer = null;
+    }
+  }
+
+  /**
+   * Tier B: band-analysis edits queue a debounced subset worker rebuild per file.
+   * Returns true when scheduled; false to fall through to full rebuild.
+   */
+  private tryScheduleTierBBandRebuild(
+    setup: AudioSetup,
+    loadedIds: string[],
+    audioNodeStates: Map<string, { audioBuffer: AudioBuffer | null }>,
+    fingerprint: string
+  ): boolean {
+    const prevSetup = this.lastOfflineAudioSetup;
+    if (!prevSetup) return false;
+
+    const tierRank: Record<AudioInvalidationTier, number> = {
+      none: 0,
+      remapper: 1,
+      band: 2,
+      structural: 3,
+      file: 4,
+    };
+
+    const bandIdsByFileId = new Map<string, string[]>();
+
+    for (const fileId of loadedIds) {
+      const tier = classifyAudioSetupChange(prevSetup, setup, fileId, {
+        prev: audioNodeStates.get(fileId)?.audioBuffer ?? null,
+        next: audioNodeStates.get(fileId)?.audioBuffer ?? null,
+      });
+      if (tier === 'none') continue;
+      if (tierRank[tier] > tierRank.band) return false;
+
+      const changedBandIds = bandIdsWithAnalysisChange(prevSetup, setup, fileId);
+      if (changedBandIds.length === 0) return false;
+
+      const sampler = this.curveSamplersByFileId.get(fileId);
+      const bandSeries = this.bandSmoothedSeriesByFileId.get(fileId);
+      if (!sampler && !this.tierBPatchCacheByFileId.has(fileId)) return false;
+      if (!bandSeries || bandSeries.size === 0) return false;
+
+      bandIdsByFileId.set(fileId, changedBandIds);
+    }
+
+    if (bandIdsByFileId.size === 0) return false;
+
+    this.cancelTierBDebounce();
+    this.clearTierBBuildingToastTimer();
+    const buildGen = ++this.offlineBuildGeneration;
+
+    for (const fileId of bandIdsByFileId.keys()) {
+      const sampler = this.curveSamplersByFileId.get(fileId);
+      if (sampler) {
+        this.tierBPatchCacheByFileId.set(fileId, sampler.getCurveCache());
+        this.curveSamplersByFileId.delete(fileId);
+      }
+    }
+
+    this.tierBPendingBandIdsByFileId = bandIdsByFileId;
+    this.tierBPendingFingerprint = fingerprint;
+    this.offlineRebuildTargetFingerprint = fingerprint;
+
+    audioAnalysisStatusStore.update((s) =>
+      s.state === 'building' ? s : { state: 'fallback', label: 'Live preview until analysis finishes' }
+    );
+
+    this.tierBDebounceTimer = setTimeout(() => {
+      this.tierBDebounceTimer = null;
+      const genAtQueue = buildGen;
+      const fingerprintAtQueue = fingerprint;
+      const bandsByFile = new Map(this.tierBPendingBandIdsByFileId);
+
+      this.audioWorkerBuildChain = this.audioWorkerBuildChain
+        .catch(() => undefined)
+        .then(() => this.runTierBBuilds(genAtQueue, fingerprintAtQueue, bandsByFile))
+        .catch((err) => {
+          if (this.offlineBuildGeneration !== genAtQueue) return;
+          if (this.offlineRebuildTargetFingerprint === fingerprintAtQueue) {
+            this.offlineRebuildTargetFingerprint = null;
+          }
+          this.clearTierBBuildingToastTimer();
+          audioAnalysisStatusStore.set({ state: 'failed', label: err instanceof Error ? err.message : String(err) });
+        });
+    }, AudioManager.TIER_B_DEBOUNCE_MS);
+
+    return true;
+  }
+
+  private commitTierBBandResult(msg: AudioAnalysisWorkerBandResult): void {
+    const cache = this.tierBPatchCacheByFileId.get(msg.fileId);
+    if (!cache) return;
+
+    const setup = this.audioSetup;
+    if (!setup) return;
+
+    const { analyzerConfigs, remapperConfigs } = buildOfflineAudioAnalysisConfigs(setup, msg.fileId);
+    const subsetConfigs = analyzerConfigs.filter((a) => msg.bandIds.includes(a.nodeId));
+    if (subsetConfigs.length === 0) return;
+
+    let bandSeries = this.bandSmoothedSeriesByFileId.get(msg.fileId);
+    if (!bandSeries) {
+      bandSeries = new Map();
+      this.bandSmoothedSeriesByFileId.set(msg.fileId, bandSeries);
+    }
+
+    for (let i = 0; i < msg.bandIds.length; i++) {
+      const bandId = msg.bandIds[i]!;
+      const series = msg.series[i];
+      if (series) bandSeries.set(bandId, series);
+    }
+
+    patchBandAndRemapChannelsFromBandSeries(cache, bandSeries, subsetConfigs);
+    patchRemapperChannelsFromBandCache(cache, bandSeries, remapperConfigs);
+
+    this.curveSamplersByFileId.set(msg.fileId, new AudioAnalysisCurveSampler(cache));
+    this.tierBPatchCacheByFileId.delete(msg.fileId);
+  }
+
+  private async runTierBBuilds(
+    buildGen: number,
+    targetFingerprint: string,
+    bandIdsByFileId: Map<string, string[]>
+  ): Promise<void> {
+    if (this.offlineBuildGeneration !== buildGen) return;
+
+    if (this.analysisWorker == null) {
+      const { default: WorkerConstructor } = await import('./audio-analysis/audioAnalysisWorker.ts?worker');
+      this.analysisWorker = new WorkerConstructor();
+    }
+
+    const worker = this.analysisWorker;
+    let toastShown = false;
+    this.tierBBuildingToastTimer = setTimeout(() => {
+      if (this.offlineBuildGeneration !== buildGen) return;
+      toastShown = true;
+      audioAnalysisStatusStore.set({ state: 'building', progress01: 0, label: 'Getting audio ready' });
+    }, AudioManager.TIER_B_TOAST_DELAY_MS);
+
+    for (const key of this.activeWorkerBuildKeys) {
+      const [buildId, fileId] = key.split('::');
+      if (buildId && fileId) worker.postMessage({ type: 'cancel', buildId, fileId });
+    }
+    this.activeWorkerBuildKeys = [];
+
+    const pending = new Map<string, { resolve: () => void; reject: (e: Error) => void }>();
+    const removeActiveKey = (key: string) => {
+      const idx = this.activeWorkerBuildKeys.indexOf(key);
+      if (idx >= 0) this.activeWorkerBuildKeys.splice(idx, 1);
+    };
+
+    worker.onmessage = (
+      ev: MessageEvent<
+        | AudioAnalysisWorkerProgress
+        | AudioAnalysisWorkerResult
+        | AudioAnalysisWorkerBandResult
+        | AudioAnalysisWorkerError
+        | AudioAnalysisWorkerCanceled
+      >
+    ) => {
+      const msg = ev.data;
+      const isCurrentGen = this.offlineBuildGeneration === buildGen;
+
+      if (msg.type === 'progress') {
+        if (!isCurrentGen || !toastShown) return;
+        const overall = msg.progress01;
+        audioAnalysisStatusStore.set({ state: 'building', progress01: overall, label: 'Getting audio ready' });
+        return;
+      }
+
+      if (msg.type === 'error') {
+        const key = `${msg.buildId}::${msg.fileId}`;
+        const p = pending.get(key);
+        if (!p) return;
+        p.reject(new Error(msg.message));
+        pending.delete(key);
+        removeActiveKey(key);
+        return;
+      }
+
+      if (msg.type === 'canceled') {
+        const key = `${msg.buildId}::${msg.fileId}`;
+        const p = pending.get(key);
+        if (!p) return;
+        p.resolve();
+        pending.delete(key);
+        removeActiveKey(key);
+        return;
+      }
+
+      if (msg.type === 'bandResult') {
+        const key = `${msg.buildId}::${msg.fileId}`;
+        const p = pending.get(key);
+        if (!p) return;
+        if (isCurrentGen) this.commitTierBBandResult(msg);
+        p.resolve();
+        pending.delete(key);
+        removeActiveKey(key);
+      }
+    };
+
+    const fileIds = [...bandIdsByFileId.keys()];
+
+    for (let idx = 0; idx < fileIds.length; idx++) {
+      if (this.offlineBuildGeneration !== buildGen) return;
+
+      const fileId = fileIds[idx]!;
+      const bandIds = bandIdsByFileId.get(fileId);
+      if (!bandIds || bandIds.length === 0) continue;
+
+      const cache = this.tierBPatchCacheByFileId.get(fileId);
+      if (!cache) continue;
+
+      const setup = this.audioSetup;
+      if (!setup) return;
+
+      const expectedDigest = bandAnalysisDigest(setup, fileId);
+      if (this.offlineBuildGeneration !== buildGen) return;
+
+      const state = this.playbackController.getAudioNodeState(fileId);
+      const buffer = state?.audioBuffer;
+      if (!buffer) continue;
+
+      const buildId = `tierb-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const key = `${buildId}::${fileId}`;
+      this.activeWorkerBuildKeys.push(key);
+
+      const gate = new Promise<void>((resolve, reject) => {
+        pending.set(key, { resolve, reject });
+      });
+
+      const pcmChannels: Float32Array[] = [];
+      for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+        const src = buffer.getChannelData(ch);
+        const copy = new Float32Array(src.length);
+        copy.set(src);
+        pcmChannels.push(copy);
+      }
+
+      const { analyzerConfigs } = buildOfflineAudioAnalysisConfigs(setup, fileId);
+      const subsetConfigs = analyzerConfigs.filter((a) => bandIds.includes(a.nodeId));
+      const hopHz = 120;
+      const frameRateForDuration = 120;
+      const maxFrames = Math.ceil(buffer.duration * frameRateForDuration) + 2;
+
+      worker.postMessage(
+        {
+          type: 'buildBands',
+          buildId,
+          fileId,
+          sampleRate: buffer.sampleRate,
+          startTimeSeconds: cache.startTimeSeconds,
+          hopHz,
+          frameRateForDuration,
+          maxFrames,
+          pcmChannels,
+          analyzerConfigs: subsetConfigs,
+        },
+        pcmChannels.map((a) => a.buffer)
+      );
+
+      await gate;
+
+      if (this.offlineBuildGeneration !== buildGen) return;
+      if (bandAnalysisDigest(setup, fileId) !== expectedDigest) return;
+    }
+
+    this.clearTierBBuildingToastTimer();
+
+    if (this.offlineBuildGeneration !== buildGen) return;
+    if (this.tierBPendingFingerprint != null && this.tierBPendingFingerprint !== targetFingerprint) return;
+
+    this.lastOfflineAudioSetup = this.audioSetup;
+    this.offlineAnalysisFingerprintReady = targetFingerprint;
+    if (this.offlineRebuildTargetFingerprint === targetFingerprint) {
+      this.offlineRebuildTargetFingerprint = null;
+    }
+    this.tierBPendingBandIdsByFileId.clear();
+    this.tierBPendingFingerprint = null;
     audioAnalysisStatusStore.set({ state: 'ready' });
     this.activeWorkerBuildKeys = [];
   }
@@ -802,6 +1463,11 @@ export class AudioManager implements Disposable {
     // Stop periodic cleanup
     this.stopPeriodicCleanup();
     this.cancelPendingOfflineRebuildSchedule();
+    this.cancelTierBDebounce();
+    this.clearTierBBuildingToastTimer();
+    this.cancelTierCDDebounce();
+    this.clearTierCDBuildingToastTimer();
+    this.tierBPatchCacheByFileId.clear();
     this.loadAudioFileInflightByKey.clear();
 
     // Destroy components in reverse order of creation (dependencies before dependents)

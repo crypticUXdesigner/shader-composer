@@ -135,4 +135,62 @@ describe('migrateArrangementNotesParameters', () => {
     expect(p.uvInputMode).toBeUndefined();
     expect(migrated.connections).toHaveLength(0);
   });
+
+  it('strips removed rowGap and edgeFade params and parameter wires', () => {
+    const graph: NodeGraph = {
+      id: 'g',
+      name: 't',
+      version: '2.0',
+      nodes: [
+        {
+          id: 'c',
+          type: 'constant-float',
+          position: { x: 0, y: 0 },
+          parameters: { value: 0.1 },
+        },
+        {
+          id: 'n1',
+          type: 'arrangement-notes',
+          position: { x: 0, y: 0 },
+          parameters: { rowGap: 0.05, edgeFade: 0.12 },
+        },
+      ],
+      connections: [
+        {
+          id: 'w',
+          sourceNodeId: 'c',
+          sourcePort: 'out',
+          targetNodeId: 'n1',
+          targetParameter: 'rowGap',
+        },
+      ],
+    };
+
+    const migrated = migrateArrangementNotesParameters(graph);
+    const p = migrated.nodes[0].parameters as Record<string, unknown>;
+    expect(p.rowGap).toBeUndefined();
+    expect(p.edgeFade).toBeUndefined();
+    expect(migrated.connections).toHaveLength(0);
+  });
+
+  it('adds noteColorMode and trackNoteColors when missing', () => {
+    const graph: NodeGraph = {
+      id: 'g',
+      name: 't',
+      version: '2.0',
+      nodes: [
+        {
+          id: 'n1',
+          type: 'arrangement-notes',
+          position: { x: 0, y: 0 },
+          parameters: { windowSeconds: 32 },
+        },
+      ],
+      connections: [],
+    };
+    const migrated = migrateArrangementNotesParameters(graph);
+    const p = migrated.nodes[0].parameters as Record<string, unknown>;
+    expect(p.noteColorMode).toBe(2);
+    expect(p.trackNoteColors).toBe('');
+  });
 });

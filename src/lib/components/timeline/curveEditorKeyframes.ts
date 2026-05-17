@@ -1,7 +1,11 @@
 import type { AutomationKeyframe } from '../../../data-model/types';
+import { clampNormalized01, sanitizeAutomationCurveKeyframes } from '../../../utils/automationKeyframes';
 
-/** Keeps sequential keyframes from sharing the same normalized time during drag corrections. */
-export const KEYFRAME_TIME_EPS = 1e-3;
+export {
+  KEYFRAME_TIME_EPS,
+  clampNormalized01,
+  sanitizeAutomationCurveKeyframes,
+} from '../../../utils/automationKeyframes';
 
 /** Only snap when the pointer is near a grid crossing (fraction of one grid step). */
 export const SNAP_NEAR_GRID_FRAC = 0.36;
@@ -44,38 +48,6 @@ export function remapSelectionIndices(
   return [...next].sort((a, b) => a - b);
 }
 
-/** Preserve time order along the array (sorted keyframe semantics) without resorting indices mid-drag. */
-export function enforceMonotonicKeyTimes_inplace(kfs: AutomationKeyframe[]): void {
-  const n = kfs.length;
-  if (n < 2) return;
-
-  let changed = true;
-  let guard = 0;
-  while (changed && guard < 32) {
-    changed = false;
-    guard += 1;
-    kfs[0] = { ...kfs[0], time: 0 };
-    kfs[n - 1] = { ...kfs[n - 1], time: 1 };
-
-    for (let i = 1; i < n - 1; i += 1) {
-      const minT = Math.min(kfs[i - 1].time + KEYFRAME_TIME_EPS, 1);
-      if (kfs[i].time < minT) {
-        kfs[i] = { ...kfs[i], time: minT };
-        changed = true;
-      }
-    }
-    for (let i = n - 2; i >= 1; i -= 1) {
-      const maxT = Math.max(kfs[i + 1].time - KEYFRAME_TIME_EPS, 0);
-      if (kfs[i].time > maxT) {
-        kfs[i] = { ...kfs[i], time: maxT };
-        changed = true;
-      }
-    }
-  }
-  kfs[0] = { ...kfs[0], time: 0 };
-  kfs[n - 1] = { ...kfs[n - 1], time: 1 };
-}
-
 export function proposeDragKeyframes(
   base: AutomationKeyframe[],
   selIndices: readonly number[],
@@ -85,15 +57,19 @@ export function proposeDragKeyframes(
   pointerV: number,
   snapTimeFn: (t: number) => number
 ): AutomationKeyframe[] {
-  const dt = pointerT - anchorT;
-  const dv = pointerV - anchorV;
+  const safeAnchorT = clampNormalized01(anchorT);
+  const safeAnchorV = clampNormalized01(anchorV);
+  const safePointerT = clampNormalized01(pointerT);
+  const safePointerV = clampNormalized01(pointerV);
+  const dt = safePointerT - safeAnchorT;
+  const dv = safePointerV - safeAnchorV;
   const n = base.length;
   const selSet = new Set(selIndices);
 
   const next = base.map((kf, i) => {
     if (!selSet.has(i)) return { ...kf };
 
-    const nv = Math.max(0, Math.min(1, kf.value + dv));
+    const nv = clampNormalized01(kf.value + dv, clampNormalized01(kf.value));
     let nt: number;
 
     if (i === 0) {
@@ -103,18 +79,47 @@ export function proposeDragKeyframes(
       return { time: 1, value: nv };
     }
 
-    nt = snapTimeFn(kf.time + dt);
-    nt = Math.max(0, Math.min(1, nt));
+    nt = clampNormalized01(snapTimeFn(kf.time + dt), clampNormalized01(kf.time));
     return { time: nt, value: nv };
   });
 
-  enforceMonotonicKeyTimes_inplace(next);
-  return next;
+  return sanitizeAutomationCurveKeyframes(next);
+}
+
+export type CurveEditorDragAxisLock = 'free' | 'time' | 'value';
+
+/** Shift = horizontal (time) only; Alt = vertical (value) only. Shift wins when both are held. */
+export function resolveCurveEditorDragAxisLock(
+  shiftKey: boolean,
+  altKey: boolean
+): CurveEditorDragAxisLock {
+  if (shiftKey) return 'time';
+  if (altKey) return 'value';
+  return 'free';
+}
+
+export function constrainCurveEditorDragPointer(
+  pointerT: number,
+  pointerV: number,
+  anchorT: number,
+  anchorV: number,
+  lock: CurveEditorDragAxisLock
+): { t: number; v: number } {
+  switch (lock) {
+    case 'time':
+      return { t: pointerT, v: anchorV };
+    case 'value':
+      return { t: anchorT, v: pointerV };
+    default:
+      return { t: pointerT, v: pointerV };
+  }
 }
 
 export type CurveEditorDragSession = {
   startKeyframes: AutomationKeyframe[];
   selectedIndicesSorted: readonly number[];
+  /** Keyframe under the pointer at drag start (time guide follows this mark). */
+  primaryDragIndex: number;
   anchorT: number;
   anchorV: number;
 };
@@ -132,6 +137,18 @@ export function maybeSnapCurveKeyframeTime(
   const step = 1 / (opts.regionBars * opts.snapDivision);
   const snapped = snapTimeToBarGrid(tn, opts.regionBars, opts.snapDivision);
   return Math.abs(tn - snapped) <= step * SNAP_NEAR_GRID_FRAC ? snapped : tn;
+}
+
+/** Flip normalized values: low becomes high and high becomes low (times unchanged). */
+export function invertCurveKeyframeValues(
+  keyframes: readonly AutomationKeyframe[]
+): AutomationKeyframe[] {
+  return sanitizeAutomationCurveKeyframes(
+    keyframes.map((kf) => ({
+      ...kf,
+      value: clampNormalized01(1 - kf.value, 0),
+    }))
+  );
 }
 
 /** After inserting a keyframe near (t,v), locate its index for selection. */

@@ -34,11 +34,12 @@
     type TimelineTransformParams,
   } from './timelineMath';
   import {
-    computeDuplicateDropStart,
     computeResizeFromMouseDelta,
     createRegionDragState,
     createRegionResizeState,
+    resolveLaneIdAtClientPoint,
     updateRegionDragTime,
+    type RegionDragState,
   } from './regionInteractions';
   import { buildTimelineLaneViewModels, type TimelineLaneViewModel } from './timelineLaneViewModel';
   import { buildTimelineRulerData } from './timelineRulerModel';
@@ -48,6 +49,10 @@
     TIMELINE_FLOATING_HEADER_HOST,
     type TimelineFloatingHeaderHostGetter,
   } from './timelineFloatingHeaderContext';
+  import {
+    createStrictTapThenDownDouble,
+    STRICT_DOUBLE_CLICK_MAX_MOVE_PX,
+  } from '../../utils/strictDoubleClick';
 
   const DEFAULT_BPM = 120;
   const DEFAULT_BARS_NEW_REGION = 16;
@@ -109,11 +114,6 @@
     const target = openCurveEditorRegion;
     if (!cb || !target) return;
 
-    if (regionDrag?.isDuplicate) {
-      cb(null);
-      return;
-    }
-
     if (
       regionResize &&
       regionResize.laneId === target.laneId &&
@@ -148,14 +148,7 @@
   let snapEnabled = $state(false);
   let snapGridBars = $state(4);
   let selectedRegion = $state<{ laneId: string; regionId: string } | null>(null);
-  let regionDrag = $state<{
-    laneId: string;
-    regionId: string;
-    startTime: number;
-    /** Time offset from cursor to region start (cursorTime - region.startTime) so region sticks to cursor. */
-    gripOffset: number;
-    isDuplicate: boolean;
-  } | null>(null);
+  let regionDrag = $state<RegionDragState | null>(null);
   let regionResize = $state<{
     laneId: string;
     regionId: string;
@@ -354,43 +347,171 @@
     window.addEventListener('mouseup', onUp);
   }
 
-  /** Get time (0..duration) from clientX using the playhead track (lane column) rect; null if invalid. */
+  /** Get time (0..duration) from clientX using the lane tracks column rect; null if invalid. */
   function getTimeFromPlayheadTrack(clientX: number): number | null {
-    if (!playheadClipEl) return null;
-    const rect = playheadClipEl.getBoundingClientRect();
+    const seekEl = trackColumnEl ?? playheadClipEl;
+    if (!seekEl) return null;
+    const rect = seekEl.getBoundingClientRect();
     if (rect.width <= 0) return null;
     const duration = getDuration();
     if (duration <= 0) return null;
     return getTimeFromClientXInRect(clientX, rect, timelineTransform);
   }
 
-  function onPlayheadPointerDown(e: PointerEvent): void {
-    if (e.button !== 0) return;
+  function seekPlayheadAtClientX(clientX: number): void {
+    const t = getTimeFromPlayheadTrack(clientX);
+    if (t != null) onSeek?.(t);
+  }
+
+  function beginTimelineSeek(
+    e: PointerEvent,
+    captureTarget: HTMLElement,
+    onStillTap?: (e: PointerEvent) => void,
+    options?: { preventDefaultOnDown?: boolean }
+  ): void {
+    if (e.button !== 0 || e.detail > 1) return;
     if (!onSeek || getDuration() <= 0) return;
-    e.preventDefault();
-    const target = e.currentTarget as HTMLElement;
-    target.setPointerCapture(e.pointerId);
+    if (options?.preventDefaultOnDown !== false) {
+      e.preventDefault();
+    }
+    captureTarget.setPointerCapture(e.pointerId);
     playheadDragging = true;
-    const t = getTimeFromPlayheadTrack(e.clientX);
-    if (t != null) onSeek(t);
+    const seekDownX = e.clientX;
+    const seekDownY = e.clientY;
+    seekPlayheadAtClientX(e.clientX);
 
     const onMove = (e2: PointerEvent): void => {
       e2.preventDefault();
-      const t2 = getTimeFromPlayheadTrack(e2.clientX);
-      if (t2 != null) onSeek(t2);
+      seekPlayheadAtClientX(e2.clientX);
     };
     const onUp = (e2: PointerEvent): void => {
       if (e2.pointerId === e.pointerId) {
-        target.releasePointerCapture(e2.pointerId);
+        captureTarget.releasePointerCapture(e2.pointerId);
       }
+      const movedFar =
+        Math.abs(e2.clientX - seekDownX) > STRICT_DOUBLE_CLICK_MAX_MOVE_PX ||
+        Math.abs(e2.clientY - seekDownY) > STRICT_DOUBLE_CLICK_MAX_MOVE_PX;
+      if (!movedFar) onStillTap?.(e2);
       playheadDragging = false;
-      target.removeEventListener('pointermove', onMove);
-      target.removeEventListener('pointerup', onUp);
-      target.removeEventListener('pointercancel', onUp);
+      captureTarget.removeEventListener('pointermove', onMove);
+      captureTarget.removeEventListener('pointerup', onUp);
+      captureTarget.removeEventListener('pointercancel', onUp);
     };
-    target.addEventListener('pointermove', onMove);
-    target.addEventListener('pointerup', onUp);
-    target.addEventListener('pointercancel', onUp);
+    captureTarget.addEventListener('pointermove', onMove);
+    captureTarget.addEventListener('pointerup', onUp);
+    captureTarget.addEventListener('pointercancel', onUp);
+  }
+
+  function onPlayheadPointerDown(e: PointerEvent): void {
+    beginTimelineSeek(e, e.currentTarget as HTMLElement);
+  }
+
+  const laneStrictTapPairById = new Map<
+    string,
+    ReturnType<typeof createStrictTapThenDownDouble>
+  >();
+
+  function laneStrictTapPair(laneId: string): ReturnType<typeof createStrictTapThenDownDouble> {
+    let pair = laneStrictTapPairById.get(laneId);
+    if (!pair) {
+      pair = createStrictTapThenDownDouble();
+      laneStrictTapPairById.set(laneId, pair);
+    }
+    return pair;
+  }
+
+  /**
+   * Lane row: click/release or drag scrubs; strict tap-then-down adds a region (see addRegionOnEmptyTrack).
+   * Native dblclick is unreliable here because the first tap seeks the playhead under the cursor.
+   */
+  function onLaneRowPointerDown(e: PointerEvent, laneId: string): void {
+    if (e.button !== 0) return;
+    const laneRow = e.currentTarget as HTMLElement;
+    const target = e.target as HTMLElement;
+    if (target.closest('.region-block')) return;
+    const trackEl = laneRow.querySelector('.track') as HTMLElement | null;
+    if (!trackEl) return;
+    if (!onSeek || getDuration() <= 0 || getTimelineState() == null) return;
+
+    e.stopPropagation();
+
+    const strictPair = laneStrictTapPair(laneId);
+    if (strictPair.consumeIfSecondPress(e)) {
+      addRegionOnEmptyTrack(e, laneId, trackEl);
+      return;
+    }
+
+    const downX = e.clientX;
+    const downY = e.clientY;
+    const ptrId = e.pointerId;
+    let scrubbing = false;
+
+    const cleanup = (): void => {
+      laneRow.removeEventListener('pointermove', onMove);
+      laneRow.removeEventListener('pointerup', onUp);
+      laneRow.removeEventListener('pointercancel', onUp);
+      if (scrubbing) playheadDragging = false;
+    };
+
+    const onMove = (e2: PointerEvent): void => {
+      if (e2.pointerId !== ptrId) return;
+      const movedFar =
+        Math.abs(e2.clientX - downX) > STRICT_DOUBLE_CLICK_MAX_MOVE_PX ||
+        Math.abs(e2.clientY - downY) > STRICT_DOUBLE_CLICK_MAX_MOVE_PX;
+      if (!movedFar) return;
+      if (!scrubbing) {
+        scrubbing = true;
+        playheadDragging = true;
+        laneRow.setPointerCapture(ptrId);
+      }
+      e2.preventDefault();
+      seekPlayheadAtClientX(e2.clientX);
+    };
+
+    const onUp = (e2: PointerEvent): void => {
+      if (e2.pointerId !== ptrId) return;
+      if (laneRow.hasPointerCapture(ptrId)) {
+        laneRow.releasePointerCapture(ptrId);
+      }
+      const wasScrub = scrubbing;
+      const movedFar =
+        Math.abs(e2.clientX - downX) > STRICT_DOUBLE_CLICK_MAX_MOVE_PX ||
+        Math.abs(e2.clientY - downY) > STRICT_DOUBLE_CLICK_MAX_MOVE_PX;
+      cleanup();
+      if (!wasScrub) {
+        seekPlayheadAtClientX(e2.clientX);
+        if (!movedFar) {
+          strictPair.recordCompletedPrimaryTap(e2);
+        }
+      }
+    };
+
+    laneRow.addEventListener('pointermove', onMove);
+    laneRow.addEventListener('pointerup', onUp);
+    laneRow.addEventListener('pointercancel', onUp);
+  }
+
+  function onLaneRowDblClick(e: MouseEvent, laneId: string): void {
+    if (!onSeek || getDuration() <= 0 || getTimelineState() == null) return;
+    e.stopPropagation();
+    const el = e.currentTarget as HTMLElement;
+    const trackEl = (
+      el.matches('.track') ? el : el.querySelector('.track')
+    ) as HTMLElement | null;
+    if (!trackEl) return;
+    addRegionOnEmptyTrack(e, laneId, trackEl);
+  }
+
+  /** Background only (gaps, padding, below lanes) — not lane rows. */
+  function onLanesBackgroundSeekPointerDown(e: PointerEvent): void {
+    if (e.button !== 0) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('.region-block')) return;
+    if (target.closest('.playhead-handle')) return;
+    if (target.closest('.lane-row')) return;
+    if (!onSeek || getDuration() <= 0 || getTimelineState() == null) return;
+
+    beginTimelineSeek(e, e.currentTarget as HTMLElement);
   }
 
   const scrollerLeftPct = $derived.by(() => {
@@ -576,16 +697,18 @@
   }
 
   function duplicateRegion(
-    laneId: string,
+    targetLaneId: string,
+    sourceLaneId: string,
     sourceRegionId: string,
     startTime: number
   ): void {
     const graph = getGraph();
-    const lane = graph.automation?.lanes.find((l: AutomationLane) => l.id === laneId);
-    const region = lane?.regions.find((r: AutomationRegion) => r.id === sourceRegionId);
-    if (!lane || !region) return;
+    const sourceLane = graph.automation?.lanes.find((l: AutomationLane) => l.id === sourceLaneId);
+    const region = sourceLane?.regions.find((r: AutomationRegion) => r.id === sourceRegionId);
+    const targetLane = graph.automation?.lanes.find((l: AutomationLane) => l.id === targetLaneId);
+    if (!sourceLane || !targetLane || !region) return;
     const newId = generateUUID();
-    const updated = addAutomationRegion(graph, laneId, {
+    const updated = addAutomationRegion(graph, targetLaneId, {
       id: newId,
       startTime,
       duration: region.duration,
@@ -593,14 +716,15 @@
       curve: region.curve,
     });
     onGraphUpdate(updated);
-    selectedRegion = { laneId, regionId: newId };
+    selectedRegion = { laneId: targetLaneId, regionId: newId };
   }
 
-  function handleTrackDblClick(e: MouseEvent, laneId: string) {
-    const target = e.target as HTMLElement;
-    if (target.classList.contains('region-block')) return;
-    const track = (e.currentTarget as HTMLElement).closest('.track') as HTMLElement;
-    if (!track) return;
+  function addRegionOnEmptyTrack(
+    e: MouseEvent | PointerEvent,
+    laneId: string,
+    track: HTMLElement
+  ): void {
+    if ((e.target as HTMLElement).closest('.region-block')) return;
     const rect = track.getBoundingClientRect();
     const xPx = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
     const x = rect.width > 0 ? (xPx / rect.width) * trackWidth : 0;
@@ -707,9 +831,13 @@
 
     const onMouseMove = (e2: MouseEvent): void => {
       if (!regionDrag) return;
+      const targetLaneId =
+        regionDrag.isDuplicate
+          ? resolveLaneIdAtClientPoint(e2.clientX, e2.clientY, lanesContainerEl) ?? laneId
+          : laneId;
       const trackEl = lanesContainerEl?.querySelector(
-        `.track[data-lane-id="${laneId}"]`
-      ) as HTMLElement;
+        `.track[data-lane-id="${targetLaneId}"]`
+      ) as HTMLElement | null;
       if (!trackEl) return;
       const trackRect = trackEl.getBoundingClientRect();
       const cursorTimeNow = getTimeFromTrackRect(e2.clientX, trackRect);
@@ -722,51 +850,29 @@
         bpm: getBpm(),
         snapGridBars,
       });
-      regionDrag = { ...regionDrag, startTime: newStart };
+      regionDrag = { ...regionDrag, startTime: newStart, targetLaneId };
       syncCurveEditorRegionTimePreview();
     };
 
-    const onMouseUp = (): void => {
+    const onMouseUp = (e2: MouseEvent): void => {
       onOpenCurveEditorRegionTimePreview?.(null);
       const final = regionDrag;
       regionDrag = null;
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
-      if (final) {
-        const updated = updateAutomationRegion(getGraph(), laneId, regionId, {
-          startTime: final.startTime,
-        });
-        onGraphUpdate(updated);
+      if (!final) return;
+      if (final.isDuplicate) {
+        const dropLaneId =
+          resolveLaneIdAtClientPoint(e2.clientX, e2.clientY, lanesContainerEl) ??
+          final.targetLaneId;
+        duplicateRegion(dropLaneId, final.laneId, regionId, final.startTime);
+        return;
       }
+      const updated = updateAutomationRegion(getGraph(), laneId, regionId, {
+        startTime: final.startTime,
+      });
+      onGraphUpdate(updated);
     };
-
-    if (isDuplicate) {
-      const onMouseUpDup = (e2: MouseEvent): void => {
-        onOpenCurveEditorRegionTimePreview?.(null);
-        window.removeEventListener('mouseup', onMouseUpDup);
-        const track = lanesContainerEl?.querySelector(
-          `.track[data-lane-id="${laneId}"]`
-        ) as HTMLElement;
-        if (track) {
-          const rect = track.getBoundingClientRect();
-          const maxT = getDuration();
-          const rawStart = computeDuplicateDropStart({
-            clientX: e2.clientX,
-            trackRect: rect,
-            math: timelineTransform,
-            snapEnabled,
-            bpm: getBpm(),
-            snapGridBars,
-          });
-          const newStart = Math.max(0, Math.min(rawStart, maxT - region.duration));
-          duplicateRegion(laneId, regionId, newStart);
-        }
-        regionDrag = null;
-      };
-      syncCurveEditorRegionTimePreview();
-      window.addEventListener('mouseup', onMouseUpDup);
-      return;
-    }
 
     syncCurveEditorRegionTimePreview();
     window.addEventListener('mousemove', onMouseMove);
@@ -983,12 +1089,14 @@
         currentTime={currentTime}
         rulerSeekEnabled={rulerSeekEnabled}
         onDeleteLane={deleteLane}
-        onTrackDblClick={handleTrackDblClick}
         onRegionMouseDown={onRegionMouseDown}
         onRegionContextMenu={onRegionContextMenu}
         onRegionDblClick={handleRegionDblClick}
         onRegionResizeStart={onRegionResizeStart}
         onPlayheadPointerDown={onPlayheadPointerDown}
+        onLaneRowPointerDown={onLaneRowPointerDown}
+        onLaneRowDblClick={onLaneRowDblClick}
+        onLanesBackgroundSeekPointerDown={onLanesBackgroundSeekPointerDown}
         onRevealInNodeEditor={onRevealInNodeEditor}
         onTrackColumnEl={(el) => (trackColumnEl = el)}
         onLanesContainerEl={(el) => (lanesContainerEl = el)}
@@ -1065,7 +1173,7 @@
         gap: var(--pd-xs);
         padding: 0 var(--pd-xs) var(--pd-xs);
         box-sizing: border-box;
-        background: var(--color-gray-60);
+        background: var(--frame-elevated-bg);
         border-radius: 0 0 var(--radius-md) var(--radius-md);
         overflow: hidden;
       }

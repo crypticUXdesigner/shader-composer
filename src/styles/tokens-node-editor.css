@@ -145,6 +145,7 @@
 --port-radius: var(--scale-4); /* 12px */
 --port-border-width: var(--scale-3); /* 2px */
 --port-border-color: #19191b6e;
+--port-branch-active-color: var(--color-leaf-100);
 --port-color-float: var(--color-gray-60);
 --port-color-vec2: var(--color-blue-gray-100);
 --port-color-vec3: var(--color-teal-gray-100);
@@ -415,6 +416,13 @@
 --color-map-row-button-radius: var(--radius-md);
 --color-map-row-button-font-size: var(--text-md);
 --color-map-row-button-font-weight: 900;
+/* Idle / hover: overridden per category on `.node` from `--param-control-*` (see node-categories/base.css). */
+--color-map-row-button-bg: var(--color-gray-80);
+--color-map-row-button-bg-hover: var(--color-gray-90);
+--color-map-row-button-color: var(--color-gray-130);
+--color-map-row-button-color-hover: var(--color-gray-130);
+--color-map-row-button-border: var(--color-gray-90);
+--color-map-row-button-border-hover: var(--color-gray-100);
 --color-map-row-button-bg-active: var(--color-teal-100);
 --color-map-row-button-border-active: var(--color-teal-120);
 --color-map-row-button-color-active: var(--color-teal-10);
@@ -641,4 +649,11 @@
 --embed-slot-radius: var(--radius-lg);
 --embed-slot-bg: var(--color-gray-20);
 
+}
+
+/* Select node: active branch input port (header). */
+.node .node-header .port.input-port.branch-active .dot {
+  --port-color: var(--port-branch-active-color);
+  --shadow-color: var(--port-branch-active-color);
+  background: var(--port-branch-active-color);
 }

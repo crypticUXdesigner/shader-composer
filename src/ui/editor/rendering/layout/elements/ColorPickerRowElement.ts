@@ -69,25 +69,40 @@ export class ColorPickerRowElementRenderer implements LayoutElementRenderer {
     const containerX = node.position.x + gridPadding;
     const containerY = node.position.y + metrics.headerHeight + startY;
 
-    const halfWidth = Math.max(0, (availableWidth - ROW_GAP) / 2);
+    const pickerCount = Math.max(2, element.pickers.length);
+    const swatchWidth = Math.max(
+      0,
+      (availableWidth - ROW_GAP * (pickerCount - 1)) / pickerCount,
+    );
     const hasReverseHue = spec.parameters?.reverseHue != null;
     const buttonsInHeader = hasHeaderLabel;
-    const buttonW = Math.max(0, halfWidth - pd * 2);
+    const buttonW = Math.max(0, swatchWidth - pd * 2);
 
     const buttonRects: Array<{ type: 'swap' | 'reverseHue'; x: number; y: number; w: number; h: number }> = [];
     let buttonRowHeight = 0;
 
-    if (hasReverseHue && !buttonsInHeader) {
+    if (hasReverseHue && !buttonsInHeader && pickerCount === 2) {
       const buttonY = headerOffset;
       buttonRects.push({ type: 'swap', x: pd, y: buttonY, w: buttonW, h: buttonHeight });
-      buttonRects.push({ type: 'reverseHue', x: halfWidth + ROW_GAP + pd, y: buttonY, w: buttonW, h: buttonHeight });
+      buttonRects.push({
+        type: 'reverseHue',
+        x: swatchWidth + ROW_GAP + pd,
+        y: buttonY,
+        w: buttonW,
+        h: buttonHeight,
+      });
       buttonRowHeight = buttonHeight + buttonGap;
     }
 
-    const swatchRects: Array<{ x: number; y: number; w: number; h: number }> = [
-      { x: 0, y: headerOffset + buttonRowHeight, w: halfWidth, h: swatchHeight },
-      { x: halfWidth + ROW_GAP, y: headerOffset + buttonRowHeight, w: halfWidth, h: swatchHeight }
-    ];
+    const swatchRects: Array<{ x: number; y: number; w: number; h: number }> = [];
+    for (let i = 0; i < pickerCount; i++) {
+      swatchRects.push({
+        x: i * (swatchWidth + ROW_GAP),
+        y: headerOffset + buttonRowHeight,
+        w: swatchWidth,
+        h: swatchHeight,
+      });
+    }
 
     const contentHeight = buttonRowHeight + swatchHeight;
     return {

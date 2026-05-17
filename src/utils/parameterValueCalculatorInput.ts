@@ -21,6 +21,7 @@ import {
   getShaderTimeSeconds,
 } from './mixedWaveSignalPreview';
 import { evaluateOscillator2dPortPreview } from './oscillator2dPreview';
+import { evaluatePathDrivePortPreview } from './pathDrivePreview';
 
 const MAX_INPUT_CHAIN_DEPTH = 8;
 
@@ -80,10 +81,10 @@ function evaluateVec4FromNodeOutput(
       typeof otRaw === 'number' && isFinite(otRaw)
         ? Math.max(2, Math.min(4, Math.round(otRaw)))
         : 2;
-    const x = getNodeInputPortValue(src.id, 'x', graph, nodeSpecs, audioManager, depth + 1);
-    const y = getNodeInputPortValue(src.id, 'y', graph, nodeSpecs, audioManager, depth + 1);
-    const z = getNodeInputPortValue(src.id, 'z', graph, nodeSpecs, audioManager, depth + 1);
-    const w = getNodeInputPortValue(src.id, 'w', graph, nodeSpecs, audioManager, depth + 1);
+    const x = getNodeInputPortScalarValue(src.id, 'x', graph, nodeSpecs, audioManager, depth + 1);
+    const y = getNodeInputPortScalarValue(src.id, 'y', graph, nodeSpecs, audioManager, depth + 1);
+    const z = getNodeInputPortScalarValue(src.id, 'z', graph, nodeSpecs, audioManager, depth + 1);
+    const w = getNodeInputPortScalarValue(src.id, 'w', graph, nodeSpecs, audioManager, depth + 1);
     const vx = x !== null && isFinite(x) ? x : 0;
     const vy = y !== null && isFinite(y) ? y : 0;
     const vz = z !== null && isFinite(z) ? z : readNumericNodeParam(src, 'z', 0);
@@ -142,7 +143,7 @@ function isVec4SourceTrackable(
   return false;
 }
 
-function getNodeInputPortValue(
+export function getNodeInputPortScalarValue(
   nodeId: string,
   portName: string,
   graph: NodeGraph,
@@ -236,6 +237,13 @@ export function getInputValue(
     return null;
   }
 
+  if (sourceNode.type === 'path-drive') {
+    if (connection.sourcePort === 'x' || connection.sourcePort === 'y') {
+      return evaluatePathDrivePortPreview(sourceNode, connection.sourcePort);
+    }
+    return null;
+  }
+
   if (sourceNode.type === 'split-vector') {
     const p = connection.sourcePort;
     if (p !== 'x' && p !== 'y' && p !== 'z' && p !== 'w') return null;
@@ -275,22 +283,22 @@ export function getInputValue(
   const specs = nodeSpecs;
   const audio = audioManager;
 
-  const getA = () => getNodeInputPortValue(sid, 'a', g, specs, audio, d);
-  const getB = () => getNodeInputPortValue(sid, 'b', g, specs, audio, d);
-  const getIn = () => getNodeInputPortValue(sid, 'in', g, specs, audio, d);
-  const getBase = () => getNodeInputPortValue(sid, 'base', g, specs, audio, d);
-  const getExp = () => getNodeInputPortValue(sid, 'exponent', g, specs, audio, d);
-  const getMin = () => getNodeInputPortValue(sid, 'min', g, specs, audio, d);
-  const getMax = () => getNodeInputPortValue(sid, 'max', g, specs, audio, d);
-  const getT = () => getNodeInputPortValue(sid, 't', g, specs, audio, d);
-  const getEdge = () => getNodeInputPortValue(sid, 'edge', g, specs, audio, d);
-  const getEdge0 = () => getNodeInputPortValue(sid, 'edge0', g, specs, audio, d);
-  const getEdge1 = () => getNodeInputPortValue(sid, 'edge1', g, specs, audio, d);
-  const getX = () => getNodeInputPortValue(sid, 'x', g, specs, audio, d);
-  const getY = () => getNodeInputPortValue(sid, 'y', g, specs, audio, d);
-  const getBg = () => getNodeInputPortValue(sid, 'bg', g, specs, audio, d);
-  const getMask = () => getNodeInputPortValue(sid, 'mask', g, specs, audio, d);
-  const getFg = () => getNodeInputPortValue(sid, 'fg', g, specs, audio, d);
+  const getA = () => getNodeInputPortScalarValue(sid, 'a', g, specs, audio, d);
+  const getB = () => getNodeInputPortScalarValue(sid, 'b', g, specs, audio, d);
+  const getIn = () => getNodeInputPortScalarValue(sid, 'in', g, specs, audio, d);
+  const getBase = () => getNodeInputPortScalarValue(sid, 'base', g, specs, audio, d);
+  const getExp = () => getNodeInputPortScalarValue(sid, 'exponent', g, specs, audio, d);
+  const getMin = () => getNodeInputPortScalarValue(sid, 'min', g, specs, audio, d);
+  const getMax = () => getNodeInputPortScalarValue(sid, 'max', g, specs, audio, d);
+  const getT = () => getNodeInputPortScalarValue(sid, 't', g, specs, audio, d);
+  const getEdge = () => getNodeInputPortScalarValue(sid, 'edge', g, specs, audio, d);
+  const getEdge0 = () => getNodeInputPortScalarValue(sid, 'edge0', g, specs, audio, d);
+  const getEdge1 = () => getNodeInputPortScalarValue(sid, 'edge1', g, specs, audio, d);
+  const getX = () => getNodeInputPortScalarValue(sid, 'x', g, specs, audio, d);
+  const getY = () => getNodeInputPortScalarValue(sid, 'y', g, specs, audio, d);
+  const getBg = () => getNodeInputPortScalarValue(sid, 'bg', g, specs, audio, d);
+  const getMask = () => getNodeInputPortScalarValue(sid, 'mask', g, specs, audio, d);
+  const getFg = () => getNodeInputPortScalarValue(sid, 'fg', g, specs, audio, d);
 
   if (sourceNode.type === 'add') { const a = getA(), b = getB(); if (a === null || b === null) return null; return a + b; }
   if (sourceNode.type === 'subtract') { const a = getA(), b = getB(); if (a === null || b === null) return null; return a - b; }
@@ -332,12 +340,12 @@ export function getInputValue(
   if (sourceNode.type === 'natural-logarithm') { const x = getIn(); if (x === null || x <= 0) return null; return Math.log(x); }
   if (sourceNode.type === 'reciprocal') { const x = getIn(); if (x === null || x === 0) return null; return 1 / x; }
   if (sourceNode.type === 'remap') {
-    const x = getNodeInputPortValue(sid, 'in', g, specs, audio, d);
+    const x = getNodeInputPortScalarValue(sid, 'in', g, specs, audio, d);
     if (x === null) return null;
-    const inMin = getNodeInputPortValue(sid, 'inMin', g, specs, audio, d) ?? (typeof sourceNode.parameters.inMin === 'number' ? sourceNode.parameters.inMin : 0);
-    const inMax = getNodeInputPortValue(sid, 'inMax', g, specs, audio, d) ?? (typeof sourceNode.parameters.inMax === 'number' ? sourceNode.parameters.inMax : 1);
-    const outMin = getNodeInputPortValue(sid, 'outMin', g, specs, audio, d) ?? (typeof sourceNode.parameters.outMin === 'number' ? sourceNode.parameters.outMin : 0);
-    const outMax = getNodeInputPortValue(sid, 'outMax', g, specs, audio, d) ?? (typeof sourceNode.parameters.outMax === 'number' ? sourceNode.parameters.outMax : 1);
+    const inMin = getNodeInputPortScalarValue(sid, 'inMin', g, specs, audio, d) ?? (typeof sourceNode.parameters.inMin === 'number' ? sourceNode.parameters.inMin : 0);
+    const inMax = getNodeInputPortScalarValue(sid, 'inMax', g, specs, audio, d) ?? (typeof sourceNode.parameters.inMax === 'number' ? sourceNode.parameters.inMax : 1);
+    const outMin = getNodeInputPortScalarValue(sid, 'outMin', g, specs, audio, d) ?? (typeof sourceNode.parameters.outMin === 'number' ? sourceNode.parameters.outMin : 0);
+    const outMax = getNodeInputPortScalarValue(sid, 'outMax', g, specs, audio, d) ?? (typeof sourceNode.parameters.outMax === 'number' ? sourceNode.parameters.outMax : 1);
     const range = inMax - inMin;
     const t = range !== 0 ? (x - inMin) / range : 0;
     return outMin + t * (outMax - outMin);
@@ -373,7 +381,8 @@ function isConnectionTrackable(
     sourceNode.type === 'constant-float' ||
     sourceNode.type === 'time' ||
     sourceNode.type === 'mixed-wave-signal' ||
-    sourceNode.type === 'oscillator-2d'
+    sourceNode.type === 'oscillator-2d' ||
+    sourceNode.type === 'path-drive'
   ) {
     return true;
   }

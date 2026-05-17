@@ -35,11 +35,11 @@ const CATEGORIES = [
   ['pattern/noise', ['noise', 'warp-terrain', 'voronoi-noise', 'cubic-curl-noise', 'rings', 'gradient', 'radial-rays', 'crepuscular-rays', 'volume-rays', 'streak', 'flow-field-pattern', 'hexagonal-grid', 'stripes', 'dots', 'disco-pattern', 'triangle-grid', 'particle-system']],
   ['shape/geometry', ['sphere-raymarch', 'spherical-fibonacci', 'bloom-sphere', 'box-torus-sdf', 'glass-shell', 'hex-prism-sdf', 'radial-repeat-sdf', 'repeated-hex-prism-sdf', 'kifs-sdf', 'ether-sdf', 'displacement-3d', 'generic-raymarcher', 'iridescent-tunnel', 'inflated-icosahedron', 'shapes-2d', 'star-shape-2d', 'metaballs', 'star-2d', 'superellipse', 'fractal', 'iterated-inversion', 'plane-grid', 'sky-dome', 'bokeh-point', 'drive-home-lights']],
   ['math', ['add', 'subtract', 'multiply', 'divide', 'power', 'square-root', 'absolute', 'floor', 'ceil', 'fract', 'modulo', 'min', 'max', 'clamp', 'mix', 'step', 'smoothstep', 'sine', 'cosine', 'tangent', 'arc-sine', 'arc-cosine', 'arc-tangent', 'arc-tangent-2', 'exponential', 'natural-logarithm', 'length', 'distance', 'dot-product', 'cross-product', 'normalize', 'reflect', 'refract']],
-  ['blending', ['blend-mode']],
+  ['blending', ['blend']],
   ['masking', ['compare', 'select', 'mask-composite-float', 'mask-composite-vec2', 'mask-composite-vec3']],
   ['post-process/color', ['blur', 'glow-bloom', 'edge-detection', 'chromatic-aberration', 'rgb-separation', 'scanlines', 'color-grading', 'normal-mapping', 'lighting-shading']],
   ['utility', ['hash32', 'one-minus', 'negate', 'reciprocal', 'clamp-01', 'saturate', 'sign', 'round', 'truncate', 'lerp', 'swizzle', 'split-vector', 'combine-vector']],
-  ['color-system', ['oklch-color-map-bezier', 'oklch-color-map-threshold', 'bayer-dither', 'tone-mapping']],
+  ['color-system', ['oklch-color-map', 'bayer-dither', 'tone-mapping']],
   ['output', ['final-output']],
 ];
 

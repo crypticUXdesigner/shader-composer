@@ -127,6 +127,55 @@ export function removeRemapper(setup: AudioSetup, remapperId: string): AudioSetu
   };
 }
 
+const REMAPPER_TRAILING_NUMBER_RE = /^(.+?) (\d+)$/;
+
+/**
+ * Picks a remapper display name for a duplicate: same stem as the source, next free trailing number.
+ * E.g. "Level" → "Level 2"; "Level 2" with "Level" present → "Level 3".
+ */
+export function duplicateRemapperName(
+  sourceName: string,
+  existingNames: readonly string[],
+): string {
+  const trimmed = sourceName.trim();
+  const sourceMatch = trimmed.match(REMAPPER_TRAILING_NUMBER_RE);
+  const stem = (sourceMatch ? sourceMatch[1] : trimmed) || 'Remapper';
+
+  let maxSuffix = 0;
+  for (const raw of existingNames) {
+    const name = raw.trim();
+    const match = name.match(REMAPPER_TRAILING_NUMBER_RE);
+    if (match) {
+      if (match[1] === stem) {
+        maxSuffix = Math.max(maxSuffix, Number.parseInt(match[2], 10));
+      }
+    } else if (name === stem) {
+      maxSuffix = Math.max(maxSuffix, 1);
+    }
+  }
+
+  if (sourceMatch && sourceMatch[1] === stem) {
+    maxSuffix = Math.max(maxSuffix, Number.parseInt(sourceMatch[2], 10));
+  } else if (trimmed === stem) {
+    maxSuffix = Math.max(maxSuffix, 1);
+  }
+
+  return `${stem} ${maxSuffix + 1}`;
+}
+
+/** Clone remapper range settings with a new id and a unique numbered name. */
+export function createDuplicateRemapperEntry(
+  source: AudioRemapperEntry,
+  newId: string,
+  existingNames: readonly string[],
+): AudioRemapperEntry {
+  return {
+    ...copyRemapper(source),
+    id: newId,
+    name: duplicateRemapperName(source.name, existingNames),
+  };
+}
+
 // --- Primary source & playlist (playlist-waveform) ---
 
 export function setPrimarySource(setup: AudioSetup, primarySource: PrimarySource | undefined): AudioSetup {

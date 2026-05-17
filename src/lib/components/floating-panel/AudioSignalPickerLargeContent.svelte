@@ -2,7 +2,7 @@
   /**
    * AudioSignalPickerLargeContent - WP audio-signal-picker 02A
    * Large popover when port has no audio connection: two-column layout (bands | remappers for selected band),
-   * New band, full band config and remapper add/edit, explicit Connect band (raw) / Connect [remapper] actions.
+   * New band, full band config and remapper add/edit, Connect remapper actions, and driven-parameter links.
    * Used only by AudioSignalPickerPanel (floating-panel).
    */
   import { Button, IconSvg, ValueInput, DropdownMenu, MenuItem } from '../ui';
@@ -16,15 +16,19 @@
     updateAudioRemapper,
     removeAudioBand,
     removeAudioRemapper,
+    createDuplicateRemapperEntry,
     generateUUID,
   } from '../../../data-model';
   import { getVirtualNodeId } from '../../../utils/virtualNodes';
+  import { getRemapperParameterConnections } from '../../../utils/getRemapperParameterConnections';
   import { subscribeParameterValueTick } from '../../stores/parameterValueTickStore';
   import type { Action } from 'svelte/action';
 
   const DEFAULT_HALF_LIFE_SECONDS = 1 / 120;
 
   let {
+    graph,
+    nodeSpecs,
     audioSetup,
     onSelect,
     onClose,
@@ -33,10 +37,7 @@
     initialBandId,
     registerDeleteHandler,
     browseOnly = false,
-    canImportArrangement = false,
-    arrangementImportBusy = false,
-    arrangementRegionCount,
-    onImportArrangement,
+    onRevealInNodeEditor,
   }: LargeSlotProps = $props();
 
   /** User override for band list selection; UNSET = follow auto rules (initial / growth). */
@@ -209,14 +210,6 @@
     onAudioSetupChange?.(updateAudioBand(audioSetup, bandId, updater));
   }
 
-  function handleConnectBandRaw(bandId: string) {
-    const band = bands.find((b) => b.id === bandId);
-    if (!band?.sourceFileId) return;
-    const virtualNodeId = getVirtualNodeId(`band-${bandId}-raw`);
-    onSelect?.({ type: 'audio', virtualNodeId });
-    onClose?.();
-  }
-
   function handleAddRemapper() {
     if (!selectedBandId) return;
     const newRemapper: AudioRemapperEntry = {
@@ -233,6 +226,16 @@
 
   function handleRemapperChange(remapperId: string, updater: (r: AudioRemapperEntry) => AudioRemapperEntry) {
     onAudioSetupChange?.(updateAudioRemapper(audioSetup, remapperId, updater));
+  }
+
+  function handleDuplicateRemapper(remapper: AudioRemapperEntry) {
+    const newId = `remap-${generateUUID()}`;
+    const existingNames = audioSetup.remappers
+      .filter((r) => r.bandId === remapper.bandId)
+      .map((r) => r.name);
+    const duplicate = createDuplicateRemapperEntry(remapper, newId, existingNames);
+    onAudioSetupChange?.(addAudioRemapper(audioSetup, duplicate));
+    selectedRemapperIds = new Set([newId]);
   }
 
   function handleConnectRemapper(remapperId: string) {
@@ -289,31 +292,6 @@
   use:registerDeleteBridge={{ register: registerDeleteHandler, getDelete: () => deleteSelected }}
   use:docDeleteCapture
 >
-  {#if browseOnly && onImportArrangement}
-    <div class="arrangement-import" role="group" aria-label="DAW arrangement">
-      <Button
-        variant="secondary"
-        size="sm"
-        mode="both"
-        disabled={!canImportArrangement || arrangementImportBusy}
-        title={canImportArrangement
-          ? 'Import region lanes from the published studio project'
-          : 'Sign in and select an Audiotool playlist track as primary'}
-        onclick={() => onImportArrangement?.()}
-        aria-busy={arrangementImportBusy}
-      >
-        {arrangementImportBusy ? 'Importing…' : 'Import arrangement from project'}
-      </Button>
-      {#if arrangementRegionCount != null && arrangementRegionCount > 0}
-        <p class="hint arrangement-hint">
-          Snapshot loaded ({arrangementRegionCount} region{arrangementRegionCount === 1 ? '' : 's'}).
-          Align timeline duration manually if needed.
-        </p>
-      {:else if !canImportArrangement}
-        <p class="hint arrangement-hint">Available when signed in with a playlist track as primary.</p>
-      {/if}
-    </div>
-  {/if}
   <div class="columns" role="group" aria-label="Audio signal picker: bands and remappers">
     <div
       class="left scrollbar-styled"
@@ -327,7 +305,6 @@
             isSelected={selectedBandId === band.id}
             spectrumData={spectrumDataByBand.get(band.id) ?? null}
             onSelect={() => toggleBandSelection(band.id)}
-            onConnect={browseOnly ? undefined : () => handleConnectBandRaw(band.id)}
             onDelete={() => {
               onAudioSetupChange?.(removeAudioBand(audioSetup, band.id));
               if (selectedBandId === band.id) userBandChoice = null;
@@ -455,7 +432,7 @@
             {#if browseOnly}
               No remappers for this band. Add one.
             {:else}
-              No remappers for this band. Add one or connect band (raw) on the left.
+              No remappers for this band. Add one, then connect it to a parameter.
             {/if}
           {:else}
             No remappers yet. Select a band on the left to add one.
@@ -475,7 +452,10 @@
                 onAudioSetupChange?.(removeAudioRemapper(audioSetup, remapper.id));
                 selectedRemapperIds = new Set([...selectedRemapperIds].filter((id) => id !== remapper.id));
               }}
+              onDuplicate={() => handleDuplicateRemapper(remapper)}
               onRemapperChange={(updater) => handleRemapperChange(remapper.id, updater)}
+              parameterConnections={getRemapperParameterConnections(graph, remapper.id, nodeSpecs)}
+              onRevealParameter={onRevealInNodeEditor}
             />
           {/each}
         </div>
@@ -493,18 +473,6 @@
     overflow: hidden;
     padding: 0;
     box-sizing: border-box;
-
-    .arrangement-import {
-      display: flex;
-      flex-direction: column;
-      gap: var(--pd-xs);
-      flex-shrink: 0;
-      padding: var(--pd-md) var(--pd-md) 0;
-
-      .arrangement-hint {
-        margin: 0;
-      }
-    }
 
     .columns {
       display: grid;

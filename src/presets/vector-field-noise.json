@@ -140,12 +140,13 @@
       },
       {
         "id": "node-1772315686039-jzm055dtb",
-        "type": "oklch-color-map-threshold",
+        "type": "oklch-color-map",
         "position": {
           "x": 3673,
           "y": -236
         },
         "parameters": {
+          "mapMode": 1,
           "stops": 20,
           "transitionWidth": 0.005,
           "ditherStrength": 1.2,
@@ -330,7 +331,7 @@
       },
       {
         "id": "conn-1772315686039-m9p32l30r",
-        "sourceNodeId": "audio-signal:band-band-44970617-8fb0-44b5-ae22-f21d3dbad09a-raw",
+        "sourceNodeId": "audio-signal:remap-band-band-44970617-8fb0-44b5-ae22-f21d3dbad09a",
         "sourcePort": "out",
         "targetNodeId": "node-1772315686039-qibcbnglr",
         "targetParameter": "noiseTimeOffset"

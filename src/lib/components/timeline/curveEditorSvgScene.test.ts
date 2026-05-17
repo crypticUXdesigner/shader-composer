@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { AutomationCurve } from '../../../data-model/types';
-import { buildCurveEditorCurvePathD, buildCurveEditorGridLines } from './curveEditorSvgScene';
+import {
+  buildCurveEditorCurvePathD,
+  buildCurveEditorGridLines,
+  snapCurveEditorSvgCoord,
+} from './curveEditorSvgScene';
 
 describe('curveEditorSvgScene', () => {
   it('builds a non-empty path for a two-keyframe linear curve', () => {
@@ -20,5 +24,10 @@ describe('curveEditorSvgScene', () => {
     const { vertical, horizontal } = buildCurveEditorGridLines(200, 100, 4, 1);
     expect(vertical.length).toBeGreaterThan(2);
     expect(horizontal.length).toBe(3);
+  });
+
+  it('snapCurveEditorSvgCoord rounds to half pixels', () => {
+    expect(snapCurveEditorSvgCoord(10.24)).toBe(10);
+    expect(snapCurveEditorSvgCoord(10.26)).toBe(10.5);
   });
 });

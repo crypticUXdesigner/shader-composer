@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
    * BandCard - Single band card in the large audio signal picker.
-   * Shows band name, frequency range editor, and Connect (raw) action.
+   * Shows band name and frequency range editor (configure bands; connect via remappers).
    */
   import { Button, IconSvg, EditableLabel } from '../ui';
   import FrequencyRangeEditor from './FrequencyRangeEditor.svelte';
@@ -18,7 +18,6 @@
     isSelected?: boolean;
     spectrumData?: SpectrumData | null;
     onSelect?: () => void;
-    onConnect?: () => void;
     onDelete?: () => void;
     onBandChange?: (updater: (b: AudioBandEntry) => AudioBandEntry) => void;
   }
@@ -28,12 +27,10 @@
     isSelected = false,
     spectrumData = null,
     onSelect,
-    onConnect,
     onDelete,
     onBandChange,
   }: Props = $props();
 
-  const canConnect = $derived(!!band.sourceFileId);
 </script>
 
 <div
@@ -73,23 +70,6 @@
     >
       <IconSvg name="trash" variant="line" />
     </Button>
-    {#if onConnect}
-      <Button
-        variant="ghost"
-        size="sm"
-        mode="both"
-        disabled={!canConnect}
-        title={canConnect ? 'Connect band (raw)' : 'Set source file first'}
-        aria-label={canConnect ? `Connect: ${band.name || band.id}` : 'Set source file first'}
-        onclick={(e) => {
-          e.stopPropagation();
-          onConnect?.();
-        }}
-      >
-        <IconSvg name="plug" variant="line" />
-        Connect
-      </Button>
-    {/if}
   </div>
   <div class="frequency-editor-wrap" role="presentation" onclick={(e) => e.stopPropagation()}>
     <FrequencyRangeEditor

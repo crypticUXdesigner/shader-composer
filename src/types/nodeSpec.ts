@@ -29,6 +29,8 @@ export interface NodeSpec {
   id: string;                     // Node type ID (e.g., "fbm-noise")
   displayName: string;            // Human-readable palette/canvas title (see `.cursor/rules/shaders/node-standards.mdc`)
   description?: string;           // Node description
+  /** Optional palette search aliases (see `src/utils/nodeSearchTags.ts` for shared tags). */
+  searchTags?: string[];
   category: string;               // Category (Input, Transform, Generator, etc.)
   icon?: string;                  // Optional node-specific icon identifier (overrides category icon)
   
@@ -137,7 +139,7 @@ export interface ColorPickerElement {
   parameters?: [string, string, string];
 }
 
-/** Two OKLCH color pickers in one row, equal width. */
+/** Two or more OKLCH color pickers in one row, equal width. */
 export interface ColorPickerRowElement {
   type: 'color-picker-row';
   /**
@@ -150,8 +152,8 @@ export interface ColorPickerRowElement {
   };
   /** Optional group header label (e.g. "Colors") rendered above the row */
   label?: string;
-  /** Two color picker configs: [start color params], [end color params] */
-  pickers: [[string, string, string], [string, string, string]];
+  /** Color picker configs per swatch: each [L, C, H] parameter names (minimum two). */
+  pickers: Array<[string, string, string]>;
 }
 
 /** Two OKLCH color pickers in one row with L/C/H parameter ports beneath each swatch. */
@@ -164,10 +166,18 @@ export interface ColorPickerRowWithPortsElement {
 /** Color map preview: row of color stops (stepped) or gradient bar (smooth). Spans full width. */
 export interface ColorMapPreviewElement {
   type: 'color-map-preview';
+  /**
+   * Optional visibility clause (matches `GridElement.visibleWhen` semantics).
+   * When set, the strip renders only when the controlling parameter equals the given number.
+   */
+  visibleWhen?: {
+    parameter: string;
+    equals: number;
+  };
   /** Optional group header label (e.g. "Colors") rendered above the strip */
   label?: string;
-  /** 'stepped': N discrete boxes (one per stop). 'smooth': one gradient bar. */
-  mode: 'stepped' | 'smooth';
+  /** 'stepped': N discrete boxes. 'smooth': Bézier color map bar. 'lut' / 'three-stop': Color LUT / Color Gradient (task 04). */
+  mode: 'stepped' | 'smooth' | 'lut' | 'three-stop';
   /** Height of the strip in px; default from --color-map-preview-height token */
   height?: number;
 }
@@ -217,6 +227,11 @@ export interface GridElement {
     parameterSpan?: Record<string, 2 | 3>;
   };
   parameterUI?: Record<string, ParameterUISelection>;  // Override UI per param
+  /**
+   * Per-parameter visibility inside this grid (parameters omitted from layout when hidden).
+   * `equals` may be a single mode value or a list of values (e.g. aspect on orbit and figure-8).
+   */
+  parameterVisibleWhen?: Record<string, { parameter: string; equals: number | number[] }>;
 }
 
 // Remap range editor (maps to inMin/inMax/outMin/outMax)
@@ -275,7 +290,7 @@ export interface ArrangementTrackFilterElement {
   label?: string;
   /** Limit listed tracks to these kinds (default: all kinds). */
   trackKinds?: Array<'note' | 'audio' | 'pattern'>;
-  /** Omit tracks with no notes/regions in the snapshot. */
+  /** Omit tracks with nothing to bake (notes node: no MIDI; lanes: no regions). */
   hideEmpty?: boolean;
   /** Show note counts in menu rows (notes node). */
   showNoteCounts?: boolean;

@@ -339,7 +339,7 @@ export class OverlayManager {
     const layout = spec.parameterLayout.elements;
     const clickedElement = layout[hitResult.elementIndex] as
       | { type: 'color-picker'; parameters?: [string, string, string] }
-      | { type: 'color-picker-row'; pickers: [[string, string, string], [string, string, string]] }
+      | { type: 'color-picker-row'; pickers: Array<[string, string, string]> }
       | { type: 'color-picker-row-with-ports'; pickers: [[string, string, string], [string, string, string]] };
     if (!clickedElement) return;
 

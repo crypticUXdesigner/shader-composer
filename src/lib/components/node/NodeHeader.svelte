@@ -9,6 +9,7 @@
   import { IconSvg, NodeIconSvg } from '../ui';
   import { getNodeIcon, isRedundantOutputLabel } from '../../../utils/nodeSpecUtils';
   import type { NodeSpec, PortSpec } from '../../../types/nodeSpec';
+  import type { SelectActiveBranchPort } from '../../../utils/selectActiveBranch';
   import type { PortPosition } from './types';
   import { nodeSupportsPower } from '../../../shaders/nodePower';
   import { createStrictDoubleClickHandler } from '../../utils/strictDoubleClick';
@@ -50,6 +51,8 @@
     onLabelChange: (label: string | undefined) => void;
     onDragStart: (clientX: number, clientY: number, shiftKey: boolean) => void;
     onHeaderPortPointerDown?: (screenX: number, screenY: number, pointerId?: number) => void;
+    /** Select node: which value input is active (condition > 0.5 → trueValue). */
+    selectActiveBranchPort?: SelectActiveBranchPort | null;
   }
 
   let {
@@ -65,6 +68,7 @@
     onLabelChange,
     onDragStart,
     onHeaderPortPointerDown,
+    selectActiveBranchPort = null,
   }: Props = $props();
 
   let isEditing = $state(false);
@@ -193,6 +197,7 @@
           <button
             type="button"
             class="port input-port type-{port.type}"
+            class:branch-active={selectActiveBranchPort === port.name}
             data-port-key={key}
             style="left: {pos.x - nodePosition.x - 12}px; top: {pos.y - nodePosition.y}px; transform: translate(0, -50%);"
             aria-label="Input: {getNameLabel(port)} ({getTypeLabel(port)}). Drag to connect."
@@ -522,6 +527,12 @@
         &.type-vec4 .dot {
           --port-color: var(--port-color-vec4);
           --shadow-color: var(--port-color-vec4);
+        }
+
+        &.input-port.branch-active .dot {
+          --port-color: var(--port-branch-active-color);
+          --shadow-color: var(--port-branch-active-color);
+          background: var(--port-branch-active-color);
         }
 
         .type-chip {

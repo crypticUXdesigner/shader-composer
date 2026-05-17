@@ -1,6 +1,4 @@
 import type { NodeSpec } from '../../types/nodeSpec';
-import { MAX_ARRANGEMENT_NOTES_PACKED } from '../../audiotool/arrangement/types';
-
 /**
  * Pillar 2: MIDI notes baked from `audioSetup.arrangementSnapshot` at compile time.
  * Placeholders `{{ARRANGEMENT_NOTES_BAKE}}`, `{{ARR_NOTES_EVAL_STRUCT}}` are replaced per node instance.
@@ -8,7 +6,7 @@ import { MAX_ARRANGEMENT_NOTES_PACKED } from '../../audiotool/arrangement/types'
 export const arrangementNotesNodeSpec: NodeSpec = {
   id: 'arrangement-notes',
   category: 'Patterns',
-  displayName: 'Arrangement Notes',
+  displayName: 'Notes',
   description:
     'Draws MIDI notes by pitch and time (always follows the wired timeline). Requires an imported arrangement snapshot on the playlist primary.',
   icon: 'music-note-simple',
@@ -42,7 +40,7 @@ export const arrangementNotesNodeSpec: NodeSpec = {
       type: 'float',
       default: 32.0,
       min: 0.5,
-      max: 600.0,
+      max: 100.0,
       step: 0.5,
       label: 'Window',
     },
@@ -78,17 +76,9 @@ export const arrangementNotesNodeSpec: NodeSpec = {
       step: 0.005,
       label: 'Pitch pad',
     },
-    rowGap: {
-      type: 'float',
-      default: 0.0,
-      min: 0.0,
-      max: 0.25,
-      step: 0.001,
-      label: 'Row gap',
-    },
     trackFilterMode: {
       type: 'int',
-      default: 0,
+      default: 1,
       min: 0,
       max: 1,
       step: 1,
@@ -115,14 +105,6 @@ export const arrangementNotesNodeSpec: NodeSpec = {
       step: 0.01,
       label: 'Velocity',
     },
-    edgeFade: {
-      type: 'float',
-      default: 0.08,
-      min: 0.0,
-      max: 0.5,
-      step: 0.01,
-      label: 'Edge fade',
-    },
     opacity: {
       type: 'float',
       default: 1.0,
@@ -130,6 +112,19 @@ export const arrangementNotesNodeSpec: NodeSpec = {
       max: 1.0,
       step: 0.01,
       label: 'Opacity',
+    },
+    noteColorMode: {
+      type: 'int',
+      default: 2,
+      min: 0,
+      max: 4,
+      step: 1,
+      label: 'Notes',
+    },
+    trackNoteColors: {
+      type: 'string',
+      default: '',
+      label: 'Track colors',
     },
     playheadShow: {
       type: 'int',
@@ -187,22 +182,24 @@ export const arrangementNotesNodeSpec: NodeSpec = {
       step: 0.001,
       label: 'Bg H',
     },
+    noteLoopStart: {
+      type: 'int',
+      default: 0,
+      min: 0,
+      max: 2048,
+      step: 1,
+      label: 'Loop start',
+    },
+    noteLoopEnd: {
+      type: 'int',
+      default: 0,
+      min: 0,
+      max: 2048,
+      step: 1,
+      label: 'Loop end',
+    },
   },
   parameterGroups: [
-    {
-      id: 'arr-notes-view',
-      label: 'View',
-      parameters: [
-        'windowSeconds',
-        'timelineAnchor',
-        'layoutOrientation',
-        'trackLayout',
-        'pitchPadding',
-        'rowGap',
-      ],
-      collapsible: true,
-      defaultCollapsed: false,
-    },
     {
       id: 'arr-notes-tracks',
       label: 'Tracks',
@@ -211,16 +208,30 @@ export const arrangementNotesNodeSpec: NodeSpec = {
       defaultCollapsed: false,
     },
     {
+      id: 'arr-notes-view',
+      label: 'View',
+      parameters: [
+        'trackLayout',
+        'layoutOrientation',
+        'timelineAnchor',
+        'playheadShow',
+        'pitchPadding',
+        'windowSeconds',
+      ],
+      collapsible: true,
+      defaultCollapsed: false,
+    },
+    {
       id: 'arr-notes-style',
       label: 'Style',
-      parameters: ['noteSize', 'velocityScale', 'edgeFade', 'opacity'],
+      parameters: ['noteColorMode', 'noteSize', 'velocityScale', 'opacity'],
       collapsible: true,
       defaultCollapsed: false,
     },
     {
       id: 'arr-notes-playhead',
       label: 'Playhead',
-      parameters: ['playheadShow', 'playheadL', 'playheadC', 'playheadH'],
+      parameters: ['playheadL', 'playheadC', 'playheadH'],
       collapsible: true,
       defaultCollapsed: true,
     },
@@ -235,19 +246,6 @@ export const arrangementNotesNodeSpec: NodeSpec = {
   parameterLayout: {
     elements: [
       {
-        type: 'grid',
-        label: 'View',
-        parameters: [
-          'windowSeconds',
-          'timelineAnchor',
-          'layoutOrientation',
-          'trackLayout',
-          'pitchPadding',
-          'rowGap',
-        ],
-        layout: { columns: 'auto' },
-      },
-      {
         type: 'arrangement-track-filter',
         label: 'Tracks',
         trackKinds: ['note'],
@@ -256,14 +254,23 @@ export const arrangementNotesNodeSpec: NodeSpec = {
       },
       {
         type: 'grid',
-        label: 'Style',
-        parameters: ['noteSize', 'velocityScale', 'edgeFade', 'opacity'],
+        label: 'View',
+        parameters: [
+          'trackLayout',
+          'layoutOrientation',
+          'timelineAnchor',
+          'playheadShow',
+          'pitchPadding',
+          'windowSeconds',
+        ],
+        parameterUI: { playheadShow: 'toggle' },
         layout: { columns: 'auto' },
       },
       {
         type: 'grid',
-        label: 'Playhead',
-        parameters: ['playheadShow'],
+        label: 'Style',
+        parameters: ['noteColorMode', 'noteSize', 'velocityScale', 'opacity'],
+        parameterUI: { noteColorMode: 'enum' },
         layout: { columns: 'auto' },
       },
       {
@@ -278,12 +285,16 @@ export const arrangementNotesNodeSpec: NodeSpec = {
     parametersWithoutPorts: [
       'trackFilterMode',
       'trackFilterList',
+      'noteColorMode',
+      'trackNoteColors',
       'backgroundL',
       'backgroundC',
       'backgroundH',
       'playheadL',
       'playheadC',
       'playheadH',
+      'noteLoopStart',
+      'noteLoopEnd',
     ],
     minColumns: 3,
   },
@@ -295,25 +306,32 @@ struct {{ARR_NOTES_EVAL_STRUCT}} {
 
 {{ARRANGEMENT_NOTES_BAKE}}
 
-float arrangementNotesEdgeFade(vec2 uv, float fadeAmount) {
-  if (fadeAmount <= 0.0001) return 1.0;
-  float edge = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
-  return smoothstep(0.0, fadeAmount, edge);
-}
-
 float arrangementNotesPlayheadLine1d(float timeCoord, float playheadT) {
   float dist = abs(timeCoord - playheadT);
   float lineWidth = max(fwidth(timeCoord), 0.001) * 1.25;
   return 1.0 - smoothstep(lineWidth * 0.5, lineWidth, dist);
 }
 
-vec3 arrangementNotesPaletteColor(float pitch) {
-  float hue = fract(pitch * 0.024 + 0.12);
+vec3 arrangementNotesCosinePalette(float hue, float base, float amp) {
   return vec3(
-    0.55 + 0.45 * cos(6.28318 * (hue + 0.0)),
-    0.55 + 0.45 * cos(6.28318 * (hue + 0.33)),
-    0.55 + 0.45 * cos(6.28318 * (hue + 0.66))
+    base + amp * cos(6.28318 * (hue + 0.0)),
+    base + amp * cos(6.28318 * (hue + 0.33)),
+    base + amp * cos(6.28318 * (hue + 0.66))
   );
+}
+
+vec3 arrangementNotesPaletteFromPitch(float pitch) {
+  float hue = fract(pitch * 0.024 + 0.12);
+  return arrangementNotesCosinePalette(hue, 0.55, 0.45);
+}
+
+vec3 arrangementNotesProjectColor(vec2 data) {
+  if (data.x >= 0.0) {
+    float hue = fract(data.x * 0.0625 + 0.02);
+    return arrangementNotesCosinePalette(hue, 0.55, 0.45);
+  }
+  float hue = fract(data.y * 0.17 + 0.41);
+  return arrangementNotesCosinePalette(hue, 0.5, 0.5);
 }
 
 vec3 arrangementNotesOklchToRgb(vec3 oklch) {
@@ -336,7 +354,7 @@ vec3 arrangementNotesOklchToRgb(vec3 oklch) {
 
 /**
  * **in** is **UV Coords** **p**: center 0, Y ∈ [−1, 1], X ∈ [−aspect, +aspect], aspect = resolution x/y.
- * Map both axes to [0, 1] for time/pitch and edge fade (same convention as **Arrangement Lanes** “UV Coords”).
+ * Map both axes to [0, 1] for time/pitch (same convention as **Regions** “UV Coords”).
  */
 vec2 arrangementNotesUvFromP(vec2 p) {
   float aspect = uResolution.x / uResolution.y;
@@ -350,14 +368,14 @@ vec2 arrangementNotesUvFromP(vec2 p) {
   int timelineAnchor,
   float noteSize,
   float velocityScale,
-  float edgeFade,
   float opacity,
   vec3 backgroundRgb,
   int layoutOrientation,
   float pitchPadding,
-  float rowGap,
   int playheadShow,
-  vec3 playheadOklch
+  vec3 playheadOklch,
+  int noteLoopStart,
+  int noteLoopEnd
 ) {
   vec2 uvN = arrangementNotesUvFromP(uv);
   float timeCoord = layoutOrientation == 0 ? uvN.x : uvN.y;
@@ -375,17 +393,27 @@ vec2 arrangementNotesUvFromP(vec2 p) {
   vec3 color = backgroundRgb;
   float alpha = 0.0;
 
-  for (int i = 0; i < ${MAX_ARRANGEMENT_NOTES_PACKED}; i++) {
-    if (i >= ARR_NOTE_COUNT_{{NODE_SUFFIX}}) break;
+  for (int i = noteLoopStart; i < noteLoopEnd; i++) {
     vec4 note = ARR_NOTES_{{NODE_SUFFIX}}[i];
     if (timeAtAxis < note.x || timeAtAxis > note.y) continue;
     float pitchPos = pp + pitchBand * ARR_NOTE_Y_NORM_{{NODE_SUFFIX}}[i];
     float rowDist = abs(pitchCoord - pitchPos);
-    float hr = max(halfNote - rowGap, 0.0001);
+    float hr = max(halfNote, 0.0001);
     if (rowDist > hr) continue;
     float vel = clamp(note.w * velocityScale, 0.0, 1.0);
     float rowFade = (1.0 - smoothstep(hr * 0.55, hr, rowDist)) * vel;
-    vec3 noteRgb = arrangementNotesPaletteColor(note.z);
+    vec3 noteRgb;
+    #if ARR_NOTES_COLOR_MODE_{{NODE_SUFFIX}} == 0
+      noteRgb = vec3(1.0);
+    #elif ARR_NOTES_COLOR_MODE_{{NODE_SUFFIX}} == 1
+      noteRgb = vec3(0.14, 0.14, 0.16);
+    #elif ARR_NOTES_COLOR_MODE_{{NODE_SUFFIX}} == 2
+      noteRgb = arrangementNotesProjectColor(ARR_NOTE_PROJECT_{{NODE_SUFFIX}}[i]);
+    #elif ARR_NOTES_COLOR_MODE_{{NODE_SUFFIX}} == 3
+      noteRgb = ARR_TRACK_RGB_{{NODE_SUFFIX}}[int(ARR_NOTE_TRACK_IDX_{{NODE_SUFFIX}}[i])];
+    #else
+      noteRgb = arrangementNotesPaletteFromPitch(note.z);
+    #endif
     color = mix(color, noteRgb, rowFade);
     alpha = max(alpha, rowFade);
   }
@@ -400,8 +428,7 @@ vec2 arrangementNotesUvFromP(vec2 p) {
     }
   }
 
-  float edge = arrangementNotesEdgeFade(uvN, edgeFade);
-  float outWeight = alpha * opacity * edge;
+  float outWeight = alpha * opacity;
   return {{ARR_NOTES_EVAL_STRUCT}}(vec4(color, outWeight), outWeight);
 }
 `,
@@ -417,14 +444,14 @@ vec2 arrangementNotesUvFromP(vec2 p) {
     int($param.timelineAnchor),
     $param.noteSize,
     $param.velocityScale,
-    $param.edgeFade,
     $param.opacity,
     bgRgb,
     int($param.layoutOrientation),
     $param.pitchPadding,
-    $param.rowGap,
     int($param.playheadShow),
-    playheadOklch
+    playheadOklch,
+    int($param.noteLoopStart),
+    int($param.noteLoopEnd)
   );
   $output.out = notesEval.color;
   $output.mask = notesEval.mask;

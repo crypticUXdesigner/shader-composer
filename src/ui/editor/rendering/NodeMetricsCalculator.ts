@@ -23,9 +23,14 @@ import { autoGenerateLayout } from '../../../utils/layoutMigration';
 function getVisibleWhenDriverParameterNames(spec: NodeSpec): Set<string> {
   const names = new Set<string>();
   for (const el of spec.parameterLayout?.elements ?? []) {
-    if (!isGridLayoutElement(el)) continue;
-    const p = el.visibleWhen?.parameter;
+    const visibleWhen =
+      'visibleWhen' in el ? (el as { visibleWhen?: { parameter: string } }).visibleWhen : undefined;
+    const p = visibleWhen?.parameter;
     if (p) names.add(p);
+    if (!isGridLayoutElement(el)) continue;
+    for (const clause of Object.values(el.parameterVisibleWhen ?? {})) {
+      if (clause.parameter) names.add(clause.parameter);
+    }
   }
   return names;
 }

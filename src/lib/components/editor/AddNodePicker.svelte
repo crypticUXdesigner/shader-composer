@@ -1,12 +1,23 @@
 <script lang="ts">
   /**
-   * Compact node picker for empty-canvas add (Add tool / Alt+click): search, category pills,
-   * main list, recent footer. Anchored to cursor like other popovers.
+   * Compact node picker for empty-canvas add (Add tool / Alt+click): search, main list,
+   * recent footer. Anchored to cursor like other popovers.
    */
-  import { untrack } from 'svelte';
-  import { Popover, SearchInput, Tag, NodeIconSvg } from '../ui';
-  import { getNodeIcon } from '../../../utils/nodeSpecUtils';
+  import { tick, untrack } from 'svelte';
+  import { Popover, SearchInput, NodeIconSvg } from '../ui';
+  import { getCategorySlug } from '../../../utils/cssTokens';
+  import { getCategoryDefaultIcon, getNodeIcon } from '../../../utils/nodeSpecUtils';
   import type { NodeSpec } from '../../../types/nodeSpec';
+  import {
+    compareNodeSpecsForPanel,
+    flattenGroupedNodeSpecs,
+    groupNodeSpecsByPanelCategory,
+    isNodePanelCategoryDividerStart,
+  } from '../../../utils/nodePanelCategoryOrder';
+  import {
+    matchesNodePanelSearch,
+    pickDefaultNodePanelSelectionIndex,
+  } from '../../../utils/nodePanelSearch';
   import { loadRecentNodeTypes, pushRecentNodeType } from '../../../utils/recentNodeTypes';
 
   interface Props {
@@ -23,69 +34,37 @@
   let { open, x, y, nodeSpecs, onSelect, onClose, canCloseOnClickOutside }: Props = $props();
 
   let searchQuery = $state('');
-  let selectedCategories = $state<Set<string>>(new Set());
   let searchRowRef = $state<HTMLDivElement | null>(null);
   let listRef = $state<HTMLDivElement | null>(null);
-  let selectedIndex = $state(-1);
-
-  const CATEGORY_ORDER: string[] = [
-    'Distort',
-    'Patterns',
-    'Shapes',
-    'SDF',
-    'Blend',
-    'Mask',
-    'Effects',
-    'Audio',
-    'Inputs',
-    'Output',
-    'Math',
-    'Utilities',
-  ];
-
-  function sortCategories(categories: string[]): string[] {
-    return [...categories].sort((a, b) => {
-      const aIndex = CATEGORY_ORDER.indexOf(a);
-      const bIndex = CATEGORY_ORDER.indexOf(b);
-      if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
-      if (aIndex !== -1) return -1;
-      if (bIndex !== -1) return 1;
-      return a.localeCompare(b);
-    });
-  }
-
-  const allCategories = $derived(sortCategories([...new Set(nodeSpecs.map((s) => s.category))]));
+  let selectedSpecId = $state<string | null>(null);
 
   const filteredSpecs = $derived.by(() => {
     const query = searchQuery.toLowerCase().trim();
     let filtered = nodeSpecs;
 
     if (query !== '') {
-      filtered = filtered.filter(
-        (spec) =>
-          spec.displayName.toLowerCase().includes(query) ||
-          (spec.description?.toLowerCase().includes(query) ?? false) ||
-          spec.category.toLowerCase().includes(query)
-      );
+      filtered = filtered.filter((spec) => matchesNodePanelSearch(spec, query));
     }
 
-    if (selectedCategories.size > 0) {
-      filtered = filtered.filter((spec) => selectedCategories.has(spec.category));
-    }
-
-    filtered = [...filtered].sort((a, b) => {
-      if (query !== '') {
-        const aExact = a.displayName.toLowerCase() === query;
-        const bExact = b.displayName.toLowerCase() === query;
-        if (aExact && !bExact) return -1;
-        if (!aExact && bExact) return 1;
-      }
-      const cat = a.category.localeCompare(b.category);
-      if (cat !== 0) return cat;
-      return a.displayName.localeCompare(b.displayName);
-    });
+    filtered = [...filtered].sort((a, b) => compareNodeSpecsForPanel(a, b, query));
 
     return filtered;
+  });
+
+  const groupedSpecs = $derived.by(() => groupNodeSpecsByPanelCategory(filteredSpecs));
+
+  /** List order as rendered (grouped by category), not filteredSpecs sort order. */
+  const visualOrderedSpecs = $derived.by(() => flattenGroupedNodeSpecs(groupedSpecs));
+
+  const selectedIndex = $derived.by(() => {
+    if (!selectedSpecId) return -1;
+    return visualOrderedSpecs.findIndex((s) => s.id === selectedSpecId);
+  });
+
+  const flatIndexBySpecId = $derived.by(() => {
+    const map = new Map<string, number>();
+    visualOrderedSpecs.forEach((spec, index) => map.set(spec.id, index));
+    return map;
   });
 
   const specById = $derived.by(() => new Map(nodeSpecs.map((s) => [s.id, s])));
@@ -97,18 +76,11 @@
       const spec = specById.get(id);
       if (spec) out.push(spec);
     }
-    return out;
+    return out.slice(0, 3);
   });
 
   function getSearchInput(): HTMLInputElement | null {
     return searchRowRef?.querySelector('input') ?? null;
-  }
-
-  function toggleCategory(cat: string): void {
-    const next = new Set(selectedCategories);
-    if (next.has(cat)) next.delete(cat);
-    else next.add(cat);
-    selectedCategories = next;
   }
 
   function handlePick(nodeType: string): void {
@@ -121,7 +93,7 @@
     if (!open) return;
     untrack(() => {
       searchQuery = '';
-      selectedIndex = -1;
+      selectedSpecId = null;
     });
     let cancelled = false;
     const frame = requestAnimationFrame(() => {
@@ -135,15 +107,62 @@
     };
   });
 
-  function scrollSelectedIntoView(): void {
-    const el = listRef?.querySelector(`[data-ridx="${selectedIndex}"]`);
-    el?.scrollIntoView({ block: 'nearest' });
+  /** Keep selection aligned with filtered list order (by spec id, not stale index). */
+  $effect(() => {
+    const specs = filteredSpecs;
+    const query = searchQuery;
+
+    untrack(() => {
+      const q = query.trim();
+      if (q === '') {
+        selectedSpecId = null;
+        return;
+      }
+      if (selectedSpecId !== null && specs.some((s) => s.id === selectedSpecId)) {
+        return;
+      }
+      const nextIdx = pickDefaultNodePanelSelectionIndex(specs, query);
+      selectedSpecId = nextIdx >= 0 ? specs[nextIdx]!.id : null;
+    });
+  });
+
+  $effect(() => {
+    if (selectedIndex < 0) return;
+    const idx = selectedIndex;
+    untrack(() => {
+      void tick().then(() => {
+        const el = listRef?.querySelector(`[data-ridx="${idx}"]`);
+        el?.scrollIntoView({ block: 'nearest' });
+      });
+    });
+  });
+
+  function setSelectionByIndex(index: number): void {
+    const specs = visualOrderedSpecs;
+    if (index < 0 || index >= specs.length) {
+      selectedSpecId = null;
+      return;
+    }
+    selectedSpecId = specs[index]!.id;
+  }
+
+  function moveSelection(delta: number): void {
+    const specs = visualOrderedSpecs;
+    if (specs.length === 0) return;
+
+    const current = selectedIndex;
+    if (current < 0) {
+      if (delta > 0) setSelectionByIndex(0);
+      return;
+    }
+
+    setSelectionByIndex(Math.max(0, Math.min(current + delta, specs.length - 1)));
   }
 
   function handleKeydown(e: KeyboardEvent): void {
     const searchInput = getSearchInput();
     const isSearchFocused = searchInput === document.activeElement;
-    const list = filteredSpecs;
+    const list = visualOrderedSpecs;
 
     if (e.key === 'Escape') {
       e.preventDefault();
@@ -154,13 +173,7 @@
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       if (list.length === 0) return;
-      if (isSearchFocused) {
-        if (selectedIndex < 0) selectedIndex = 0;
-        else selectedIndex = Math.min(selectedIndex + 1, list.length - 1);
-      } else {
-        selectedIndex = Math.min(selectedIndex + 1, list.length - 1);
-      }
-      scrollSelectedIntoView();
+      moveSelection(1);
       return;
     }
 
@@ -168,11 +181,10 @@
       e.preventDefault();
       if (list.length === 0) return;
       if (selectedIndex <= 0) {
-        selectedIndex = -1;
+        selectedSpecId = null;
         searchInput?.focus();
       } else {
-        selectedIndex -= 1;
-        scrollSelectedIntoView();
+        moveSelection(-1);
       }
       return;
     }
@@ -217,22 +229,6 @@
           bind:value={searchQuery}
         />
       </div>
-
-      {#if allCategories.length > 0}
-        <div class="filters-row filter-categories">
-          {#each allCategories as cat (cat)}
-            <Tag
-              size="xs"
-              interactive
-              selected={selectedCategories.has(cat)}
-              category={cat}
-              onclick={() => toggleCategory(cat)}
-            >
-              {cat}
-            </Tag>
-          {/each}
-        </div>
-      {/if}
     </div>
 
     <div
@@ -240,24 +236,45 @@
       bind:this={listRef}
       tabindex="-1"
       role="listbox"
-      aria-activedescendant={selectedIndex >= 0 && selectedIndex < filteredSpecs.length
+      aria-activedescendant={selectedIndex >= 0 && selectedIndex < visualOrderedSpecs.length
         ? `add-node-opt-${selectedIndex}`
         : undefined}
     >
-      {#each filteredSpecs as spec, i (spec.id)}
-        <button
-          type="button"
-          id="add-node-opt-{i}"
-          data-ridx={i}
-          class="node-row"
-          class:is-active={selectedIndex === i}
-          onclick={() => handlePick(spec.id)}
+      {#each groupedSpecs as group, groupIndex (group.category)}
+        {@const startsDividerGroup =
+          isNodePanelCategoryDividerStart(group.category) &&
+          (groupIndex === 0 || groupedSpecs[groupIndex - 1]?.category !== group.category)}
+        <section
+          class="category-group"
+          class:divider-start={startsDividerGroup}
+          aria-label={group.category}
         >
-          <span class="node-row-icon" data-category={spec.category}>
-            <NodeIconSvg identifier={getNodeIcon(spec)} />
-          </span>
-          <span class="node-row-name">{spec.displayName}</span>
-        </button>
+          <div
+            class="category-heading"
+            data-category={getCategorySlug(group.category)}
+          >
+            <span class="category-heading-icon" aria-hidden="true">
+              <NodeIconSvg identifier={getCategoryDefaultIcon(group.category)} />
+            </span>
+            <span class="category-heading-label">{group.category}</span>
+          </div>
+          {#each group.nodes as spec (spec.id)}
+            {@const flatIdx = flatIndexBySpecId.get(spec.id) ?? -1}
+            <button
+              type="button"
+              id="add-node-opt-{flatIdx}"
+              data-ridx={flatIdx}
+              class="node-row"
+              class:is-active={selectedIndex === flatIdx}
+              onclick={() => handlePick(spec.id)}
+            >
+              <span class="node-row-icon" data-category={spec.category}>
+                <NodeIconSvg identifier={getNodeIcon(spec)} />
+              </span>
+              <span class="node-row-name">{spec.displayName}</span>
+            </button>
+          {/each}
+        </section>
       {/each}
 
       {#if filteredSpecs.length === 0}
@@ -313,30 +330,61 @@
     border-bottom-right-radius: 0;
   }
 
-  :global(.add-node-picker) .filters-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--pd-xs);
-    max-height: 5.5rem;
-    overflow-y: auto;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-    padding-bottom: var(--pd-sm);
-  }
-
-  :global(.add-node-picker) .filters-row::-webkit-scrollbar {
-    display: none;
-  }
-
   :global(.add-node-picker) .result-list {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: var(--pd-sm);
+    gap: var(--pd-md);
     padding: var(--pd-md);
     outline: none;
+  }
+
+  .category-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--pd-2xs);
+  }
+
+  .category-group.divider-start {
+    padding-top: var(--pd-sm);
+    border-top: 1px solid var(--divider);
+    margin-top: var(--pd-xs);
+  }
+
+  .category-heading {
+    display: flex;
+    align-items: center;
+    gap: var(--pd-sm);
+    padding: 0 var(--pd-sm);
+    color: var(--print-muted);
+    font-size: var(--text-2xs);
+    font-weight: var(--weight-medium);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .category-heading-icon {
+    flex-shrink: 0;
+    width: var(--size-sm);
+    height: var(--size-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.85;
+  }
+
+  .category-heading-icon :global(svg) {
+    width: 18px;
+    height: 18px;
+  }
+
+  .category-heading-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .node-row {

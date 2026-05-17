@@ -47,31 +47,14 @@
         }
       },
       {
-        "id": "node-1771266632880-7j0o469du",
-        "type": "fragment-coordinates",
-        "position": {
-          "x": 3886,
-          "y": -335
-        },
-        "parameters": {}
-      },
-      {
-        "id": "node-1771266632880-hqupwwd6z",
-        "type": "resolution",
-        "position": {
-          "x": 3886,
-          "y": -48
-        },
-        "parameters": {}
-      },
-      {
         "id": "node-1771266632880-2bnoual3x",
-        "type": "oklch-color-map-threshold",
+        "type": "oklch-color-map",
         "position": {
           "x": 4992,
           "y": -476
         },
         "parameters": {
+          "mapMode": 1,
           "stops": 16,
           "transitionWidth": 0.005,
           "ditherStrength": 0.8,
@@ -199,20 +182,6 @@
       }
     ],
     "connections": [
-      {
-        "id": "conn-1771266632880-lya48heyd",
-        "sourceNodeId": "node-1771266632880-7j0o469du",
-        "sourcePort": "out",
-        "targetNodeId": "node-1771266632880-2bnoual3x",
-        "targetPort": "fragCoord"
-      },
-      {
-        "id": "conn-1771266632880-10rmb80ai",
-        "sourceNodeId": "node-1771266632880-hqupwwd6z",
-        "sourcePort": "out",
-        "targetNodeId": "node-1771266632880-2bnoual3x",
-        "targetPort": "resolution"
-      },
       {
         "id": "conn-1771266632880-bjve42i6h",
         "sourceNodeId": "node-1771266632880-2bnoual3x",

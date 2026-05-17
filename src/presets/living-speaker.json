@@ -2,34 +2,34 @@
   "format": "shadernoice-node-graph",
   "formatVersion": "2.0",
   "graph": {
-    "id": "graph-1771635766318-4ckyjhb8z",
+    "id": "graph-1779032197527-uad2c5ua7",
     "name": "Living Speaker",
     "version": "2.0",
     "nodes": [
       {
-        "id": "node-1771635766318-s34bjbw00",
+        "id": "node-1779032197527-sizu4sbao",
         "type": "uv-coordinates",
         "position": {
-          "x": -1189,
-          "y": -421
+          "x": -1117,
+          "y": -430
         },
         "parameters": {}
       },
       {
-        "id": "node-1771635766318-f4hc8de7t",
+        "id": "node-1779032197527-cfnm2vv43",
         "type": "final-output",
         "position": {
-          "x": 3910,
-          "y": -486
+          "x": 5664,
+          "y": -450
         },
         "parameters": {}
       },
       {
-        "id": "node-1771635766318-4qpef4y6b",
+        "id": "node-1779032197527-696iq9a4k",
         "type": "radial-uv-warp",
         "position": {
-          "x": -649,
-          "y": -431
+          "x": -648,
+          "y": -435
         },
         "parameters": {
           "warpMode": 1,
@@ -49,11 +49,11 @@
         }
       },
       {
-        "id": "node-1771635766318-idfiwqco9",
+        "id": "node-1779032197527-0y0zcsgmo",
         "type": "radial-uv-warp",
         "position": {
-          "x": 132,
-          "y": -424
+          "x": 54,
+          "y": -436
         },
         "parameters": {
           "warpMode": 1,
@@ -72,11 +72,11 @@
         }
       },
       {
-        "id": "node-1771635766318-4fj2gofj6",
-        "type": "oklch-color-map-bezier",
+        "id": "node-1779032197527-sldovyu2o",
+        "type": "oklch-color-map",
         "position": {
-          "x": 2754,
-          "y": -450
+          "x": 2508,
+          "y": -439
         },
         "parameters": {
           "startColorL": 0.3565486181082561,
@@ -97,18 +97,24 @@
           "hCurveY1": 0,
           "hCurveX2": 0.5960899226601082,
           "hCurveY2": 1,
-          "reverseHue": 0
+          "reverseHue": 0,
+          "mapMode": 1,
+          "stops": 9,
+          "ditherStrength": 0.3,
+          "pixelSize": 4,
+          "transitionWidth": 0
         },
         "parameterInputModes": {
-          "endColorL": "multiply"
+          "endColorL": "multiply",
+          "ditherStrength": "multiply"
         }
       },
       {
-        "id": "node-1771635766318-ighj9oi2a",
+        "id": "node-1779032197527-f51qhct2q",
         "type": "radial-uv-warp",
         "position": {
-          "x": 990,
-          "y": -293
+          "x": 764,
+          "y": -437
         },
         "parameters": {
           "warpMode": 0,
@@ -126,93 +132,253 @@
           "bulgeStrength": "multiply",
           "bulgeRadius": "multiply"
         }
+      },
+      {
+        "id": "node-1779032214503-sno9kykv4",
+        "type": "particle-system",
+        "position": {
+          "x": 1476,
+          "y": -438
+        },
+        "parameters": {
+          "particleCellSize": 0.05,
+          "particleCount": 3,
+          "particleSize": 0.04,
+          "particleIntensity": 1,
+          "particleFalloff": 5,
+          "particleTimeSpeed": 5,
+          "particleTimeOffset": 0
+        },
+        "parameterInputModes": {
+          "particleSize": "multiply"
+        }
+      },
+      {
+        "id": "node-1779033112270-g7hm495gr",
+        "type": "tone-mapping",
+        "position": {
+          "x": 3769,
+          "y": -925
+        },
+        "parameters": {
+          "exposure": 2.47,
+          "contrast": 1.04,
+          "saturation": 0.44
+        },
+        "parameterInputModes": {
+          "exposure": "multiply"
+        }
+      },
+      {
+        "id": "node-1779033114699-5h1j4ppc3",
+        "type": "tone-mapping",
+        "position": {
+          "x": 3768,
+          "y": -449
+        },
+        "parameters": {
+          "exposure": 1,
+          "contrast": 1.23,
+          "saturation": 2
+        },
+        "parameterInputModes": {
+          "contrast": "multiply"
+        }
+      },
+      {
+        "id": "node-1779033127571-9yefu3dsp",
+        "type": "mask-composite-vec3",
+        "position": {
+          "x": 4962,
+          "y": -449
+        },
+        "parameters": {
+          "mask": 0.5,
+          "invert": 0
+        }
+      },
+      {
+        "id": "node-1779033165708-8hggpopht",
+        "type": "gradient",
+        "position": {
+          "x": 3773,
+          "y": 27
+        },
+        "parameters": {
+          "gradientType": 0,
+          "centerX": 0,
+          "centerY": 0,
+          "radius": 1.2,
+          "falloff": 5,
+          "invert": 0,
+          "angle": 0,
+          "linearScale": 1,
+          "intensity": 1
+        }
       }
     ],
     "connections": [
       {
-        "id": "conn-1771635766318-zyqy1j3gl",
-        "sourceNodeId": "node-1771635766318-s34bjbw00",
+        "id": "conn-1779032197527-n8d8qdew6",
+        "sourceNodeId": "node-1779032197527-sizu4sbao",
         "sourcePort": "out",
-        "targetNodeId": "node-1771635766318-4qpef4y6b",
+        "targetNodeId": "node-1779032197527-696iq9a4k",
         "targetPort": "in"
       },
       {
-        "id": "conn-1771635766318-jcehc9mu4",
-        "sourceNodeId": "node-1771635766318-4qpef4y6b",
+        "id": "conn-1779032197527-3qmtdgqnq",
+        "sourceNodeId": "node-1779032197527-696iq9a4k",
         "sourcePort": "out",
-        "targetNodeId": "node-1771635766318-idfiwqco9",
+        "targetNodeId": "node-1779032197527-0y0zcsgmo",
         "targetPort": "in"
       },
       {
-        "id": "conn-1771635766318-csa8kndue",
-        "sourceNodeId": "node-1771635766318-ighj9oi2a",
+        "id": "conn-1779032197527-uhvuu84en",
+        "sourceNodeId": "node-1779032197527-0y0zcsgmo",
         "sourcePort": "out",
-        "targetNodeId": "node-1771635766318-4fj2gofj6",
+        "targetNodeId": "node-1779032197527-f51qhct2q",
         "targetPort": "in"
       },
       {
-        "id": "conn-1771635766318-l541wn279",
-        "sourceNodeId": "node-1771635766318-4fj2gofj6",
-        "sourcePort": "out",
-        "targetNodeId": "node-1771635766318-f4hc8de7t",
-        "targetPort": "in"
-      },
-      {
-        "id": "conn-1771635766318-t9ftr5tua",
-        "sourceNodeId": "node-1771635766318-idfiwqco9",
-        "sourcePort": "out",
-        "targetNodeId": "node-1771635766318-ighj9oi2a",
-        "targetPort": "in"
-      },
-      {
-        "id": "conn-1771635766318-xx6m7nmm4",
+        "id": "conn-1779032197527-4g26s1a9m",
         "sourceNodeId": "audio-signal:remap-remap-643f9373-2ed4-48c0-b80d-c707ad0b5cbd",
         "sourcePort": "out",
-        "targetNodeId": "node-1771635766318-ighj9oi2a",
+        "targetNodeId": "node-1779032197527-f51qhct2q",
         "targetParameter": "bulgeStrength"
       },
       {
-        "id": "conn-1771635766318-c435p0nvr",
+        "id": "conn-1779032197527-31fvnrkjv",
         "sourceNodeId": "audio-signal:remap-remap-643f9373-2ed4-48c0-b80d-c707ad0b5cbd",
         "sourcePort": "out",
-        "targetNodeId": "node-1771635766318-idfiwqco9",
+        "targetNodeId": "node-1779032197527-0y0zcsgmo",
         "targetParameter": "fisheyeStrength"
       },
       {
-        "id": "conn-1771635766318-if3hhnrk3",
+        "id": "conn-1779032197527-h21091q47",
         "sourceNodeId": "audio-signal:remap-remap-069f76e7-3ab0-49de-9c2a-99ec1544b8a4",
         "sourcePort": "out",
-        "targetNodeId": "node-1771635766318-4qpef4y6b",
+        "targetNodeId": "node-1779032197527-696iq9a4k",
         "targetParameter": "fisheyeStrength"
       },
       {
-        "id": "conn-1771636293485-v0yzjzvok",
+        "id": "conn-1779032197527-bindikkn8",
         "sourceNodeId": "audio-signal:remap-remap-2ea3d856-68de-47f7-be98-f156e8f8b024",
         "sourcePort": "out",
-        "targetNodeId": "node-1771635766318-4fj2gofj6",
+        "targetNodeId": "node-1779032197527-sldovyu2o",
         "targetParameter": "endColorL"
       },
       {
-        "id": "conn-1771636353256-0pu6nrq67",
+        "id": "conn-1779032197527-0uju3dox9",
         "sourceNodeId": "audio-signal:remap-remap-643f9373-2ed4-48c0-b80d-c707ad0b5cbd",
         "sourcePort": "out",
-        "targetNodeId": "node-1771635766318-ighj9oi2a",
+        "targetNodeId": "node-1779032197527-f51qhct2q",
         "targetParameter": "bulgeRadius"
+      },
+      {
+        "id": "1f28387e-d0b2-4b82-bfba-171693442c87",
+        "sourceNodeId": "node-1779032197527-f51qhct2q",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779032214503-sno9kykv4",
+        "targetPort": "in"
+      },
+      {
+        "id": "16314419-2a4e-4b49-81f7-e39aa857d227",
+        "sourceNodeId": "node-1779032214503-sno9kykv4",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779032197527-sldovyu2o",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1779032893999-gr0imt6w1",
+        "sourceNodeId": "audio-signal:remap-remap-efd65261-97a1-488d-8532-df6b2ee298ed",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779032214503-sno9kykv4",
+        "targetParameter": "particleSize"
+      },
+      {
+        "id": "b8c0ebff-7fc0-41c2-aec5-f3099017b54d",
+        "sourceNodeId": "node-1779032197527-sldovyu2o",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779033114699-5h1j4ppc3",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1779033152812-zog3i8o0k",
+        "sourceNodeId": "node-1779033112270-g7hm495gr",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779033127571-9yefu3dsp",
+        "targetPort": "bg"
+      },
+      {
+        "id": "conn-1779033156614-km7693gox",
+        "sourceNodeId": "node-1779033114699-5h1j4ppc3",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779033127571-9yefu3dsp",
+        "targetPort": "fg"
+      },
+      {
+        "id": "conn-1779033173204-kn1tio0ci",
+        "sourceNodeId": "node-1779032197527-sizu4sbao",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779033165708-8hggpopht",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1779033182392-mqpfrjfxv",
+        "sourceNodeId": "node-1779033165708-8hggpopht",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779033127571-9yefu3dsp",
+        "targetPort": "mask"
+      },
+      {
+        "id": "conn-1779033184838-patwi8fqe",
+        "sourceNodeId": "node-1779033127571-9yefu3dsp",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779032197527-cfnm2vv43",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1779035072954-szn5xbatr",
+        "sourceNodeId": "node-1779032197527-sldovyu2o",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779033112270-g7hm495gr",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1779035126541-ymx6n6k1d",
+        "sourceNodeId": "audio-signal:remap-remap-ea51891b-8235-4fcc-aec7-edac824a70e5",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779033112270-g7hm495gr",
+        "targetParameter": "exposure"
+      },
+      {
+        "id": "conn-1779035817125-rnqcs4tpp",
+        "sourceNodeId": "audio-signal:remap-remap-ea51891b-8235-4fcc-aec7-edac824a70e5",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779033114699-5h1j4ppc3",
+        "targetParameter": "contrast"
+      },
+      {
+        "id": "conn-1779039723985-r9bzuxst1",
+        "sourceNodeId": "audio-signal:remap-remap-643f9373-2ed4-48c0-b80d-c707ad0b5cbd",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779032197527-sldovyu2o",
+        "targetParameter": "ditherStrength"
       }
     ],
     "viewState": {
-      "zoom": 0.12157665459056939,
-      "panX": 72.896947196827,
-      "panY": 461.3482707271652,
+      "zoom": 0.14283724908986015,
+      "panX": 364.6920643762309,
+      "panY": 434.88163916720845,
       "selectedNodeIds": []
     },
     "automation": {
-      "bpm": 120,
-      "durationSeconds": 30,
+      "bpm": 160,
+      "durationSeconds": 148.2662439257005,
       "lanes": [
         {
           "id": "0458092d-5c15-4425-a055-9c76fb648bc3",
-          "nodeId": "node-1771635766318-4fj2gofj6",
+          "nodeId": "node-1779032197527-sldovyu2o",
           "paramName": "startColorH",
           "regions": [
             {
@@ -241,12 +407,55 @@
                 ],
                 "interpolation": "bezier"
               }
+            },
+            {
+              "id": "9787fb0b-7c99-40c7-96cb-3504bd36ba4d",
+              "startTime": 35.6716125701984,
+              "duration": 11.430145779526278,
+              "loop": false,
+              "curve": {
+                "keyframes": [
+                  {
+                    "time": 0,
+                    "value": 0.8999783305064636
+                  },
+                  {
+                    "time": 0.027545306473097542,
+                    "value": 0.06441198377958723
+                  },
+                  {
+                    "time": 0.051952601476693255,
+                    "value": 1
+                  },
+                  {
+                    "time": 0.07217573221757322,
+                    "value": 0.09118074136704157
+                  },
+                  {
+                    "time": 0.09797770607920371,
+                    "value": 1
+                  },
+                  {
+                    "time": 0.12168762973162918,
+                    "value": 0.07588425844477642
+                  },
+                  {
+                    "time": 0.14191076047250914,
+                    "value": 1
+                  },
+                  {
+                    "time": 1,
+                    "value": 0.8999783305064636
+                  }
+                ],
+                "interpolation": "bezier"
+              }
             }
           ]
         },
         {
           "id": "b868f9d7-a7ba-4a8e-9f28-40ea15d19c13",
-          "nodeId": "node-1771635766318-4fj2gofj6",
+          "nodeId": "node-1779032197527-sldovyu2o",
           "paramName": "endColorH",
           "regions": [
             {
@@ -283,6 +492,430 @@
                 ],
                 "interpolation": "bezier"
               }
+            },
+            {
+              "id": "1fb68d0a-511a-4ae9-9fa8-c2470484c29a",
+              "startTime": 35.58124144392862,
+              "duration": 11.377374305995097,
+              "loop": false,
+              "curve": {
+                "keyframes": [
+                  {
+                    "time": 0,
+                    "value": 0.8652793498776239
+                  },
+                  {
+                    "time": 0.025453320108198226,
+                    "value": 0.2785606440550682
+                  },
+                  {
+                    "time": 0.06101820558683638,
+                    "value": 0.7183316396953727
+                  },
+                  {
+                    "time": 0.10076709571742612,
+                    "value": 0.2862094106752583
+                  },
+                  {
+                    "time": 0.14958165380246471,
+                    "value": 0.7106835732872595
+                  },
+                  {
+                    "time": 0.203277587890625,
+                    "value": 0.17913473043147932
+                  },
+                  {
+                    "time": 0.2590655721879903,
+                    "value": 0.7833414295354705
+                  },
+                  {
+                    "time": 0.31485362032966135,
+                    "value": 0.15236562273798693
+                  },
+                  {
+                    "time": 0.3737336548362317,
+                    "value": 0.8674715604488709
+                  },
+                  {
+                    "time": 0.4448632981048967,
+                    "value": 0.14471825654195025
+                  },
+                  {
+                    "time": 0.5721757960618788,
+                    "value": 0.655234129036832
+                  },
+                  {
+                    "time": 0.7534867929115455,
+                    "value": 0.21163997545756674
+                  },
+                  {
+                    "time": 0.9020224854537133,
+                    "value": 0.758484601023535
+                  },
+                  {
+                    "time": 1,
+                    "value": 0.8461593589103596
+                  }
+                ],
+                "interpolation": "bezier"
+              }
+            },
+            {
+              "id": "85db5a06-d0f4-4e5a-852a-5b8ee09b602f",
+              "startTime": 47.5874624984767,
+              "duration": 11.377374305995104,
+              "loop": false,
+              "curve": {
+                "keyframes": [
+                  {
+                    "time": 0,
+                    "value": 0.8652793498776239
+                  },
+                  {
+                    "time": 0.025453320108198226,
+                    "value": 0.2785606440550682
+                  },
+                  {
+                    "time": 0.06101820558683638,
+                    "value": 0.7183316396953727
+                  },
+                  {
+                    "time": 0.10076709571742612,
+                    "value": 0.2862094106752583
+                  },
+                  {
+                    "time": 0.14958165380246471,
+                    "value": 0.7106835732872595
+                  },
+                  {
+                    "time": 0.203277587890625,
+                    "value": 0.17913473043147932
+                  },
+                  {
+                    "time": 0.2590655721879903,
+                    "value": 0.7833414295354705
+                  },
+                  {
+                    "time": 0.31485362032966135,
+                    "value": 0.15236562273798693
+                  },
+                  {
+                    "time": 0.3737336548362317,
+                    "value": 0.8674715604488709
+                  },
+                  {
+                    "time": 0.4448632981048967,
+                    "value": 0.14471825654195025
+                  },
+                  {
+                    "time": 0.5721757960618788,
+                    "value": 0.655234129036832
+                  },
+                  {
+                    "time": 0.7534867929115455,
+                    "value": 0.21163997545756674
+                  },
+                  {
+                    "time": 0.9020224854537133,
+                    "value": 0.758484601023535
+                  },
+                  {
+                    "time": 1,
+                    "value": 0.8652796999836623
+                  }
+                ],
+                "interpolation": "bezier"
+              }
+            },
+            {
+              "id": "3e9bc020-035f-43d6-bbe2-d3316fa8ff8f",
+              "startTime": 59.66735821776997,
+              "duration": 11.377374305995104,
+              "loop": false,
+              "curve": {
+                "keyframes": [
+                  {
+                    "time": 0,
+                    "value": 0.8652793498776239
+                  },
+                  {
+                    "time": 0.025453320108198226,
+                    "value": 0.2785606440550682
+                  },
+                  {
+                    "time": 0.06101820558683638,
+                    "value": 0.7183316396953727
+                  },
+                  {
+                    "time": 0.10076709571742612,
+                    "value": 0.2862094106752583
+                  },
+                  {
+                    "time": 0.14958165380246471,
+                    "value": 0.7106835732872595
+                  },
+                  {
+                    "time": 0.203277587890625,
+                    "value": 0.17913473043147932
+                  },
+                  {
+                    "time": 0.2590655721879903,
+                    "value": 0.7833414295354705
+                  },
+                  {
+                    "time": 0.31485362032966135,
+                    "value": 0.15236562273798693
+                  },
+                  {
+                    "time": 0.3737336548362317,
+                    "value": 0.8674715604488709
+                  },
+                  {
+                    "time": 0.4448632981048967,
+                    "value": 0.14471825654195025
+                  },
+                  {
+                    "time": 0.5721757960618788,
+                    "value": 0.655234129036832
+                  },
+                  {
+                    "time": 0.7534867929115455,
+                    "value": 0.21163997545756674
+                  },
+                  {
+                    "time": 0.9006277427513728,
+                    "value": 0.8387905236798595
+                  },
+                  {
+                    "time": 1,
+                    "value": 1
+                  }
+                ],
+                "interpolation": "bezier"
+              }
+            },
+            {
+              "id": "d46a9ae7-222a-4b93-90eb-34b89c0b3f86",
+              "startTime": 84.13097008396898,
+              "duration": 1.8737639843751879,
+              "loop": false,
+              "curve": {
+                "keyframes": [
+                  {
+                    "time": 0,
+                    "value": 0.2381284515492928
+                  },
+                  {
+                    "time": 1,
+                    "value": 0.2381284515492928
+                  }
+                ],
+                "interpolation": "bezier"
+              }
+            },
+            {
+              "id": "e4d91d15-aac6-4063-b7f2-e42162add8a0",
+              "startTime": 94.04361142911655,
+              "duration": 1.8737639843751879,
+              "loop": false,
+              "curve": {
+                "keyframes": [
+                  {
+                    "time": 0,
+                    "value": 0.2381284515492928
+                  },
+                  {
+                    "time": 1,
+                    "value": 0.2381284515492928
+                  }
+                ],
+                "interpolation": "bezier"
+              }
+            },
+            {
+              "id": "e0590e25-bd88-426e-ad84-da41b9d689f7",
+              "startTime": 108.01336839535608,
+              "duration": 12.19116657488567,
+              "loop": false,
+              "curve": {
+                "keyframes": [
+                  {
+                    "time": 0,
+                    "value": 0.5517044258725159
+                  },
+                  {
+                    "time": 0.2813807531380753,
+                    "value": 0.305928082968129
+                  },
+                  {
+                    "time": 0.6928173368445999,
+                    "value": 0.7304015453680534
+                  },
+                  {
+                    "time": 1,
+                    "value": 0.5364075928442125
+                  }
+                ],
+                "interpolation": "bezier"
+              }
+            },
+            {
+              "id": "bb1fe2e4-27ae-4158-9ee3-c4474c52fcd9",
+              "startTime": 120.2301618136016,
+              "duration": 9.562596681049087,
+              "loop": false,
+              "curve": {
+                "keyframes": [
+                  {
+                    "time": 0,
+                    "value": 0
+                  },
+                  {
+                    "time": 0.03870292887029289,
+                    "value": 0.007648241461132521
+                  },
+                  {
+                    "time": 0.04388702928870293,
+                    "value": 0.6730394718300305
+                  },
+                  {
+                    "time": 0.11471410775284388,
+                    "value": 0.6768640301931448
+                  },
+                  {
+                    "time": 0.1168061579620489,
+                    "value": 0.10325099714576058
+                  },
+                  {
+                    "time": 0.20258015269514906,
+                    "value": 0.07648188945226786
+                  },
+                  {
+                    "time": 0.21164578872744508,
+                    "value": 0.688336304858334
+                  },
+                  {
+                    "time": 0.2869595962588258,
+                    "value": 0.6692149134669163
+                  },
+                  {
+                    "time": 0.2897490178192011,
+                    "value": 0.07648188945226786
+                  },
+                  {
+                    "time": 0.42782433162673245,
+                    "value": 0.061185056423964435
+                  },
+                  {
+                    "time": 0.44107394038882713,
+                    "value": 0.39005716356341424
+                  },
+                  {
+                    "time": 0.510808968643763,
+                    "value": 0.39005716356341424
+                  },
+                  {
+                    "time": 0.5791491903520529,
+                    "value": 0.07648258966434462
+                  },
+                  {
+                    "time": 0.5951882845188284,
+                    "value": 0.3709371725961501
+                  },
+                  {
+                    "time": 0.6558577405857741,
+                    "value": 0.07265803130123027
+                  },
+                  {
+                    "time": 0.6705020920502092,
+                    "value": 0.217973043585576
+                  },
+                  {
+                    "time": 1,
+                    "value": 0.3146112162666566
+                  }
+                ],
+                "interpolation": "bezier"
+              }
+            },
+            {
+              "id": "8765eb49-ee6f-4d10-a656-7fe9bff8e975",
+              "startTime": 130.04801832863498,
+              "duration": 18.218225597065526,
+              "loop": false,
+              "curve": {
+                "keyframes": [
+                  {
+                    "time": 0,
+                    "value": 0
+                  },
+                  {
+                    "time": 0.02963735668230257,
+                    "value": 0.007648241461132521
+                  },
+                  {
+                    "time": 0.034821457100712605,
+                    "value": 0.657742638801727
+                  },
+                  {
+                    "time": 0.11471410775284388,
+                    "value": 0.6768640301931448
+                  },
+                  {
+                    "time": 0.1168061579620489,
+                    "value": 0.10325099714576058
+                  },
+                  {
+                    "time": 0.20258015269514906,
+                    "value": 0.07648188945226786
+                  },
+                  {
+                    "time": 0.21164578872744508,
+                    "value": 0.688336304858334
+                  },
+                  {
+                    "time": 0.2869595962588258,
+                    "value": 0.6692149134669163
+                  },
+                  {
+                    "time": 0.2897490178192011,
+                    "value": 0.07648188945226786
+                  },
+                  {
+                    "time": 0.42782433162673245,
+                    "value": 0.061185056423964435
+                  },
+                  {
+                    "time": 0.44107394038882713,
+                    "value": 0.39005716356341424
+                  },
+                  {
+                    "time": 0.510808968643763,
+                    "value": 0.39005716356341424
+                  },
+                  {
+                    "time": 0.5791491903520529,
+                    "value": 0.07648258966434462
+                  },
+                  {
+                    "time": 0.5951882845188284,
+                    "value": 0.3709371725961501
+                  },
+                  {
+                    "time": 0.6558577405857741,
+                    "value": 0.07265803130123027
+                  },
+                  {
+                    "time": 0.6705020920502092,
+                    "value": 0.217973043585576
+                  },
+                  {
+                    "time": 1,
+                    "value": 0.6014180828963871
+                  }
+                ],
+                "interpolation": "bezier"
+              }
             }
           ]
         }
@@ -301,7 +934,7 @@
     "bands": [
       {
         "id": "band-a003f33c-5e92-4074-9a74-8ffe4133721a",
-        "name": "Band 4",
+        "name": "LMid",
         "sourceFileId": "tracks/tmw689snu",
         "frequencyBands": [
           [
@@ -310,24 +943,14 @@
           ]
         ],
         "smoothingHalfLifeSeconds": 0.008333333333333333,
-        "fftSize": 2048
-      },
-      {
-        "id": "band-1074b33e-b8d8-42fa-938c-bba15458fb84",
-        "name": "Band 3",
-        "sourceFileId": "tracks/tmw689snu",
-        "frequencyBands": [
-          [
-            67,
-            176
-          ]
-        ],
-        "smoothingHalfLifeSeconds": 0.008333333333333333,
-        "fftSize": 2048
+        "fftSize": 2048,
+        "attackHalfLifeSeconds": 0.012,
+        "releaseHalfLifeSeconds": 0.047,
+        "bandMode": "rms"
       },
       {
         "id": "band-19cf32d6-845a-4897-8251-26088a7b6907",
-        "name": "Mids",
+        "name": "HMid",
         "sourceFileId": "tracks/tmw689snu",
         "frequencyBands": [
           [
@@ -336,11 +959,14 @@
           ]
         ],
         "smoothingHalfLifeSeconds": 0.013408671256189091,
-        "fftSize": 2048
+        "fftSize": 2048,
+        "attackHalfLifeSeconds": 0.012,
+        "releaseHalfLifeSeconds": 0.023,
+        "bandMode": "rms"
       },
       {
         "id": "band-7c7cb3a6-5130-46f4-b1e9-475ddb1a4824",
-        "name": "Kick",
+        "name": "Bd",
         "sourceFileId": "tracks/tmw689snu",
         "frequencyBands": [
           [
@@ -349,10 +975,31 @@
           ]
         ],
         "smoothingHalfLifeSeconds": 0.016194651748956096,
-        "fftSize": 2048
+        "fftSize": 2048,
+        "attackHalfLifeSeconds": 0.012,
+        "releaseHalfLifeSeconds": 0.012,
+        "bandMode": "mean"
       }
     ],
     "remappers": [
+      {
+        "id": "remap-ea51891b-8235-4fcc-aec7-edac824a70e5",
+        "name": "Grading",
+        "bandId": "band-a003f33c-5e92-4074-9a74-8ffe4133721a",
+        "inMin": 0,
+        "inMax": 1,
+        "outMin": 0.64,
+        "outMax": 1
+      },
+      {
+        "id": "remap-efd65261-97a1-488d-8532-df6b2ee298ed",
+        "name": "Grain",
+        "bandId": "band-19cf32d6-845a-4897-8251-26088a7b6907",
+        "inMin": 0.46,
+        "inMax": 0.84,
+        "outMin": 0.25,
+        "outMax": 0.92
+      },
       {
         "id": "remap-069f76e7-3ab0-49de-9c2a-99ec1544b8a4",
         "name": "Clean",
@@ -372,12 +1019,21 @@
         "outMax": 0.24
       },
       {
-        "id": "remap-9ef1ad23-feb5-491e-8bb7-f809befcc3f9",
-        "name": "Remap 1",
-        "bandId": "band-19cf32d6-845a-4897-8251-26088a7b6907",
+        "id": "remap-2ea3d856-68de-47f7-be98-f156e8f8b024",
+        "name": "Light",
+        "bandId": "band-a003f33c-5e92-4074-9a74-8ffe4133721a",
         "inMin": 0,
         "inMax": 1,
-        "outMin": 0.49,
+        "outMin": 0.45,
+        "outMax": 1
+      },
+      {
+        "id": "band-band-a003f33c-5e92-4074-9a74-8ffe4133721a",
+        "name": "Default",
+        "bandId": "band-a003f33c-5e92-4074-9a74-8ffe4133721a",
+        "inMin": 0,
+        "inMax": 1,
+        "outMin": 0,
         "outMax": 1
       },
       {
@@ -397,26 +1053,15 @@
         "inMax": 1,
         "outMin": 0,
         "outMax": 1
-      },
-      {
-        "id": "remap-652eccee-adc8-4613-8023-07f8baeecf4d",
-        "name": "Remap 1",
-        "bandId": "band-1074b33e-b8d8-42fa-938c-bba15458fb84",
-        "inMin": 0,
-        "inMax": 1,
-        "outMin": 0.55,
-        "outMax": 1
-      },
-      {
-        "id": "remap-2ea3d856-68de-47f7-be98-f156e8f8b024",
-        "name": "Remap 1",
-        "bandId": "band-a003f33c-5e92-4074-9a74-8ffe4133721a",
-        "inMin": 0,
-        "inMax": 1,
-        "outMin": 0.27,
-        "outMax": 1
       }
     ],
+    "primarySource": {
+      "type": "playlist",
+      "trackId": "tracks/tmw689snu",
+      "displayName": "HYSTERIA",
+      "displayNameSource": "bundled",
+      "displayNameUpdatedAt": "2026-05-17T17:49:06.355Z"
+    },
     "playlistState": {
       "order": [
         "tracks/5j5bp9a4kk9v",
@@ -521,10 +1166,6 @@
       ],
       "currentIndex": 32,
       "loopCurrentTrack": true
-    },
-    "primarySource": {
-      "type": "playlist",
-      "trackId": "tracks/tmw689snu"
     }
   },
   "startingTrackId": "tracks/tmw689snu"

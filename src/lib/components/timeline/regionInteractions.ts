@@ -18,6 +18,8 @@ export interface RegionDragState {
   gripOffset: number;
   /** When true, the original should NOT move (duplicate will be created on commit). */
   isDuplicate: boolean;
+  /** Lane receiving the duplicate on drop (copy-drag); equals laneId for in-lane move. */
+  targetLaneId: string;
 }
 
 export interface RegionResizeState {
@@ -111,7 +113,26 @@ export function createRegionDragState(args: {
     startTime: args.regionStartTime,
     gripOffset: args.cursorTime - args.regionStartTime,
     isDuplicate: args.isDuplicate,
+    targetLaneId: args.laneId,
   };
+}
+
+/** Lane track under the pointer within the timeline lanes container (for cross-lane copy-drag). */
+export function resolveLaneIdAtClientPoint(
+  clientX: number,
+  clientY: number,
+  lanesContainer: HTMLElement | null
+): string | null {
+  if (!lanesContainer) return null;
+  const stack = document.elementsFromPoint(clientX, clientY);
+  for (const el of stack) {
+    if (typeof (el as Element | null)?.closest !== 'function') continue;
+    const track = el.closest('.track[data-lane-id]');
+    if (track && lanesContainer.contains(track)) {
+      return track.getAttribute('data-lane-id');
+    }
+  }
+  return null;
 }
 
 export function createRegionResizeState(args: {

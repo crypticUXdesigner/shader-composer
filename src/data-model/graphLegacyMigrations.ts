@@ -31,6 +31,9 @@ import { migrateRadialRepeatSdfParameters } from './radialRepeatSdfMigration';
 import { migratePolarCoordinatesRemoveEnabled } from './polarCoordinatesRemoveEnabledMigration';
 import { migrateArrangementLanesParameters } from './arrangementLanesParametersMigration';
 import { migrateArrangementNotesParameters } from './arrangementNotesParametersMigration';
+import { migrateBlendNodesUnify } from './blendNodesUnifyMigration';
+import { migratePathDriveRemoveEllipse } from './pathDriveRemoveEllipseMigration';
+import { migrateOklchColorMapUnify } from './oklchColorMapUnifyMigration';
 
 export function migrateLegacyNodeGraph(graph: NodeGraph): NodeGraph {
   let g = migrateNoiseNodes(graph);
@@ -59,5 +62,8 @@ export function migrateLegacyNodeGraph(graph: NodeGraph): NodeGraph {
   g = migrateUnifiedStripesPattern(g);
   g = migratePolarCoordinatesRemoveEnabled(g);
   g = migrateArrangementLanesParameters(g);
-  return migrateArrangementNotesParameters(g);
+  g = migrateArrangementNotesParameters(g);
+  g = migrateBlendNodesUnify(g);
+  g = migratePathDriveRemoveEllipse(g);
+  return migrateOklchColorMapUnify(g);
 }

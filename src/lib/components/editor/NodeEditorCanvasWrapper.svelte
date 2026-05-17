@@ -16,6 +16,7 @@
     updateViewState,
     addConnectionWithValidation,
     insertNodeIntoConnection,
+    applyArrangementNotesDefaultTrackFilterToNode,
     type AddConnectionWithValidationResult,
     type NodeSpecification,
     type InsertNodeIntoConnectionErrorCode,
@@ -904,12 +905,18 @@
       const metrics = canvas.getNodeRenderer().calculateMetrics(tempNode, spec);
       const adjustedX = x - metrics.width / 2;
       const adjustedY = y - metrics.headerHeight / 2;
-      const node: NodeInstance = {
+      let node: NodeInstance = {
         id: generateId('node'),
         type: nodeType,
         position: { x: adjustedX, y: adjustedY },
         parameters
       };
+      if (nodeType === 'arrangement-notes') {
+        node = applyArrangementNotesDefaultTrackFilterToNode(
+          node,
+          graphStore.audioSetup.arrangementSnapshot
+        );
+      }
       syncViewStateFromCanvas(canvas);
       graphStore.addNode(node);
       const finalMetrics = canvas.getNodeRenderer().calculateMetrics(node, spec);

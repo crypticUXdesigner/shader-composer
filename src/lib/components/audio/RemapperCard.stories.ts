@@ -26,3 +26,10 @@ export const Default: Story = {
     remapper: mockRemapper,
   },
 };
+
+export const WithDuplicate: Story = {
+  args: {
+    remapper: mockRemapper,
+    onDuplicate: () => {},
+  },
+};

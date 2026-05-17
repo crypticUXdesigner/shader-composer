@@ -2,7 +2,7 @@
  * Color Map Preview Element Renderer
  *
  * Full-width row showing color stops: stepped (discrete boxes) or smooth (gradient).
- * Used by oklch-color-map-threshold and oklch-color-map-bezier. DOM renders the strip.
+ * Used by oklch-color-map. DOM renders the strip.
  */
 
 import type { NodeInstance } from '../../../../../data-model/types';
@@ -10,6 +10,7 @@ import type { NodeSpec, LayoutElement, ColorMapPreviewElement as ColorMapPreview
 import type { NodeRenderMetrics } from '../../../NodeRenderer';
 import type { LayoutElementRenderer, ElementMetrics } from '../LayoutElementRenderer';
 import { getCSSVariableAsNumber, getCategoryVariableAsNumber } from '../../../../../utils/cssTokens';
+import { layoutSectionVisible } from '../../../../../utils/parameterVisibility';
 
 export class ColorMapPreviewElementRenderer implements LayoutElementRenderer {
   constructor(_ctx: CanvasRenderingContext2D) {
@@ -28,6 +29,16 @@ export class ColorMapPreviewElementRenderer implements LayoutElementRenderer {
     startY: number,
     metrics: NodeRenderMetrics
   ): ElementMetrics {
+    if (!layoutSectionVisible(element.visibleWhen, node, spec)) {
+      return {
+        x: node.position.x,
+        y: node.position.y + metrics.headerHeight + startY,
+        width: availableWidth,
+        height: 0,
+        parameterGridPositions: new Map()
+      };
+    }
+
     const category = spec.category;
     const gridPadding = category != null
       ? getCategoryVariableAsNumber('node-body-padding', category, 18)

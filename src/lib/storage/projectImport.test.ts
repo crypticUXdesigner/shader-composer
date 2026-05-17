@@ -25,7 +25,7 @@ describe('projectImport', () => {
 
   it('imports single SerializedGraphFile JSON as a new local project', async () => {
     const validationSpecs = toValidationSpecs(nodeSystemSpecs);
-    const presetPath = join(__dirname, '../../presets', 'testing.json');
+    const presetPath = join(__dirname, '../../presets', 'sphere.json');
     const json = readFileSync(presetPath, 'utf-8');
 
     const before = await listProjectMeta();
@@ -50,7 +50,7 @@ describe('projectImport', () => {
 
   it('imports bundle JSON as multiple new projects and skips invalid entries without creating rows', async () => {
     const validationSpecs = toValidationSpecs(nodeSystemSpecs);
-    const presetPath = join(__dirname, '../../presets', 'testing.json');
+    const presetPath = join(__dirname, '../../presets', 'sphere.json');
     const json = readFileSync(presetPath, 'utf-8');
 
     const bundle: ProjectBundleV1 = {

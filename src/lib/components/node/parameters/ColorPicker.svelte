@@ -8,6 +8,8 @@
 
   interface Props {
     color: { l: number; c: number; h: number };
+    /** `compact` — fixed square swatch for dense lists (e.g. track filter rows). */
+    variant?: 'default' | 'compact';
     disabled?: boolean;
     class?: string;
     onClick?: (screenX: number, screenY: number) => void;
@@ -15,6 +17,7 @@
 
   let {
     color,
+    variant = 'default',
     disabled = false,
     class: className = '',
     onClick,
@@ -28,7 +31,10 @@
   }
 </script>
 
-<div class="color-picker {className}" data-disabled={disabled || undefined}>
+<div
+  class="color-picker {variant === 'compact' ? 'is-compact' : ''} {className}"
+  data-disabled={disabled || undefined}
+>
   <button
     type="button"
     class="swatch"
@@ -79,6 +85,23 @@
     .swatch:disabled {
       opacity: var(--opacity-disabled);
       cursor: not-allowed;
+    }
+  }
+
+  .color-picker.is-compact {
+    flex: none;
+    width: 1.25rem;
+    min-height: auto;
+    padding: 0;
+    border: none;
+    background: transparent;
+
+    .swatch {
+      flex: none;
+      width: 1.25rem;
+      height: 1.25rem;
+      min-height: 1.25rem;
+      border-radius: var(--radius-sm);
     }
   }
 </style>

@@ -1,8 +1,7 @@
 <script lang="ts">
   import type { Action } from 'svelte/action';
-  import { fade } from 'svelte/transition';
   import { portal } from '../../../actions/portal';
-  import { readCssTimeMs } from '../../../../utils/readCssTimeMs';
+  import { popoverReveal, readPopoverRevealParams } from './popoverRevealTransition';
 
   let reducedMotion = $state(false);
   $effect(() => {
@@ -16,12 +15,7 @@
     return () => mq.removeEventListener('change', handler);
   });
 
-  const fadeMs = $derived.by(() => {
-    if (typeof window === 'undefined') return 150;
-    if (reducedMotion) return 0;
-    const fast = readCssTimeMs('--motion-effects-fast-duration');
-    return Number.isFinite(fast) ? fast : 150;
-  });
+  const popoverRevealParams = $derived(() => readPopoverRevealParams(reducedMotion));
 
   interface Props {
     open?: boolean;
@@ -264,9 +258,10 @@
     aria-modal="false"
     use:portal
     use:stampOpenedAt
-    transition:fade={() => ({ duration: fadeMs })}
   >
-    {@render children?.()}
+    <div class="popover-motion" transition:popoverReveal={() => popoverRevealParams}>
+      {@render children?.()}
+    </div>
   </div>
 {/if}
 
@@ -286,5 +281,13 @@
     /* Other */
     z-index: var(--message-z-index);
     pointer-events: auto;
+  }
+
+  .popover-motion {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
   }
 </style>

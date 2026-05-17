@@ -13,6 +13,7 @@ Focused engineering notes for behavior that is **partially implemented**, **not 
 | [`webgpu-heavy-nodes-followup/_OVERVIEW.md`](./webgpu-heavy-nodes-followup/_OVERVIEW.md) | **Active:** Task **10** remainder — `particle-system` GPU pass plan (compiler → preview → export → gates) + optional audio+RD export gate (**05**) |
 | [`node-power/_OVERVIEW.md`](./node-power/_OVERVIEW.md) | Per-node Power (bypass) toggle: serialized node setting + two global compile rules + UI affordance |
 | [`expression-node/_OVERVIEW.md`](./expression-node/_OVERVIEW.md) | **Expression** node: sandboxed math DSL (`a`–`d`), dual GLSL/WGSL emit, CodeMirror UI, demo preset |
+| [`color-lut-gradient/_OVERVIEW.md`](./color-lut-gradient/_OVERVIEW.md) | **Done (2026-05-17):** **Color LUT** (preset 1D LUT + globals) and **Color Gradient** (3-stop spatial OKLCH × value mask, black at zero) |
 | [`preview-compile-feedback/_OVERVIEW.md`](./preview-compile-feedback/_OVERVIEW.md) | Preview recompile **progress toast** coverage + **failed compile / last-good** clarity (bottom stack / info path) |
 | [`audio-band-valueinput-ux/_OVERVIEW.md`](./audio-band-valueinput-ux/_OVERVIEW.md) | Audio band **`ValueInput`** fields: **vertical-intent** drag (ignore horizontal-dominant scrub), **Tab → inline edit**, modifier drag **regression** after drag changes |
 | [`color-map-node-removal/_OVERVIEW.md`](./color-map-node-removal/_OVERVIEW.md) | **Remove `color-map` node:** migrate graphs on load, drop redundant float→grayscale stub from registry/WGSL, presets + docs closeout |
@@ -22,6 +23,7 @@ Focused engineering notes for behavior that is **partially implemented**, **not 
 | [`graph-runtime-ui-architecture-followup/_OVERVIEW.md`](./graph-runtime-ui-architecture-followup/_OVERVIEW.md) | **Active:** Post–`/review-architecture` follow-up — `App` orchestration shrink, render-backend façade, WebGPU/compile modularization, graph-diff ownership doc, runtime-only guardrails, `graphStore`↔toast decoupling, WebGPU wire validation phase 2, `lib`→`ui` barrel audit |
 | [`audiotool-arrangement/_OVERVIEW.md`](./audiotool-arrangement/_OVERVIEW.md) | **Active:** Audiotool **published-project snapshot** — foundation shipped (import + persist on `audioSetup`); region/note nodes + DAW automation bindings next |
 | [`transform-2d-unify/_OVERVIEW.md`](./transform-2d-unify/_OVERVIEW.md) | **Active:** Unify **Rotate**, **Scale**, **Flip** into **`transform`** (fixed order Flip→Scale→Rotate, shared pivot); **`displace`** unchanged; load migration for legacy types |
+| [`audio-incremental-analysis/_OVERVIEW.md`](./audio-incremental-analysis/_OVERVIEW.md) | **Active:** Incremental offline audio curves — Tier A remapper patch (no toast), Tier B band rebuild, per-file invalidation; skip redundant compile on remapper-only edits |
 
 New multi-step packages: add `docs/implementation/<slug>/_OVERVIEW.md` first, then link it here (see **`workpkg-hygiene.mdc`**).
 

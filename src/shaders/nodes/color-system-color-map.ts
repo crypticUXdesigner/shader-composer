@@ -1,29 +1,17 @@
 import type { NodeSpec } from '../../types/nodeSpec';
 
-/**
- * OKLCH Color Map (stepped/threshold with optional dithering)
- */
-
-export const oklchColorMapThresholdNodeSpec: NodeSpec = {
-  id: 'oklch-color-map-threshold',
+/** mapMode: 0 = smooth (Bézier along input), 1 = stepped (quantized stops + optional dither). */
+export const oklchColorMapNodeSpec: NodeSpec = {
+  id: 'oklch-color-map',
   category: 'Blend',
-  displayName: 'Color Map Stepped',
-  description: 'Converts float value to RGB color using OKLCH color space with threshold-based color stops and optional dithering',
+  displayName: 'Color Map',
+  description:
+    'Maps a clamped scalar through OKLCH with per-channel Bézier easing; smooth mode interpolates the input, stepped mode quantizes into bands with optional Bayer dither',
   icon: 'color-swatch',
-  inputs: [
-    { name: 'in', type: 'float', label: 'Value' },
-    { name: 'startColor', type: 'vec3', fallbackParameter: 'startColorL,startColorC,startColorH', label: 'Start color' },
-    { name: 'endColor', type: 'vec3', fallbackParameter: 'endColorL,endColorC,endColorH', label: 'End color' },
-    { name: 'lCurve', type: 'vec4', fallbackParameter: 'lCurveX1,lCurveY1,lCurveX2,lCurveY2', label: 'L curve' },
-    { name: 'cCurve', type: 'vec4', fallbackParameter: 'cCurveX1,cCurveY1,cCurveX2,cCurveY2', label: 'C curve' },
-    { name: 'hCurve', type: 'vec4', fallbackParameter: 'hCurveX1,hCurveY1,hCurveX2,hCurveY2', label: 'H curve' },
-    { name: 'fragCoord', type: 'vec2', label: 'Frag coords' },
-    { name: 'resolution', type: 'vec2', label: 'Resolution' }
-  ],
-  outputs: [
-    { name: 'out', type: 'vec3', label: 'Color' }
-  ],
+  inputs: [{ name: 'in', type: 'float', label: 'Value' }],
+  outputs: [{ name: 'out', type: 'vec3', label: 'Color' }],
   parameters: {
+    mapMode: { type: 'int', default: 0, min: 0, max: 1, step: 1, label: 'Mode' },
     stops: { type: 'int', default: 6, min: 2, max: 50, label: 'Stops' },
     transitionWidth: { type: 'float', default: 0.005, min: 0.0, max: 0.5, step: 0.01, label: 'Transition Width' },
     ditherStrength: { type: 'float', default: 0.0, min: 0.0, max: 10.0, step: 0.01, label: 'Dither Strength' },
@@ -46,6 +34,7 @@ export const oklchColorMapThresholdNodeSpec: NodeSpec = {
     hCurveY1: { type: 'float', default: 0.0, min: 0.0, max: 1.0, step: 0.01 },
     hCurveX2: { type: 'float', default: 1.0, min: 0.0, max: 1.0, step: 0.01 },
     hCurveY2: { type: 'float', default: 1.0, min: 0.0, max: 1.0, step: 0.01 },
+    swapColors: { type: 'int', default: 0, min: 0, max: 1, label: 'Swap Colors' },
     reverseHue: { type: 'int', default: 0, min: 0, max: 1, label: 'Reverse Hue' }
   },
   parameterLayout: {
@@ -54,11 +43,25 @@ export const oklchColorMapThresholdNodeSpec: NodeSpec = {
       'lCurveX1', 'lCurveY1', 'lCurveX2', 'lCurveY2',
       'cCurveX1', 'cCurveY1', 'cCurveX2', 'cCurveY2',
       'hCurveX1', 'hCurveY1', 'hCurveX2', 'hCurveY2',
+      'swapColors',
       'reverseHue'
     ],
     elements: [
-      { type: 'color-map-preview', mode: 'stepped' },
-      { type: 'grid', parameters: ['pixelSize', 'ditherStrength', 'transitionWidth', 'stops'], layout: { columns: 3, parameterSpan: { ditherStrength: 2, stops: 2 } } },
+      {
+        type: 'grid',
+        label: 'Mode',
+        parameters: ['mapMode'],
+        parameterUI: { mapMode: 'enum' },
+        layout: { columns: 1 }
+      },
+      { type: 'color-map-preview', mode: 'smooth', visibleWhen: { parameter: 'mapMode', equals: 0 } },
+      { type: 'color-map-preview', mode: 'stepped', visibleWhen: { parameter: 'mapMode', equals: 1 } },
+      {
+        type: 'grid',
+        visibleWhen: { parameter: 'mapMode', equals: 1 },
+        parameters: ['pixelSize', 'ditherStrength', 'transitionWidth', 'stops'],
+        layout: { columns: 3, parameterSpan: { ditherStrength: 2, stops: 2 } }
+      },
       { type: 'color-picker-row', label: 'Colors', pickers: [['startColorL', 'startColorC', 'startColorH'], ['endColorL', 'endColorC', 'endColorH']] },
       { type: 'grid', parameters: ['startColorL', 'startColorC', 'startColorH'], parameterUI: { startColorL: 'input', startColorC: 'input', startColorH: 'input' }, layout: { columns: 3 } },
       { type: 'grid', parameters: ['endColorL', 'endColorC', 'endColorH'], parameterUI: { endColorL: 'input', endColorC: 'input', endColorH: 'input' }, layout: { columns: 3 } },
@@ -136,38 +139,56 @@ export const oklchColorMapThresholdNodeSpec: NodeSpec = {
   `,
   mainCode: `
     float value = clamp($input.in, 0.0, 1.0);
-    int stops = $param.stops;
-    float bayer = 0.0;
-    if ($param.ditherStrength > 0.001) {
-      vec2 fragCoordCentered = $input.fragCoord - $input.resolution * 0.5;
-      bayer = (Bayer8(fragCoordCentered / $param.pixelSize) - 0.5) * $param.ditherStrength;
-    }
-    float transWidth = $param.transitionWidth > 0.0 ? $param.transitionWidth : 0.005;
-    float ditheredValue = clamp(value + bayer, 0.0, 1.0);
-    float stopT = ditheredValue;
-    float colorIndex = stopT * float(stops - 1);
-    int lowerIndex = int(floor(colorIndex));
-    int upperIndex = min(lowerIndex + 1, stops - 1);
-    lowerIndex = clamp(lowerIndex, 0, stops - 1);
-    upperIndex = clamp(upperIndex, 0, stops - 1);
-    float lowerT = float(lowerIndex) / float(stops - 1);
-    float upperT = float(upperIndex) / float(stops - 1);
+    vec4 lCurve = vec4($param.lCurveX1, $param.lCurveY1, $param.lCurveX2, $param.lCurveY2);
+    vec4 cCurve = vec4($param.cCurveX1, $param.cCurveY1, $param.cCurveX2, $param.cCurveY2);
+    vec4 hCurve = vec4($param.hCurveX1, $param.hCurveY1, $param.hCurveX2, $param.hCurveY2);
     vec3 startOklch = vec3($param.startColorL, $param.startColorC, $param.startColorH);
     vec3 endOklch = vec3($param.endColorL, $param.endColorC, $param.endColorH);
-    vec3 oklch1 = generateColorStop(lowerT, startOklch, endOklch, $input.lCurve, $input.cCurve, $input.hCurve);
-    vec3 oklch2 = generateColorStop(upperT, startOklch, endOklch, $input.lCurve, $input.cCurve, $input.hCurve);
-    float blendFactor = fract(colorIndex);
-    if (lowerIndex < stops - 1) {
-      float threshold = float(lowerIndex + 1) / float(stops);
-      threshold += bayer * 0.05;
-      threshold = clamp(threshold, 0.0, 1.0);
-      float smoothBlend = smoothstep(threshold - transWidth, threshold + transWidth, ditheredValue);
-      blendFactor = smoothBlend;
-    } else {
-      blendFactor = 0.0;
+    if ($param.swapColors > 0) {
+      vec3 tmp = startOklch;
+      startOklch = endOklch;
+      endOklch = tmp;
     }
-    vec3 color1 = oklchToRgb(oklch1);
-    vec3 color2 = oklchToRgb(oklch2);
-    $output.out = mix(color1, color2, blendFactor);
+    if ($param.mapMode > 0) {
+      int stops = $param.stops;
+      float bayer = 0.0;
+      if ($param.ditherStrength > 0.001) {
+        vec2 fragCoordCentered = gl_FragCoord.xy - $resolution * 0.5;
+        bayer = (Bayer8(fragCoordCentered / $param.pixelSize) - 0.5) * $param.ditherStrength;
+      }
+      float transWidth = $param.transitionWidth > 0.0 ? $param.transitionWidth : 0.005;
+      float ditheredValue = clamp(value + bayer, 0.0, 1.0);
+      float stopT = ditheredValue;
+      float colorIndex = stopT * float(stops - 1);
+      int lowerIndex = int(floor(colorIndex));
+      int upperIndex = min(lowerIndex + 1, stops - 1);
+      lowerIndex = clamp(lowerIndex, 0, stops - 1);
+      upperIndex = clamp(upperIndex, 0, stops - 1);
+      float lowerT = float(lowerIndex) / float(stops - 1);
+      float upperT = float(upperIndex) / float(stops - 1);
+      vec3 oklch1 = generateColorStop(lowerT, startOklch, endOklch, lCurve, cCurve, hCurve);
+      vec3 oklch2 = generateColorStop(upperT, startOklch, endOklch, lCurve, cCurve, hCurve);
+      float blendFactor = fract(colorIndex);
+      if (lowerIndex < stops - 1) {
+        float threshold = float(lowerIndex + 1) / float(stops);
+        threshold += bayer * 0.05;
+        threshold = clamp(threshold, 0.0, 1.0);
+        float smoothBlend = smoothstep(threshold - transWidth, threshold + transWidth, ditheredValue);
+        blendFactor = smoothBlend;
+      } else {
+        blendFactor = 0.0;
+      }
+      vec3 color1 = oklchToRgb(oklch1);
+      vec3 color2 = oklchToRgb(oklch2);
+      $output.out = mix(color1, color2, blendFactor);
+    } else {
+      float lT = cubicBezier(value, lCurve);
+      float cT = cubicBezier(value, cCurve);
+      float hT = cubicBezier(value, hCurve);
+      float l = mix(startOklch.x, endOklch.x, lT);
+      float c = mix(startOklch.y, endOklch.y, cT);
+      float h = interpolateHue(startOklch.z, endOklch.z, hT);
+      $output.out = oklchToRgb(vec3(l, c, h));
+    }
   `
 };

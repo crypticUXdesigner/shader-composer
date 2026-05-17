@@ -57,7 +57,7 @@
 >
   {#snippet children()}
     <div
-      class="shell-root frame"
+      class="shell-root"
       class:has-curve={curveSlotActive}
       role="presentation"
     >

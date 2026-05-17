@@ -97,6 +97,7 @@ export {
   getConnectionsToNode,
   getConnectionToPort,
   createEmptyGraph,
+  createScratchGraph,
   createDefaultViewState,
 } from './utils';
 
@@ -152,6 +153,8 @@ export {
   addRemapper as addAudioRemapper,
   updateRemapper as updateAudioRemapper,
   removeRemapper as removeAudioRemapper,
+  duplicateRemapperName,
+  createDuplicateRemapperEntry,
   setPrimarySource,
   setArrangementSnapshot,
   clearArrangementSnapshot,
@@ -224,6 +227,13 @@ export { migrateStreakNodeAngleToDegrees } from './streakNodeMigration';
 
 // Preset/import/default-state: compose legacy node migrations before validation
 export { migrateLegacyNodeGraph } from './graphLegacyMigrations';
+
+// Arrangement **Notes** node: default to a single baked track (not all lanes)
+export {
+  applyArrangementNotesDefaultTrackFilterToGraph,
+  applyArrangementNotesDefaultTrackFilterToNode,
+  arrangementNotesNeedsDefaultTrackFilter,
+} from './arrangementNotesTrackFilterDefaults';
 
 // Radial repeat SDF: period/halfPeriod → shellSpacing/ringPhase
 export { migrateRadialRepeatSdfParameters } from './radialRepeatSdfMigration';

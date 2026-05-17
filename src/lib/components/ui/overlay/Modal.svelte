@@ -1,7 +1,7 @@
 <script lang="ts">
   import { fade } from 'svelte/transition';
   import { portal } from '../../../actions/portal';
-  import { readCssTimeMs } from '../../../../utils/readCssTimeMs';
+  import { popoverReveal, readPopoverRevealParams } from './popoverRevealTransition';
 
   let reducedMotion = $state(false);
   $effect(() => {
@@ -15,12 +15,9 @@
     return () => mq.removeEventListener('change', handler);
   });
 
-  const fadeMs = $derived.by(() => {
-    if (typeof window === 'undefined') return 150;
-    if (reducedMotion) return 0;
-    const fast = readCssTimeMs('--motion-effects-fast-duration');
-    return Number.isFinite(fast) ? fast : 150;
-  });
+  const revealParams = $derived(() => readPopoverRevealParams(reducedMotion));
+
+  const backdropFadeMs = $derived(() => revealParams.duration ?? 165);
 
   interface Props {
     open?: boolean;
@@ -119,11 +116,12 @@
     aria-modal="true"
     onclick={(e) => e.target === e.currentTarget && backdropDismisses && onClose?.()}
     use:portal
-    transition:fade={() => ({ duration: fadeMs })}
+    transition:fade={() => ({ duration: backdropFadeMs })}
   >
-  <div
-    bind:this={contentEl}
-    class="content frame {contentClass || ''} {className || ''}"
+    <div
+      bind:this={contentEl}
+      class="content frame {contentClass || ''} {className || ''}"
+      transition:popoverReveal={() => revealParams}
       onclick={(e) => e.stopPropagation()}
     >
       {@render children?.()}

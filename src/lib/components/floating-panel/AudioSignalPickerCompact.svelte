@@ -12,8 +12,12 @@
   import type { AudioBandEntry, AudioRemapperEntry } from '../../../data-model/audioSetupTypes';
   import { updateAudioBand, updateAudioRemapper } from '../../../data-model';
   import { subscribeParameterValueTick } from '../../stores/parameterValueTickStore';
+  import RemapperConnectionList from '../audio/RemapperConnectionList.svelte';
+  import { getRemapperParameterConnections } from '../../../utils/getRemapperParameterConnections';
 
   let {
+    graph,
+    nodeSpecs,
     audioSetup,
     onSelect,
     onAudioSetupChange,
@@ -22,6 +26,7 @@
     connectionDisabled,
     getAudioManager,
     onOpenLargeWithBand,
+    onRevealInNodeEditor,
   }: CompactSlotProps = $props();
 
   let spectrumDataByBand = $state<Map<string, { frequencyData: Uint8Array; fftSize: number; sampleRate: number }>>(new Map());
@@ -283,6 +288,10 @@
           onChange={(payload) => handleRemapperChange(remapperId, (r) => ({ ...r, ...payload }))}
         />
       </div>
+      <RemapperConnectionList
+        connections={getRemapperParameterConnections(graph, remapperId, nodeSpecs)}
+        onReveal={onRevealInNodeEditor}
+      />
     </div>
   {/if}
   <div class="disconnect">

@@ -7,8 +7,14 @@ import {
   type CurveEditorPadding,
 } from './curveEditorGeometry';
 
-export const CURVE_EDITOR_SAMPLES = 80;
+export const CURVE_EDITOR_SAMPLES = 240;
+
 export const CURVE_EDITOR_WAVEFORM_BAND_FRACTION = 0.4;
+
+/** Snap SVG coords to half-pixels so 2px strokes stay crisp when scaled. */
+export function snapCurveEditorSvgCoord(n: number): number {
+  return Math.round(n * 2) / 2;
+}
 
 export function buildCurveEditorCurvePathD(
   curve: AutomationCurve,
@@ -21,8 +27,8 @@ export function buildCurveEditorCurvePathD(
   for (let i = 0; i <= samples; i++) {
     const t = i / samples;
     const v = evaluateCurveAtNormalizedTime(curve, t);
-    const x = curveTimeToX(t, graphWidth, pad);
-    const y = curveValueToY(v, graphHeight, pad);
+    const x = snapCurveEditorSvgCoord(curveTimeToX(t, graphWidth, pad));
+    const y = snapCurveEditorSvgCoord(curveValueToY(v, graphHeight, pad));
     pathD.push(`${i === 0 ? 'M' : 'L'} ${x} ${y}`);
   }
   return pathD.join(' ');

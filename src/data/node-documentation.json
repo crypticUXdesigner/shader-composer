@@ -245,6 +245,7 @@
       "relatedItems": [
         "type:float",
         "node:mixed-wave-signal",
+        "node:path-drive",
         "node:vortex",
         "node:time",
         "node:sine",
@@ -255,6 +256,67 @@
         "Set Rotation speed to spin the oscillator vector together; Rot wobble amplitude modulates spin rate subtly.",
         "Use Offset to park the wandering path near a baseline while the stacks move around it.",
         "On the target parameter, multiply mode combines the oscillator with the pad slider for proportional motion."
+      ]
+    },
+    "node:path-drive": {
+      "title": "Path Drive",
+      "titleType": "node",
+      "tagline": "Preset XY paths for distortion centers—orbit, drift, pulse, and more—with slow wander and fast jitter on one compact node.",
+      "description": "Uses shader time (no separate Time node). Pick a Path preset, then Size, Speed, and Phase set how far, how fast, and where the cycle starts along the curve. Center X/Y is the pivot; Wander and Jitter add slow and fast deviation. Rotation (Rotate, Spin, Phase) turns the whole path—including wander and jitter—around Center; use this to tilt elliptical presets or slowly spin the motion for more variation with Aspect. Path Phase advances along the preset; it is not the same as spatial rotation. Orbit and Figure-8 expose Aspect (1 = circle on Orbit); Pulse depth for Pulse; Angle for Line. Outputs X and Y as separate floats—wire each to a center parameter on Radial UV Warp, Vortex, Ripple, and similar nodes. Use one Path Drive per distortion when you want independent motion. On the target parameter, input mode (override, add, multiply, …) controls how the driven value combines with the pad.",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "x",
+          "type": "float",
+          "description": "Horizontal path position plus center, wander, and jitter.",
+          "suggestedTargets": [
+            "node:radial-uv-warp",
+            "node:vortex",
+            "node:ripple",
+            "node:kaleidoscope",
+            "node:radial-pulse"
+          ]
+        },
+        {
+          "name": "y",
+          "type": "float",
+          "description": "Vertical path position plus center, wander, and jitter.",
+          "suggestedTargets": [
+            "node:radial-uv-warp",
+            "node:vortex",
+            "node:ripple",
+            "node:kaleidoscope",
+            "node:radial-pulse"
+          ]
+        }
+      ],
+      "relatedItems": [
+        "type:float",
+        "node:oscillator-2d",
+        "node:mixed-wave-signal",
+        "node:radial-uv-warp",
+        "node:time"
+      ],
+      "setupExampleGraph": {
+        "nodes": [
+          { "id": "a", "type": "path-drive" },
+          { "id": "b", "type": "radial-uv-warp" },
+          { "id": "c", "type": "uv-coordinates" },
+          { "id": "d", "type": "final-output" }
+        ],
+        "connections": [
+          { "from": "a", "fromPort": "x", "to": "b", "targetParameter": "warpCenterX" },
+          { "from": "a", "fromPort": "y", "to": "b", "targetParameter": "warpCenterY" },
+          { "from": "c", "fromPort": "out", "to": "b", "targetPort": "in" },
+          { "from": "b", "fromPort": "out", "to": "d", "targetPort": "in" }
+        ]
+      },
+      "examples": [
+        "Orbit + Aspect 1 + Size 0.2–0.4: circular bulge center motion; lower Aspect for a wider ellipse; raise Wander slightly for organic drift.",
+        "Figure-8 with Aspect ≠ 1: set Rotate to tilt the loop, or add a little Spin so the shape slowly turns and reads less static over time.",
+        "Drift preset for non-repeating roam; Jitter for subtle fast flicker on top.",
+        "Pulse preset with Pulse depth ~0.5: center stays on a circle while the path radius breathes.",
+        "One Path Drive per Radial UV Warp when stacking multiple distortions with different motion."
       ]
     },
     "node:resolution": {
@@ -891,7 +953,7 @@
       "title": "Bokeh",
       "titleType": "node",
       "tagline": "Fullscreen post bokeh: iris highlights (WebGPU multipass before Final Output; inline stub when blended upstream)",
-      "description": "Not the same as **Bokeh Point** (3D disc on a ray). This node is a **post effect** on a vec4 color chain: **WebGPU** uses a **multipass** plan when it sits **directly before Final Output** (bright pass, shaped blur, recombine). If you wire it **into another node** (e.g. **Blend Color**), WebGPU uses the same **single-pass approximation** as the WebGL preview so the graph stays on WebGPU. **WebGL** always uses that lightweight luminance + angular iris modulation. Place before **Final Output** for full multipass quality, or upstream in a color chain for a quick effect.",
+      "description": "Not the same as **Bokeh Point** (3D disc on a ray). This node is a **post effect** on a vec4 color chain: **WebGPU** uses a **multipass** plan when it sits **directly before Final Output** (bright pass, shaped blur, recombine). If you wire it **into another node** (e.g. **Blend**), WebGPU uses the same **single-pass approximation** as the WebGL preview so the graph stays on WebGPU. **WebGL** always uses that lightweight luminance + angular iris modulation. Place before **Final Output** for full multipass quality, or upstream in a color chain for a quick effect.",
       "inputs": [
         {
           "name": "in",
@@ -1238,7 +1300,7 @@
           "type": "vec3",
           "description": "The constant vec3 value with (x, y, z) components. Connect to Bokeh Point, camera nodes, or 3D shape/lighting inputs.",
           "suggestedTargets": [
-            "node:oklch-color-map-bezier",
+            "node:oklch-color-map",
             "node:mix",
             "node:normalize",
             "node:final-output"
@@ -1282,18 +1344,18 @@
       "title": "Vec4",
       "titleType": "node",
       "tagline": "Use this to provide constant 4D vectors for RGBA colors, homogeneous coordinates, or 4D data",
-      "description": "Outputs a constant vec4 value with adjustable x, y, z, and w components. This node is essential for providing fixed 4D values such as RGBA color values, homogeneous coordinates for 3D transformations, or any quadruple of related float values. All four components can be independently adjusted between -1000.0 and 1000.0, with w defaulting to 1.0. Connect to Blend Color or other nodes that accept vec4 for color or homogeneous data.",
+      "description": "Outputs a constant vec4 value with adjustable x, y, z, and w components. This node is essential for providing fixed 4D values such as RGBA color values, homogeneous coordinates for 3D transformations, or any quadruple of related float values. All four components can be independently adjusted between -1000.0 and 1000.0, with w defaulting to 1.0. Connect to Blend or other nodes that accept vec4 for color or homogeneous data.",
       "inputs": [],
       "outputs": [
         {
           "name": "out",
           "type": "vec4",
-          "description": "The constant vec4 value with (x, y, z, w) components. Connect to Blend Color or any vec4 input.",
+          "description": "The constant vec4 value with (x, y, z, w) components. Connect to Blend or any vec4 input.",
           "suggestedTargets": [
             "node:mix",
-            "node:blend-mode",
+            "node:blend",
             "node:gradient-mask",
-            "node:oklch-color-map-bezier"
+            "node:oklch-color-map"
           ]
         }
       ],
@@ -1320,7 +1382,7 @@
           },
           {
             "id": "d",
-            "type": "oklch-color-map-bezier"
+            "type": "oklch-color-map"
           },
           {
             "id": "e",
@@ -1367,16 +1429,16 @@
           "type": "vec3",
           "description": "OKLCH color value as (lightness, chroma, hue). Connect to OKLCH Color Map nodes for smooth gradients.",
           "suggestedTargets": [
-            "node:oklch-color-map-bezier",
-            "node:oklch-color-map-threshold",
+            "node:oklch-color-map",
+            "node:oklch-color-map",
             "node:mix"
           ]
         }
       ],
       "relatedItems": [
         "type:vec3",
-        "node:oklch-color-map-bezier",
-        "node:oklch-color-map-threshold",
+        "node:oklch-color-map",
+        "node:oklch-color-map",
         "node:constant-vec3"
       ],
       "setupExampleGraph": {
@@ -1418,7 +1480,7 @@
           "type": "vec4",
           "description": "Bezier curve control points as (x1, y1, x2, y2). Connect to OKLCH Color Map Bezier or other curve-based nodes.",
           "suggestedTargets": [
-            "node:oklch-color-map-bezier",
+            "node:oklch-color-map",
             "node:mix",
             "node:smoothstep"
           ]
@@ -1426,7 +1488,7 @@
       ],
       "relatedItems": [
         "type:vec4",
-        "node:oklch-color-map-bezier",
+        "node:oklch-color-map",
         "node:constant-vec4",
         "node:mix",
         "node:smoothstep"
@@ -1447,7 +1509,7 @@
           },
           {
             "id": "d",
-            "type": "oklch-color-map-bezier"
+            "type": "oklch-color-map"
           },
           {
             "id": "e",
@@ -2769,7 +2831,7 @@
           "description": "The interpolated value between a and b",
           "suggestedTargets": [
             "node:final-output",
-            "node:blend-mode",
+            "node:blend",
             "node:displace",
             "node:transform"
           ]
@@ -2875,7 +2937,7 @@
             "node:select",
             "node:compare",
             "node:gradient-mask",
-            "node:oklch-color-map-threshold"
+            "node:oklch-color-map"
           ]
         }
       ],
@@ -4328,141 +4390,52 @@
         "type:vec2"
       ]
     },
-    "node:blend-mode": {
-      "title": "Blend Channel",
+    "node:blend": {
+      "title": "Blend",
       "titleType": "node",
-      "tagline": "Ideal for combining two float values with multiply, screen, overlay, and other blend modes",
-      "description": "Applies Photoshop-style blending to two scalar (float) signals—for example luminance, masks, or values you later feed through Output or OKLCH maps. Twelve modes are available: Normal (the Blend input as the blend side, then Opacity mixes toward Background), Multiply, Screen, Overlay, Soft Light, Hard Light, Color Dodge, Color Burn, Linear Dodge (Add), Linear Burn, Difference, and Exclusion. Opacity mixes the blended result back toward the base. If either input is unwired, it uses the default typed-zero value.",
+      "tagline": "Blend two values with Photoshop-style modes — float, vec2, vec3, or vec4 from your wires",
+      "description": "Takes Background and Blend inputs whose type is inferred from connections (defaults to float when unwired). Each component uses the selected blend mode (Normal through Exclusion). Opacity mixes the blended result toward Background. For vec4 only, Alpha chooses Lerp (RGB modes + alpha interpolated) or Blend (apply the mode to alpha as well). Not Porter–Duff compositing; linear channel math in the shader working space.",
       "inputs": [
         {
           "name": "base",
-          "type": "float",
-          "description": "Background value to blend onto. When unwired, defaults to 0 (often reads as black in a float-only chain to Output).",
+          "type": "any",
+          "description": "Background layer. Unwired defaults to typed zero.",
           "suggestedSources": [
             "type:float",
-            "node:oklch-color-map-bezier",
+            "type:vec2",
+            "type:vec3",
+            "type:vec4",
             "node:mix",
-            "node:uv-coordinates"
+            "node:constant-vec4",
+            "node:noise"
           ]
         },
         {
           "name": "blend",
-          "type": "float",
-          "description": "Foreground value blended over the base using the selected mode. When unwired, it defaults to 0.",
+          "type": "any",
+          "description": "Blend layer combined onto Background with the selected mode.",
           "suggestedSources": [
             "type:float",
-            "node:noise",
+            "type:vec2",
+            "type:vec3",
+            "type:vec4",
             "node:mix",
-            "node:gradient-mask"
+            "node:gradient",
+            "node:blur"
           ]
         }
       ],
       "outputs": [
         {
           "name": "out",
-          "type": "float",
-          "description": "Blended float result, mixed toward the base by Opacity. Often chain to Final Output (floats promote to vec3), or to Mix/color grading.",
-          "suggestedTargets": [
-            "node:final-output",
-            "node:mix",
-            "node:color-grading"
-          ]
-        }
-      ],
-      "setupExampleGraph": {
-        "nodes": [
-          {
-            "id": "n1",
-            "type": "constant-float"
-          },
-          {
-            "id": "n2",
-            "type": "constant-float"
-          },
-          {
-            "id": "n3",
-            "type": "blend-mode"
-          },
-          {
-            "id": "n5",
-            "type": "final-output"
-          }
-        ],
-        "connections": [
-          {
-            "from": "n1",
-            "fromPort": "out",
-            "to": "n3",
-            "toPort": "base"
-          },
-          {
-            "from": "n2",
-            "fromPort": "out",
-            "to": "n3",
-            "toPort": "blend"
-          },
-          {
-            "from": "n3",
-            "fromPort": "out",
-            "to": "n5",
-            "toPort": "in"
-          }
-        ]
-      },
-      "relatedItems": [
-        "type:float",
-        "node:mix",
-        "node:lerp",
-        "node:blend-color"
-      ],
-      "examples": [
-        "Connect two patterns or masks to Background and Blend, pick a mode, then lower Opacity for a subtle mix.",
-        "Chain UV → Noise → Blend (foreground) with a second source on Background; wire Blend out to Final Output for color.",
-        "If Background is unwired, the blend runs against 0—expect a dark bias unless you drive Background."
-      ],
-      "advanced": "For two full RGBA layers you wire yourself, use Blend Color (same mode list, per-channel). Use Blend Channel when both operands are floats (e.g. before Final Output)."
-    },
-    "node:blend-color": {
-      "title": "Blend Color",
-      "titleType": "node",
-      "tagline": "Blend two RGBA colors with Photoshop-style modes, per channel—same semantics as Blend Channel but on vec4",
-      "description": "Takes Background and Blend as vec4 RGBA. Each RGB channel uses the selected blend mode with the same order as Blend Channel (Normal uses each channel of the Blend input as the blend-side value; Multiply through Exclusion follow Photoshop-style per-channel math). Opacity interpolates blended RGB toward the Background RGB (not Porter–Duff composite). Alpha is interpolated between Background.a and Blend.a by the same Opacity (straight alpha semantics; not multiplied into RGB). When a port is unwired, it defaults to vec4(0.0)—same typed-zero convention as other vec4 inputs.",
-      "inputs": [
-        {
-          "name": "base",
-          "type": "vec4",
-          "description": "Background color",
-          "suggestedSources": [
-            "node:combine-vector",
-            "node:oklch-color",
-            "node:mix",
-            "node:blur",
-            "type:vec4"
-          ]
-        },
-        {
-          "name": "blend",
-          "type": "vec4",
-          "description": "Blend-layer color blended per channel onto Background",
-          "suggestedSources": [
-            "node:combine-vector",
-            "node:oklch-color",
-            "node:mix",
-            "type:vec4"
-          ]
-        }
-      ],
-      "outputs": [
-        {
-          "name": "out",
-          "type": "vec4",
-          "description": "Blended RGBA",
+          "type": "any",
+          "description": "Blended result (same arity as resolved inputs).",
           "suggestedTargets": [
             "node:final-output",
             "node:mix",
             "node:color-grading",
-            "node:tone-mapping",
-            "node:blend-color"
+            "node:blend",
+            "node:tone-mapping"
           ]
         }
       ],
@@ -4478,7 +4451,7 @@
           },
           {
             "id": "b",
-            "type": "blend-color"
+            "type": "blend"
           },
           {
             "id": "out",
@@ -4508,51 +4481,28 @@
       },
       "relatedItems": [
         "type:vec4",
-        "node:blend-mode",
+        "type:float",
         "node:mix",
-        "node:constant-vec4"
+        "node:constant-vec4",
+        "node:select"
       ],
       "examples": [
-        "Chain two color pipelines into Background and Blend, pick Overlay or Soft Light, then reduce Opacity for a tinted photo-style mix.",
-        "Use Normal with Opacity below 1 for a simpler linear RGB mix without per-channel Photoshop math."
+        "Wire two float masks for scalar blending before Final Output.",
+        "Chain vec4 color pipelines; use Alpha Lerp for layer-style RGBA.",
+        "Pick Overlay or Soft Light and lower Opacity for photo-style tints."
       ],
-      "advanced": "Mode indices match Blend Channel (scalar node): 0=Normal/pass channel, …, 11=Exclusion. This is linear channel math in the shader’s working space, not automated sRGB decode/encode."
+      "advanced": "Mode 0=Normal, 1=Multiply, …, 11=Exclusion. vec4 Alpha Lerp matches former Blend; float-only graphs match former Blend."
     },
-    "node:oklch-color-map-bezier": {
-      "title": "Color Map Smooth",
+    "node:oklch-color-map": {
+      "title": "Color Map",
       "titleType": "node",
-      "tagline": "Map a 0–1 value to RGB through OKLCH with smooth easing on L, chroma (C), and hue (H) via independent cubic Bézier curves",
-      "description": "Converts a float value (0–1) to an RGB color using the OKLCH color space. Start and end colors are taken from the OKLCH Color (or compatible vec3) ports when wired; otherwise the panel lightness, chroma, and hue fields are used as L, C, and H endpoints. Separate cubic Bézier curves control easing for each dimension before conversion to RGB. Use Reverse hue to pick the complementary wrap direction across the hue ring when interpolating.",
+      "tagline": "Map a 0–1 value to RGB through OKLCH with smooth or stepped bands, per-channel Bézier curves, and optional Bayer dither",
+      "description": "Converts a float value (0–1) to an RGB color in OKLCH. **Smooth** mode eases the input through independent L/C/H cubic Bézier curves between start and end colors. **Stepped** mode quantizes the input into discrete bands (Stops) with adjustable transition width; optional built-in Bayer dither reduces banding. Colors and curves are edited in the panel; only the scalar **Value** input is exposed on the graph.",
       "inputs": [
         {
           "name": "in",
           "type": "float",
           "description": "The input value (0–1) to map to a color"
-        },
-        {
-          "name": "startColor",
-          "type": "vec3",
-          "description": "Starting color as OKLCH in vec3.xyz = (Lightness 0–1, Chroma, Hue degrees)—for example OKLCH Color out; used when wired; sliders apply when unwired."
-        },
-        {
-          "name": "endColor",
-          "type": "vec3",
-          "description": "Ending color as OKLCH in vec3.xyz = (Lightness 0–1, Chroma, Hue degrees)—for example OKLCH Color out; used when wired; sliders apply when unwired."
-        },
-        {
-          "name": "lCurve",
-          "type": "vec4",
-          "description": "Cubic bezier control points for Lightness interpolation (x1, y1, x2, y2)"
-        },
-        {
-          "name": "cCurve",
-          "type": "vec4",
-          "description": "Cubic bezier control points for Chroma interpolation (x1, y1, x2, y2)"
-        },
-        {
-          "name": "hCurve",
-          "type": "vec4",
-          "description": "Cubic bezier control points for Hue interpolation (x1, y1, x2, y2)"
         }
       ],
       "outputs": [
@@ -4563,108 +4513,6 @@
         }
       ],
       "relatedItems": [
-        "node:oklch-color-map-threshold",
-        "node:oklch-color",
-        "type:float",
-        "type:vec3"
-      ],
-      "setupExampleGraph": {
-        "nodes": [
-          {
-            "id": "a",
-            "type": "uv-coordinates"
-          },
-          {
-            "id": "b",
-            "type": "noise"
-          },
-          {
-            "id": "c",
-            "type": "oklch-color-map-bezier"
-          },
-          {
-            "id": "d",
-            "type": "final-output"
-          }
-        ],
-        "connections": [
-          {
-            "from": "a",
-            "fromPort": "out",
-            "to": "b",
-            "toPort": "in"
-          },
-          {
-            "from": "b",
-            "fromPort": "out",
-            "to": "c",
-            "toPort": "in"
-          },
-          {
-            "from": "c",
-            "fromPort": "out",
-            "to": "d",
-            "toPort": "in"
-          }
-        ]
-      }
-    },
-    "node:oklch-color-map-threshold": {
-      "title": "Color Map Stepped",
-      "titleType": "node",
-      "tagline": "Ideal for creating color gradients with discrete color stops and optional dithering using OKLCH color space",
-      "description": "Converts a float value (0-1) to an RGB color using the OKLCH color space with threshold-based color stops. This mode creates discrete color bands with configurable transition widths between stops, allowing for stepped gradients or posterized color effects. Optional Bayer dithering can be applied to reduce banding artifacts. The node generates color stops on-the-fly based on the stops parameter, interpolating between start and end colors using bezier curves for L, C, and H components. The result is converted from OKLCH to RGB for display.",
-      "inputs": [
-        {
-          "name": "in",
-          "type": "float",
-          "description": "The input value (0-1) to map to a color"
-        },
-        {
-          "name": "startColor",
-          "type": "vec3",
-          "description": "The starting OKLCH color (L, C, H components)"
-        },
-        {
-          "name": "endColor",
-          "type": "vec3",
-          "description": "The ending OKLCH color (L, C, H components)"
-        },
-        {
-          "name": "lCurve",
-          "type": "vec4",
-          "description": "Cubic bezier control points for Lightness interpolation (x1, y1, x2, y2)"
-        },
-        {
-          "name": "cCurve",
-          "type": "vec4",
-          "description": "Cubic bezier control points for Chroma interpolation (x1, y1, x2, y2)"
-        },
-        {
-          "name": "hCurve",
-          "type": "vec4",
-          "description": "Cubic bezier control points for Hue interpolation (x1, y1, x2, y2)"
-        },
-        {
-          "name": "fragCoord",
-          "type": "vec2",
-          "description": "Fragment coordinates for dithering calculations"
-        },
-        {
-          "name": "resolution",
-          "type": "vec2",
-          "description": "Screen resolution for dithering calculations"
-        }
-      ],
-      "outputs": [
-        {
-          "name": "out",
-          "type": "vec3",
-          "description": "The resulting RGB color converted from OKLCH with optional dithering applied"
-        }
-      ],
-      "relatedItems": [
-        "node:oklch-color-map-bezier",
         "node:bayer-dither",
         "node:oklch-color",
         "type:float",
@@ -4682,7 +4530,7 @@
           },
           {
             "id": "c",
-            "type": "oklch-color-map-threshold"
+            "type": "oklch-color-map"
           },
           {
             "id": "d",
@@ -4711,11 +4559,11 @@
         ]
       },
       "examples": [
-        "Feed Noise or Smoothstep into Color Map Stepped for discrete color bands or posterized gradients.",
-        "Enable dithering and connect Frag Coord and Resolution to reduce banding in gradients.",
-        "Chain: pattern → Color Map Stepped → Glow or Color Grading for stylized color looks."
+        "Use Smooth for continuous gradients; Stepped for posterized bands or stylized palettes.",
+        "Feed Noise or patterns into Value; tune L/C/H curves to shape how the ramp maps through OKLCH.",
+        "In Stepped mode, raise Dither Strength to soften band edges without extra nodes."
       ],
-      "advanced": "Threshold mode creates discrete stops; use the stops parameter to control how many bands. Connect Bayer Dither upstream or use the node's built-in dither option to reduce banding on limited color depth."
+      "advanced": "Mode **Smooth** (0) vs **Stepped** (1). Stepped mode uses Stops and Transition Width; Dither Strength applies screen-space Bayer when > 0. Reverse hue controls hue interpolation direction around the OKLCH wheel."
     },
     "node:glow-bloom": {
       "title": "Glow",
@@ -4728,9 +4576,9 @@
           "type": "vec4",
           "description": "Input color to glow. Connect vec4 from Mix, Blend, OKLCH color-map nodes, or other color chains here.",
           "suggestedSources": [
-            "node:oklch-color-map-bezier",
+            "node:oklch-color-map",
             "node:mix",
-            "node:blend-mode"
+            "node:blend"
           ]
         }
       ],
@@ -5062,6 +4910,108 @@
         ]
       }
     },
+    "node:color-gradient": {
+      "title": "Color Gradient",
+      "titleType": "node",
+      "tagline": "Spatial 3-stop OKLCH ramp multiplied by Value — zero strength stays black",
+      "description": "Builds an RGB color from a **3-stop OKLCH ramp** along **Position** (radial or linear in screen space). **Value** scales how much of that color appears: at 0 the output is **black** (no additive base). Tune stops with the panel pickers, radial center/radius or linear angle, and **Gain** / **Power** / **Softness** on Value. For masks without color, use **Gradient**; for Bézier curves and stepped bands, use **Color Map**.",
+      "inputs": [
+        {
+          "name": "value",
+          "type": "float",
+          "description": "Strength mask (0–1). Low values darken toward black after the spatial ramp is computed.",
+          "suggestedSources": [
+            "type:float",
+            "node:noise",
+            "node:gradient",
+            "node:multiply"
+          ]
+        },
+        {
+          "name": "position",
+          "type": "vec2",
+          "description": "Coordinates for the spatial ramp (UV, screen, or custom vec2).",
+          "suggestedSources": [
+            "type:vec2",
+            "node:uv-coordinates",
+            "node:displace",
+            "node:transform"
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "vec3",
+          "description": "RGB color from the ramp × value mask.",
+          "suggestedTargets": [
+            "node:final-output",
+            "node:mix",
+            "node:color-grading",
+            "node:glow-bloom"
+          ]
+        }
+      ],
+      "relatedItems": [
+        "node:uv-coordinates",
+        "node:gradient",
+        "node:oklch-color-map",
+        "type:vec2",
+        "type:float"
+      ],
+      "setupExampleGraph": {
+        "nodes": [
+          {
+            "id": "a",
+            "type": "uv-coordinates"
+          },
+          {
+            "id": "b",
+            "type": "noise"
+          },
+          {
+            "id": "c",
+            "type": "color-gradient"
+          },
+          {
+            "id": "d",
+            "type": "final-output"
+          }
+        ],
+        "connections": [
+          {
+            "from": "a",
+            "fromPort": "out",
+            "to": "c",
+            "toPort": "position"
+          },
+          {
+            "from": "a",
+            "fromPort": "out",
+            "to": "b",
+            "toPort": "in"
+          },
+          {
+            "from": "b",
+            "fromPort": "out",
+            "to": "c",
+            "toPort": "value"
+          },
+          {
+            "from": "c",
+            "fromPort": "out",
+            "to": "d",
+            "toPort": "in"
+          }
+        ]
+      },
+      "examples": [
+        "UV → Position, Noise → Value, Color Gradient → Final Output for a sky-like ramp with dark noise valleys.",
+        "Use **Radial** for orbs and vignette color; **Linear** for horizontal or angled sweeps.",
+        "Raise **Gain** or lower **Softness** on Value to punch up highlights; combine with **Mix** for layered tints."
+      ],
+      "advanced": "Hue interpolates on the shortest OKLCH path between stops. Spatial **t** comes from the same radial/linear math as **Gradient**; output is `rampRgb(tSpatial) × shaped(value)`, not `mix(black, ramp, value)` with a floor. **Softness** eases only the black end (`value × smoothstep(0, softness, value)`); **Softness 0** passes masks through unchanged after Gain/Power."
+    },
     "node:color-grading": {
       "title": "Color Grading",
       "titleType": "node",
@@ -5076,7 +5026,7 @@
             "node:glow-bloom",
             "node:tone-mapping",
             "node:mix",
-            "node:blend-mode"
+            "node:blend"
           ]
         }
       ],
@@ -5095,8 +5045,8 @@
       "relatedItems": [
         "type:vec4",
         "node:tone-mapping",
-        "node:oklch-color-map-bezier",
-        "node:oklch-color-map-threshold"
+        "node:oklch-color-map",
+        "node:oklch-color-map"
       ],
       "setupExampleGraph": {
         "nodes": [
@@ -5110,7 +5060,7 @@
           },
           {
             "id": "c",
-            "type": "oklch-color-map-threshold"
+            "type": "oklch-color-map"
           },
           {
             "id": "d",
@@ -5153,6 +5103,90 @@
         "Use after post-process (Blur, Edge Detection) to warm or cool the final image or adjust contrast curves.",
         "Combine with OKLCH Color Map nodes: grade the result for film-like or stylized color before Output."
       ]
+    },
+    "node:color-lut": {
+      "title": "Color LUT",
+      "titleType": "node",
+      "tagline": "Map a scalar through curated scientific and stylized 1D color presets",
+      "description": "Samples a baked **256×RGB** lookup table from the **Preset** list (Viridis, Turbo, Neon, and more). The **Value** input (0–1, clamped) drives the lookup after optional **Reverse**, **Gamma**, and **Contrast** (pivot 0.5). **Intensity** scales RGB output. Unlike **Color Gradient**, the dark end follows the preset (e.g. deep blue on Viridis)—not forced black. For custom Bézier ramps and stepped bands, use **Color Map**.",
+      "inputs": [
+        {
+          "name": "in",
+          "type": "float",
+          "description": "Scalar to map to color (0–1, clamped in the shader).",
+          "suggestedSources": [
+            "type:float",
+            "node:noise",
+            "node:gradient",
+            "node:distance"
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "out",
+          "type": "vec3",
+          "description": "RGB color from the selected LUT preset.",
+          "suggestedTargets": [
+            "node:final-output",
+            "node:mix",
+            "node:color-grading",
+            "node:glow-bloom"
+          ]
+        }
+      ],
+      "relatedItems": [
+        "node:oklch-color-map",
+        "node:noise",
+        "type:float",
+        "type:vec3"
+      ],
+      "setupExampleGraph": {
+        "nodes": [
+          {
+            "id": "a",
+            "type": "uv-coordinates"
+          },
+          {
+            "id": "b",
+            "type": "noise"
+          },
+          {
+            "id": "c",
+            "type": "color-lut"
+          },
+          {
+            "id": "d",
+            "type": "final-output"
+          }
+        ],
+        "connections": [
+          {
+            "from": "a",
+            "fromPort": "out",
+            "to": "b",
+            "toPort": "in"
+          },
+          {
+            "from": "b",
+            "fromPort": "out",
+            "to": "c",
+            "toPort": "in"
+          },
+          {
+            "from": "c",
+            "fromPort": "out",
+            "to": "d",
+            "toPort": "in"
+          }
+        ]
+      },
+      "examples": [
+        "Noise → Color LUT → Final Output to colorize a field; switch **Preset** for instant palette changes.",
+        "Try **Turbo** or **Neon** for heatmaps and synth visuals; **Viridis** for data-viz style maps.",
+        "Use **Gamma** and **Contrast** to reshape the scalar before lookup without editing the table."
+      ],
+      "advanced": "Contrast UI 0 is identity in the panel; the shader applies `contrast + 1.0` around 0.5 before sampling. Tables are fixed at compile time—no user LUT import in this node."
     },
     "node:rgb-separation": {
       "title": "RGB Separation",
@@ -6433,19 +6467,28 @@
           "name": "in",
           "type": "vec2",
           "description": "Screen coordinates (aspect-corrected p, e.g. from UV Coords)",
-          "suggestedSources": ["type:vec2", "node:uv-coordinates"]
+          "suggestedSources": [
+            "type:vec2",
+            "node:uv-coordinates"
+          ]
         },
         {
           "name": "ro",
           "type": "vec3",
           "description": "Ray origin (External camera). Falls back to built-in Position when unconnected.",
-          "suggestedSources": ["node:look-at-camera", "node:orbit-camera"]
+          "suggestedSources": [
+            "node:look-at-camera",
+            "node:orbit-camera"
+          ]
         },
         {
           "name": "rd",
           "type": "vec3",
           "description": "Ray direction (External camera). Falls back to built-in look-at rays when unconnected.",
-          "suggestedSources": ["node:look-at-camera", "node:orbit-camera"]
+          "suggestedSources": [
+            "node:look-at-camera",
+            "node:orbit-camera"
+          ]
         }
       ],
       "outputs": [
@@ -6453,13 +6496,18 @@
           "name": "uv",
           "type": "vec2",
           "description": "Coordinates on the plane (per UV mode)",
-          "suggestedTargets": ["node:noise", "node:brick-tiling"]
+          "suggestedTargets": [
+            "node:noise",
+            "node:brick-tiling"
+          ]
         },
         {
           "name": "hit",
           "type": "float",
           "description": "1 when the ray hits the plane in front of the camera (and inside clip rect if enabled); 0 otherwise",
-          "suggestedTargets": ["node:multiply"]
+          "suggestedTargets": [
+            "node:multiply"
+          ]
         }
       ],
       "relatedItems": [
@@ -6472,18 +6520,58 @@
       ],
       "setupExampleGraph": {
         "nodes": [
-          { "id": "a", "type": "uv-coordinates" },
-          { "id": "b", "type": "plane-project" },
-          { "id": "c", "type": "noise" },
-          { "id": "d", "type": "multiply" },
-          { "id": "e", "type": "final-output" }
+          {
+            "id": "a",
+            "type": "uv-coordinates"
+          },
+          {
+            "id": "b",
+            "type": "plane-project"
+          },
+          {
+            "id": "c",
+            "type": "noise"
+          },
+          {
+            "id": "d",
+            "type": "multiply"
+          },
+          {
+            "id": "e",
+            "type": "final-output"
+          }
         ],
         "connections": [
-          { "from": "a", "fromPort": "out", "to": "b", "toPort": "in" },
-          { "from": "b", "fromPort": "uv", "to": "c", "toPort": "in" },
-          { "from": "c", "fromPort": "out", "to": "d", "toPort": "a" },
-          { "from": "b", "fromPort": "hit", "to": "d", "toPort": "b" },
-          { "from": "d", "fromPort": "out", "to": "e", "toPort": "in" }
+          {
+            "from": "a",
+            "fromPort": "out",
+            "to": "b",
+            "toPort": "in"
+          },
+          {
+            "from": "b",
+            "fromPort": "uv",
+            "to": "c",
+            "toPort": "in"
+          },
+          {
+            "from": "c",
+            "fromPort": "out",
+            "to": "d",
+            "toPort": "a"
+          },
+          {
+            "from": "b",
+            "fromPort": "hit",
+            "to": "d",
+            "toPort": "b"
+          },
+          {
+            "from": "d",
+            "fromPort": "out",
+            "to": "e",
+            "toPort": "in"
+          }
         ]
       },
       "examples": [
@@ -6790,7 +6878,7 @@
           "suggestedTargets": [
             "node:final-output",
             "node:mix",
-            "node:blend-mode",
+            "node:blend",
             "node:color-grading"
           ]
         }
@@ -7250,7 +7338,7 @@
           "description": "RGBA color; connect to Final Output or blend with other nodes",
           "suggestedTargets": [
             "node:final-output",
-            "node:blend-mode",
+            "node:blend",
             "node:mix",
             "node:glow-bloom"
           ]
@@ -7297,7 +7385,7 @@
         "Connect UV to in; output goes to Final Output or Mix with a background (e.g. Sky Dome) for a full scene.",
         "Adjust spot count and wave speed for denser or calmer pulse; use wave phase to sync in time, wave spacing for banded vs scrambled shimmer, spin speed to rotate the lattice, and detune for a second temporal frequency.",
         "Use Center X/Y to move the sphere on the canvas without changing UV upstream.",
-        "Layer with other vec4 nodes (e.g. Blend Color or Mix) for composite visuals without temporal buffer."
+        "Layer with other vec4 nodes (e.g. Blend or Mix) for composite visuals without temporal buffer."
       ],
       "advanced": "Uses the same spherical Fibonacci lattice as the Spherical Fibonacci node for spot placement; analytic ray-sphere intersection keeps it single-pass. For modular reuse of the lattice elsewhere, use Spherical Fibonacci + Bloom Sphere."
     },
@@ -7556,7 +7644,7 @@
           "suggestedTargets": [
             "node:mix",
             "node:multiply",
-            "node:blend-mode"
+            "node:blend"
           ]
         }
       ],
@@ -8044,7 +8132,7 @@
       "advanced": "Curl-noise magnitude mapped to 0–1; divergence-free so flow lines don't converge. Use for fluid-like or organic streak backgrounds."
     },
     "node:arrangement-lanes": {
-      "title": "Arrangement Lanes",
+      "title": "Regions",
       "titleType": "node",
       "tagline": "DAW region blocks per track row, windowed on timeline time (requires imported arrangement snapshot)",
       "description": "Renders horizontal track lanes with colored region rectangles from the Audiotool arrangement snapshot on the playlist primary. **Follow** viewport scrolls a time window centered on the playhead (`uTimelineTime`); **Fixed** uses a constant start time. Regions use outer span timing only (v1). Up to **512** regions are baked into the shader at compile time — recompile after import or track-filter changes. Import via the audio panel (**Import arrangement from project**).",
@@ -8073,10 +8161,10 @@
         {
           "name": "out",
           "type": "vec4",
-          "description": "RGBA lane colors with alpha for compositing (Mix, Blend Color, masks).",
+          "description": "RGBA lane colors with alpha for compositing (Mix, Blend, masks).",
           "suggestedTargets": [
             "node:mix",
-            "node:blend-color",
+            "node:blend",
             "node:final-output"
           ]
         }
@@ -8137,17 +8225,17 @@
         ]
       },
       "examples": [
-        "Import arrangement on a playlist primary, add UV → Arrangement Lanes → Final Output.",
+        "Import arrangement on a playlist primary, add UV → Regions → Final Output.",
         "Use Mix to composite lanes over a generated background.",
         "Use Tracks to show only the lane rows you need in a busy project."
       ],
       "advanced": "Snapshot data is compile-time baked; changing import or track filter requires recompilation. Cap: 512 regions (see arrangement types)."
     },
     "node:arrangement-notes": {
-      "title": "Arrangement Notes",
+      "title": "Notes",
       "titleType": "node",
       "tagline": "MIDI note dots by pitch and time vs playhead (requires imported arrangement snapshot)",
-      "description": "Renders notes from the Audiotool arrangement snapshot as a piano-roll style field: **time always follows** the wired timeline (defaults to **`uTimelineTime`**) inside the **Window** span. **Anchor** **Center** keeps the window symmetric around the timeline (playhead at the middle of the UV time axis); **Start** pins **now** to the time-axis origin—**left** when time runs on X, **bottom** when time runs on Y (**Orient**). Wire **UV Coords** into **in**: the node expects symmetric **p** space (center **0**, **Y** from **−1** to **1**, **X** from **−aspect** to **+aspect** with aspect = resolution width/height) and maps that to internal **0–1** for time and pitch—there is no separate UV mode control. **Layout** **Overlap** uses one global MIDI spread after the Tracks filter; **Lanes** stacks **horizontal strips per visible note track**—each lane’s height scales with that track’s min–max MIDI span vs other tracks (**single global timeline scale**, no automatic time zoom per track). **Pitch pad** trims top/bottom of the stacked band symmetrically; **Row gap** trims note thickness along the pitch axis so more background shows between adjacent pitch lanes. Velocity drives brightness; playhead (**On**) follows **Anchor**. Import via audio panel (**Import arrangement from project**). Up to **2048** notes baked at compile time.",
+      "description": "Renders notes from the Audiotool arrangement snapshot as a piano-roll style field: **time always follows** the wired timeline (defaults to **`uTimelineTime`**) inside the **Window** span. **Anchor** **Center** keeps the window symmetric around the timeline (playhead at the middle of the UV time axis); **Start** pins **now** to the time-axis origin—**left** when time runs on X, **bottom** when time runs on Y (**Orient**). Wire **UV Coords** into **in**: the node expects symmetric **p** space (center **0**, **Y** from **−1** to **1**, **X** from **−aspect** to **+aspect** with aspect = resolution width/height) and maps that to internal **0–1** for time and pitch—there is no separate UV mode control. **Layout** **Overlap** uses one global MIDI spread after the Tracks filter; **Lanes** stacks **horizontal strips per visible note track**—each lane’s height scales with that track’s min–max MIDI span vs other tracks (**single global timeline scale**, no automatic time zoom per track). **Pitch pad** trims top/bottom of the stacked band symmetrically. **Note size** sets dot thickness along the pitch axis. Velocity drives brightness; playhead (**On**) follows **Anchor**. Import via audio panel (**Import arrangement from project**). Up to **2048** notes baked at compile time.",
       "inputs": [
         {
           "name": "in",
@@ -8173,10 +8261,10 @@
         {
           "name": "out",
           "type": "vec4",
-          "description": "RGBA composite with alpha driven by note/playhead coverage (same numeric weight as **Mask** × opacity × edge fade).",
+          "description": "RGBA composite with alpha driven by note/playhead coverage (same numeric weight as **Mask** × opacity).",
           "suggestedTargets": [
             "node:mix",
-            "node:blend-color",
+            "node:blend",
             "node:final-output",
             "node:arrangement-lanes"
           ]
@@ -8187,7 +8275,7 @@
           "description": "Scalar mask equal to the node’s final alpha weight — handy when you want a float wire instead of swizzling **out.a**.",
           "suggestedTargets": [
             "node:mix",
-            "node:blend-color",
+            "node:blend",
             "node:mask-composite-float"
           ]
         }
@@ -8224,10 +8312,6 @@
         {
           "name": "Pitch pad",
           "description": "Symmetric margin (0–0.49) at top and bottom of the pitch band in UV space; lowest/highest notes stay away from the edges."
-        },
-        {
-          "name": "Row gap",
-          "description": "Subtracts from **Note size**/2 along the pitch axis so adjacent pitch lanes reveal more background (dead air between stripes). Larger values shrink each note perpendicular to time."
         },
         {
           "name": "Playhead",
@@ -8272,7 +8356,7 @@
         ]
       },
       "examples": [
-        "Stack Arrangement Notes over Arrangement Lanes for structure + melody.",
+        "Stack Notes over Regions for structure + melody.",
         "Use Mix to composite notes on a dark background.",
         "Use Tracks to hide duplicate MIDI layers and stay under the bake cap."
       ],
@@ -8605,7 +8689,7 @@
           "suggestedTargets": [
             "node:swizzle",
             "node:mix",
-            "node:blend-mode"
+            "node:blend"
           ]
         }
       ],
@@ -8648,7 +8732,7 @@
       },
       "examples": [
         "Connect UV → Disco Pattern → Final Output (or Mix) for diamond/cell pattern with per-cell color.",
-        "Output RGB is hash color per cell, A is diamond edge; use with Blend Color or Swizzle for variation.",
+        "Output RGB is hash color per cell, A is diamond edge; use with Blend or Swizzle for variation.",
         "Combine with Voronoi or Stripes for layered disco or retro looks."
       ],
       "advanced": "Per-cell hash gives stable color per diamond; alpha gives edge. Use for disco, confetti, or cell-based color without full Voronoi."
@@ -8679,7 +8763,7 @@
           "suggestedTargets": [
             "node:mix",
             "node:multiply",
-            "node:blend-mode"
+            "node:blend"
           ]
         }
       ],
@@ -8741,7 +8825,7 @@
           "suggestedSources": [
             "node:glow-bloom",
             "node:mix",
-            "node:blend-mode"
+            "node:blend"
           ]
         }
       ],
@@ -8824,9 +8908,9 @@
           "type": "vec4",
           "description": "The input color to apply the gradient mask to",
           "suggestedSources": [
-            "node:oklch-color-map-bezier",
+            "node:oklch-color-map",
             "node:mix",
-            "node:blend-mode"
+            "node:blend"
           ]
         }
       ],
@@ -8838,7 +8922,7 @@
           "suggestedTargets": [
             "node:final-output",
             "node:mix",
-            "node:blend-mode",
+            "node:blend",
             "node:glow-bloom"
           ]
         }
@@ -9129,7 +9213,7 @@
       "examples": [
         "UV → Orbit Camera; **Repeated Hex Prism SDF** **out** → **SDF Raymarch** **sdf** (screen UV + camera ro/rd into the marcher); **Position** stays unwired—then **Output** → **Final Output**.",
         "Tune **Spacing** vs **Hex radius**: too-large radius overlaps neighboring cells or swallows the lattice; asymmetric **Spacing X/Y/Z** is axis-aligned repetition, not a strict 2D honeycomb tiling in XY.",
-        "Animate or audio-drive **spacing**/**hex radius** (see preset sdf-raymarcher-hex-audio) against **SDF Raymarch** glow or color passes."
+        "Animate or audio-drive **spacing**/**hex radius** (see preset hex-prism-sdf) against **SDF Raymarch** glow or color passes."
       ],
       "advanced": "Same prism orientation family as **Hex Prism SDF** (extrusion along Z inside each repeated cell before any manual Pos offsets). Unequal spacing stretches the lattice on each axis independently. Avoid parameters where **Hex radius** is a large fraction of the relevant cross-section spacing—distance fields get harsh and marching can behave poorly at cell seams."
     },
@@ -9393,7 +9477,7 @@
           "description": "RGBA color; connect to Final Output or blend with other nodes",
           "suggestedTargets": [
             "node:final-output",
-            "node:blend-mode",
+            "node:blend",
             "node:mix",
             "node:glow-bloom"
           ]
@@ -10569,7 +10653,7 @@
           "description": "RGBA color; connect to Final Output for fullscreen (RGB only; alpha discarded) or to Mix / Blend mode to combine with other layers",
           "suggestedTargets": [
             "node:final-output",
-            "node:blend-mode",
+            "node:blend",
             "node:mix",
             "node:glow-bloom"
           ]
@@ -10746,7 +10830,7 @@
             "node:final-output",
             "node:color-grading",
             "node:mix",
-            "node:blend-mode"
+            "node:blend"
           ]
         }
       ],
@@ -10864,7 +10948,7 @@
       "title": "Skydome",
       "titleType": "node",
       "tagline": "Procedural sky dome with zenith/horizon gradient, optional sun disc, and a virtual camera (FOV, yaw, pitch, roll)",
-      "description": "Outputs a procedural sky as vec4 (RGBA) suitable for use behind raymarched 3D scenes. Sky color is blended from horizon to zenith; an optional sun disc is added when the view ray is close to the sun direction. Use Sky group to set zenith and horizon as OKLCH colors (click the swatches for the picker, or edit L/C/H directly) and horizon softness; Sun group sets direction (Dir X/Y/Z), radius (radians), and intensity; View group sets the virtual camera — FOV (degrees), yaw/pitch (XY pad: pan and tilt), and roll. Connect UV (e.g. from UV Coords) to in; connect out to mix, final output, or Blend Channel / Blend Color.",
+      "description": "Outputs a procedural sky as vec4 (RGBA) suitable for use behind raymarched 3D scenes. Sky color is blended from horizon to zenith; an optional sun disc is added when the view ray is close to the sun direction. Use Sky group to set zenith and horizon as OKLCH colors (click the swatches for the picker, or edit L/C/H directly) and horizon softness; Sun group sets direction (Dir X/Y/Z), radius (radians), and intensity; View group sets the virtual camera — FOV (degrees), yaw/pitch (XY pad: pan and tilt), and roll. Connect UV (e.g. from UV Coords) to in; connect out to mix, final output, or Blend / Blend.",
       "inputs": [
         {
           "name": "in",
@@ -10886,7 +10970,7 @@
           "suggestedTargets": [
             "node:mix",
             "node:final-output",
-            "node:blend-color"
+            "node:blend"
           ]
         }
       ],
@@ -11065,12 +11149,12 @@
       "title": "Select",
       "titleType": "node",
       "tagline": "Ideal for choosing between two values based on a condition for conditional routing",
-      "description": "Selects between two input values based on a condition. If the condition is greater than 0.5, it returns the true value; otherwise, it returns the false value. Port order is If true, If false, then Condition (bottom). When the condition port is unwired, the Condition control on the node supplies the value—typically 0.0–1.0, where values above 0.5 count as true. The If true and If false branches are wired-only (no duplicate body controls). Useful for conditional routing, switching inputs, or if-else style logic.",
+      "description": "Selects between two input values based on a condition. If the condition is greater than 0.5, it returns the true value; otherwise, it returns the false value. Port order is If false, If true, then Condition (bottom). When the condition port is unwired, the Condition control on the node supplies the value—typically 0.0–1.0, where values above 0.5 count as true. The If true and If false branches are wired-only (no duplicate body controls). Useful for conditional routing, switching inputs, or if-else style logic.",
       "inputs": [
         {
-          "name": "trueValue",
+          "name": "falseValue",
           "type": "any",
-          "description": "The value returned when condition is true",
+          "description": "The value returned when condition is false",
           "suggestedSources": [
             "type:float",
             "node:constant-float",
@@ -11078,9 +11162,9 @@
           ]
         },
         {
-          "name": "falseValue",
+          "name": "trueValue",
           "type": "any",
-          "description": "The value returned when condition is false",
+          "description": "The value returned when condition is true",
           "suggestedSources": [
             "type:float",
             "node:constant-float",
@@ -11483,7 +11567,7 @@
           "suggestedTargets": [
             "node:final-output",
             "node:mix",
-            "node:blend-mode"
+            "node:blend"
           ]
         }
       ],
@@ -12080,7 +12164,7 @@
           "description": "The linearly interpolated value between a and b",
           "suggestedTargets": [
             "node:final-output",
-            "node:blend-mode",
+            "node:blend",
             "node:displace"
           ]
         }
@@ -12466,7 +12550,7 @@
             "type:float",
             "node:noise",
             "node:smoothstep",
-            "node:oklch-color-map-threshold"
+            "node:oklch-color-map"
           ]
         },
         {
@@ -12493,13 +12577,13 @@
           "type": "float",
           "description": "The dithered value with Bayer pattern applied",
           "suggestedTargets": [
-            "node:oklch-color-map-threshold",
+            "node:oklch-color-map",
             "node:mix"
           ]
         }
       ],
       "relatedItems": [
-        "node:oklch-color-map-threshold",
+        "node:oklch-color-map",
         "type:float",
         "node:fragment-coordinates"
       ],
@@ -12585,10 +12669,10 @@
           "type": "vec3",
           "description": "The input RGB color to apply tone mapping to",
           "suggestedSources": [
-            "node:oklch-color-map-bezier",
+            "node:oklch-color-map",
             "node:color-grading",
             "node:mix",
-            "node:blend-mode"
+            "node:blend"
           ]
         }
       ],
@@ -12668,7 +12752,7 @@
           "suggestedSources": [
             "node:tone-mapping",
             "node:color-grading",
-            "node:blend-mode",
+            "node:blend",
             "node:mix",
             "node:glow-bloom"
           ]

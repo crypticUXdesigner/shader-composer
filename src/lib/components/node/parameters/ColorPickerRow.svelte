@@ -1,62 +1,69 @@
 <script lang="ts">
   /**
-   * ColorPickerRow - Two OKLCH color swatches in one row.
+   * ColorPickerRow - OKLCH color swatches in one row (equal width).
    * Parity with canvas ColorPickerRowElement.
-   * Click swatch opens ColorPickerPopover via overlay bridge.
    */
   import { oklchToCssRgb } from '../../../../utils/colorConversion';
 
+  export type OklchColor = { l: number; c: number; h: number };
+
   interface Props {
-    startColor: { l: number; c: number; h: number };
-    endColor: { l: number; c: number; h: number };
+    colors?: OklchColor[];
     disabled?: boolean;
     class?: string;
+    onColorClick?: (index: number, screenX: number, screenY: number) => void;
+    /** @deprecated Use `colors` + `onColorClick` */
+    startColor?: OklchColor;
+    /** @deprecated Use `colors` + `onColorClick` */
+    endColor?: OklchColor;
+    /** @deprecated Use `onColorClick` */
     onStartColorClick?: (screenX: number, screenY: number) => void;
+    /** @deprecated Use `onColorClick` */
     onEndColorClick?: (screenX: number, screenY: number) => void;
-    onStartColorChange?: (l: number, c: number, h: number) => void;
-    onEndColorChange?: (l: number, c: number, h: number) => void;
   }
 
   let {
-    startColor,
-    endColor,
+    colors: colorsProp,
     disabled = false,
     class: className = '',
+    onColorClick,
+    startColor,
+    endColor,
     onStartColorClick,
     onEndColorClick,
   }: Props = $props();
 
-  const startRgb = $derived(oklchToCssRgb(startColor.l, startColor.c, startColor.h));
-  const endRgb = $derived(oklchToCssRgb(endColor.l, endColor.c, endColor.h));
+  const colors = $derived(
+    colorsProp ??
+      (startColor != null && endColor != null ? [startColor, endColor] : []),
+  );
 
-  function handleStartClick(e: MouseEvent) {
-    if (disabled) return;
-    onStartColorClick?.(e.clientX, e.clientY);
-  }
+  const cssColors = $derived(
+    colors.map((color) => oklchToCssRgb(color.l, color.c, color.h)),
+  );
 
-  function handleEndClick(e: MouseEvent) {
+  function handleClick(index: number, e: MouseEvent) {
     if (disabled) return;
-    onEndColorClick?.(e.clientX, e.clientY);
+    if (onColorClick) {
+      onColorClick(index, e.clientX, e.clientY);
+      return;
+    }
+    if (index === 0) onStartColorClick?.(e.clientX, e.clientY);
+    else if (index === 1) onEndColorClick?.(e.clientX, e.clientY);
   }
 </script>
 
 <div class="color-picker-row {className}" data-disabled={disabled || undefined}>
-  <button
-    type="button"
-    class="swatch"
-    style="background: {startRgb};"
-    disabled={disabled}
-    onclick={handleStartClick}
-    aria-label="Start color"
-  ></button>
-  <button
-    type="button"
-    class="swatch"
-    style="background: {endRgb};"
-    disabled={disabled}
-    onclick={handleEndClick}
-    aria-label="End color"
-  ></button>
+  {#each cssColors as rgb, index (index)}
+    <button
+      type="button"
+      class="swatch"
+      style="background: {rgb};"
+      disabled={disabled}
+      onclick={(e) => handleClick(index, e)}
+      aria-label="Color {index + 1}"
+    ></button>
+  {/each}
 </div>
 
 <style>

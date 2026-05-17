@@ -8,7 +8,7 @@ import { MAX_ARRANGEMENT_REGIONS } from '../../audiotool/arrangement/types';
 export const arrangementLanesNodeSpec: NodeSpec = {
   id: 'arrangement-lanes',
   category: 'Patterns',
-  displayName: 'Arrangement Lanes',
+  displayName: 'Regions',
   description:
     'Draws DAW region blocks per track row, windowed against timeline time. Requires an imported arrangement snapshot on the playlist primary.',
   icon: 'rows',
@@ -145,16 +145,16 @@ export const arrangementLanesNodeSpec: NodeSpec = {
   },
   parameterGroups: [
     {
-      id: 'arr-lanes-view',
-      label: 'View',
-      parameters: ['uvInputMode', 'viewportMode', 'windowSeconds', 'fixedStartSeconds'],
+      id: 'arr-lanes-tracks',
+      label: 'Tracks',
+      parameters: [],
       collapsible: true,
       defaultCollapsed: false,
     },
     {
-      id: 'arr-lanes-tracks',
-      label: 'Tracks',
-      parameters: [],
+      id: 'arr-lanes-view',
+      label: 'View',
+      parameters: ['uvInputMode', 'viewportMode', 'windowSeconds', 'fixedStartSeconds'],
       collapsible: true,
       defaultCollapsed: false,
     },
@@ -176,15 +176,15 @@ export const arrangementLanesNodeSpec: NodeSpec = {
   parameterLayout: {
     elements: [
       {
+        type: 'arrangement-track-filter',
+        label: 'Tracks',
+        hideEmpty: true,
+      },
+      {
         type: 'grid',
         label: 'View',
         parameters: ['uvInputMode', 'viewportMode', 'windowSeconds', 'fixedStartSeconds'],
         layout: { columns: 'auto' },
-      },
-      {
-        type: 'arrangement-track-filter',
-        label: 'Tracks',
-        hideEmpty: true,
       },
       {
         type: 'grid',

@@ -75,7 +75,6 @@
   let resizeMoveRafId = 0;
   let latestMoveEvent: MouseEvent | null = null;
   let hasInitializedCornerPosition = false;
-  let prevViewMode = $state<ViewMode>('node');
 
   function snapToEdges(
     x: number,
@@ -227,34 +226,6 @@
     }
     const transform = dragDelta.x !== 0 || dragDelta.y !== 0 ? ` transform: translate(${dragDelta.x}px, ${dragDelta.y}px);` : '';
     return `${base} position: fixed; left: ${cornerWidgetPosition.x}px; top: ${cornerWidgetPosition.y}px; width: ${cornerWidgetSize.width}px; height: ${cornerWidgetSize.height}px; border: var(--layout-preview-border); border-radius: var(--button-radius, 4px); cursor: move; z-index: 50;${transform}`;
-  });
-
-  // When switching from split/full to node, set anchor to top-right (position follows via $derived).
-  // Invariant: update prevViewMode last so the next run observes the prior mode for split/full → node detection.
-  $effect(() => {
-    const mode = viewMode;
-    const wasSplitOrFull = prevViewMode === 'split' || prevViewMode === 'full';
-    prevViewMode = mode;
-    if (mode !== 'node' || !containerEl || !wasSplitOrFull) return;
-    const th = topBarHeight;
-    const rect = containerEl.getBoundingClientRect();
-    const w = cornerWidgetSize.width;
-    const h = cornerWidgetSize.height;
-    const pos = {
-      x: rect.width - w - SAFE_DISTANCE,
-      y: th,
-    };
-    snappedCorner = 'top-right';
-    cornerWidgetAnchor = computeAnchorFromPosition(
-      pos.x,
-      pos.y,
-      w,
-      h,
-      rect.width,
-      rect.height,
-      th,
-      bottomSafeInset
-    );
   });
 
   // Initial corner anchor on first mount (position follows via $derived).

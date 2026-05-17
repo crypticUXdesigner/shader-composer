@@ -35,7 +35,9 @@
     getPrimaryFileId,
     setLoopCurrentTrack,
     retargetBandsToPrimary,
+    clearArrangementSnapshot,
     clearArrangementSnapshotIfPrimaryMismatch,
+    applyArrangementNotesDefaultTrackFilterToGraph,
   } from '../data-model';
   import { importArrangementForPrimaryTrack } from '../audiotool/arrangement';
   import {
@@ -92,6 +94,7 @@
   import type { CanvasOverlayBridge, SignalSelectPayload } from './CanvasOverlayBridge';
 
   import { graphStore } from './stores';
+  import { revealParameterInNodeEditor } from '../utils/revealParameterInNodeEditor';
   import { isAppSplashEnabled } from '../utils/appSplash';
   import {
     createUserProjectFromValidatedJson,
@@ -381,6 +384,10 @@
     return { ...semantic, viewState: vs };
   }
 
+  function handleRevealParameterInNodeEditor(nodeId: string, paramName: string) {
+    revealParameterInNodeEditor((id, opts) => canvasApi?.focusNode(id, opts), nodeId, paramName);
+  }
+
   async function applyGraphHistorySnapshot(g: NodeGraph): Promise<void> {
     const merged = graphWithLiveViewStateRestored(g);
     canvasApi?.beginGraphHistoryRestore();
@@ -519,11 +526,6 @@
   /** True when the picker was opened from a global entry point (audio button) without a parameter target. */
   let signalPickerBrowseMode = $state(false);
   let arrangementImportBusy = $state(false);
-
-  const canImportArrangement = $derived(
-    atConn.session != null && graphStore.audioSetup.primarySource?.type === 'playlist'
-  );
-  const arrangementRegionCount = $derived(graphStore.audioSetup.arrangementSnapshot?.regions.length);
 
   function commitAudioSetup(
     setup: AudioSetup,
@@ -698,6 +700,18 @@
     signalPickerVisible = true;
   }
 
+  function handleClearArrangement(): void {
+    const setup = graphStore.audioSetup;
+    if (!setup.arrangementSnapshot) return;
+    commitAudioSetup(clearArrangementSnapshot(setup));
+    appToastStore.addToast({
+      variant: 'success',
+      message: 'Cleared.',
+      reportCategory: 'audio',
+      source: 'arrangement-import',
+    });
+  }
+
   async function handleImportArrangement(): Promise<void> {
     if (arrangementImportBusy) return;
     arrangementImportBusy = true;
@@ -716,16 +730,16 @@
       if (!result.ok) {
         const message =
           result.reason === 'disconnected'
-            ? 'Sign in to Audiotool to import arrangement.'
+            ? 'Sign in first.'
             : result.reason === 'not_playlist_primary'
-              ? 'Select an Audiotool playlist track as primary.'
+              ? 'Pick a playlist track.'
               : result.reason === 'no_project_name'
-                ? 'This track has no linked studio project.'
+                ? 'No studio project.'
                 : result.reason === 'rpc_forbidden'
-                  ? 'Audiotool denied project read access. Check OAuth scopes.'
+                  ? 'Project access denied.'
                   : result.reason === 'session_auth_failed'
-                    ? 'Audiotool session expired. Sign in again.'
-                    : 'Could not import arrangement.';
+                    ? 'Session expired.'
+                    : 'Import failed.';
         appToastStore.addToast({
           variant: 'warning',
           message,
@@ -740,20 +754,23 @@
       const regionCount = result.snapshot.regions.length;
       const noteCount = result.snapshot.notes?.length ?? 0;
       commitAudioSetup(result.audioSetup);
+      graphStore.setGraph(
+        applyArrangementNotesDefaultTrackFilterToGraph(graphStore.graph, result.snapshot)
+      );
       console.info('[arrangement] after import (audioSetup)', {
         regions: regionCount,
         notes: noteCount,
       });
       appToastStore.addToast({
         variant: 'success',
-        message: `Imported arrangement (${regionCount} region${regionCount === 1 ? '' : 's'}, ${noteCount} note${noteCount === 1 ? '' : 's'}). Open the browser console (F12) for [arrangement] diagnostics. Timeline duration is not changed automatically.`,
+        message: `Imported · ${regionCount} region${regionCount === 1 ? '' : 's'}`,
         reportCategory: 'audio',
         source: 'arrangement-import',
       });
     } catch (e) {
       appToastStore.addToast({
         variant: 'error',
-        message: e instanceof Error ? e.message : 'Could not import arrangement.',
+        message: e instanceof Error ? e.message : 'Import failed.',
         reportCategory: 'audio',
         source: 'arrangement-import',
       });
@@ -914,8 +931,11 @@
   async function applyResolvedHubToRuntime(resolved: HubResolveResult): Promise<void> {
     hydrating = true;
     undoRedoManager?.clear();
-    graphStore.setGraph(resolved.graph);
-    graphStore.setAudioSetup(clearArrangementSnapshotIfPrimaryMismatch(resolved.audioSetup));
+    const audioSetup = clearArrangementSnapshotIfPrimaryMismatch(resolved.audioSetup);
+    graphStore.setGraph(
+      applyArrangementNotesDefaultTrackFilterToGraph(resolved.graph, audioSetup.arrangementSnapshot)
+    );
+    graphStore.setAudioSetup(audioSetup);
     activeSession = resolved.activeSession;
     selectedPreset = resolved.selectedPreset;
     hydrating = false;
@@ -1347,9 +1367,13 @@
       if (loadResult.startingTrackId) {
         audioSetup = await applyStartingTrack(audioSetup, loadResult.startingTrackId);
       }
-      const graph = loadResult.graph;
+      let graph = loadResult.graph;
       hydrating = true;
       undoRedoManager?.clear();
+      graph = applyArrangementNotesDefaultTrackFilterToGraph(
+        graph,
+        audioSetup.arrangementSnapshot
+      );
       graphStore.setGraph(graph);
       graphStore.setAudioSetup(audioSetup);
       activeSession = { kind: 'userProject', projectId };
@@ -1791,16 +1815,7 @@
     getTimelineState={() => runtimeManager?.getTimelineState() ?? null}
     onSeek={(t) => runtimeManager?.seekGlobalAudio(t)}
     waveformService={waveformService}
-    onRevealInNodeEditor={(nodeId, paramName) => {
-      canvasApi?.focusNode(nodeId, { zoom: 0.8, targetScreenYFrac: 0.34 });
-      queueMicrotask(() => {
-        const esc = (v: string) => (typeof CSS !== 'undefined' && 'escape' in CSS ? (CSS as unknown as { escape(s: string): string }).escape(v) : v);
-        const selector = `.param-port[data-node-id="${esc(nodeId)}"][data-param-name="${esc(paramName)}"]`;
-        const el = document.querySelector(selector) as HTMLElement | null;
-        el?.scrollIntoView?.({ block: 'center', inline: 'nearest' });
-        el?.focus?.({ preventScroll: true });
-      });
-    }}
+    onRevealInNodeEditor={handleRevealParameterInNodeEditor}
     onOpenCurveEditor={(laneId, regionId, labels) => {
       curveEditorRegionTimePreview = null;
       curveEditorLaneId = laneId;
@@ -1840,16 +1855,7 @@
       laneId={curveEditorLaneId}
       regionId={curveEditorRegionId}
       paramLabel={curveEditorParamLabel}
-      onRevealInNodeEditor={(nodeId, paramName) => {
-        canvasApi?.focusNode(nodeId, { zoom: 0.8, targetScreenYFrac: 0.34 });
-        queueMicrotask(() => {
-          const esc = (v: string) => (typeof CSS !== 'undefined' && 'escape' in CSS ? (CSS as unknown as { escape(s: string): string }).escape(v) : v);
-          const selector = `.param-port[data-node-id="${esc(nodeId)}"][data-param-name="${esc(paramName)}"]`;
-          const el = document.querySelector(selector) as HTMLElement | null;
-          el?.scrollIntoView?.({ block: 'center', inline: 'nearest' });
-          el?.focus?.({ preventScroll: true });
-        });
-      }}
+      onRevealInNodeEditor={handleRevealParameterInNodeEditor}
       nodeSpecs={nodeSpecs}
       regionTimeRangePreview={curveEditorRegionTimePreview}
       getWaveformData={waveformService ? async () => waveformService!.getWaveformForCurveEditor() : undefined}
@@ -2332,11 +2338,11 @@
     audioSetup={graphStore.audioSetup}
     nodeSpecs={nodeSpecsMap}
     browseOnly={signalPickerBrowseMode}
-    canImportArrangement={canImportArrangement}
     arrangementImportBusy={arrangementImportBusy}
-    arrangementRegionCount={arrangementRegionCount}
     onImportArrangement={() => void handleImportArrangement()}
+    onClearArrangement={handleClearArrangement}
     getAudioManager={() => runtimeManager?.getAudioManager() ?? null}
+    onRevealInNodeEditor={handleRevealParameterInNodeEditor}
     onSelect={(payload) => {
       signalPickerOnSelect?.(payload);
       if (payload.type === 'set-connection-disabled') {

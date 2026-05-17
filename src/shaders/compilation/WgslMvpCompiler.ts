@@ -36,10 +36,14 @@ import {
   buildArrangementLanesWgslNodeHelper,
   filterRegionsForNode,
 } from '../arrangement/packArrangementRegionsForGlsl';
+import { setArrangementNotesBakeCache } from '../../audiotool/arrangement/arrangementNotesBakeCache';
 import {
   buildArrangementNotesWgslNodeHelper,
   filterNotesForNode,
 } from '../arrangement/packArrangementNotesForGlsl';
+import { emitWgslBlendNode } from './wgslBlendNode';
+import { emitLutWgslFunctions, emitThreeStopWgslFunctions, lutWgslSampleFunctionName } from '../colorRamps/emitWgsl';
+import { getBakedLutPresetIndex } from '../colorRamps/lutPresets';
 
 type WgslType = 'f32' | 'vec2<f32>' | 'vec3<f32>' | 'vec4<f32>';
 
@@ -55,6 +59,7 @@ export const WGSL_SUPPORTED_NODE_TYPES = new Set([
   'resolution',
   'fragment-coordinates',
   'oscillator-2d',
+  'path-drive',
   'particle-system',
   'orbit-camera',
   'look-at-camera',
@@ -136,8 +141,7 @@ export const WGSL_SUPPORTED_NODE_TYPES = new Set([
   'bayer-dither',
   'oklch-color',
   'bezier-curve',
-  'blend-color',
-  'blend-mode',
+  'blend',
   'scanlines',
   'stripes',
   'dots',
@@ -163,8 +167,9 @@ export const WGSL_SUPPORTED_NODE_TYPES = new Set([
   'sphere-raymarch',
   'tone-mapping',
   'color-grading',
-  'oklch-color-map-threshold',
-  'oklch-color-map-bezier',
+  'oklch-color-map',
+  'color-lut',
+  'color-gradient',
   'reciprocal',
   'sign',
   'floor',
@@ -199,7 +204,7 @@ export const WGSL_SUPPORTED_NODE_TYPES = new Set([
  * Node types emitted as {@link CompilationResult.webgpuPassPlan} (multi-pass/compute pilot path).
  * Most are omitted from {@link WGSL_SUPPORTED_NODE_TYPES} fullscreen inline codegen.
  * Exception: **`bokeh`** and **`blur`** also have inline WGSL (GLSL-parity single-pass stubs) so
- * graphs like `blur → blend-color → final-output` compile on WebGPU; each pass plan still takes
+ * graphs like `blur → blend → final-output` compile on WebGPU; each pass plan still takes
  * precedence when topology is `… → bokeh → final-output` / `… → blur → final-output`.
  *
  * Grow this set only alongside a matching compiler branch + runtime/export handlers.
@@ -363,10 +368,6 @@ function promoteType(a: WgslType, b: WgslType): WgslType {
 
 function asF32(expr: Expr): Expr | null {
   return expr.type === 'f32' ? expr : null;
-}
-
-function asVec4(expr: Expr): Expr | null {
-  return expr.type === 'vec4<f32>' ? expr : null;
 }
 
 function asVec3(expr: Expr): Expr | null {
@@ -2316,7 +2317,7 @@ fn rotate2(p: vec2<f32>, angle: f32) -> vec2<f32> {
    *   want to surface, not mask).
    * - Else if `fallbackParam` is provided, return the parameter slot expression as `f32`.
    * - Else return a typed zero matching the port's declared type, so unconnected inputs
-   *   compile deterministically (e.g. `blend-mode.base` unwired → `0.0`, treated as black).
+   *   compile deterministically (e.g. `blend.base` unwired → typed zero for resolved port type).
    */
   const resolveInput = (nodeId: string, port: string, fallbackParam?: string): Expr | null => {
     const link = lookupInputConnection(graph, nodeId, port);
@@ -2433,31 +2434,6 @@ fn rotate2(p: vec2<f32>, angle: f32) -> vec2<f32> {
     const y = paramSlotExprWired(paramLayout, nodeId, fallbackParams[1], 0);
     const z = paramSlotExprWired(paramLayout, nodeId, fallbackParams[2], 0);
     return { type: 'vec3<f32>', code: `vec3<f32>(${x}, ${y}, ${z})` };
-  };
-
-  const resolveInputVec4WithFallback = (nodeId: string, port: string, fallbackParams: [string, string, string, string]): Expr | null => {
-    const link = lookupInputConnection(graph, nodeId, port);
-    if (link) {
-      const src = resolveNodeOut(link.sourceNodeId, link.sourcePort);
-      if (!src) return null;
-      const base = asVec4(src);
-      if (!base) return null;
-      const h0 = paramConnByKey.has(`${nodeId}.${fallbackParams[0]}`);
-      const h1 = paramConnByKey.has(`${nodeId}.${fallbackParams[1]}`);
-      const h2 = paramConnByKey.has(`${nodeId}.${fallbackParams[2]}`);
-      const h3 = paramConnByKey.has(`${nodeId}.${fallbackParams[3]}`);
-      if (!h0 && !h1 && !h2 && !h3) return base;
-      const x = h0 ? paramSlotExprWired(paramLayout, nodeId, fallbackParams[0], 0) : `(${base.code}).x`;
-      const y = h1 ? paramSlotExprWired(paramLayout, nodeId, fallbackParams[1], 0) : `(${base.code}).y`;
-      const z = h2 ? paramSlotExprWired(paramLayout, nodeId, fallbackParams[2], 0) : `(${base.code}).z`;
-      const w = h3 ? paramSlotExprWired(paramLayout, nodeId, fallbackParams[3], 0) : `(${base.code}).w`;
-      return { type: 'vec4<f32>', code: `vec4<f32>(${x}, ${y}, ${z}, ${w})` };
-    }
-    const x = paramSlotExprWired(paramLayout, nodeId, fallbackParams[0], 0);
-    const y = paramSlotExprWired(paramLayout, nodeId, fallbackParams[1], 0);
-    const z = paramSlotExprWired(paramLayout, nodeId, fallbackParams[2], 0);
-    const w = paramSlotExprWired(paramLayout, nodeId, fallbackParams[3], 0);
-    return { type: 'vec4<f32>', code: `vec4<f32>(${x}, ${y}, ${z}, ${w})` };
   };
 
   for (const nodeId of executionOrder) {
@@ -2598,6 +2574,85 @@ fn rotate2(p: vec2<f32>, angle: f32) -> vec2<f32> {
 
         setNodeOut(nodeId, 'x', { type: 'f32', code: `(${rx} + ${offX})` });
         setNodeOut(nodeId, 'y', { type: 'f32', code: `(${ry} + ${offY})` });
+        break;
+      }
+      case 'path-drive': {
+        requireHelper(
+          'pathDrive',
+          `
+fn pd_pathCoreWgsl(preset: i32, t: f32, size: f32, aspect: f32, pulseDepth: f32) -> vec2<f32> {
+  var px = 0.0;
+  var py = 0.0;
+  if (preset == 0) {
+    px = size * cos(t);
+    py = size * aspect * sin(t);
+  } else if (preset == 1) {
+    px = size * cos(t);
+    py = size * aspect * sin(2.0 * t) * 0.5;
+  } else if (preset == 2) {
+    px = size * (0.62 * sin(t * 0.71) + 0.34 * sin(t * 1.11 + 1.17) + 0.19 * sin(t * 1.89 + 2.61));
+    py = size * (0.58 * sin(t * 0.79 + 0.83) + 0.36 * sin(t * 1.03 + 2.07) + 0.21 * sin(t * 1.67 + 0.49));
+  } else if (preset == 3) {
+    let breathe = 1.0 - pulseDepth + pulseDepth * (0.5 + 0.5 * sin(t));
+    let r = size * breathe;
+    px = r * cos(t);
+    py = r * sin(t);
+  } else {
+    let along = cos(t);
+    px = size * along;
+    py = 0.0;
+  }
+  return vec2<f32>(px, py);
+}
+
+fn pd_wanderJitterWgsl(t: f32, size: f32, wanderAmt: f32, jitterAmt: f32) -> vec4<f32> {
+  let pdTauJ = 6.283185307179586;
+  let wx = wanderAmt * size * 0.36 * (sin(t * 0.31 + 1.07) + 0.48 * sin(t * 0.17 + 2.31));
+  let wy = wanderAmt * size * 0.36 * (sin(t * 0.27 + 0.71) + 0.48 * sin(t * 0.19 + 3.12));
+  let jf = t * 47.3 + sin(t * 13.7) * pdTauJ;
+  let jg = t * 53.1 + sin(t * 11.2) * pdTauJ + 1.47;
+  let jx = jitterAmt * size * 0.14 * sin(jf);
+  let jy = jitterAmt * size * 0.14 * sin(jg);
+  return vec4<f32>(wx, wy, jx, jy);
+}
+          `
+        );
+
+        const tau = '6.283185307179586';
+        const speed = paramSlotExprWired(paramLayout, nodeId, 'speed', 0);
+        const phase = paramSlotExprWired(paramLayout, nodeId, 'phase', 0);
+        const size = paramSlotExprWired(paramLayout, nodeId, 'size', 0);
+        const aspect = paramSlotExprWired(paramLayout, nodeId, 'aspect', 0);
+        const pulseDepth = paramSlotExprWired(paramLayout, nodeId, 'pulseDepth', 0);
+        const lineAngle = paramSlotExprWired(paramLayout, nodeId, 'lineAngle', 0);
+        const centerX = paramSlotExprWired(paramLayout, nodeId, 'centerX', 0);
+        const centerY = paramSlotExprWired(paramLayout, nodeId, 'centerY', 0);
+        const wander = paramSlotExprWired(paramLayout, nodeId, 'wander', 0);
+        const jitter = paramSlotExprWired(paramLayout, nodeId, 'jitter', 0);
+        const rotate = paramSlotExprWired(paramLayout, nodeId, 'rotate', 0);
+        const rotationSpeed = paramSlotExprWired(paramLayout, nodeId, 'rotationSpeed', 0);
+        const rotationPhase = paramSlotExprWired(paramLayout, nodeId, 'rotationPhase', 0);
+        const presetF = paramSlotExprWired(paramLayout, nodeId, 'pathPreset', 0);
+        const presetI = `i32(clamp(floor(${presetF} + 0.5), 0.0, 4.0))`;
+
+        const pdT = `(globals.v0.x * ${speed} * ${tau} + radians(${phase}))`;
+        const core = `pd_pathCoreWgsl(${presetI}, ${pdT}, ${size}, ${aspect}, ${pulseDepth})`;
+        const wj = `pd_wanderJitterWgsl(${pdT}, ${size}, ${wander}, ${jitter})`;
+        const pdOx = `(${core}.x + ${wj}.x + ${wj}.z)`;
+        const pdOy = `(${core}.y + ${wj}.y + ${wj}.w)`;
+        const pdLineRot = `(select(0.0, radians(${lineAngle}), ${presetI} == 4))`;
+        const pdTheta = `(radians(${rotate}) + globals.v0.x * ${rotationSpeed} * ${tau} + radians(${rotationPhase}) + ${pdLineRot})`;
+        const pdRx = `(cos(${pdTheta}) * ${pdOx} - sin(${pdTheta}) * ${pdOy})`;
+        const pdRy = `(sin(${pdTheta}) * ${pdOx} + cos(${pdTheta}) * ${pdOy})`;
+
+        setNodeOut(nodeId, 'x', {
+          type: 'f32',
+          code: `(${centerX} + ${pdRx})`,
+        });
+        setNodeOut(nodeId, 'y', {
+          type: 'f32',
+          code: `(${centerY} + ${pdRy})`,
+        });
         break;
       }
       case 'orbit-camera': {
@@ -5307,172 +5362,34 @@ fn bayer8(a: vec2<f32>) -> f32 {
         setNodeOut(nodeId, 'out', { type: 'vec4<f32>', code: `vec4<f32>(${x1}, ${y1}, ${x2}, ${y2})` });
         break;
       }
-      case 'blend-mode': {
-        const base = resolveInput(nodeId, 'base');
-        const blend = resolveInput(nodeId, 'blend', 'blend');
-        if (!base || !blend) break;
-        const b0 = asF32(base) ?? coerceToType(base, 'f32');
-        const b1 = asF32(blend) ?? coerceToType(blend, 'f32');
-        if (!b0 || !b1) break;
-
+      case 'blend': {
+        const blendInst = graph.nodes.find((n) => n.id === nodeId);
+        const rawAlpha = blendInst?.parameters?.alphaMode;
+        const alphaMode: 0 | 1 = typeof rawAlpha === 'number' && rawAlpha >= 1 ? 1 : 0;
         const mode = paramSlotExprWired(paramLayout, nodeId, 'mode', 0);
         const opacity = paramSlotExprWired(paramLayout, nodeId, 'opacity', 0);
-
-        requireHelper(
-          'blend-mode',
-          `
-fn blendMultiply(base: f32, blend: f32) -> f32 { return base * blend; }
-fn blendScreen(base: f32, blend: f32) -> f32 { return 1.0 - (1.0 - base) * (1.0 - blend); }
-fn blendOverlay(base: f32, blend: f32) -> f32 {
-  return select(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), base >= 0.5);
-}
-fn blendSoftLight(base: f32, blend: f32) -> f32 {
-  return select(
-    base - (1.0 - 2.0 * blend) * base * (1.0 - base),
-    base + (2.0 * blend - 1.0) * (sqrt(base) - base),
-    blend >= 0.5
-  );
-}
-fn blendHardLight(base: f32, blend: f32) -> f32 {
-  return select(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), blend >= 0.5);
-}
-fn blendColorDodge(base: f32, blend: f32) -> f32 { return base / (1.0 - blend + 0.001); }
-fn blendColorBurn(base: f32, blend: f32) -> f32 { return 1.0 - (1.0 - base) / (blend + 0.001); }
-fn blendLinearDodge(base: f32, blend: f32) -> f32 { return min(base + blend, 1.0); }
-fn blendLinearBurn(base: f32, blend: f32) -> f32 { return max(base + blend - 1.0, 0.0); }
-fn blendDifference(base: f32, blend: f32) -> f32 { return abs(base - blend); }
-fn blendExclusion(base: f32, blend: f32) -> f32 { return base + blend - 2.0 * base * blend; }
-
-fn applyBlendMode(base: f32, blend: f32, mode: f32) -> f32 {
-  let m0 = mode < 0.5;
-  let m1 = mode >= 0.5 && mode < 1.5;
-  let m2 = mode >= 1.5 && mode < 2.5;
-  let m3 = mode >= 2.5 && mode < 3.5;
-  let m4 = mode >= 3.5 && mode < 4.5;
-  let m5 = mode >= 4.5 && mode < 5.5;
-  let m6 = mode >= 5.5 && mode < 6.5;
-  let m7 = mode >= 6.5 && mode < 7.5;
-  let m8 = mode >= 7.5 && mode < 8.5;
-  let m9 = mode >= 8.5 && mode < 9.5;
-  let m10 = mode >= 9.5 && mode < 10.5;
-  let m11 = mode >= 10.5;
-
-  let r1 = blendMultiply(base, blend);
-  let r2 = blendScreen(base, blend);
-  let r3 = blendOverlay(base, blend);
-  let r4 = blendSoftLight(base, blend);
-  let r5 = blendHardLight(base, blend);
-  let r6 = blendColorDodge(base, blend);
-  let r7 = blendColorBurn(base, blend);
-  let r8 = blendLinearDodge(base, blend);
-  let r9 = blendLinearBurn(base, blend);
-  let r10 = blendDifference(base, blend);
-  let r11 = blendExclusion(base, blend);
-
-  // Weighted selection to avoid deep if ladders; keep deterministic with float masks.
-  return
-    blend * select(0.0, 1.0, m0) +
-    r1 * select(0.0, 1.0, m1) +
-    r2 * select(0.0, 1.0, m2) +
-    r3 * select(0.0, 1.0, m3) +
-    r4 * select(0.0, 1.0, m4) +
-    r5 * select(0.0, 1.0, m5) +
-    r6 * select(0.0, 1.0, m6) +
-    r7 * select(0.0, 1.0, m7) +
-    r8 * select(0.0, 1.0, m8) +
-    r9 * select(0.0, 1.0, m9) +
-    r10 * select(0.0, 1.0, m10) +
-    r11 * select(0.0, 1.0, m11);
-}
-          `
-        );
-
-        const blended = `applyBlendMode(${b0.code}, ${b1.code}, ${mode})`;
-        setNodeOut(nodeId, 'out', { type: 'f32', code: `mix(${b0.code}, ${blended}, ${opacity})` });
-        break;
-      }
-      case 'blend-color': {
-        const baseV = resolveInputVec4(nodeId, 'base');
-        const blendV = resolveInputVec4(nodeId, 'blend');
-        if (!baseV || !blendV) break;
-
-        const mode = paramSlotExprWired(paramLayout, nodeId, 'mode', 0);
-        const opacity = paramSlotExprWired(paramLayout, nodeId, 'opacity', 0);
-
-        requireHelper(
-          'blend-mode',
-          `
-fn blendMultiply(base: f32, blend: f32) -> f32 { return base * blend; }
-fn blendScreen(base: f32, blend: f32) -> f32 { return 1.0 - (1.0 - base) * (1.0 - blend); }
-fn blendOverlay(base: f32, blend: f32) -> f32 {
-  return select(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), base >= 0.5);
-}
-fn blendSoftLight(base: f32, blend: f32) -> f32 {
-  return select(
-    base - (1.0 - 2.0 * blend) * base * (1.0 - base),
-    base + (2.0 * blend - 1.0) * (sqrt(base) - base),
-    blend >= 0.5
-  );
-}
-fn blendHardLight(base: f32, blend: f32) -> f32 {
-  return select(2.0 * base * blend, 1.0 - 2.0 * (1.0 - base) * (1.0 - blend), blend >= 0.5);
-}
-fn blendColorDodge(base: f32, blend: f32) -> f32 { return base / (1.0 - blend + 0.001); }
-fn blendColorBurn(base: f32, blend: f32) -> f32 { return 1.0 - (1.0 - base) / (blend + 0.001); }
-fn blendLinearDodge(base: f32, blend: f32) -> f32 { return min(base + blend, 1.0); }
-fn blendLinearBurn(base: f32, blend: f32) -> f32 { return max(base + blend - 1.0, 0.0); }
-fn blendDifference(base: f32, blend: f32) -> f32 { return abs(base - blend); }
-fn blendExclusion(base: f32, blend: f32) -> f32 { return base + blend - 2.0 * base * blend; }
-
-fn applyBlendMode(base: f32, blend: f32, mode: f32) -> f32 {
-  let m0 = mode < 0.5;
-  let m1 = mode >= 0.5 && mode < 1.5;
-  let m2 = mode >= 1.5 && mode < 2.5;
-  let m3 = mode >= 2.5 && mode < 3.5;
-  let m4 = mode >= 3.5 && mode < 4.5;
-  let m5 = mode >= 4.5 && mode < 5.5;
-  let m6 = mode >= 5.5 && mode < 6.5;
-  let m7 = mode >= 6.5 && mode < 7.5;
-  let m8 = mode >= 7.5 && mode < 8.5;
-  let m9 = mode >= 8.5 && mode < 9.5;
-  let m10 = mode >= 9.5 && mode < 10.5;
-  let m11 = mode >= 10.5;
-
-  let r1 = blendMultiply(base, blend);
-  let r2 = blendScreen(base, blend);
-  let r3 = blendOverlay(base, blend);
-  let r4 = blendSoftLight(base, blend);
-  let r5 = blendHardLight(base, blend);
-  let r6 = blendColorDodge(base, blend);
-  let r7 = blendColorBurn(base, blend);
-  let r8 = blendLinearDodge(base, blend);
-  let r9 = blendLinearBurn(base, blend);
-  let r10 = blendDifference(base, blend);
-  let r11 = blendExclusion(base, blend);
-
-  return
-    blend * select(0.0, 1.0, m0) +
-    r1 * select(0.0, 1.0, m1) +
-    r2 * select(0.0, 1.0, m2) +
-    r3 * select(0.0, 1.0, m3) +
-    r4 * select(0.0, 1.0, m4) +
-    r5 * select(0.0, 1.0, m5) +
-    r6 * select(0.0, 1.0, m6) +
-    r7 * select(0.0, 1.0, m7) +
-    r8 * select(0.0, 1.0, m8) +
-    r9 * select(0.0, 1.0, m9) +
-    r10 * select(0.0, 1.0, m10) +
-    r11 * select(0.0, 1.0, m11);
-}
-          `
-        );
-
-        const b = baseV.code;
-        const s = blendV.code;
-        const blendedRgb = `vec3<f32>(applyBlendMode(${b}.x, ${s}.x, ${mode}), applyBlendMode(${b}.y, ${s}.y, ${mode}), applyBlendMode(${b}.z, ${s}.z, ${mode}))`;
-        const rgb = `mix(${b}.xyz, ${blendedRgb}, ${opacity})`;
-        const a = `mix(${b}.w, ${s}.w, ${opacity})`;
-        setNodeOut(nodeId, 'out', { type: 'vec4<f32>', code: `vec4<f32>(${rgb}, ${a})` });
+        emitWgslBlendNode({
+          nodeId,
+          graph,
+          nodeSpecs,
+          lookupSourceOutputType: (sourceNodeId, sourcePort) => {
+            const src = graph.nodes.find((n) => n.id === sourceNodeId);
+            if (!src) return undefined;
+            const spec = nodeSpecs.get(src.type);
+            return spec?.outputs.find((o) => o.name === sourcePort)?.type;
+          },
+          alphaMode,
+          requireHelper,
+          setNodeOut,
+          paramMode: mode,
+          paramOpacity: opacity,
+          resolveInputF32,
+          resolveInputVec2,
+          resolveInputVec3,
+          resolveInputVec4,
+          coerceToType,
+          asF32
+        });
         break;
       }
       case 'scanlines': {
@@ -7999,95 +7916,10 @@ fn applyLevels3(color: vec3<f32>, inMin: f32, inMax: f32, outMin: f32, outMax: f
         setNodeOut(nodeId, 'out', { type: 'vec4<f32>', code: `vec4<f32>(${leveled}, ${cIn.code}.w)` });
         break;
       }
-      case 'oklch-color-map-bezier': {
-        // Match GLSL `generatePromotionCode`: vec2/vec3/vec4 → float uses `.x`.
+      case 'oklch-color-map': {
         const v = resolveInputF32(nodeId, 'in');
         if (!v) break;
 
-        const startColor = resolveInputVec3WithFallback(nodeId, 'startColor', [
-          'startColorL',
-          'startColorC',
-          'startColorH',
-        ]);
-        const endColor = resolveInputVec3WithFallback(nodeId, 'endColor', ['endColorL', 'endColorC', 'endColorH']);
-        if (!startColor || !endColor) break;
-        const lCurve = resolveInputVec4WithFallback(nodeId, 'lCurve', ['lCurveX1', 'lCurveY1', 'lCurveX2', 'lCurveY2']);
-        const cCurve = resolveInputVec4WithFallback(nodeId, 'cCurve', ['cCurveX1', 'cCurveY1', 'cCurveX2', 'cCurveY2']);
-        const hCurve = resolveInputVec4WithFallback(nodeId, 'hCurve', ['hCurveX1', 'hCurveY1', 'hCurveX2', 'hCurveY2']);
-        if (!lCurve || !cCurve || !hCurve) break;
-
-        const reverseHue = paramSlotExprWired(paramLayout, nodeId, 'reverseHue', 0);
-
-        requireHelper('wgslMod', WGSL_HELPER_WGSL_MOD);
-        requireHelper(
-          'oklch-color-map-common',
-          `
-fn oklchToRgb(oklch: vec3<f32>) -> vec3<f32> {
-  let l = oklch.x;
-  let c = oklch.y;
-  let h = oklch.z * 3.14159265359 / 180.0;
-  let a = c * cos(h);
-  let b = c * sin(h);
-  let l_ = l + 0.3963377774 * a + 0.2158037573 * b;
-  let m_ = l - 0.1055613458 * a - 0.0638541728 * b;
-  let s_ = l - 0.0894841775 * a - 1.2914855480 * b;
-  let l3 = l_ * l_ * l_;
-  let m3 = m_ * m_ * m_;
-  let s3 = s_ * s_ * s_;
-  let r = 4.0767416621 * l3 - 3.3077115913 * m3 + 0.2309699292 * s3;
-  let g = -1.2684380046 * l3 + 2.6097574011 * m3 - 0.3413193965 * s3;
-  let bl = -0.0041960863 * l3 - 0.7034186147 * m3 + 1.7076147010 * s3;
-  return clamp(vec3<f32>(r, g, bl), vec3<f32>(0.0), vec3<f32>(1.0));
-}
-
-fn cubicBezier(x: f32, curve: vec4<f32>) -> f32 {
-  if (x <= 0.0) { return 0.0; }
-  if (x >= 1.0) { return 1.0; }
-  var t0 = 0.0;
-  var t1 = 1.0;
-  for (var i = 0; i < 10; i = i + 1) {
-    let t = (t0 + t1) * 0.5;
-    let u = 1.0 - t;
-    let tt = t * t;
-    let uu = u * u;
-    let xt = 3.0 * uu * t * curve.x + 3.0 * u * tt * curve.z + tt * t;
-    if (xt < x) { t0 = t; } else { t1 = t; }
-  }
-  let t = (t0 + t1) * 0.5;
-  let u = 1.0 - t;
-  let tt = t * t;
-  let uu = u * u;
-  return 3.0 * uu * t * curve.y + 3.0 * u * tt * curve.w + tt * t;
-}
-
-fn interpolateHue(startH: f32, endH: f32, t: f32, reverseHue: f32) -> f32 {
-  let rev = reverseHue > 0.5;
-  let adjustedEndH = select(select(endH, endH + 360.0, endH < startH), select(endH, endH - 360.0, endH > startH), rev);
-  var h = mix(startH, adjustedEndH, t);
-  h = wgslMod(h, 360.0);
-  if (h < 0.0) { h = h + 360.0; }
-  return h;
-}
-          `
-        );
-
-        const value = `clamp(${v.code}, 0.0, 1.0)`;
-        const lT = `cubicBezier(${value}, ${lCurve.code})`;
-        const cT = `cubicBezier(${value}, ${cCurve.code})`;
-        const hT = `cubicBezier(${value}, ${hCurve.code})`;
-        const l = `mix((${startColor.code}).x, (${endColor.code}).x, ${lT})`;
-        const c = `mix((${startColor.code}).y, (${endColor.code}).y, ${cT})`;
-        const h = `interpolateHue((${startColor.code}).z, (${endColor.code}).z, ${hT}, ${reverseHue})`;
-        const rgb = `oklchToRgb(vec3<f32>(${l}, ${c}, ${h}))`;
-        setNodeOut(nodeId, 'out', { type: 'vec3<f32>', code: rgb });
-        break;
-      }
-      case 'oklch-color-map-threshold': {
-        const v = resolveInputF32(nodeId, 'in');
-        if (!v) break;
-
-        // Match the GLSL node implementation: it uses *parameters* for start/end colors,
-        // even if the startColor/endColor ports are connected.
         const startColor = {
           type: 'vec3<f32>',
           code: `vec3<f32>(${paramSlotExprWired(paramLayout, nodeId, 'startColorL', 0)}, ${paramSlotExprWired(paramLayout, nodeId, 'startColorC', 0)}, ${paramSlotExprWired(paramLayout, nodeId, 'startColorH', 0)})`,
@@ -8096,25 +7928,31 @@ fn interpolateHue(startH: f32, endH: f32, t: f32, reverseHue: f32) -> f32 {
           type: 'vec3<f32>',
           code: `vec3<f32>(${paramSlotExprWired(paramLayout, nodeId, 'endColorL', 0)}, ${paramSlotExprWired(paramLayout, nodeId, 'endColorC', 0)}, ${paramSlotExprWired(paramLayout, nodeId, 'endColorH', 0)})`,
         } satisfies Expr;
-        const lCurve = resolveInputVec4WithFallback(nodeId, 'lCurve', ['lCurveX1', 'lCurveY1', 'lCurveX2', 'lCurveY2']);
-        const cCurve = resolveInputVec4WithFallback(nodeId, 'cCurve', ['cCurveX1', 'cCurveY1', 'cCurveX2', 'cCurveY2']);
-        const hCurve = resolveInputVec4WithFallback(nodeId, 'hCurve', ['hCurveX1', 'hCurveY1', 'hCurveX2', 'hCurveY2']);
-        if (!lCurve || !cCurve || !hCurve) break;
+        const lCurve = {
+          type: 'vec4<f32>',
+          code: `vec4<f32>(${paramSlotExprWired(paramLayout, nodeId, 'lCurveX1', 0)}, ${paramSlotExprWired(paramLayout, nodeId, 'lCurveY1', 0)}, ${paramSlotExprWired(paramLayout, nodeId, 'lCurveX2', 0)}, ${paramSlotExprWired(paramLayout, nodeId, 'lCurveY2', 0)})`,
+        } satisfies Expr;
+        const cCurve = {
+          type: 'vec4<f32>',
+          code: `vec4<f32>(${paramSlotExprWired(paramLayout, nodeId, 'cCurveX1', 0)}, ${paramSlotExprWired(paramLayout, nodeId, 'cCurveY1', 0)}, ${paramSlotExprWired(paramLayout, nodeId, 'cCurveX2', 0)}, ${paramSlotExprWired(paramLayout, nodeId, 'cCurveY2', 0)})`,
+        } satisfies Expr;
+        const hCurve = {
+          type: 'vec4<f32>',
+          code: `vec4<f32>(${paramSlotExprWired(paramLayout, nodeId, 'hCurveX1', 0)}, ${paramSlotExprWired(paramLayout, nodeId, 'hCurveY1', 0)}, ${paramSlotExprWired(paramLayout, nodeId, 'hCurveX2', 0)}, ${paramSlotExprWired(paramLayout, nodeId, 'hCurveY2', 0)})`,
+        } satisfies Expr;
 
-        // Semantic defaults (not the GLSL-parity vec2(0.0)): fragCoord defaults to UV * resolution,
-        // resolution defaults to globals.v0.zw. `tryResolveInputVec2` returns null when unconnected.
-        const fragCoord =
-          tryResolveInputVec2(nodeId, 'fragCoord') ??
-          ({ type: 'vec2<f32>', code: `(in.uv * globals.v0.zw)` } satisfies Expr);
-        const resolution =
-          tryResolveInputVec2(nodeId, 'resolution') ??
-          ({ type: 'vec2<f32>', code: `globals.v0.zw` } satisfies Expr);
+        const mapMode = paramSlotExprWired(paramLayout, nodeId, 'mapMode', 0);
+        const reverseHue = paramSlotExprWired(paramLayout, nodeId, 'reverseHue', 0);
+        const swapColors = paramSlotExprWired(paramLayout, nodeId, 'swapColors', 0);
+        const mapStartColor = `select(${startColor.code}, ${endColor.code}, ${swapColors} > 0.5)`;
+        const mapEndColor = `select(${endColor.code}, ${startColor.code}, ${swapColors} > 0.5)`;
 
         const stopsF = paramSlotExprWired(paramLayout, nodeId, 'stops', 0);
         const transWidthParam = paramSlotExprWired(paramLayout, nodeId, 'transitionWidth', 0);
         const ditherStrength = paramSlotExprWired(paramLayout, nodeId, 'ditherStrength', 0);
         const pixelSize = `max(${paramSlotExprWired(paramLayout, nodeId, 'pixelSize', 0)}, 0.0001)`;
-        const reverseHue = paramSlotExprWired(paramLayout, nodeId, 'reverseHue', 0);
+        const fragCoord = { type: 'vec2<f32>', code: `(in.uv * globals.v0.zw)` } satisfies Expr;
+        const resolution = { type: 'vec2<f32>', code: `globals.v0.zw` } satisfies Expr;
 
         requireHelper('wgslMod', WGSL_HELPER_WGSL_MOD);
         requireHelper(
@@ -8193,32 +8031,128 @@ fn bayer8(a: vec2<f32>) -> f32 {
         );
 
         const value = `clamp(${v.code}, 0.0, 1.0)`;
-        const stopsI = `i32(clamp(${stopsF}, 2.0, 50.0) + 0.5)`;
+        const lT = `cubicBezier(${value}, ${lCurve.code})`;
+        const cT = `cubicBezier(${value}, ${cCurve.code})`;
+        const hT = `cubicBezier(${value}, ${hCurve.code})`;
+        const smoothL = `mix((${mapStartColor}).x, (${mapEndColor}).x, ${lT})`;
+        const smoothC = `mix((${mapStartColor}).y, (${mapEndColor}).y, ${cT})`;
+        const smoothH = `interpolateHue((${mapStartColor}).z, (${mapEndColor}).z, ${hT}, ${reverseHue})`;
+        const smoothRgb = `oklchToRgb(vec3<f32>(${smoothL}, ${smoothC}, ${smoothH}))`;
 
+        const stopsI = `i32(clamp(${stopsF}, 2.0, 50.0) + 0.5)`;
         const bayerEnabled = `(${ditherStrength} > 0.001)`;
         const fragCoordCentered = `(${fragCoord.code} - ${resolution.code} * 0.5)`;
         const bayer = `select(0.0, ((bayer8(${fragCoordCentered} / ${pixelSize}) - 0.5) * ${ditherStrength}), ${bayerEnabled})`;
-
         const transWidth = `select(0.005, ${transWidthParam}, ${transWidthParam} > 0.0)`;
         const ditheredValue = `clamp(${value} + ${bayer}, 0.0, 1.0)`;
-
         const colorIndex = `(${ditheredValue} * f32(${stopsI} - 1))`;
         const lowerIndex = `clamp(i32(floor(${colorIndex})), 0, ${stopsI} - 1)`;
         const upperIndex = `clamp(min(${lowerIndex} + 1, ${stopsI} - 1), 0, ${stopsI} - 1)`;
         const lowerT = `(f32(${lowerIndex}) / f32(${stopsI} - 1))`;
         const upperT = `(f32(${upperIndex}) / f32(${stopsI} - 1))`;
-
-        const oklch1 = `generateColorStop(${lowerT}, ${startColor.code}, ${endColor.code}, ${lCurve.code}, ${cCurve.code}, ${hCurve.code}, ${reverseHue})`;
-        const oklch2 = `generateColorStop(${upperT}, ${startColor.code}, ${endColor.code}, ${lCurve.code}, ${cCurve.code}, ${hCurve.code}, ${reverseHue})`;
-
+        const oklch1 = `generateColorStop(${lowerT}, ${mapStartColor}, ${mapEndColor}, ${lCurve.code}, ${cCurve.code}, ${hCurve.code}, ${reverseHue})`;
+        const oklch2 = `generateColorStop(${upperT}, ${mapStartColor}, ${mapEndColor}, ${lCurve.code}, ${cCurve.code}, ${hCurve.code}, ${reverseHue})`;
         const hasUpper = `(${lowerIndex} < (${stopsI} - 1))`;
         const threshold = `clamp((f32(${lowerIndex} + 1) / f32(${stopsI}) + ${bayer} * 0.05), 0.0, 1.0)`;
         const smoothBlend = `smoothstep(${threshold} - ${transWidth}, ${threshold} + ${transWidth}, ${ditheredValue})`;
         const blendFactor = `select(0.0, ${smoothBlend}, ${hasUpper})`;
-
         const color1 = `oklchToRgb(${oklch1})`;
         const color2 = `oklchToRgb(${oklch2})`;
-        setNodeOut(nodeId, 'out', { type: 'vec3<f32>', code: `mix(${color1}, ${color2}, ${blendFactor})` });
+        const steppedRgb = `mix(${color1}, ${color2}, ${blendFactor})`;
+
+        const rgb = `select(${smoothRgb}, ${steppedRgb}, ${mapMode} > 0.5)`;
+        setNodeOut(nodeId, 'out', { type: 'vec3<f32>', code: rgb });
+        break;
+      }
+      case 'color-lut': {
+        const v = resolveInputF32(nodeId, 'in');
+        if (!v) break;
+
+        const lutNode = graph.nodes.find((n) => n.id === nodeId);
+        const lutSpec = lutNode ? nodeSpecs.get(lutNode.type) : undefined;
+        const bakedPreset =
+          lutNode && lutSpec ? getBakedLutPresetIndex(lutNode, lutSpec) : 0;
+        const sampleFn = lutWgslSampleFunctionName(bakedPreset);
+
+        const reverse = paramSlotExprWired(paramLayout, nodeId, 'reverse', 0);
+        const gamma = paramSlotExprWired(paramLayout, nodeId, 'gamma', 0);
+        const contrastParam = paramSlotExprWired(paramLayout, nodeId, 'contrast', 0);
+        const contrast = `(${contrastParam} + 1.0)`;
+        const intensity = paramSlotExprWired(paramLayout, nodeId, 'intensity', 0);
+
+        requireHelper(`color-lut-ramp-p${bakedPreset}`, emitLutWgslFunctions(bakedPreset));
+
+        const tIn = `clamp(${v.code}, 0.0, 1.0)`;
+        const tMapped = `cr_apply_lut_t(${tIn}, ${reverse}, ${gamma}, ${contrast})`;
+        const rgb = `cr_apply_intensity(${sampleFn}(${tMapped}), ${intensity})`;
+        setNodeOut(nodeId, 'out', { type: 'vec3<f32>', code: rgb });
+        break;
+      }
+      case 'color-gradient': {
+        const valueIn = resolveInputF32(nodeId, 'value');
+        const positionIn = resolveInputVec2(nodeId, 'position');
+        if (!valueIn || !positionIn) break;
+
+        const gradientMode = paramSlotExprWired(paramLayout, nodeId, 'gradientMode', 0);
+        const centerX = paramSlotExprWired(paramLayout, nodeId, 'centerX', 0);
+        const centerY = paramSlotExprWired(paramLayout, nodeId, 'centerY', 0);
+        const angle = paramSlotExprWired(paramLayout, nodeId, 'angle', 0);
+        const linearScale = paramSlotExprWired(paramLayout, nodeId, 'linearScale', 0);
+        const radius = paramSlotExprWired(paramLayout, nodeId, 'radius', 0);
+        const falloff = paramSlotExprWired(paramLayout, nodeId, 'falloff', 0);
+        const stop0L = paramSlotExprWired(paramLayout, nodeId, 'stop0L', 0);
+        const stop0C = paramSlotExprWired(paramLayout, nodeId, 'stop0C', 0);
+        const stop0H = paramSlotExprWired(paramLayout, nodeId, 'stop0H', 0);
+        const stop1L = paramSlotExprWired(paramLayout, nodeId, 'stop1L', 0);
+        const stop1C = paramSlotExprWired(paramLayout, nodeId, 'stop1C', 0);
+        const stop1H = paramSlotExprWired(paramLayout, nodeId, 'stop1H', 0);
+        const stop2L = paramSlotExprWired(paramLayout, nodeId, 'stop2L', 0);
+        const stop2C = paramSlotExprWired(paramLayout, nodeId, 'stop2C', 0);
+        const stop2H = paramSlotExprWired(paramLayout, nodeId, 'stop2H', 0);
+        const stop0T = paramSlotExprWired(paramLayout, nodeId, 'stop0T', 0);
+        const stop1T = paramSlotExprWired(paramLayout, nodeId, 'stop1T', 0);
+        const stop2T = paramSlotExprWired(paramLayout, nodeId, 'stop2T', 0);
+        const valueGain = paramSlotExprWired(paramLayout, nodeId, 'valueGain', 0);
+        const valuePower = paramSlotExprWired(paramLayout, nodeId, 'valuePower', 0);
+        const valueSoftness = paramSlotExprWired(paramLayout, nodeId, 'valueSoftness', 0);
+        const intensity = paramSlotExprWired(paramLayout, nodeId, 'intensity', 0);
+
+        requireHelper('color-gradient-ramp', emitThreeStopWgslFunctions());
+        requireHelper(
+          'gradient',
+          `
+fn gradientRadial(p: vec2<f32>, center: vec2<f32>, radius: f32, falloff: f32) -> f32 {
+  let d = length(p - center);
+  let edge0 = max(0.0, radius - falloff);
+  let edge1 = radius;
+  return 1.0 - smoothstep(edge0, edge1, d);
+}
+
+fn gradientLinear(p: vec2<f32>, angleDeg: f32, scale: f32) -> f32 {
+  let angleRad = angleDeg * 0.017453292519943295;
+  let dir = vec2<f32>(cos(angleRad), sin(angleRad));
+  let t = dot(p, dir) * scale + 0.5;
+  return clamp(t, 0.0, 1.0);
+}
+          `
+        );
+
+        const p = `(${positionIn.code} - vec2<f32>(${centerX}, ${centerY}))`;
+        const radial = `gradientRadial(${p}, vec2<f32>(0.0), ${radius}, ${falloff})`;
+        const linear = `gradientLinear(${p}, ${angle}, ${linearScale})`;
+        const tSpatial = `clamp(select(${linear}, ${radial}, ${gradientMode} < 0.5), 0.0, 1.0)`;
+
+        const t0 = `clamp(${stop0T}, 0.0, 1.0)`;
+        const t1 = `clamp(${stop1T}, ${t0}, 1.0)`;
+        const t2 = `clamp(max(${stop2T}, ${t1}), ${t0}, 1.0)`;
+        const ok0 = `vec3<f32>(${stop0L}, ${stop0C}, ${stop0H})`;
+        const ok1 = `vec3<f32>(${stop1L}, ${stop1C}, ${stop1H})`;
+        const ok2 = `vec3<f32>(${stop2L}, ${stop2C}, ${stop2H})`;
+        const gradRgb = `cr_sample_three_stop_oklch(${ok0}, ${t0}, ${ok1}, ${t1}, ${ok2}, ${t2}, ${tSpatial})`;
+
+        const v = `cr_apply_color_gradient_value(${valueIn.code}, ${valueGain}, ${valuePower}, ${valueSoftness})`;
+        const rgb = `${gradRgb} * ${v} * ${intensity}`;
+        setNodeOut(nodeId, 'out', { type: 'vec3<f32>', code: rgb });
         break;
       }
       case 'combine-vector': {
@@ -8352,47 +8286,61 @@ fn arrangementLanesScreenUvWgsl(inUv: vec2<f32>, uvInputMode: f32) -> vec2<f32> 
         const timeLinked = tryResolveInputF32(nodeId, 'time');
         const timelineTime = timeLinked ? timeLinked.code : 'globals.v0.y';
 
-        const viewportMode = paramSlotExprWired(paramLayout, nodeId, 'viewportMode', 0);
         const windowSeconds = paramSlotExprWired(paramLayout, nodeId, 'windowSeconds', 0);
-        const fixedStart = paramSlotExprWired(paramLayout, nodeId, 'fixedStartSeconds', 0);
+        const timelineAnchor = paramSlotExprWired(paramLayout, nodeId, 'timelineAnchor', 0);
         const noteSize = paramSlotExprWired(paramLayout, nodeId, 'noteSize', 0);
         const velocityScale = paramSlotExprWired(paramLayout, nodeId, 'velocityScale', 0);
-        const edgeFade = paramSlotExprWired(paramLayout, nodeId, 'edgeFade', 0);
         const opacity = paramSlotExprWired(paramLayout, nodeId, 'opacity', 0);
-        const bgR = paramSlotExprWired(paramLayout, nodeId, 'backgroundR', 0);
-        const bgG = paramSlotExprWired(paramLayout, nodeId, 'backgroundG', 0);
-        const bgB = paramSlotExprWired(paramLayout, nodeId, 'backgroundB', 0);
+        const layoutOrientation = paramSlotExprWired(paramLayout, nodeId, 'layoutOrientation', 0);
+        const pitchPadding = paramSlotExprWired(paramLayout, nodeId, 'pitchPadding', 0);
+        const playheadShow = paramSlotExprWired(paramLayout, nodeId, 'playheadShow', 0);
+        const bgL = paramSlotExprWired(paramLayout, nodeId, 'backgroundL', 0);
+        const bgC = paramSlotExprWired(paramLayout, nodeId, 'backgroundC', 0);
+        const bgH = paramSlotExprWired(paramLayout, nodeId, 'backgroundH', 0);
+        const phL = paramSlotExprWired(paramLayout, nodeId, 'playheadL', 0);
+        const phC = paramSlotExprWired(paramLayout, nodeId, 'playheadC', 0);
+        const phH = paramSlotExprWired(paramLayout, nodeId, 'playheadH', 0);
+        const noteLoopStart = paramSlotExprWired(paramLayout, nodeId, 'noteLoopStart', 0);
+        const noteLoopEnd = paramSlotExprWired(paramLayout, nodeId, 'noteLoopEnd', 0);
 
         requireHelper(
           'arrangement-notes-shared',
           `
-fn arrangementLanesEdgeFadeWgsl(uv: vec2<f32>, fadeAmount: f32) -> f32 {
-  if (fadeAmount <= 0.0001) {
-    return 1.0;
-  }
-  let edge = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
-  return smoothstep(0.0, fadeAmount, edge);
+fn arrangementNotesUvFromPWgsl(p: vec2<f32>) -> vec2<f32> {
+  let aspect = globals.v0.z / max(1.0, globals.v0.w);
+  return vec2<f32>(p.x / (2.0 * aspect) + 0.5, p.y * 0.5 + 0.5);
 }
 
-fn arrangementNotesScreenUvWgsl(inUv: vec2<f32>, uvInputMode: f32) -> vec2<f32> {
-  if (uvInputMode < 0.5) {
-    return inUv;
-  }
-  let aspect = globals.v0.z / max(1.0, globals.v0.w);
-  return vec2<f32>(inUv.x / (2.0 * aspect) + 0.5, inUv.y * 0.5 + 0.5);
+fn arrangementNotesOklchToRgbWgsl(oklch: vec3<f32>) -> vec3<f32> {
+  let l = oklch.x;
+  let c = oklch.y;
+  let h = oklch.z * 3.14159265359 / 180.0;
+  let a = c * cos(h);
+  let b = c * sin(h);
+  let l_ = l + 0.3963377774 * a + 0.2158037573 * b;
+  let m_ = l - 0.1055613458 * a - 0.0638541728 * b;
+  let s_ = l - 0.0894841775 * a - 1.2914855480 * b;
+  let l3 = l_ * l_ * l_;
+  let m3 = m_ * m_ * m_;
+  let s3 = s_ * s_ * s_;
+  let r = +4.0767416621 * l3 - 3.3077115913 * m3 + 0.2309699292 * s3;
+  let g = -1.2684380046 * l3 + 2.6097574011 * m3 - 0.3413193965 * s3;
+  let bl = -0.0041960863 * l3 - 0.7034186147 * m3 + 1.7076147010 * s3;
+  return clamp(vec3<f32>(r, g, bl), vec3<f32>(0.0), vec3<f32>(1.0));
 }
           `
         );
 
         const suffix = arrangementLanesGlslSuffix(nodeId);
         const packed = filterNotesForNode(audioSetup?.arrangementSnapshot, node);
+        setArrangementNotesBakeCache(nodeId, packed.notes);
         requireHelper(`arrangement-notes-${suffix}`, buildArrangementNotesWgslNodeHelper(nodeId, packed));
 
-        const uvInputMode = paramSlotExprWired(paramLayout, nodeId, 'uvInputMode', 0);
-        const laneUvNorm = `arrangementNotesScreenUvWgsl(${noteUv.code}, ${uvInputMode})`;
-        const bg = `vec3<f32>(${bgR}, ${bgG}, ${bgB})`;
-        const out = `evalArrangementNotes_${suffix}(${laneUvNorm}, ${timelineTime}, ${viewportMode}, ${windowSeconds}, ${fixedStart}, ${noteSize}, ${velocityScale}, ${edgeFade}, ${opacity}, ${bg})`;
-        setNodeOut(nodeId, 'out', { type: 'vec4<f32>', code: out });
+        const bg = `arrangementNotesOklchToRgbWgsl(vec3<f32>(${bgL}, ${bgC}, ${bgH}))`;
+        const playheadOklch = `vec3<f32>(${phL}, ${phC}, ${phH})`;
+        const out = `evalArrangementNotes_${suffix}(${noteUv.code}, ${timelineTime}, ${windowSeconds}, ${timelineAnchor}, ${noteSize}, ${velocityScale}, ${opacity}, ${bg}, ${layoutOrientation}, ${pitchPadding}, ${playheadShow}, ${playheadOklch}, ${noteLoopStart}, ${noteLoopEnd})`;
+        setNodeOut(nodeId, 'out', { type: 'vec4<f32>', code: `${out}.color` });
+        setNodeOut(nodeId, 'mask', { type: 'f32', code: `${out}.mask` });
         break;
       }
       case 'final-output': {

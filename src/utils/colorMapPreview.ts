@@ -57,14 +57,29 @@ export function generateColorStop(
   lCurve: BezierCurve,
   cCurve: BezierCurve,
   hCurve: BezierCurve,
-  reverseHue: number
+  reverseHue: number,
+  swapColors = 0
 ): { l: number; c: number; h: number } {
+  let sL = startL;
+  let sC = startC;
+  let sH = startH;
+  let eL = endL;
+  let eC = endC;
+  let eH = endH;
+  if (swapColors > 0) {
+    sL = endL;
+    sC = endC;
+    sH = endH;
+    eL = startL;
+    eC = startC;
+    eH = startH;
+  }
   const lT = cubicBezier(t, lCurve);
   const cT = cubicBezier(t, cCurve);
   const hT = cubicBezier(t, hCurve);
-  const l = startL + (endL - startL) * lT;
-  const c = startC + (endC - startC) * cT;
-  const h = interpolateHue(startH, endH, hT, reverseHue);
+  const l = sL + (eL - sL) * lT;
+  const c = sC + (eC - sC) * cT;
+  const h = interpolateHue(sH, eH, hT, reverseHue);
   return { l, c, h };
 }
 
@@ -80,7 +95,8 @@ export function colorStopToCss(
   lCurve: BezierCurve,
   cCurve: BezierCurve,
   hCurve: BezierCurve,
-  reverseHue: number
+  reverseHue: number,
+  swapColors = 0
 ): string {
   const { l, c, h } = generateColorStop(
     t,
@@ -93,7 +109,8 @@ export function colorStopToCss(
     lCurve,
     cCurve,
     hCurve,
-    reverseHue
+    reverseHue,
+    swapColors
   );
   return oklchToCssRgb(l, c, h);
 }

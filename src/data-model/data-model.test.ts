@@ -23,6 +23,7 @@ import {
   getParameterValue,
   coerceParameterValue,
   createEmptyGraph,
+  createScratchGraph,
   findNode,
   findConnection,
   getConnectionsFromNode,
@@ -93,6 +94,15 @@ export function testCreateEmptyGraph(): void {
   assert(graph.nodes.length === 0, 'Graph should have no nodes');
   assert(graph.connections.length === 0, 'Graph should have no connections');
   assert(graph.id.length > 0, 'Graph should have an ID');
+}
+
+export function testCreateScratchGraph(): void {
+  const graph = createScratchGraph('Scratch');
+  assert(graph.name === 'Scratch', 'Graph name should match');
+  assert(graph.nodes.length === 2, 'Scratch graph should have two nodes');
+  assert(graph.connections.length === 0, 'Scratch graph should have no connections');
+  const types = graph.nodes.map((n) => n.type).sort().join(',');
+  assert(types === 'final-output,uv-coordinates', 'Scratch graph node types');
 }
 
 // Test: ID generation
@@ -1418,6 +1428,7 @@ export function testResetNodeParametersToDefaults(): void {
 
 describe('data-model', () => {
   it('createEmptyGraph', testCreateEmptyGraph);
+  it('createScratchGraph', testCreateScratchGraph);
   it('idGeneration', testIdGeneration);
   it('getParameterValue', testGetParameterValue);
   it('coerceParameterValue', testCoerceParameterValue);

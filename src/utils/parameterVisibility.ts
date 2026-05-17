@@ -9,6 +9,11 @@ function resolveStoredNumber(parameter: string, node: NodeInstance, spec: NodeSp
   return 0;
 }
 
+export type ParameterVisibilityClause = {
+  parameter: string;
+  equals: number | number[];
+};
+
 /**
  * Grid layout sections (`GridElement.visibleWhen`) show only when the controlling
  * parameter equals the given number (stored node value or spec default).
@@ -19,5 +24,19 @@ export function layoutSectionVisible(
   spec: NodeSpec
 ): boolean {
   if (!clause) return true;
-  return resolveStoredNumber(clause.parameter, node, spec) === clause.equals;
+  return layoutParameterVisible(clause, node, spec);
+}
+
+/**
+ * Per-parameter visibility inside a grid (`GridElement.parameterVisibleWhen`).
+ */
+export function layoutParameterVisible(
+  clause: ParameterVisibilityClause | undefined,
+  node: NodeInstance,
+  spec: NodeSpec
+): boolean {
+  if (!clause) return true;
+  const value = resolveStoredNumber(clause.parameter, node, spec);
+  if (Array.isArray(clause.equals)) return clause.equals.includes(value);
+  return value === clause.equals;
 }

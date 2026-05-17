@@ -3,6 +3,8 @@ import type { NodeGraph } from '../../data-model/types';
 import type { NodeSpec } from '../../types/nodeSpec';
 import { injectArrangementLanesNodeFunctions } from '../arrangement/packArrangementRegionsForGlsl';
 import { injectArrangementNotesNodeFunctions } from '../arrangement/packArrangementNotesForGlsl';
+import { emitLutGlslFunctions } from '../colorRamps/emitGlsl';
+import { getBakedLutPresetIndex } from '../colorRamps/lutPresets';
 import {
   buildFloatParamExpressions,
   getAutomationExpressionForParam,
@@ -74,6 +76,8 @@ export class FunctionGenerator {
           node,
           audioSetup?.arrangementSnapshot
         );
+      } else if (nodeSpec.id === 'color-lut') {
+        funcCode = emitLutGlslFunctions(getBakedLutPresetIndex(node, nodeSpec));
       }
 
       // Build GLSL expressions for float parameters (config value + automation + optional input connection).

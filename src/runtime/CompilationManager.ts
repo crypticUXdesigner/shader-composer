@@ -16,11 +16,13 @@ import type {
 } from './types';
 import type { NodeGraph, ParameterValue } from '../data-model/types';
 import type { AudioSetup } from '../data-model/audioSetupTypes';
+import { getPrimaryFileId } from '../data-model/audioSetupTypes';
 import { hashGraph } from './utils';
 import type { ErrorHandler } from '../utils/errorHandling';
 import { globalErrorHandler, ErrorUtils } from '../utils/errorHandling';
 import type { Disposable } from '../utils/Disposable';
 import { GraphChangeDetector } from '../utils/changeDetection/GraphChangeDetector';
+import { isCompileTimeBakeParameter } from '../utils/compileTimeBakeParams';
 import { isRuntimeOnlyParameter } from '../utils/runtimeOnlyParams';
 import {
   applyUniformDefaults as applyUniformDefaultsImpl,
@@ -28,6 +30,7 @@ import {
   transferParametersFromGraph as transferParametersFromGraphImpl
 } from './compilation/parameterTransfer';
 import { reportCompilationErrors, reportCompilationError } from './compilation/compilationErrorReporting';
+import { refreshArrangementNotesBakeCacheFromGraph } from '../audiotool/arrangement/refreshArrangementNotesBakeCache';
 import { cloneableCompilePayload, type WorkerCompilePayload, type WorkerReplyMessage } from './compilation/workerMessages';
 import {
   previewPerformanceMark,
@@ -414,8 +417,16 @@ export class CompilationManager implements Disposable {
     this.onGraphStructureChange(true);
   }
 
+  /** Fingerprint of audio fields that change uniform declarations or compile-time arrangement bakes — not runtime remapper/band mapping. */
   private computeAudioCompileFingerprint(): string {
-    return this.audioSetup == null ? '' : JSON.stringify(this.audioSetup);
+    const setup = this.audioSetup;
+    if (setup == null) return '';
+    return JSON.stringify({
+      bandIds: setup.bands.map((b) => b.id),
+      remapperIds: setup.remappers.map((r) => r.id),
+      primaryFileId: getPrimaryFileId(setup) ?? null,
+      arrangementSnapshot: setup.arrangementSnapshot ?? null,
+    });
   }
 
   /**
@@ -480,6 +491,8 @@ export class CompilationManager implements Disposable {
     if (node && isRuntimeOnlyParameter(node.type, paramName)) {
       return;
     }
+    const compileTimeBake =
+      node !== undefined && isCompileTimeBakeParameter(node.type, paramName);
 
     const outputNodeId = this.compilationMetadata?.result.metadata.finalOutputNodeId ?? null;
     if (
@@ -502,7 +515,7 @@ export class CompilationManager implements Disposable {
         ? hashGraph(this.graph) !== this.lastGraphHash
         : false;
 
-    if (needsRecompile) {
+    if (needsRecompile || compileTimeBake) {
       this.scheduleRecompile();
     } else if (isUniformValue(value)) {
       this.scheduleParameterUpdate(nodeId, paramName, value);
@@ -729,6 +742,7 @@ export class CompilationManager implements Disposable {
             transferParametersFromGraphImpl(this.graph, maybe);
           }
 
+          refreshArrangementNotesBakeCacheFromGraph(this.graph, this.audioSetup?.arrangementSnapshot);
           this.onBeforeFirstRender?.(maybe);
 
           this.shaderInstance = maybe;
@@ -823,6 +837,7 @@ export class CompilationManager implements Disposable {
         transferParametersFromGraphImpl(this.graph, newInstance);
       }
 
+      refreshArrangementNotesBakeCacheFromGraph(this.graph, this.audioSetup?.arrangementSnapshot);
       this.onBeforeFirstRender?.(newInstance);
 
       // Swap renderer to the new instance; keep old instance alive until after first successful render.

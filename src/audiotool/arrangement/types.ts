@@ -10,6 +10,23 @@ export const MAX_ARRANGEMENT_REGIONS = 512;
 export const MAX_ARRANGEMENT_NOTES = 8192;
 /** Compile-time bake cap per arrangement-notes node (shader loop bound). */
 export const MAX_ARRANGEMENT_NOTES_PACKED = 2048;
+/**
+ * Above this baked note count the per-pixel scan is likely too heavy for interactive preview
+ * (see visible-window loop uniforms in arrangementNotesPreviewLoop). Tracks UI warns; shader still packs up to
+ * {@link MAX_ARRANGEMENT_NOTES_PACKED}.
+ */
+export const ARRANGEMENT_NOTES_PERFORMANCE_WARN_COUNT = 512;
+/**
+ * Max notes the preview fragment shader may scan per pixel each frame when many notes overlap the
+ * visible timeline window ({@link arrangementNotesPreviewLoop} clamps `noteLoopStart`/`noteLoopEnd`).
+ * {@link resolveArrangementNotesPreviewLoopBudget} may return less when the bake is large.
+ */
+export const ARRANGEMENT_NOTES_PREVIEW_LOOP_BUDGET = 512;
+/**
+ * Above this filtered note count, {@link packArrangementNotesForGlsl} evenly subsamples the sorted
+ * bake so compile-time literals and GPU arrays stay within an interactive budget (Tracks may show a higher count).
+ */
+export const ARRANGEMENT_NOTES_INTERACTIVE_PACK_LIMIT = 1280;
 
 export type ArrangementTrackKind = 'note' | 'audio' | 'pattern';
 

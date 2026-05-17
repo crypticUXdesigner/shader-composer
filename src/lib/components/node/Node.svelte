@@ -24,6 +24,12 @@
   import type { AudioSetup } from '../../../data-model/audioSetupTypes';
   import type { IAudioManager } from '../../../runtime/types';
   import { createStrictDoubleClickHandler } from '../../utils/strictDoubleClick';
+  import { isNodeInteractiveTarget } from './nodeInteractiveTarget';
+  import {
+    resolveSelectActiveBranchPort,
+    type SelectActiveBranchPort,
+  } from '../../../utils/selectActiveBranch';
+  import { subscribeParameterValueTick } from '../../stores/parameterValueTickStore';
 
   interface Props {
     nodeId: string;
@@ -104,6 +110,36 @@
   const isSdfRaymarcher = $derived(isSdfRaymarcherNode(spec.id, spec.category));
   const isShiny = $derived(isShinyNode(spec.id, spec.category));
 
+  let selectBranchTick = $state(0);
+
+  $effect(() => {
+    if (spec.id !== 'select') return;
+    const g = graph;
+    const n = node;
+    const specs = nodeSpecs;
+    const nodeSpec = spec;
+    return subscribeParameterValueTick(() => {
+      void g;
+      void n;
+      void nodeSpec;
+      void specs;
+      selectBranchTick++;
+    });
+  });
+
+  const selectActiveBranchPort = $derived.by((): SelectActiveBranchPort | null => {
+    if (spec.id !== 'select') return null;
+    void selectBranchTick;
+    return resolveSelectActiveBranchPort(
+      node,
+      spec,
+      graph,
+      nodeSpecs,
+      getAudioManager?.() ?? undefined,
+      getTimelineCurrentTime?.() ?? 0
+    );
+  });
+
   function handleHeaderDragStart(clientX: number, clientY: number, shiftKey: boolean) {
     onDrag(nodeId, clientX, clientY, shiftKey);
   }
@@ -111,15 +147,7 @@
   /** Patch-into mode: skip label rename (stopped in header), ports/buttons, and parameter controls. */
   function handlePatchIntoDoubleClick(e: MouseEvent) {
     if (!onPatchIntoDoubleClick) return;
-    const t = e.target;
-    if (!(t instanceof Element)) return;
-    if (
-      t.closest(
-        'button, input, textarea, select, .value-input-wrapper, .knob, .param-port, [role="textbox"], .toggle, .bezier-editor, .color-picker-row, .coord-pad, .coord-pad-cell, .remap-range-editor, .frequency-range-editor, .enum-selector-trigger'
-      )
-    ) {
-      return;
-    }
+    if (isNodeInteractiveTarget(e.target)) return;
     e.preventDefault();
     onPatchIntoDoubleClick(nodeId);
   }
@@ -129,7 +157,9 @@
   );
 
   function handleClick(e: MouseEvent) {
-    onSelect(nodeId, e.shiftKey);
+    if (!isNodeInteractiveTarget(e.target)) {
+      onSelect(nodeId, e.shiftKey);
+    }
     if (onPatchIntoDoubleClick) patchStrictDoubleClick(e);
   }
 </script>
@@ -159,6 +189,7 @@
     bypassed={node.bypassed === true}
     onPowerToggle={onPowerToggle}
     onHeaderPortPointerDown={onHeaderPortPointerDown}
+    selectActiveBranchPort={selectActiveBranchPort}
     onLabelChange={(l) => onLabelChange(nodeId, l)}
     onDragStart={handleHeaderDragStart}
   />

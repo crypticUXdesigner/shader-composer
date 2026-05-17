@@ -70,6 +70,39 @@ describe('migrateBandRemapToRemappers', () => {
     );
   });
 
+  it('rewrites band-raw connections to the default remapper', () => {
+    const bandId = 'b-raw';
+    const graph: NodeGraph = {
+      id: 'g1',
+      name: 'Test',
+      version: '2.0',
+      nodes: [{ id: 'n1', type: 'multiply', position: { x: 0, y: 0 }, parameters: {} }],
+      connections: [conn('c1', `audio-signal:band-${bandId}-raw`, 'n1', 'gain')],
+      metadata: {},
+      viewState: { zoom: 1, panX: 0, panY: 0, selectedNodeIds: [] },
+    };
+    const audioSetup: AudioSetup = {
+      files: [{ id: 'f1', name: 'File', autoPlay: false }],
+      bands: [
+        {
+          id: bandId,
+          name: 'Kick',
+          sourceFileId: 'f1',
+          frequencyBands: [[20, 200]],
+          smoothingHalfLifeSeconds: 1 / 120,
+          fftSize: 2048,
+        },
+      ],
+      remappers: [],
+    };
+
+    const { graph: outGraph, audioSetup: outSetup } = migrateBandRemapToRemappers(graph, audioSetup);
+
+    expect(outSetup.remappers).toHaveLength(1);
+    expect(outSetup.remappers[0].id).toBe(`band-${bandId}`);
+    expect(outGraph.connections[0].sourceNodeId).toBe(`audio-signal:remap-band-${bandId}`);
+  });
+
   it('is idempotent when remappers already exist', () => {
     const bandId = 'b1';
     const remapperId = `band-${bandId}`;

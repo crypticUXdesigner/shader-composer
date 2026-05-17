@@ -50,10 +50,10 @@
      * `targetParameter` can be empty strings in this mode.
      */
     browseOnly?: boolean;
-    canImportArrangement?: boolean;
     arrangementImportBusy?: boolean;
-    arrangementRegionCount?: number;
     onImportArrangement?: () => void;
+    onClearArrangement?: () => void;
+    onRevealInNodeEditor?: (nodeId: string, paramName: string) => void;
     class?: string;
   }
 
@@ -76,12 +76,14 @@
     onAudioSetupChange,
     getAudioManager,
     browseOnly = false,
-    canImportArrangement = false,
     arrangementImportBusy = false,
-    arrangementRegionCount,
     onImportArrangement,
+    onClearArrangement,
+    onRevealInNodeEditor,
     class: className = ''
   }: AudioSignalPickerPanelProps = $props();
+
+  const hasArrangementSnapshot = $derived(audioSetup.arrangementSnapshot != null);
 
   const connectionState = $derived(
     getParamPortConnectionState(targetNodeId, targetParameter, graph, audioSetup)
@@ -142,10 +144,7 @@
       deleteHandler = handler;
     },
     browseOnly,
-    canImportArrangement,
-    arrangementImportBusy,
-    arrangementRegionCount,
-    onImportArrangement,
+    onRevealInNodeEditor,
   } satisfies LargeSlotProps);
 
   /** Props for compact slot. Only valid when compactConnectionInfo is set. */
@@ -166,6 +165,7 @@
       onOpenLargeWithBand: (bandId: string) => {
         expandToLargeWithBandId = bandId;
       },
+      onRevealInNodeEditor,
     };
   });
 
@@ -244,19 +244,48 @@
 >
   {#snippet headerLeft()}
     {#if showingLarge}
-      <Button
-        variant="ghost"
-        size="sm"
-        mode="both"
-        iconPosition="trailing"
-        disabled={!hasFiles}
-        title={hasFiles ? 'New band' : 'Upload'}
-        onclick={handleNewBand}
-        aria-label="New band"
-      >
-        <IconSvg name="plus" variant="line" />
-        New band
-      </Button>
+      <div class="header-actions">
+        <Button
+          variant="ghost"
+          size="sm"
+          mode="both"
+          iconPosition="trailing"
+          disabled={!hasFiles}
+          title={hasFiles ? 'New band' : 'Upload'}
+          onclick={handleNewBand}
+          aria-label="New band"
+        >
+          <IconSvg name="plus" variant="line" />
+          New band
+        </Button>
+        {#if browseOnly && onImportArrangement}
+          <Button
+            variant="ghost"
+            size="sm"
+            mode="both"
+            disabled={arrangementImportBusy}
+            title="Fetch arrangement from studio project"
+            onclick={() => onImportArrangement?.()}
+            aria-busy={arrangementImportBusy}
+            aria-label="Fetch project"
+          >
+            {arrangementImportBusy ? 'Fetching…' : 'Fetch project'}
+          </Button>
+          {#if hasArrangementSnapshot && onClearArrangement}
+            <Button
+              variant="ghost"
+              size="sm"
+              mode="icon-only"
+              disabled={arrangementImportBusy}
+              title="Remove fetched arrangement"
+              aria-label="Remove fetched arrangement"
+              onclick={() => onClearArrangement?.()}
+            >
+              <IconSvg name="trash" variant="line" />
+            </Button>
+          {/if}
+        {/if}
+      </div>
     {/if}
   {/snippet}
 
@@ -274,6 +303,13 @@
 </FloatingPanel>
 
 <style>
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--pd-xs);
+    min-width: 0;
+  }
+
   .body {
     /* layout */
     display: flex;

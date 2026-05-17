@@ -11,7 +11,7 @@ import type { LayoutElementRenderer, ElementMetrics } from '../LayoutElementRend
 import { getCategoryVariableAsNumber, getCSSVariableAsNumber } from '../../../../../utils/cssTokens';
 import { FlexboxLayoutEngine } from '../flexbox/FlexboxLayoutEngine';
 import type { FlexItem } from '../flexbox/FlexboxTypes';
-import { layoutSectionVisible } from '../../../../../utils/parameterVisibility';
+import { layoutParameterVisible, layoutSectionVisible } from '../../../../../utils/parameterVisibility';
 
 /**
  * Get cell height for a parameter based on its UI type.
@@ -96,6 +96,7 @@ export class GridElementRenderer implements LayoutElementRenderer {
     for (const paramName of element.parameters) {
       if (spec.parameters[paramName]) {
         if (useHeaderToggle && paramName === headerToggle) continue;
+        if (!layoutParameterVisible(element.parameterVisibleWhen?.[paramName], node, spec)) continue;
         validParams.push(paramName);
       } else {
         console.warn(`Parameter "${paramName}" not found in node "${spec.id}", skipping from grid`);

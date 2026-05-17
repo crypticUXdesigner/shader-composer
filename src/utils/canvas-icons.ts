@@ -197,7 +197,7 @@ const iconAliases: Record<string, CanonicalIconId> = {
   'layers-selected': canonicalId('stack', 'line'),
   'layers-union': canonicalId('stack', 'line'),
   'layers-difference': canonicalId('stack-minus', 'line'),
-  'blend-mode': canonicalId('circles-four', 'line'),
+  'blend': canonicalId('circles-four', 'line'),
   'sparkles': canonicalId('sparkle', 'filled'),
   'light': canonicalId('lightbulb', 'filled'),
   'lightbulb': canonicalId('lightbulb', 'line'),

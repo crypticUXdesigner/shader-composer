@@ -33,11 +33,8 @@ export interface LargeSlotProps {
    * else (create, edit, delete) stays available.
    */
   browseOnly?: boolean;
-  /** Browse mode: import DAW arrangement for playlist primary (task 02). */
-  canImportArrangement?: boolean;
-  arrangementImportBusy?: boolean;
-  arrangementRegionCount?: number;
-  onImportArrangement?: () => void;
+  /** Pan/zoom node editor to a parameter port without closing the picker. */
+  onRevealInNodeEditor?: (nodeId: string, paramName: string) => void;
 }
 
 /** Props passed to the compact slot (02B). */
@@ -64,4 +61,5 @@ export interface CompactSlotProps {
   getAudioManager?: () => IAudioManager | null;
   /** When provided, compact shows a control to open the large picker with this band selected. */
   onOpenLargeWithBand?: (bandId: string) => void;
+  onRevealInNodeEditor?: (nodeId: string, paramName: string) => void;
 }

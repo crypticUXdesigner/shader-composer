@@ -41,7 +41,13 @@
     laneVMs: LaneViewModel[];
     trackGridLines: number[];
     selectedRegion: RegionKey | null;
-    regionDrag: { laneId: string; regionId: string; startTime: number } | null;
+    regionDrag: {
+      laneId: string;
+      regionId: string;
+      startTime: number;
+      isDuplicate?: boolean;
+      targetLaneId?: string;
+    } | null;
     regionResize: { laneId: string; regionId: string; startTime: number; startDuration: number } | null;
     timeToX: (t: number) => number;
 
@@ -53,12 +59,14 @@
     rulerSeekEnabled: boolean;
 
     onDeleteLane: (laneId: string) => void;
-    onTrackDblClick: (e: MouseEvent, laneId: string) => void;
     onRegionMouseDown: (e: MouseEvent, laneId: string, regionId: string) => void;
     onRegionContextMenu: (e: MouseEvent, laneId: string, regionId: string) => void;
     onRegionDblClick?: (laneId: string, regionId: string) => void;
     onRegionResizeStart: (e: MouseEvent, laneId: string, regionId: string, edge: 'left' | 'right') => void;
     onPlayheadPointerDown: (e: PointerEvent) => void;
+    onLaneRowPointerDown?: (e: PointerEvent, laneId: string) => void;
+    onLaneRowDblClick?: (e: MouseEvent, laneId: string) => void;
+    onLanesBackgroundSeekPointerDown?: (e: PointerEvent) => void;
     onRevealInNodeEditor?: (nodeId: string, paramName: string) => void;
 
     onTrackColumnEl?: (el: HTMLDivElement | null) => void;
@@ -84,12 +92,14 @@
     currentTime,
     rulerSeekEnabled,
     onDeleteLane,
-    onTrackDblClick,
     onRegionMouseDown,
     onRegionContextMenu,
     onRegionDblClick,
     onRegionResizeStart,
     onPlayheadPointerDown,
+    onLaneRowPointerDown,
+    onLaneRowDblClick,
+    onLanesBackgroundSeekPointerDown,
     onRevealInNodeEditor,
     onTrackColumnEl,
     onLanesContainerEl,
@@ -102,7 +112,7 @@
   function strictTrackClick(laneId: string): (e: MouseEvent) => void {
     let handler = trackStrictByLaneId.get(laneId);
     if (!handler) {
-      handler = createStrictDoubleClickHandler((e: MouseEvent) => onTrackDblClick(e, laneId));
+      handler = createStrictDoubleClickHandler((e: MouseEvent) => onLaneRowDblClick?.(e, laneId));
       trackStrictByLaneId.set(laneId, handler);
     }
     return handler;
@@ -190,16 +200,35 @@
       use:notifyDiv={onLanesContainerEl}
       class="lanes-inner"
       class:lanes-inner--playhead-only={playheadOnlyLayout}
+      class:lanes-inner--seek-enabled={rulerSeekEnabled}
+      title={rulerSeekEnabled ? 'Click or drag to seek' : undefined}
+      onpointerdown={rulerSeekEnabled ? onLanesBackgroundSeekPointerDown : undefined}
     >
         {#each laneVMs as vm (vm.lane.id)}
-          <div class="lane-row" data-lane-id={vm.lane.id}>
+          {@const duplicatePreviewLaneId =
+            regionDrag?.isDuplicate
+              ? (regionDrag.targetLaneId ?? regionDrag.laneId)
+              : null}
+          {@const isDuplicateDropTarget =
+            duplicatePreviewLaneId !== null && duplicatePreviewLaneId === vm.lane.id}
+          <div
+            class="lane-row"
+            class:lane-row--duplicate-target={isDuplicateDropTarget}
+            data-lane-id={vm.lane.id}
+            title={rulerSeekEnabled
+              ? 'Click or drag to seek; double-click empty lane to add a region'
+              : undefined}
+            onpointerdown={rulerSeekEnabled
+              ? (e: PointerEvent) => onLaneRowPointerDown?.(e, vm.lane.id)
+              : undefined}
+          >
             <div class="track-wrap">
               <div
                 class="track"
                 data-lane-id={vm.lane.id}
                 role="button"
                 tabindex={0}
-                onclick={strictTrackClick(vm.lane.id)}
+                onclick={rulerSeekEnabled ? undefined : strictTrackClick(vm.lane.id)}
               >
                 <div class="track-grid" aria-hidden="true">
                   {#each trackGridLines as x (x)}
@@ -207,7 +236,14 @@
                   {/each}
                 </div>
                 {#each vm.lane.regions as region (region.id)}
-                  {@const isDragging = regionDrag?.laneId === vm.lane.id && regionDrag?.regionId === region.id}
+                  {@const isDuplicateDragging =
+                    regionDrag?.isDuplicate === true &&
+                    regionDrag.laneId === vm.lane.id &&
+                    regionDrag.regionId === region.id}
+                  {@const isDragging =
+                    regionDrag?.laneId === vm.lane.id &&
+                    regionDrag?.regionId === region.id &&
+                    !isDuplicateDragging}
                   {@const isResizing = regionResize?.laneId === vm.lane.id && regionResize?.regionId === region.id}
                   {@const displayStart = isDragging ? regionDrag!.startTime : isResizing ? regionResize!.startTime : region.startTime}
                   {@const displayDuration = isResizing ? regionResize!.startDuration : region.duration}
@@ -250,6 +286,28 @@
                     </div>
                   </div>
                 {/each}
+                {#if regionDrag?.isDuplicate && isDuplicateDropTarget}
+                  {@const srcLaneVm = laneVMs.find((v) => v.lane.id === regionDrag.laneId)}
+                  {@const srcRegion = srcLaneVm?.lane.regions.find((r) => r.id === regionDrag.regionId)}
+                  {#if srcRegion}
+                    {@const ghostStart = regionDrag.startTime}
+                    {@const ghostLeft = timeToX(ghostStart)}
+                    {@const ghostRight = timeToX(ghostStart + srcRegion.duration)}
+                    {@const ghostW = Math.max(2, ghostRight - ghostLeft)}
+                    <div
+                      class="region-block is-duplicate-preview"
+                      data-category={vm.categorySlug}
+                      data-subgroup={vm.subGroupSlug || undefined}
+                      style="left: {ghostLeft}px; width: {ghostW}px"
+                      aria-hidden="true"
+                    >
+                      <div class="region-title">
+                        <span class="region-title-param">{vm.paramLabel}</span>
+                        <span class="region-title-node">{vm.nodeLabel}</span>
+                      </div>
+                    </div>
+                  {/if}
+                {/if}
               </div>
             </div>
           </div>
@@ -498,7 +556,7 @@
     min-height: 0;
     display: flex;
     flex-direction: column;
-    background: var(--color-gray-60);
+    background: var(--frame-elevated-bg);
     border-radius: var(--radius-md) var(--radius-md) 0 0;
     overflow: hidden;
   }
@@ -522,6 +580,11 @@
     display: flex;
     align-items: stretch;
     min-height: var(--size-md);
+  }
+
+  .lane-row--duplicate-target .track {
+    outline: 1px dashed var(--color-gray-100);
+    outline-offset: -1px;
   }
 
   .track-wrap {
@@ -631,6 +694,14 @@
     border: 2px solid var(--color-gray-130);
   }
 
+  .region-block.is-duplicate-preview {
+    z-index: 3;
+    pointer-events: none;
+    opacity: 0.55;
+    outline: 2px dashed var(--color-gray-130);
+    outline-offset: -2px;
+  }
+
   .region-resize {
     position: absolute;
     top: 0;
@@ -700,11 +771,18 @@
     bottom: 0;
     width: 12px;
     margin-left: -4px;
-    pointer-events: auto;
+    /* Let lane double-click / seek pass through unless the user targets the handle. */
+    pointer-events: none;
     cursor: col-resize;
     touch-action: none;
     z-index: 2;
     --timeline-playhead-bg: var(--print-highlight);
+  }
+
+  .playhead-handle:hover,
+  .playhead-handle:focus-visible,
+  .playhead-handle.is-dragging {
+    pointer-events: auto;
   }
 
   .playhead-handle:hover {

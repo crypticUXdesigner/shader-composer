@@ -7,6 +7,7 @@ import type { AudioSetup } from '../../data-model/audioSetupTypes';
 import type { AudioPlaybackController } from './AudioPlaybackController';
 import type { FrequencyAnalyzer } from './FrequencyAnalyzer';
 import type { UniformUpdate as OfflineUniformUpdate } from '../../video-export/OfflineAudioProvider';
+import { remapValue } from './remapValue';
 
 export interface AudioUniformUpdate {
   nodeId: string;
@@ -27,23 +28,6 @@ const collectedAudioUniformUpdatesScratch: AudioUniformUpdate[] = [];
  */
 export function getAudioUniformUpdatesScratchBufferForTests(): AudioUniformUpdate[] {
   return collectedAudioUniformUpdatesScratch;
-}
-
-/**
- * Remap a band value from [inMin,inMax] to [outMin,outMax].
- */
-function remapValue(
-  value: number | undefined | null,
-  inMin: number,
-  inMax: number,
-  outMin: number,
-  outMax: number
-): number {
-  if (value === undefined || value === null) return (outMin + outMax) / 2;
-  const range = inMax - inMin;
-  const normalized = range !== 0 ? (value - inMin) / range : 0;
-  const clamped = Math.max(0, Math.min(1, normalized));
-  return outMin + clamped * (outMax - outMin);
 }
 
 /**
@@ -114,6 +98,7 @@ export function collectAudioUniformUpdates(
   // When provided, offlineFileUniforms should cover all file-backed sources in audioSetup;
   // in that case, we skip the analyser-returned uniform branch + panel remap blocks to avoid duplicates.
   if (useCurveSampler && curveUniformProviders) {
+    const curveFileIds = new Set(curveUniformProviders.keys());
     for (const [fileId, provider] of curveUniformProviders.entries()) {
       const state = audioNodeStates.get(fileId);
       if (!state?.audioBuffer) continue;
@@ -127,6 +112,57 @@ export function collectAudioUniformUpdates(
         previousUniformValues.set(key, u.value);
       }
     }
+
+    // Per-file live fallback while Tier B rebuild clears that file's sampler (other files keep curves).
+    if (audioSetup?.bands) {
+      for (const band of audioSetup.bands) {
+        if (curveFileIds.has(band.sourceFileId)) continue;
+        const analyzerState = frequencyAnalyzer.getAnalyzerNodeState(band.id);
+        const bandValue = analyzerState?.smoothedBandValues?.[0] ?? 0;
+        const bandKey = `${band.id}.band`;
+        const prevBand = previousUniformValues.get(bandKey);
+        if (forcePushAll || prevBand === undefined || Math.abs(bandValue - prevBand) > threshold) {
+          updates.push({ nodeId: band.id, paramName: 'band', value: bandValue });
+          previousUniformValues.set(bandKey, bandValue);
+        }
+        const remapped = remapValue(
+          bandValue,
+          band.remapInMin ?? 0,
+          band.remapInMax ?? 1,
+          band.remapOutMin ?? 0,
+          band.remapOutMax ?? 1
+        );
+        const key = `${band.id}.remap`;
+        const prev = previousUniformValues.get(key);
+        if (forcePushAll || prev === undefined || Math.abs(remapped - prev) > threshold) {
+          updates.push({ nodeId: band.id, paramName: 'remap', value: remapped });
+          previousUniformValues.set(key, remapped);
+        }
+      }
+    }
+
+    if (audioSetup?.remappers) {
+      for (const remapper of audioSetup.remappers) {
+        const band = audioSetup.bands.find((b) => b.id === remapper.bandId);
+        if (band && curveFileIds.has(band.sourceFileId)) continue;
+        const analyzerState = frequencyAnalyzer.getAnalyzerNodeState(remapper.bandId);
+        const bandValue = analyzerState?.smoothedBandValues?.[0];
+        const remapped = remapValue(
+          bandValue,
+          remapper.inMin,
+          remapper.inMax,
+          remapper.outMin,
+          remapper.outMax
+        );
+        const key = `remap-${remapper.id}.out`;
+        const prev = previousUniformValues.get(key);
+        if (forcePushAll || prev === undefined || Math.abs(remapped - prev) > threshold) {
+          updates.push({ nodeId: `remap-${remapper.id}`, paramName: 'out', value: remapped });
+          previousUniformValues.set(key, remapped);
+        }
+      }
+    }
+
     return updates;
   }
 

@@ -1,0 +1,101 @@
+{
+  "format": "shadernoice-node-graph",
+  "formatVersion": "2.0",
+  "graph": {
+    "id": "graph-preset-color-gradient-demo",
+    "name": "Color Gradient Demo",
+    "version": "2.0",
+    "nodes": [
+      {
+        "id": "node-uv",
+        "type": "uv-coordinates",
+        "position": { "x": -900, "y": 0 },
+        "parameters": {}
+      },
+      {
+        "id": "node-noise",
+        "type": "noise",
+        "position": { "x": -300, "y": 80 },
+        "parameters": {
+          "noiseMode": 0,
+          "noiseScale": 3.0,
+          "noiseOctaves": 4,
+          "noiseLacunarity": 2.0,
+          "noiseGain": 0.5,
+          "noiseTimeSpeed": 0.0,
+          "noiseIntensity": 1.0
+        }
+      },
+      {
+        "id": "node-gradient",
+        "type": "color-gradient",
+        "position": { "x": 350, "y": 0 },
+        "parameters": {
+          "gradientMode": 0,
+          "centerX": 0.0,
+          "centerY": 0.0,
+          "radius": 0.75,
+          "falloff": 0.35,
+          "stop0L": 0.12,
+          "stop0C": 0.1,
+          "stop0H": 265.0,
+          "stop1L": 0.5,
+          "stop1C": 0.14,
+          "stop1H": 220.0,
+          "stop2L": 0.88,
+          "stop2C": 0.08,
+          "stop2H": 45.0,
+          "stop0T": 0.0,
+          "stop1T": 0.45,
+          "stop2T": 1.0,
+          "valueGain": 1.2,
+          "valuePower": 1.0,
+          "valueSoftness": 0.04,
+          "intensity": 1.0
+        }
+      },
+      {
+        "id": "node-output",
+        "type": "final-output",
+        "position": { "x": 950, "y": 0 },
+        "parameters": {}
+      }
+    ],
+    "connections": [
+      {
+        "id": "conn-uv-pos",
+        "sourceNodeId": "node-uv",
+        "sourcePort": "out",
+        "targetNodeId": "node-gradient",
+        "targetPort": "position"
+      },
+      {
+        "id": "conn-uv-noise",
+        "sourceNodeId": "node-uv",
+        "sourcePort": "out",
+        "targetNodeId": "node-noise",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-noise-value",
+        "sourceNodeId": "node-noise",
+        "sourcePort": "out",
+        "targetNodeId": "node-gradient",
+        "targetPort": "value"
+      },
+      {
+        "id": "conn-grad-out",
+        "sourceNodeId": "node-gradient",
+        "sourcePort": "out",
+        "targetNodeId": "node-output",
+        "targetPort": "in"
+      }
+    ],
+    "viewState": {
+      "zoom": 0.85,
+      "panX": 180,
+      "panY": 120,
+      "selectedNodeIds": []
+    }
+  }
+}

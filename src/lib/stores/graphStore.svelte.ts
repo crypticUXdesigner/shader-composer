@@ -32,6 +32,7 @@ import {
   setConnectionDisabled,
   updateViewState,
 } from '../../data-model/immutableUpdates';
+import { applyArrangementNotesDefaultTrackFilterToNode } from '../../data-model/arrangementNotesTrackFilterDefaults';
 import type { NodeInstance } from '../../data-model/types';
 import type { NodeSpecification } from '../../data-model/validationTypes';
 import type { ConnectionValidationContext } from '../../data-model/connectionValidationContext';
@@ -139,6 +140,19 @@ function resetNodeParametersToDefaultsAction(
   parameterSpecs: Record<string, ParameterSpec>
 ): void {
   graph = resetNodeParametersToDefaults(graph, nodeId, parameterSpecs);
+  const node = graph.nodes.find((n) => n.id === nodeId);
+  if (node?.type === 'arrangement-notes') {
+    const next = applyArrangementNotesDefaultTrackFilterToNode(
+      node,
+      audioSetup.arrangementSnapshot
+    );
+    if (next !== node) {
+      graph = {
+        ...graph,
+        nodes: graph.nodes.map((n) => (n.id === nodeId ? next : n)),
+      };
+    }
+  }
   graphChangedListener?.(graph);
 }
 

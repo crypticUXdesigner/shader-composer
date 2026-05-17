@@ -71,8 +71,12 @@ export function emitCurveEvalGlsl(
   if (keyframes.length === 1) return `${prefix}_raw = ${keyframes[0].value.toFixed(10)};`;
 
   const n = keyframes.length;
-  const times = keyframes.map(k => k.time.toFixed(10)).join(', ');
-  const values = keyframes.map(k => k.value.toFixed(10)).join(', ');
+  const fmtKf = (x: number): string => {
+    const v = Number.isFinite(x) ? Math.max(0, Math.min(1, x)) : 0;
+    return v.toFixed(10);
+  };
+  const times = keyframes.map((k) => fmtKf(k.time)).join(', ');
+  const values = keyframes.map((k) => fmtKf(k.value)).join(', ');
   const interp = curve.interpolation || 'linear';
 
   const lines: string[] = [];

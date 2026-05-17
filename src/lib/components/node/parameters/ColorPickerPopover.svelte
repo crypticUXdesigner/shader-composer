@@ -44,6 +44,12 @@
   const s = $derived(picking ? localS : propHsv.s);
   const v = $derived(picking ? localV : propHsv.v);
 
+  function syncLocalFromProp() {
+    localH = propHsv.h;
+    localS = propHsv.s;
+    localV = propHsv.v;
+  }
+
   function updateFromHSV() {
     const oklch = hsvSrgbToOklch(h, s, v);
     onChange?.(oklch.l, oklch.c, oklch.h);
@@ -89,8 +95,7 @@
 
   function handleSvPointerDown(e: MouseEvent) {
     draggingSv = true;
-    localS = propHsv.s;
-    localV = propHsv.v;
+    syncLocalFromProp();
     handleSvMove(e);
   }
 
@@ -106,7 +111,7 @@
 
   function handleHuePointerDown(e: MouseEvent) {
     draggingHue = true;
-    localH = propHsv.h;
+    syncLocalFromProp();
     handleHueMove(e);
   }
 

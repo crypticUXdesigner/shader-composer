@@ -92,16 +92,21 @@ export function runMouseDownHandlers(ctx: MouseEventMoveContext, e: MouseEvent):
       const el = layout?.[buttonHit.elementIndex] as { type?: string; pickers?: [[string, string, string], [string, string, string]] } | undefined;
       if (node && spec && el?.pickers?.length === 2) {
         if (buttonHit.button === 'swap') {
-          const [[sL, sC, sH], [eL, eC, eH]] = el.pickers;
-          const getVal = (p: string) => (node.parameters[p] ?? spec.parameters[p]?.default ?? 0) as number;
-          const startL = getVal(sL), startC = getVal(sC), startH = getVal(sH);
-          const endL = getVal(eL), endC = getVal(eC), endH = getVal(eH);
-          ctx.deps.onParameterChanged?.(buttonHit.nodeId, sL, endL);
-          ctx.deps.onParameterChanged?.(buttonHit.nodeId, sC, endC);
-          ctx.deps.onParameterChanged?.(buttonHit.nodeId, sH, endH);
-          ctx.deps.onParameterChanged?.(buttonHit.nodeId, eL, startL);
-          ctx.deps.onParameterChanged?.(buttonHit.nodeId, eC, startC);
-          ctx.deps.onParameterChanged?.(buttonHit.nodeId, eH, startH);
+          if (spec.parameters?.swapColors != null) {
+            const current = (node.parameters.swapColors ?? spec.parameters.swapColors?.default ?? 0) as number;
+            ctx.deps.onParameterChanged?.(buttonHit.nodeId, 'swapColors', current > 0 ? 0 : 1);
+          } else {
+            const [[sL, sC, sH], [eL, eC, eH]] = el.pickers;
+            const getVal = (p: string) => (node.parameters[p] ?? spec.parameters[p]?.default ?? 0) as number;
+            const startL = getVal(sL), startC = getVal(sC), startH = getVal(sH);
+            const endL = getVal(eL), endC = getVal(eC), endH = getVal(eH);
+            ctx.deps.onParameterChanged?.(buttonHit.nodeId, sL, endL);
+            ctx.deps.onParameterChanged?.(buttonHit.nodeId, sC, endC);
+            ctx.deps.onParameterChanged?.(buttonHit.nodeId, sH, endH);
+            ctx.deps.onParameterChanged?.(buttonHit.nodeId, eL, startL);
+            ctx.deps.onParameterChanged?.(buttonHit.nodeId, eC, startC);
+            ctx.deps.onParameterChanged?.(buttonHit.nodeId, eH, startH);
+          }
         } else {
           const current = (node.parameters.reverseHue ?? spec.parameters?.reverseHue?.default ?? 0) as number;
           ctx.deps.onParameterChanged?.(buttonHit.nodeId, 'reverseHue', current > 0 ? 0 : 1);

@@ -2,7 +2,7 @@
  * Turns a hub pick into graph + audio + session state (IndexedDB writes for new user rows).
  */
 
-import { generateUUID } from '../data-model/utils';
+import { createScratchGraph, generateUUID } from '../data-model/utils';
 import type { AudioSetup } from '../data-model/audioSetupTypes';
 import type { NodeGraph } from '../data-model/types';
 import type { NodeSpecification } from '../data-model/validation';
@@ -72,8 +72,8 @@ export async function resolveHubSelectionToGraph(
     }
 
     case 'newScratch': {
-      const result = await loadPreset('new', nodeSpecs);
-      const { graph, audioSetup } = await applyLoadResult(result, remapGraphIds, applyStartingTrack);
+      const graph = remapGraphIds(createScratchGraph('Untitled'));
+      const audioSetup: AudioSetup = { files: [], bands: [], remappers: [] };
       const id = generateUUID();
       const iso = new Date().toISOString();
       const json = serializeGraph(graph, true, audioSetup, { startingTrackId: startingTrackOption(audioSetup) });
@@ -93,7 +93,7 @@ export async function resolveHubSelectionToGraph(
         graph,
         audioSetup,
         activeSession: { kind: 'userProject', projectId: id },
-        selectedPreset: 'new',
+        selectedPreset: null,
       };
     }
 

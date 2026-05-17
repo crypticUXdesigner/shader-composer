@@ -9,7 +9,10 @@ import {
   setArrangementSnapshot,
   setPrimarySource,
   retargetBandsToPrimary,
+  duplicateRemapperName,
+  createDuplicateRemapperEntry,
 } from './audioSetupUpdates';
+import type { AudioRemapperEntry } from './audioSetupTypes';
 
 const snapshot = buildArrangementSnapshot(spikeFixture as RawArrangementEntities);
 
@@ -195,5 +198,42 @@ describe('arrangement snapshot audio setup updates', () => {
     );
     expect(cleared.arrangementSnapshot).toBeUndefined();
     expect(cleared.arrangementImportedAt).toBeUndefined();
+  });
+});
+
+describe('duplicateRemapperName', () => {
+  it('appends 2 when duplicating an unnumbered name', () => {
+    expect(duplicateRemapperName('Level', ['Level'])).toBe('Level 2');
+  });
+
+  it('uses the next free suffix when numbered names exist', () => {
+    expect(duplicateRemapperName('Level', ['Level', 'Level 2'])).toBe('Level 3');
+    expect(duplicateRemapperName('Level 2', ['Level', 'Level 2'])).toBe('Level 3');
+  });
+
+  it('falls back to Remapper when the source name is empty', () => {
+    expect(duplicateRemapperName('', [])).toBe('Remapper 1');
+  });
+});
+
+describe('createDuplicateRemapperEntry', () => {
+  it('copies remap settings and assigns a new id and name', () => {
+    const source: AudioRemapperEntry = {
+      id: 'remap-a',
+      name: 'Drive',
+      bandId: 'band-1',
+      inMin: 0.1,
+      inMax: 0.9,
+      outMin: -1,
+      outMax: 2,
+    };
+    const duplicate = createDuplicateRemapperEntry(source, 'remap-b', ['Drive']);
+    expect(duplicate.id).toBe('remap-b');
+    expect(duplicate.name).toBe('Drive 2');
+    expect(duplicate.bandId).toBe('band-1');
+    expect(duplicate.inMin).toBe(0.1);
+    expect(duplicate.inMax).toBe(0.9);
+    expect(duplicate.outMin).toBe(-1);
+    expect(duplicate.outMax).toBe(2);
   });
 });

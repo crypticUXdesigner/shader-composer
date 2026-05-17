@@ -62,8 +62,8 @@ export const selectNodeSpec: NodeSpec = {
   description: 'Selects between two values based on condition',
   icon: 'select',
   inputs: [
-    { name: 'trueValue', type: 'any', label: 'If true' },
     { name: 'falseValue', type: 'any', label: 'If false' },
+    { name: 'trueValue', type: 'any', label: 'If true' },
     { name: 'condition', type: 'float', fallbackParameter: 'condition', label: 'Condition' }
   ],
   outputs: [
@@ -105,7 +105,7 @@ export const maskCompositeFloatNodeSpec: NodeSpec = {
     bg: { type: 'float', default: 0.0, min: -10.0, max: 10.0, step: 0.001, label: 'Background',
       knobPolarity: 'two-sided' },
     mask: { type: 'float', default: 0.5, min: 0.0, max: 1.0, step: 0.01, label: 'Mask' },
-    fg: { type: 'float', default: 1.0, min: -10.0, max: 10.0, step: 0.001, label: 'Foreground',
+    fg: { type: 'float', default: 0.0, min: -10.0, max: 10.0, step: 0.001, label: 'Foreground',
       knobPolarity: 'two-sided' },
     invert: { type: 'int', default: 0, min: 0, max: 1, step: 1, label: 'Invert' }
   },

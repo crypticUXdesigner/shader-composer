@@ -305,6 +305,119 @@ describe('CompilationManager', () => {
       expect(compiler.compile).toHaveBeenCalledTimes(2);
     });
 
+    it('does not recompile when only remapper range values change', () => {
+      const compiler = createMockCompiler();
+      const renderer = createMockRenderer();
+      const cm = createCompilationManager(compiler, renderer);
+
+      const g = minimalGraph();
+      const audioV1: AudioSetup = {
+        files: [{ id: 'f1', name: 't', autoPlay: false }],
+        bands: [
+          {
+            id: 'band-1',
+            name: 'Bass',
+            sourceFileId: 'f1',
+            frequencyBands: [[20, 120]],
+            fftSize: 2048,
+          },
+        ],
+        remappers: [
+          {
+            id: 'remap-1',
+            name: 'Kick',
+            bandId: 'band-1',
+            inMin: 0,
+            inMax: 1,
+            outMin: 0,
+            outMax: 1,
+          },
+        ],
+      };
+      const audioV2: AudioSetup = {
+        ...audioV1,
+        remappers: [
+          {
+            ...audioV1.remappers[0]!,
+            inMin: 0.2,
+            inMax: 0.8,
+            outMin: 0.1,
+            outMax: 0.9,
+          },
+        ],
+      };
+
+      cm.setGraph(g);
+      cm.setAudioSetup(audioV1);
+      cm.onGraphStructureChange(true);
+      vi.runAllTimers();
+      expect(compiler.compile).toHaveBeenCalledTimes(1);
+
+      cm.setGraph(g);
+      cm.setAudioSetup(audioV2);
+      cm.onGraphStructureChange(true);
+      vi.runAllTimers();
+      expect(compiler.compile).toHaveBeenCalledTimes(1);
+    });
+
+    it('recompiles when a remapper is added', () => {
+      const compiler = createMockCompiler();
+      const renderer = createMockRenderer();
+      const cm = createCompilationManager(compiler, renderer);
+
+      const g = minimalGraph();
+      const audioV1: AudioSetup = {
+        files: [{ id: 'f1', name: 't', autoPlay: false }],
+        bands: [
+          {
+            id: 'band-1',
+            name: 'Bass',
+            sourceFileId: 'f1',
+            frequencyBands: [[20, 120]],
+            fftSize: 2048,
+          },
+        ],
+        remappers: [
+          {
+            id: 'remap-1',
+            name: 'Kick',
+            bandId: 'band-1',
+            inMin: 0,
+            inMax: 1,
+            outMin: 0,
+            outMax: 1,
+          },
+        ],
+      };
+      const audioV2: AudioSetup = {
+        ...audioV1,
+        remappers: [
+          ...audioV1.remappers,
+          {
+            id: 'remap-2',
+            name: 'Snare',
+            bandId: 'band-1',
+            inMin: 0,
+            inMax: 1,
+            outMin: 0,
+            outMax: 1,
+          },
+        ],
+      };
+
+      cm.setGraph(g);
+      cm.setAudioSetup(audioV1);
+      cm.onGraphStructureChange(true);
+      vi.runAllTimers();
+      expect(compiler.compile).toHaveBeenCalledTimes(1);
+
+      cm.setGraph(g);
+      cm.setAudioSetup(audioV2);
+      cm.onGraphStructureChange(true);
+      vi.runAllTimers();
+      expect(compiler.compile).toHaveBeenCalledTimes(2);
+    });
+
     it('first compile after project load includes arrangement snapshot when audio is set before graph', () => {
       const compiler = createMockCompiler();
       const renderer = createMockRenderer();
@@ -750,6 +863,74 @@ describe('CompilationManager', () => {
         expect(hashSpy).not.toHaveBeenCalled();
       } finally {
         hashSpy.mockRestore();
+        vi.unstubAllGlobals();
+      }
+    });
+
+    it('schedules recompile when arrangement-notes trackLayout changes (compile-time bake)', () => {
+      const rafMock = vi.fn((cb: FrameRequestCallback): number => {
+        cb(0);
+        return 0;
+      });
+      vi.stubGlobal('requestAnimationFrame', rafMock);
+      vi.stubGlobal('cancelAnimationFrame', vi.fn());
+      const idleCallbacks: Array<() => void> = [];
+      vi.stubGlobal(
+        'requestIdleCallback',
+        (cb: IdleRequestCallback) => {
+          idleCallbacks.push(() =>
+            cb({ didTimeout: false, timeRemaining: () => 5 } as IdleDeadline)
+          );
+          return idleCallbacks.length;
+        }
+      );
+      vi.stubGlobal('cancelIdleCallback', vi.fn());
+      try {
+        const compiler = createMockCompiler();
+        const renderer = createMockRenderer();
+        const cm = createCompilationManager(compiler, renderer);
+
+        const graphWithNotes: NodeGraph = {
+          id: 'g-arr-notes-layout',
+          name: 'Test',
+          version: '2.0',
+          nodes: [
+            { id: 'n1', type: 'time', position: { x: 0, y: 0 }, parameters: {} },
+            {
+              id: 'n-notes',
+              type: 'arrangement-notes',
+              position: { x: 1, y: 0 },
+              parameters: { trackLayout: 0 },
+            },
+            { id: 'n2', type: 'final-output', position: { x: 2, y: 0 }, parameters: {} },
+          ],
+          connections: [
+            { id: 'c1', sourceNodeId: 'n1', sourcePort: 'out', targetNodeId: 'n-notes', targetPort: 'in' },
+            { id: 'c2', sourceNodeId: 'n-notes', sourcePort: 'out', targetNodeId: 'n2', targetPort: 'in' },
+          ],
+        };
+        cm.setGraph(graphWithNotes);
+        cm.onGraphStructureChange(true);
+        vi.runAllTimers();
+        expect(compiler.compile).toHaveBeenCalledTimes(1);
+
+        vi.mocked(compiler.compile).mockClear();
+        mockInstanceMethods.setParameter.mockClear();
+        idleCallbacks.length = 0;
+
+        const graphLanes: NodeGraph = {
+          ...graphWithNotes,
+          nodes: graphWithNotes.nodes.map((n) =>
+            n.id === 'n-notes' ? { ...n, parameters: { ...n.parameters, trackLayout: 1 } } : n
+          ),
+        };
+        cm.setGraph(graphLanes);
+        cm.onParameterChange('n-notes', 'trackLayout', 1);
+        expect(idleCallbacks).toHaveLength(1);
+        idleCallbacks[0]?.();
+
+        expect(compiler.compile).toHaveBeenCalledTimes(1);
+      } finally {
         vi.unstubAllGlobals();
       }
     });

@@ -1,0 +1,1862 @@
+{
+  "format": "shadernoice-node-graph",
+  "formatVersion": "2.0",
+  "graph": {
+    "id": "graph-1779045524020-9dw92xflx",
+    "name": "HYSTERIA (Ben Erb floydpjasper)",
+    "version": "2.0",
+    "nodes": [
+      {
+        "id": "node-1779045524020-ijgps4wep",
+        "type": "uv-coordinates",
+        "position": {
+          "x": -1117,
+          "y": -430
+        },
+        "parameters": {}
+      },
+      {
+        "id": "node-1779045524020-d63dkx6xv",
+        "type": "radial-uv-warp",
+        "position": {
+          "x": -648,
+          "y": -435
+        },
+        "parameters": {
+          "warpMode": 1,
+          "warpCenterX": 0.30000000000000027,
+          "warpCenterY": 0,
+          "bulgeStrength": 0.5,
+          "bulgeRadius": 1,
+          "bulgeFalloff": 1,
+          "fisheyeStrength": -0.040000000000000036,
+          "fisheyeAspect": 1,
+          "spherizeRadius": 1,
+          "spherizeStrength": 1
+        },
+        "parameterInputModes": {
+          "fisheyeStrength": "multiply",
+          "warpCenterX": "multiply"
+        }
+      },
+      {
+        "id": "node-1779045524020-yws4weqfw",
+        "type": "radial-uv-warp",
+        "position": {
+          "x": 54,
+          "y": -436
+        },
+        "parameters": {
+          "warpMode": 1,
+          "warpCenterX": 0,
+          "warpCenterY": 0,
+          "bulgeStrength": 0.5,
+          "bulgeRadius": 1,
+          "bulgeFalloff": 1,
+          "fisheyeStrength": -1,
+          "fisheyeAspect": 1,
+          "spherizeRadius": 1,
+          "spherizeStrength": 1
+        },
+        "parameterInputModes": {
+          "fisheyeStrength": "multiply"
+        }
+      },
+      {
+        "id": "node-1779045524020-qxdkc5zoj",
+        "type": "oklch-color-map",
+        "position": {
+          "x": 2508,
+          "y": -439
+        },
+        "parameters": {
+          "startColorL": 0.19009102415526827,
+          "startColorC": 0.049419253122388526,
+          "startColorH": 323.937581771607,
+          "endColorL": 1,
+          "endColorC": 0.2,
+          "endColorH": 85.72624255774541,
+          "lCurveX1": 0.582449110201996,
+          "lCurveY1": 0,
+          "lCurveX2": 0.5503201944930203,
+          "lCurveY2": 1,
+          "cCurveX1": 0.4039104975569108,
+          "cCurveY1": 0,
+          "cCurveX2": 0.6465781570563209,
+          "cCurveY2": 1,
+          "hCurveX1": 0.4498095418888608,
+          "hCurveY1": 0,
+          "hCurveX2": 0.5960899226601082,
+          "hCurveY2": 1,
+          "reverseHue": 0,
+          "mapMode": 1,
+          "stops": 9,
+          "ditherStrength": 0.3,
+          "pixelSize": 4,
+          "transitionWidth": 0
+        },
+        "parameterInputModes": {
+          "endColorL": "multiply",
+          "ditherStrength": "multiply"
+        }
+      },
+      {
+        "id": "node-1779045524020-kk8ck72mf",
+        "type": "radial-uv-warp",
+        "position": {
+          "x": 764,
+          "y": -437
+        },
+        "parameters": {
+          "warpMode": 0,
+          "warpCenterX": 0,
+          "warpCenterY": 0,
+          "bulgeStrength": 2,
+          "bulgeRadius": 3.48,
+          "bulgeFalloff": 5,
+          "fisheyeStrength": -0.3,
+          "fisheyeAspect": 1,
+          "spherizeRadius": 1,
+          "spherizeStrength": 1
+        },
+        "parameterInputModes": {
+          "bulgeStrength": "multiply",
+          "bulgeRadius": "multiply"
+        }
+      },
+      {
+        "id": "node-1779045524020-036mzo34d",
+        "type": "particle-system",
+        "position": {
+          "x": 1476,
+          "y": -438
+        },
+        "parameters": {
+          "particleCellSize": 0.05,
+          "particleCount": 3,
+          "particleSize": 0.04,
+          "particleIntensity": 1,
+          "particleFalloff": 5,
+          "particleTimeSpeed": 5,
+          "particleTimeOffset": 0
+        },
+        "parameterInputModes": {
+          "particleSize": "multiply"
+        }
+      },
+      {
+        "id": "node-1779045524020-xx43mwccu",
+        "type": "tone-mapping",
+        "position": {
+          "x": 3769,
+          "y": -925
+        },
+        "parameters": {
+          "exposure": 2.47,
+          "contrast": 1.04,
+          "saturation": 0.44
+        },
+        "parameterInputModes": {
+          "exposure": "multiply"
+        }
+      },
+      {
+        "id": "node-1779045524020-q9byopucz",
+        "type": "tone-mapping",
+        "position": {
+          "x": 3768,
+          "y": -449
+        },
+        "parameters": {
+          "exposure": 1,
+          "contrast": 1.23,
+          "saturation": 2
+        },
+        "parameterInputModes": {
+          "contrast": "multiply"
+        }
+      },
+      {
+        "id": "node-1779045524020-13kmw6ikl",
+        "type": "mask-composite-vec3",
+        "position": {
+          "x": 4962,
+          "y": -449
+        },
+        "parameters": {
+          "mask": 0.5,
+          "invert": 0
+        }
+      },
+      {
+        "id": "node-1779045524020-efcesqqx6",
+        "type": "gradient",
+        "position": {
+          "x": 3773,
+          "y": 27
+        },
+        "parameters": {
+          "gradientType": 0,
+          "centerX": 0,
+          "centerY": 0,
+          "radius": 1.2,
+          "falloff": 5,
+          "invert": 0,
+          "angle": 0,
+          "linearScale": 1,
+          "intensity": 1
+        }
+      },
+      {
+        "id": "node-1779045524020-gmmhczypz",
+        "type": "particle-system",
+        "position": {
+          "x": 1500,
+          "y": 1306
+        },
+        "parameters": {
+          "particleCellSize": 0.05,
+          "particleCount": 1,
+          "particleSize": 0.04,
+          "particleIntensity": 1,
+          "particleFalloff": 5,
+          "particleTimeSpeed": 5,
+          "particleTimeOffset": 0
+        },
+        "parameterInputModes": {
+          "particleSize": "multiply"
+        }
+      },
+      {
+        "id": "node-1779045524020-8mulxugpy",
+        "type": "oklch-color-map",
+        "position": {
+          "x": 4244,
+          "y": 2089
+        },
+        "parameters": {
+          "startColorL": 0,
+          "startColorC": 0,
+          "startColorH": 0,
+          "endColorL": 1,
+          "endColorC": 0.2,
+          "endColorH": 85.72624255774541,
+          "lCurveX1": 0.582449110201996,
+          "lCurveY1": 0,
+          "lCurveX2": 0.5503201944930203,
+          "lCurveY2": 1,
+          "cCurveX1": 0.4039104975569108,
+          "cCurveY1": 0,
+          "cCurveX2": 0.6465781570563209,
+          "cCurveY2": 1,
+          "hCurveX1": 0.4498095418888608,
+          "hCurveY1": 0,
+          "hCurveX2": 0.5960899226601082,
+          "hCurveY2": 1,
+          "reverseHue": 0,
+          "mapMode": 1,
+          "stops": 9,
+          "ditherStrength": 0.43,
+          "pixelSize": 4,
+          "transitionWidth": 0
+        },
+        "parameterInputModes": {
+          "endColorL": "multiply",
+          "ditherStrength": "multiply"
+        }
+      },
+      {
+        "id": "node-1779045524020-22xidf68j",
+        "type": "mask-composite-vec3",
+        "position": {
+          "x": 6452,
+          "y": 1041
+        },
+        "parameters": {
+          "mask": 0.5,
+          "invert": 0
+        }
+      },
+      {
+        "id": "node-1779045524020-scqj1ofcq",
+        "type": "tone-mapping",
+        "position": {
+          "x": 5316,
+          "y": 2089
+        },
+        "parameters": {
+          "exposure": 3.12,
+          "contrast": 0.98,
+          "saturation": 2
+        },
+        "parameterInputModes": {
+          "contrast": "multiply",
+          "exposure": "multiply",
+          "saturation": "multiply"
+        }
+      },
+      {
+        "id": "node-1779045524020-ug5qwsmdl",
+        "type": "noise",
+        "position": {
+          "x": 1496,
+          "y": 2163
+        },
+        "parameters": {
+          "noiseMode": 2,
+          "noiseScale": 3.43,
+          "noiseOctaves": 5,
+          "noiseLacunarity": 1.37,
+          "noiseGain": 1,
+          "noiseTimeSpeed": 0.4,
+          "noiseTimeOffset": -3,
+          "noiseIntensity": 2
+        },
+        "parameterInputModes": {
+          "noiseTimeOffset": "multiply"
+        }
+      },
+      {
+        "id": "node-1779045524020-vd12x81if",
+        "type": "mask-composite-float",
+        "position": {
+          "x": 3160,
+          "y": 2123
+        },
+        "parameters": {
+          "bg": 0,
+          "mask": 1,
+          "fg": 0,
+          "invert": 0
+        }
+      },
+      {
+        "id": "node-1779045524020-og8bfedru",
+        "type": "noise",
+        "position": {
+          "x": 1486,
+          "y": 3019
+        },
+        "parameters": {
+          "noiseMode": 2,
+          "noiseScale": 2.8000000000000003,
+          "noiseOctaves": 5,
+          "noiseLacunarity": 1.44,
+          "noiseGain": 1,
+          "noiseTimeSpeed": 0.62,
+          "noiseTimeOffset": 3,
+          "noiseIntensity": 2
+        },
+        "parameterInputModes": {
+          "noiseTimeOffset": "multiply"
+        }
+      },
+      {
+        "id": "node-1779045524020-87c4qjgp8",
+        "type": "final-output",
+        "position": {
+          "x": 7154,
+          "y": 1041
+        },
+        "parameters": {}
+      },
+      {
+        "id": "node-1779045524020-1ghdlzikf",
+        "type": "add",
+        "position": {
+          "x": 2633,
+          "y": 2194
+        },
+        "parameters": {
+          "b": 0
+        }
+      }
+    ],
+    "connections": [
+      {
+        "id": "conn-1779045524020-mlcybk1e8",
+        "sourceNodeId": "node-1779045524020-ijgps4wep",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-d63dkx6xv",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1779045524020-bjy3r6c8h",
+        "sourceNodeId": "node-1779045524020-d63dkx6xv",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-yws4weqfw",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1779045524020-7ge98rgph",
+        "sourceNodeId": "node-1779045524020-yws4weqfw",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-kk8ck72mf",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1779045524020-npun1slk5",
+        "sourceNodeId": "audio-signal:remap-remap-643f9373-2ed4-48c0-b80d-c707ad0b5cbd",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-kk8ck72mf",
+        "targetParameter": "bulgeStrength"
+      },
+      {
+        "id": "conn-1779045524020-v8k6vrvgx",
+        "sourceNodeId": "audio-signal:remap-remap-643f9373-2ed4-48c0-b80d-c707ad0b5cbd",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-yws4weqfw",
+        "targetParameter": "fisheyeStrength"
+      },
+      {
+        "id": "conn-1779045524020-tv3q15ard",
+        "sourceNodeId": "audio-signal:remap-remap-069f76e7-3ab0-49de-9c2a-99ec1544b8a4",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-d63dkx6xv",
+        "targetParameter": "fisheyeStrength"
+      },
+      {
+        "id": "conn-1779045524020-wyaqfp4hp",
+        "sourceNodeId": "audio-signal:remap-remap-2ea3d856-68de-47f7-be98-f156e8f8b024",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-qxdkc5zoj",
+        "targetParameter": "endColorL"
+      },
+      {
+        "id": "conn-1779045524020-pwlxqxd3n",
+        "sourceNodeId": "audio-signal:remap-remap-643f9373-2ed4-48c0-b80d-c707ad0b5cbd",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-kk8ck72mf",
+        "targetParameter": "bulgeRadius"
+      },
+      {
+        "id": "conn-1779045524020-658cra8qf",
+        "sourceNodeId": "node-1779045524020-kk8ck72mf",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-036mzo34d",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1779045524020-rfvdkawip",
+        "sourceNodeId": "node-1779045524020-036mzo34d",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-qxdkc5zoj",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1779045524020-lnx0trrcw",
+        "sourceNodeId": "audio-signal:remap-remap-efd65261-97a1-488d-8532-df6b2ee298ed",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-036mzo34d",
+        "targetParameter": "particleSize"
+      },
+      {
+        "id": "conn-1779045524020-ps940gnm4",
+        "sourceNodeId": "node-1779045524020-qxdkc5zoj",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-q9byopucz",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1779045524020-5sbywz896",
+        "sourceNodeId": "node-1779045524020-xx43mwccu",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-13kmw6ikl",
+        "targetPort": "bg"
+      },
+      {
+        "id": "conn-1779045524020-6k4sf562e",
+        "sourceNodeId": "node-1779045524020-q9byopucz",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-13kmw6ikl",
+        "targetPort": "fg"
+      },
+      {
+        "id": "conn-1779045524020-rqj819pq0",
+        "sourceNodeId": "node-1779045524020-ijgps4wep",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-efcesqqx6",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1779045524020-cdgvwa2c4",
+        "sourceNodeId": "node-1779045524020-efcesqqx6",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-13kmw6ikl",
+        "targetPort": "mask"
+      },
+      {
+        "id": "conn-1779045524020-gthkj39v5",
+        "sourceNodeId": "node-1779045524020-qxdkc5zoj",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-xx43mwccu",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1779045524020-mihdelvqy",
+        "sourceNodeId": "audio-signal:remap-remap-ea51891b-8235-4fcc-aec7-edac824a70e5",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-xx43mwccu",
+        "targetParameter": "exposure"
+      },
+      {
+        "id": "conn-1779045524020-a7j3ye42a",
+        "sourceNodeId": "audio-signal:remap-remap-ea51891b-8235-4fcc-aec7-edac824a70e5",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-q9byopucz",
+        "targetParameter": "contrast"
+      },
+      {
+        "id": "conn-1779045524020-9v2uhqtfz",
+        "sourceNodeId": "audio-signal:remap-remap-643f9373-2ed4-48c0-b80d-c707ad0b5cbd",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-qxdkc5zoj",
+        "targetParameter": "ditherStrength"
+      },
+      {
+        "id": "conn-1779045524020-0okniirn8",
+        "sourceNodeId": "node-1779045524020-kk8ck72mf",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-gmmhczypz",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1779045524020-732ccn3cc",
+        "sourceNodeId": "audio-signal:remap-remap-2ea3d856-68de-47f7-be98-f156e8f8b024",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-8mulxugpy",
+        "targetParameter": "endColorL"
+      },
+      {
+        "id": "conn-1779045524020-xr61zs3ty",
+        "sourceNodeId": "node-1779045524020-8mulxugpy",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-scqj1ofcq",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1779045524020-unoeszty5",
+        "sourceNodeId": "node-1779045524020-scqj1ofcq",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-22xidf68j",
+        "targetPort": "fg"
+      },
+      {
+        "id": "conn-1779045524020-bcwzeiwcf",
+        "sourceNodeId": "node-1779045524020-13kmw6ikl",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-22xidf68j",
+        "targetPort": "bg"
+      },
+      {
+        "id": "conn-1779045524020-4j1l3dy62",
+        "sourceNodeId": "audio-signal:remap-remap-ea51891b-8235-4fcc-aec7-edac824a70e5",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-scqj1ofcq",
+        "targetParameter": "exposure"
+      },
+      {
+        "id": "conn-1779045524020-gdkdsupe6",
+        "sourceNodeId": "audio-signal:remap-remap-ea51891b-8235-4fcc-aec7-edac824a70e5",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-scqj1ofcq",
+        "targetParameter": "contrast"
+      },
+      {
+        "id": "conn-1779045524020-c4c5etina",
+        "sourceNodeId": "audio-signal:remap-remap-ea51891b-8235-4fcc-aec7-edac824a70e5",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-scqj1ofcq",
+        "targetParameter": "saturation"
+      },
+      {
+        "id": "conn-1779045524020-3ufd6r80n",
+        "sourceNodeId": "node-1779045524020-kk8ck72mf",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-ug5qwsmdl",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1779045524020-yih1bjp10",
+        "sourceNodeId": "node-1779045524020-gmmhczypz",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-vd12x81if",
+        "targetPort": "bg"
+      },
+      {
+        "id": "conn-1779045524020-205guunto",
+        "sourceNodeId": "node-1779045524020-vd12x81if",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-8mulxugpy",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1779045524020-y1srltlun",
+        "sourceNodeId": "node-1779045524020-vd12x81if",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-22xidf68j",
+        "targetPort": "mask"
+      },
+      {
+        "id": "conn-1779045524020-yndebzrm4",
+        "sourceNodeId": "node-1779045524020-kk8ck72mf",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-og8bfedru",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1779045524020-hx4kpx6ec",
+        "sourceNodeId": "node-1779045524020-ug5qwsmdl",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-1ghdlzikf",
+        "targetPort": "a"
+      },
+      {
+        "id": "conn-1779045524020-bonixcihp",
+        "sourceNodeId": "node-1779045524020-og8bfedru",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-1ghdlzikf",
+        "targetPort": "b"
+      },
+      {
+        "id": "conn-1779045524020-gkfmsttz2",
+        "sourceNodeId": "node-1779045524020-1ghdlzikf",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-vd12x81if",
+        "targetPort": "mask"
+      },
+      {
+        "id": "conn-1779045524020-5iqqapxbc",
+        "sourceNodeId": "node-1779045524020-22xidf68j",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-87c4qjgp8",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-1779045524020-v62tks142",
+        "sourceNodeId": "audio-signal:remap-band-band-7cfe24e3-2084-48b7-a867-9be5d6850a06",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-ug5qwsmdl",
+        "targetParameter": "noiseTimeOffset"
+      },
+      {
+        "id": "conn-1779045524020-bp03gy0e2",
+        "sourceNodeId": "audio-signal:remap-band-band-7cfe24e3-2084-48b7-a867-9be5d6850a06",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-og8bfedru",
+        "targetParameter": "noiseTimeOffset"
+      },
+      {
+        "id": "conn-1779046107218-kyg25o2eg",
+        "sourceNodeId": "audio-signal:remap-remap-2fff149f-74a3-4e6b-a192-a25eacc694b5",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-gmmhczypz",
+        "targetParameter": "particleSize"
+      },
+      {
+        "id": "conn-1779046303730-ay6gzcss7",
+        "sourceNodeId": "audio-signal:remap-remap-643f9373-2ed4-48c0-b80d-c707ad0b5cbd",
+        "sourcePort": "out",
+        "targetNodeId": "node-1779045524020-8mulxugpy",
+        "targetParameter": "ditherStrength"
+      }
+    ],
+    "viewState": {
+      "zoom": 0.12214656408059708,
+      "panX": 11.75113937920878,
+      "panY": 217.14143782818036,
+      "selectedNodeIds": []
+    },
+    "automation": {
+      "bpm": 160,
+      "durationSeconds": 148.2662439257005,
+      "lanes": [
+        {
+          "id": "b868f9d7-a7ba-4a8e-9f28-40ea15d19c13",
+          "nodeId": "node-1779045524020-qxdkc5zoj",
+          "paramName": "endColorH",
+          "regions": [
+            {
+              "id": "ba2083be-a92e-4240-9ece-4388c6ed2504",
+              "startTime": 0,
+              "duration": 29.63734776725307,
+              "loop": false,
+              "curve": {
+                "keyframes": [
+                  {
+                    "time": 0,
+                    "value": 0.2381284515492928
+                  },
+                  {
+                    "time": 0.1855766596657838,
+                    "value": 0.6320825403549686
+                  },
+                  {
+                    "time": 0.4555063464523784,
+                    "value": 0.1891225401946568
+                  },
+                  {
+                    "time": 0.7423066386631352,
+                    "value": 0.6628436514772124
+                  },
+                  {
+                    "time": 0.8772714820564326,
+                    "value": 0.36138476247922247
+                  },
+                  {
+                    "time": 1,
+                    "value": 0.835105873761778
+                  }
+                ],
+                "interpolation": "bezier"
+              }
+            },
+            {
+              "id": "1fb68d0a-511a-4ae9-9fa8-c2470484c29a",
+              "startTime": 35.58124144392862,
+              "duration": 11.377374305995097,
+              "loop": false,
+              "curve": {
+                "keyframes": [
+                  {
+                    "time": 0,
+                    "value": 0.8652793498776239
+                  },
+                  {
+                    "time": 0.025453320108198226,
+                    "value": 0.2785606440550682
+                  },
+                  {
+                    "time": 0.06101820558683638,
+                    "value": 0.7183316396953727
+                  },
+                  {
+                    "time": 0.10076709571742612,
+                    "value": 0.2862094106752583
+                  },
+                  {
+                    "time": 0.14958165380246471,
+                    "value": 0.7106835732872595
+                  },
+                  {
+                    "time": 0.203277587890625,
+                    "value": 0.17913473043147932
+                  },
+                  {
+                    "time": 0.2590655721879903,
+                    "value": 0.7833414295354705
+                  },
+                  {
+                    "time": 0.31485362032966135,
+                    "value": 0.15236562273798693
+                  },
+                  {
+                    "time": 0.3737336548362317,
+                    "value": 0.8674715604488709
+                  },
+                  {
+                    "time": 0.4448632981048967,
+                    "value": 0.14471825654195025
+                  },
+                  {
+                    "time": 0.5721757960618788,
+                    "value": 0.655234129036832
+                  },
+                  {
+                    "time": 0.7534867929115455,
+                    "value": 0.21163997545756674
+                  },
+                  {
+                    "time": 0.9020224854537133,
+                    "value": 0.758484601023535
+                  },
+                  {
+                    "time": 1,
+                    "value": 0.8461593589103596
+                  }
+                ],
+                "interpolation": "bezier"
+              }
+            },
+            {
+              "id": "85db5a06-d0f4-4e5a-852a-5b8ee09b602f",
+              "startTime": 47.5874624984767,
+              "duration": 11.377374305995104,
+              "loop": false,
+              "curve": {
+                "keyframes": [
+                  {
+                    "time": 0,
+                    "value": 0.8652793498776239
+                  },
+                  {
+                    "time": 0.025453320108198226,
+                    "value": 0.2785606440550682
+                  },
+                  {
+                    "time": 0.06101820558683638,
+                    "value": 0.7183316396953727
+                  },
+                  {
+                    "time": 0.10076709571742612,
+                    "value": 0.2862094106752583
+                  },
+                  {
+                    "time": 0.14958165380246471,
+                    "value": 0.7106835732872595
+                  },
+                  {
+                    "time": 0.203277587890625,
+                    "value": 0.17913473043147932
+                  },
+                  {
+                    "time": 0.2590655721879903,
+                    "value": 0.7833414295354705
+                  },
+                  {
+                    "time": 0.31485362032966135,
+                    "value": 0.15236562273798693
+                  },
+                  {
+                    "time": 0.3737336548362317,
+                    "value": 0.8674715604488709
+                  },
+                  {
+                    "time": 0.4448632981048967,
+                    "value": 0.14471825654195025
+                  },
+                  {
+                    "time": 0.5721757960618788,
+                    "value": 0.655234129036832
+                  },
+                  {
+                    "time": 0.7534867929115455,
+                    "value": 0.21163997545756674
+                  },
+                  {
+                    "time": 0.9020224854537133,
+                    "value": 0.758484601023535
+                  },
+                  {
+                    "time": 1,
+                    "value": 0.8652796999836623
+                  }
+                ],
+                "interpolation": "bezier"
+              }
+            },
+            {
+              "id": "3e9bc020-035f-43d6-bbe2-d3316fa8ff8f",
+              "startTime": 59.66735821776997,
+              "duration": 11.377374305995104,
+              "loop": false,
+              "curve": {
+                "keyframes": [
+                  {
+                    "time": 0,
+                    "value": 0.8652793498776239
+                  },
+                  {
+                    "time": 0.025453320108198226,
+                    "value": 0.2785606440550682
+                  },
+                  {
+                    "time": 0.06101820558683638,
+                    "value": 0.7183316396953727
+                  },
+                  {
+                    "time": 0.10076709571742612,
+                    "value": 0.2862094106752583
+                  },
+                  {
+                    "time": 0.14958165380246471,
+                    "value": 0.7106835732872595
+                  },
+                  {
+                    "time": 0.203277587890625,
+                    "value": 0.17913473043147932
+                  },
+                  {
+                    "time": 0.2590655721879903,
+                    "value": 0.7833414295354705
+                  },
+                  {
+                    "time": 0.31485362032966135,
+                    "value": 0.15236562273798693
+                  },
+                  {
+                    "time": 0.3737336548362317,
+                    "value": 0.8674715604488709
+                  },
+                  {
+                    "time": 0.4448632981048967,
+                    "value": 0.14471825654195025
+                  },
+                  {
+                    "time": 0.5721757960618788,
+                    "value": 0.655234129036832
+                  },
+                  {
+                    "time": 0.7534867929115455,
+                    "value": 0.21163997545756674
+                  },
+                  {
+                    "time": 0.9006277427513728,
+                    "value": 0.8387905236798595
+                  },
+                  {
+                    "time": 1,
+                    "value": 1
+                  }
+                ],
+                "interpolation": "bezier"
+              }
+            },
+            {
+              "id": "d46a9ae7-222a-4b93-90eb-34b89c0b3f86",
+              "startTime": 84.13097008396898,
+              "duration": 1.8737639843751879,
+              "loop": false,
+              "curve": {
+                "keyframes": [
+                  {
+                    "time": 0,
+                    "value": 0.2381284515492928
+                  },
+                  {
+                    "time": 1,
+                    "value": 0.2381284515492928
+                  }
+                ],
+                "interpolation": "bezier"
+              }
+            },
+            {
+              "id": "e4d91d15-aac6-4063-b7f2-e42162add8a0",
+              "startTime": 94.04361142911655,
+              "duration": 1.8737639843751879,
+              "loop": false,
+              "curve": {
+                "keyframes": [
+                  {
+                    "time": 0,
+                    "value": 0.2381284515492928
+                  },
+                  {
+                    "time": 1,
+                    "value": 0.2381284515492928
+                  }
+                ],
+                "interpolation": "bezier"
+              }
+            },
+            {
+              "id": "e0590e25-bd88-426e-ad84-da41b9d689f7",
+              "startTime": 108.01336839535608,
+              "duration": 12.19116657488567,
+              "loop": false,
+              "curve": {
+                "keyframes": [
+                  {
+                    "time": 0,
+                    "value": 0.5517044258725159
+                  },
+                  {
+                    "time": 0.2813807531380753,
+                    "value": 0.305928082968129
+                  },
+                  {
+                    "time": 0.6928173368445999,
+                    "value": 0.7304015453680534
+                  },
+                  {
+                    "time": 1,
+                    "value": 0.5364075928442125
+                  }
+                ],
+                "interpolation": "bezier"
+              }
+            },
+            {
+              "id": "bb1fe2e4-27ae-4158-9ee3-c4474c52fcd9",
+              "startTime": 120.2301618136016,
+              "duration": 9.562596681049087,
+              "loop": false,
+              "curve": {
+                "keyframes": [
+                  {
+                    "time": 0,
+                    "value": 0
+                  },
+                  {
+                    "time": 0.03870292887029289,
+                    "value": 0.007648241461132521
+                  },
+                  {
+                    "time": 0.04388702928870293,
+                    "value": 0.6730394718300305
+                  },
+                  {
+                    "time": 0.11471410775284388,
+                    "value": 0.6768640301931448
+                  },
+                  {
+                    "time": 0.1168061579620489,
+                    "value": 0.10325099714576058
+                  },
+                  {
+                    "time": 0.20258015269514906,
+                    "value": 0.07648188945226786
+                  },
+                  {
+                    "time": 0.21164578872744508,
+                    "value": 0.688336304858334
+                  },
+                  {
+                    "time": 0.2869595962588258,
+                    "value": 0.6692149134669163
+                  },
+                  {
+                    "time": 0.2897490178192011,
+                    "value": 0.07648188945226786
+                  },
+                  {
+                    "time": 0.42782433162673245,
+                    "value": 0.061185056423964435
+                  },
+                  {
+                    "time": 0.44107394038882713,
+                    "value": 0.39005716356341424
+                  },
+                  {
+                    "time": 0.510808968643763,
+                    "value": 0.39005716356341424
+                  },
+                  {
+                    "time": 0.5791491903520529,
+                    "value": 0.07648258966434462
+                  },
+                  {
+                    "time": 0.5951882845188284,
+                    "value": 0.3709371725961501
+                  },
+                  {
+                    "time": 0.6558577405857741,
+                    "value": 0.07265803130123027
+                  },
+                  {
+                    "time": 0.6705020920502092,
+                    "value": 0.217973043585576
+                  },
+                  {
+                    "time": 1,
+                    "value": 0.3146112162666566
+                  }
+                ],
+                "interpolation": "bezier"
+              }
+            },
+            {
+              "id": "8765eb49-ee6f-4d10-a656-7fe9bff8e975",
+              "startTime": 130.04801832863498,
+              "duration": 18.218225597065526,
+              "loop": false,
+              "curve": {
+                "keyframes": [
+                  {
+                    "time": 0,
+                    "value": 0
+                  },
+                  {
+                    "time": 0.02963735668230257,
+                    "value": 0.007648241461132521
+                  },
+                  {
+                    "time": 0.034821457100712605,
+                    "value": 0.657742638801727
+                  },
+                  {
+                    "time": 0.11471410775284388,
+                    "value": 0.6768640301931448
+                  },
+                  {
+                    "time": 0.1168061579620489,
+                    "value": 0.10325099714576058
+                  },
+                  {
+                    "time": 0.20258015269514906,
+                    "value": 0.07648188945226786
+                  },
+                  {
+                    "time": 0.21164578872744508,
+                    "value": 0.688336304858334
+                  },
+                  {
+                    "time": 0.2869595962588258,
+                    "value": 0.6692149134669163
+                  },
+                  {
+                    "time": 0.2897490178192011,
+                    "value": 0.07648188945226786
+                  },
+                  {
+                    "time": 0.42782433162673245,
+                    "value": 0.061185056423964435
+                  },
+                  {
+                    "time": 0.44107394038882713,
+                    "value": 0.39005716356341424
+                  },
+                  {
+                    "time": 0.510808968643763,
+                    "value": 0.39005716356341424
+                  },
+                  {
+                    "time": 0.5791491903520529,
+                    "value": 0.07648258966434462
+                  },
+                  {
+                    "time": 0.5951882845188284,
+                    "value": 0.3709371725961501
+                  },
+                  {
+                    "time": 0.6558577405857741,
+                    "value": 0.07265803130123027
+                  },
+                  {
+                    "time": 0.6705020920502092,
+                    "value": 0.217973043585576
+                  },
+                  {
+                    "time": 1,
+                    "value": 0.6014180828963871
+                  }
+                ],
+                "interpolation": "bezier"
+              }
+            }
+          ]
+        },
+        {
+          "id": "24ae330c-77e1-497e-ba04-7c68eaeab0e4",
+          "nodeId": "node-1779045524020-8mulxugpy",
+          "paramName": "endColorH",
+          "regions": [
+            {
+              "id": "e351c342-4aaf-4277-9d62-013207d9c791",
+              "startTime": 0,
+              "duration": 29.63734776725307,
+              "loop": false,
+              "curve": {
+                "keyframes": [
+                  {
+                    "time": 0,
+                    "value": 0.57082441683978
+                  },
+                  {
+                    "time": 0.1855766596657838,
+                    "value": 0.9647785056454559
+                  },
+                  {
+                    "time": 0.4555063464523784,
+                    "value": 0.5218185054851441
+                  },
+                  {
+                    "time": 0.7423066386631352,
+                    "value": 0.9955396167676996
+                  },
+                  {
+                    "time": 0.8772714820564326,
+                    "value": 0.6940807277697097
+                  },
+                  {
+                    "time": 1,
+                    "value": 1
+                  }
+                ],
+                "interpolation": "bezier"
+              }
+            },
+            {
+              "id": "6851d3b6-8938-4c3e-904d-b269a6b3018c",
+              "startTime": 35.60747819285572,
+              "duration": 11.377374305995097,
+              "loop": false,
+              "curve": {
+                "keyframes": [
+                  {
+                    "time": 0,
+                    "value": 1
+                  },
+                  {
+                    "time": 0.025453320108198226,
+                    "value": 0.5105156974418628
+                  },
+                  {
+                    "time": 0.06101820558683638,
+                    "value": 0.9502866930821673
+                  },
+                  {
+                    "time": 0.10076709571742612,
+                    "value": 0.5181644640620529
+                  },
+                  {
+                    "time": 0.14958165380246471,
+                    "value": 0.9426386266740541
+                  },
+                  {
+                    "time": 0.203277587890625,
+                    "value": 0.4110897838182739
+                  },
+                  {
+                    "time": 0.2590655721879903,
+                    "value": 1
+                  },
+                  {
+                    "time": 0.31485362032966135,
+                    "value": 0.3843206761247815
+                  },
+                  {
+                    "time": 0.3737336548362317,
+                    "value": 1
+                  },
+                  {
+                    "time": 0.4448632981048967,
+                    "value": 0.3766733099287448
+                  },
+                  {
+                    "time": 0.5721757960618788,
+                    "value": 0.8871891824236265
+                  },
+                  {
+                    "time": 0.7534867929115455,
+                    "value": 0.4435950288443613
+                  },
+                  {
+                    "time": 0.9020224854537133,
+                    "value": 0.9904396544103296
+                  },
+                  {
+                    "time": 1,
+                    "value": 1
+                  }
+                ],
+                "interpolation": "bezier"
+              }
+            },
+            {
+              "id": "2248ee5d-ece4-4f55-8c96-f6437f8f58a9",
+              "startTime": 47.5874624984767,
+              "duration": 11.377374305995104,
+              "loop": false,
+              "curve": {
+                "keyframes": [
+                  {
+                    "time": 0,
+                    "value": 1
+                  },
+                  {
+                    "time": 0.027545370317403253,
+                    "value": 0.653321849855275
+                  },
+                  {
+                    "time": 0.0631102557960414,
+                    "value": 1
+                  },
+                  {
+                    "time": 0.10285914592663115,
+                    "value": 0.6609706164754651
+                  },
+                  {
+                    "time": 0.15167370401166974,
+                    "value": 1
+                  },
+                  {
+                    "time": 0.20536963809983003,
+                    "value": 0.5538959362316861
+                  },
+                  {
+                    "time": 0.2611576223971953,
+                    "value": 1
+                  },
+                  {
+                    "time": 0.31694567053886635,
+                    "value": 0.5271268285381937
+                  },
+                  {
+                    "time": 0.3758257050454368,
+                    "value": 1
+                  },
+                  {
+                    "time": 0.4469553483141018,
+                    "value": 0.519479462342157
+                  },
+                  {
+                    "time": 0.5742678462710838,
+                    "value": 1
+                  },
+                  {
+                    "time": 0.7555788431207505,
+                    "value": 0.5864011812577735
+                  },
+                  {
+                    "time": 0.9041145356629183,
+                    "value": 1
+                  },
+                  {
+                    "time": 1,
+                    "value": 1
+                  }
+                ],
+                "interpolation": "bezier"
+              }
+            },
+            {
+              "id": "2f2645e2-7c5c-436f-83e7-6ff57da5ba80",
+              "startTime": 59.66735821776997,
+              "duration": 11.377374305995104,
+              "loop": false,
+              "curve": {
+                "keyframes": [
+                  {
+                    "time": 0,
+                    "value": 0.3452027816870331
+                  },
+                  {
+                    "time": 0.026848062810538694,
+                    "value": 0
+                  },
+                  {
+                    "time": 0.062412948289176845,
+                    "value": 0.19825507150478194
+                  },
+                  {
+                    "time": 0.10216183841976659,
+                    "value": 0
+                  },
+                  {
+                    "time": 0.15097639650480518,
+                    "value": 0.19060700509666872
+                  },
+                  {
+                    "time": 0.20467233059296547,
+                    "value": 0
+                  },
+                  {
+                    "time": 0.2604603148903308,
+                    "value": 0.2632648613448797
+                  },
+                  {
+                    "time": 0.3162483630320018,
+                    "value": 0
+                  },
+                  {
+                    "time": 0.3751283975385722,
+                    "value": 0.3473949922582801
+                  },
+                  {
+                    "time": 0.4462580408072372,
+                    "value": 0
+                  },
+                  {
+                    "time": 0.5735705387642194,
+                    "value": 0.1351575608462412
+                  },
+                  {
+                    "time": 0.754881535613886,
+                    "value": 0
+                  },
+                  {
+                    "time": 0.9020224854537133,
+                    "value": 0.31871395548926873
+                  },
+                  {
+                    "time": 1,
+                    "value": 0.4799234318094092
+                  }
+                ],
+                "interpolation": "bezier"
+              }
+            },
+            {
+              "id": "e7ed9ab3-faac-480e-9f0e-dcb61d57475d",
+              "startTime": 84.15720683289608,
+              "duration": 1.8737639843751879,
+              "loop": false,
+              "curve": {
+                "keyframes": [
+                  {
+                    "time": 0,
+                    "value": 0.5631763504316669
+                  },
+                  {
+                    "time": 1,
+                    "value": 0.5631763504316669
+                  }
+                ],
+                "interpolation": "bezier"
+              }
+            },
+            {
+              "id": "e963a5c6-80f7-4a42-b050-12e7722951e3",
+              "startTime": 94.06984817804366,
+              "duration": 1.8737639843751879,
+              "loop": false,
+              "curve": {
+                "keyframes": [
+                  {
+                    "time": 0,
+                    "value": 0.823214459473943
+                  },
+                  {
+                    "time": 1,
+                    "value": 0.823214459473943
+                  }
+                ],
+                "interpolation": "bezier"
+              }
+            },
+            {
+              "id": "3604bc66-28fc-4f48-8c21-2a4b8c6f9c3d",
+              "startTime": 108.03960514428319,
+              "duration": 12.190556669318411,
+              "loop": false,
+              "curve": {
+                "keyframes": [
+                  {
+                    "time": 0,
+                    "value": 0.769677644511111
+                  },
+                  {
+                    "time": 0.28556485355648537,
+                    "value": 0.5239013016067241
+                  },
+                  {
+                    "time": 0.69700143726301,
+                    "value": 0.9483747640066484
+                  },
+                  {
+                    "time": 1,
+                    "value": 0.7543808114828076
+                  }
+                ],
+                "interpolation": "bezier"
+              }
+            },
+            {
+              "id": "c9de3cd4-ae56-4c7d-a469-2eaa4f36dc6f",
+              "startTime": 120.2301618136016,
+              "duration": 9.562596681049087,
+              "loop": false,
+              "curve": {
+                "keyframes": [
+                  {
+                    "time": 0,
+                    "value": 0.37858541405728263
+                  },
+                  {
+                    "time": 0.03870292887029289,
+                    "value": 0.38623365551841515
+                  },
+                  {
+                    "time": 0.04388702928870293,
+                    "value": 0.8661569122748053
+                  },
+                  {
+                    "time": 0.1147141077528439,
+                    "value": 0.8661569122748053
+                  },
+                  {
+                    "time": 0.11680615796204892,
+                    "value": 0.4818364112030432
+                  },
+                  {
+                    "time": 0.20258015269514906,
+                    "value": 0.4550673035095505
+                  },
+                  {
+                    "time": 0.2116457887274451,
+                    "value": 0.8661569122748053
+                  },
+                  {
+                    "time": 0.2869595962588257,
+                    "value": 0.8661569122748053
+                  },
+                  {
+                    "time": 0.28974901781920104,
+                    "value": 0.4550673035095505
+                  },
+                  {
+                    "time": 0.4278243316267324,
+                    "value": 0.43977047048124707
+                  },
+                  {
+                    "time": 0.4410739403888271,
+                    "value": 0.7686425776206969
+                  },
+                  {
+                    "time": 0.510808968643763,
+                    "value": 0.7686425776206969
+                  },
+                  {
+                    "time": 0.5791491903520529,
+                    "value": 0.45506800372162726
+                  },
+                  {
+                    "time": 0.5951882845188284,
+                    "value": 0.7495225866534327
+                  },
+                  {
+                    "time": 0.6558577405857741,
+                    "value": 0.4512434453585129
+                  },
+                  {
+                    "time": 0.6705020920502092,
+                    "value": 0.5965584576428586
+                  },
+                  {
+                    "time": 1,
+                    "value": 0.6931966303239393
+                  }
+                ],
+                "interpolation": "bezier"
+              }
+            },
+            {
+              "id": "83e45c71-a709-4bc5-9dd0-0bdc4e429e74",
+              "startTime": 130.04801832863498,
+              "duration": 18.218225597065526,
+              "loop": false,
+              "curve": {
+                "keyframes": [
+                  {
+                    "time": 0,
+                    "value": 0.4429970477308315
+                  },
+                  {
+                    "time": 0.02963735668230257,
+                    "value": 0.450645289191964
+                  },
+                  {
+                    "time": 0.034821457100712605,
+                    "value": 1
+                  },
+                  {
+                    "time": 0.11471410775284388,
+                    "value": 1
+                  },
+                  {
+                    "time": 0.1168061579620489,
+                    "value": 0.5462480448765921
+                  },
+                  {
+                    "time": 0.20258015269514906,
+                    "value": 0.5194789371830993
+                  },
+                  {
+                    "time": 0.21164578872744508,
+                    "value": 1
+                  },
+                  {
+                    "time": 0.2869595962588258,
+                    "value": 1
+                  },
+                  {
+                    "time": 0.2897490178192011,
+                    "value": 0.5194789371830993
+                  },
+                  {
+                    "time": 0.42782433162673245,
+                    "value": 0.5041821041547959
+                  },
+                  {
+                    "time": 0.44107394038882713,
+                    "value": 0.8330542112942457
+                  },
+                  {
+                    "time": 0.510808968643763,
+                    "value": 0.8330542112942457
+                  },
+                  {
+                    "time": 0.5791491903520529,
+                    "value": 0.5194796373951761
+                  },
+                  {
+                    "time": 0.5951882845188284,
+                    "value": 0.8139342203269816
+                  },
+                  {
+                    "time": 0.6558577405857741,
+                    "value": 0.5156550790320618
+                  },
+                  {
+                    "time": 0.6705020920502092,
+                    "value": 0.6609700913164075
+                  },
+                  {
+                    "time": 1,
+                    "value": 1
+                  }
+                ],
+                "interpolation": "bezier"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "audioSetup": {
+    "files": [
+      {
+        "id": "file-new-billie",
+        "name": "seb - music xcx",
+        "filePath": "seb - music xcx.mp3",
+        "autoPlay": true
+      }
+    ],
+    "bands": [
+      {
+        "id": "band-7cfe24e3-2084-48b7-a867-9be5d6850a06",
+        "name": "Sb",
+        "sourceFileId": "tracks/tmw689snu",
+        "frequencyBands": [
+          [
+            76,
+            242
+          ]
+        ],
+        "attackHalfLifeSeconds": 0.012,
+        "releaseHalfLifeSeconds": 0.012,
+        "fftSize": 2048,
+        "bandMode": "rms"
+      },
+      {
+        "id": "band-a003f33c-5e92-4074-9a74-8ffe4133721a",
+        "name": "LMid",
+        "sourceFileId": "tracks/tmw689snu",
+        "frequencyBands": [
+          [
+            223,
+            741
+          ]
+        ],
+        "smoothingHalfLifeSeconds": 0.008333333333333333,
+        "fftSize": 2048,
+        "attackHalfLifeSeconds": 0.012,
+        "releaseHalfLifeSeconds": 0.047,
+        "bandMode": "rms"
+      },
+      {
+        "id": "band-19cf32d6-845a-4897-8251-26088a7b6907",
+        "name": "HMid",
+        "sourceFileId": "tracks/tmw689snu",
+        "frequencyBands": [
+          [
+            925,
+            4112
+          ]
+        ],
+        "smoothingHalfLifeSeconds": 0.013408671256189091,
+        "fftSize": 2048,
+        "attackHalfLifeSeconds": 0.012,
+        "releaseHalfLifeSeconds": 0.023,
+        "bandMode": "rms"
+      },
+      {
+        "id": "band-7c7cb3a6-5130-46f4-b1e9-475ddb1a4824",
+        "name": "Bd",
+        "sourceFileId": "tracks/tmw689snu",
+        "frequencyBands": [
+          [
+            77,
+            123
+          ]
+        ],
+        "smoothingHalfLifeSeconds": 0.016194651748956096,
+        "fftSize": 2048,
+        "attackHalfLifeSeconds": 0.012,
+        "releaseHalfLifeSeconds": 0.012,
+        "bandMode": "mean"
+      }
+    ],
+    "remappers": [
+      {
+        "id": "remap-2fff149f-74a3-4e6b-a192-a25eacc694b5",
+        "name": "Grain 2",
+        "bandId": "band-19cf32d6-845a-4897-8251-26088a7b6907",
+        "inMin": 0.46,
+        "inMax": 0.91,
+        "outMin": 1,
+        "outMax": 0.32
+      },
+      {
+        "id": "band-band-7cfe24e3-2084-48b7-a867-9be5d6850a06",
+        "name": "specks",
+        "bandId": "band-7cfe24e3-2084-48b7-a867-9be5d6850a06",
+        "inMin": 0.61,
+        "inMax": 1,
+        "outMin": 0,
+        "outMax": 1
+      },
+      {
+        "id": "remap-ea51891b-8235-4fcc-aec7-edac824a70e5",
+        "name": "Grading",
+        "bandId": "band-a003f33c-5e92-4074-9a74-8ffe4133721a",
+        "inMin": 0,
+        "inMax": 1,
+        "outMin": 0.64,
+        "outMax": 1
+      },
+      {
+        "id": "remap-efd65261-97a1-488d-8532-df6b2ee298ed",
+        "name": "Grain",
+        "bandId": "band-19cf32d6-845a-4897-8251-26088a7b6907",
+        "inMin": 0.46,
+        "inMax": 0.84,
+        "outMin": 0.25,
+        "outMax": 0.92
+      },
+      {
+        "id": "remap-069f76e7-3ab0-49de-9c2a-99ec1544b8a4",
+        "name": "Clean",
+        "bandId": "band-7c7cb3a6-5130-46f4-b1e9-475ddb1a4824",
+        "inMin": 0.6900000000000001,
+        "inMax": 1,
+        "outMin": 0.22,
+        "outMax": 1
+      },
+      {
+        "id": "remap-643f9373-2ed4-48c0-b80d-c707ad0b5cbd",
+        "name": "Invert",
+        "bandId": "band-7c7cb3a6-5130-46f4-b1e9-475ddb1a4824",
+        "inMin": 0,
+        "inMax": 1,
+        "outMin": 1,
+        "outMax": 0.24
+      },
+      {
+        "id": "remap-2ea3d856-68de-47f7-be98-f156e8f8b024",
+        "name": "Light",
+        "bandId": "band-a003f33c-5e92-4074-9a74-8ffe4133721a",
+        "inMin": 0,
+        "inMax": 1,
+        "outMin": 0.45,
+        "outMax": 1
+      }
+    ],
+    "primarySource": {
+      "type": "playlist",
+      "trackId": "tracks/tmw689snu",
+      "displayName": "HYSTERIA",
+      "displayNameSource": "bundled",
+      "displayNameUpdatedAt": "2026-05-17T19:32:34.572Z"
+    },
+    "playlistState": {
+      "order": [
+        "tracks/5j5bp9a4kk9v",
+        "tracks/n2b4opfakc",
+        "tracks/4qsm954kom",
+        "tracks/pmw5vfgk0h",
+        "tracks/ke5ptx0po",
+        "tracks/1zgcuf11xs",
+        "tracks/k5o082zh20",
+        "tracks/60tciwin",
+        "tracks/7xipg0fm",
+        "tracks/vgnwo0jxk3",
+        "tracks/a6yjbh5qku",
+        "tracks/lpl325iz2lob",
+        "tracks/ljxzeymjbpo",
+        "tracks/jlv6xanghsvt",
+        "tracks/sxvcfuu54i",
+        "tracks/mmv7zp2dt3o",
+        "tracks/1tcrfgrunk",
+        "tracks/n7cui25f",
+        "tracks/nvz3c13uxt",
+        "tracks/498vy4810a",
+        "tracks/49jeoh0rhp",
+        "tracks/4g9l9eyjk",
+        "tracks/2r7664s10",
+        "tracks/v2bb6pq8b0p8",
+        "tracks/ct0ljdzdbf",
+        "tracks/859u42roj",
+        "tracks/0ny2gzxi",
+        "tracks/33hk728pinb",
+        "tracks/3dglxy0oj3e",
+        "tracks/d7t3riij7",
+        "tracks/0prrh95q",
+        "tracks/apfn3p7evg8w",
+        "tracks/tmw689snu",
+        "tracks/gwn6q88ml",
+        "tracks/ii022sgv",
+        "tracks/wl3fgz1pk",
+        "tracks/aulzk5mt9j",
+        "tracks/eedqngfc",
+        "tracks/2hpqvq5u4lc",
+        "tracks/opu5hcxzvr",
+        "tracks/0lg2fmnji",
+        "tracks/6udqj1rmsfba",
+        "tracks/uc878q6o9",
+        "tracks/e80i7yq0udyr",
+        "tracks/rhvati4uxqxh",
+        "tracks/ybouq91p4u8",
+        "tracks/mwriefhj6x",
+        "tracks/vldg9vtde4",
+        "tracks/ldh77lfjk",
+        "tracks/1627nxqv3",
+        "tracks/0banjok8ae4k",
+        "tracks/y5mih0r9cwik",
+        "tracks/nmv03pprlbb",
+        "tracks/x30b2wbv0g1",
+        "tracks/4xxaknyyf8c",
+        "tracks/z3dysnnp",
+        "tracks/kamxlv2v8of",
+        "tracks/9jxp6mbf",
+        "tracks/frdqyw9b3",
+        "tracks/qf5q0a5wecd3",
+        "tracks/emrcwwwnan",
+        "tracks/lcmbddqjw2",
+        "tracks/9ho763iw3k",
+        "tracks/y27lqj9e",
+        "tracks/v4c5p7rk0",
+        "tracks/hgq0xn1g01",
+        "tracks/qqzqnt4csmat",
+        "tracks/eq4m91kpiddc",
+        "tracks/6gxhj2sv1bx",
+        "tracks/kuq2z0jyr",
+        "tracks/0k3o9jwm9",
+        "tracks/mb6oqwc1",
+        "tracks/gc0xta86be",
+        "tracks/nc49fqfybra",
+        "tracks/ss8zuqay9wy",
+        "tracks/da0tkheo0f",
+        "tracks/cu9ecwvqq",
+        "tracks/ahntfhcz35",
+        "tracks/ua7qf7z7q",
+        "tracks/fe0ggkv485n3",
+        "tracks/fctb85n63qw",
+        "tracks/uz9xig56bvhb",
+        "tracks/2v5fdhyfw",
+        "tracks/k50x9qxd2s",
+        "tracks/5yotqjmqt",
+        "tracks/xctl53ponq7x",
+        "tracks/k2lzshmci6s",
+        "tracks/qg49x1b1",
+        "tracks/lr9t5akeo44",
+        "tracks/oxb34vh9xhr",
+        "tracks/md9p6cbso0j",
+        "tracks/2xusbeg5",
+        "tracks/b7f57fkgqyxb",
+        "tracks/6qkd6kysz",
+        "tracks/ov3argzlaj",
+        "tracks/nvh3b3kdlqee",
+        "tracks/j7osdf7t8hb",
+        "tracks/7geaa5vruw",
+        "tracks/v8w6juocl8"
+      ],
+      "currentIndex": 32,
+      "loopCurrentTrack": true
+    }
+  },
+  "startingTrackId": "tracks/tmw689snu"
+}

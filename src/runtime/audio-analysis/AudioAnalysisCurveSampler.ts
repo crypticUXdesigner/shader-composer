@@ -21,6 +21,11 @@ export class AudioAnalysisCurveSampler {
     this.sampledValues = new Float32Array(cache.channels.length);
   }
 
+  /** Mutable cache reference for Tier A remapper patch (in-place channel rewrite). */
+  getCurveCache(): AudioAnalysisCurveCache {
+    return this.cache;
+  }
+
   getUniformUpdatesAtTime(timeSeconds: number): UniformUpdate[] {
     const cache = this.cache;
     const channelCount = cache.channels.length;

@@ -302,6 +302,42 @@ export function createEmptyGraph(name: string, id?: string): NodeGraph {
   };
 }
 
+/** Default nodes for a blank project: UV Coords + Final Output (unwired). */
+const SCRATCH_UV_POSITION = { x: 80, y: 120 };
+/** ~400px min node width + ~560px gap (see `--node-box-min-width`). */
+const SCRATCH_OUTPUT_POSITION = { x: 1040, y: 120 };
+
+/**
+ * Creates a starter graph for "New project" / scratch flows.
+ *
+ * @param name - The graph name
+ * @param id - Optional graph ID (generated if not provided)
+ */
+export function createScratchGraph(name: string, id?: string): NodeGraph {
+  const existingIds = new Set<string>();
+  const uvId = generateNodeId(existingIds);
+  existingIds.add(uvId);
+  const outputId = generateNodeId(existingIds);
+
+  return {
+    ...createEmptyGraph(name, id),
+    nodes: [
+      {
+        id: uvId,
+        type: 'uv-coordinates',
+        position: SCRATCH_UV_POSITION,
+        parameters: {},
+      },
+      {
+        id: outputId,
+        type: 'final-output',
+        position: SCRATCH_OUTPUT_POSITION,
+        parameters: {},
+      },
+    ],
+  };
+}
+
 /**
  * Creates a default view state.
  * 

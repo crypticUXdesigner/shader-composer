@@ -16,6 +16,9 @@
 /* Standard — Effects */
 --motion-effects-fast-duration: 150ms;
 --motion-effects-fast-easing: cubic-bezier(0.31, 0.94, 0.34, 1.00);
+/* Floating panels / popovers: fade + slight rise on open, drop on close */
+--motion-popover-duration: 165ms;
+--motion-popover-offset-y: 16px;
 --motion-effects-normal-duration: 200ms;
 --motion-effects-normal-easing: cubic-bezier(0.34, 0.80, 0.34, 1.00);
 --motion-effects-slow-duration: 300ms;

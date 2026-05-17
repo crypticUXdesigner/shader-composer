@@ -1,0 +1,78 @@
+{
+  "format": "shadernoice-node-graph",
+  "formatVersion": "2.0",
+  "graph": {
+    "id": "graph-preset-color-lut-demo",
+    "name": "Color LUT Demo",
+    "version": "2.0",
+    "nodes": [
+      {
+        "id": "node-uv",
+        "type": "uv-coordinates",
+        "position": { "x": -900, "y": 0 },
+        "parameters": {}
+      },
+      {
+        "id": "node-noise",
+        "type": "noise",
+        "position": { "x": -300, "y": 0 },
+        "parameters": {
+          "noiseMode": 2,
+          "noiseScale": 2.2,
+          "noiseOctaves": 5,
+          "noiseLacunarity": 2.0,
+          "noiseGain": 0.55,
+          "noiseTimeSpeed": 0.15,
+          "noiseIntensity": 1.1
+        }
+      },
+      {
+        "id": "node-lut",
+        "type": "color-lut",
+        "position": { "x": 350, "y": 0 },
+        "parameters": {
+          "preset": 5,
+          "reverse": 0,
+          "gamma": 1.0,
+          "contrast": 0.0,
+          "intensity": 1.0
+        }
+      },
+      {
+        "id": "node-output",
+        "type": "final-output",
+        "position": { "x": 950, "y": 0 },
+        "parameters": {}
+      }
+    ],
+    "connections": [
+      {
+        "id": "conn-uv-noise",
+        "sourceNodeId": "node-uv",
+        "sourcePort": "out",
+        "targetNodeId": "node-noise",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-noise-lut",
+        "sourceNodeId": "node-noise",
+        "sourcePort": "out",
+        "targetNodeId": "node-lut",
+        "targetPort": "in"
+      },
+      {
+        "id": "conn-lut-out",
+        "sourceNodeId": "node-lut",
+        "sourcePort": "out",
+        "targetNodeId": "node-output",
+        "targetPort": "in"
+      }
+    ],
+    "viewState": {
+      "zoom": 0.85,
+      "panX": 180,
+      "panY": 120,
+      "selectedNodeIds": []
+    }
+  }
+}

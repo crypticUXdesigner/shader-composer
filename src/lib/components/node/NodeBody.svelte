@@ -29,11 +29,12 @@
   import CoordPadCell from './parameters/CoordPadCell.svelte';
   import MixedWaveHeaderViz from './MixedWaveHeaderViz.svelte';
   import ArrangementTrackFilter from './parameters/ArrangementTrackFilter.svelte';
+  import ParamCell from './parameters/ParamCell.svelte';
   import type { NodeGraph, GraphUndoRecordingOptions } from '../../../data-model/types';
   import type { NodeSpec, ParameterSpec, ParameterUISelection, ParameterInputMode } from '../../../types/nodeSpec';
   import type { AudioSetup } from '../../../data-model/audioSetupTypes';
   import type { IAudioManager } from '../../../runtime/types';
-  import { layoutSectionVisible } from '../../../utils/parameterVisibility';
+  import { layoutParameterVisible, layoutSectionVisible } from '../../../utils/parameterVisibility';
 
   interface Props {
     nodeId: string;
@@ -289,7 +290,10 @@
             headerToggleUi === 'toggle'
         )}
         {@const validParams = gridEl.parameters.filter(
-          (p) => spec.parameters[p] && (!useHeaderToggle || p !== gridEl.headerToggleParameter)
+          (p) =>
+            spec.parameters[p] &&
+            (!useHeaderToggle || p !== gridEl.headerToggleParameter) &&
+            layoutParameterVisible(gridEl.parameterVisibleWhen?.[p], node, spec)
         )}
         {@const gridCols = gridEl.layout?.columns}
         {@const mixedWaveViz = isMixedWaveSignal ? mixedWaveVizKindForLabel(gridEl.label) : null}
@@ -466,6 +470,7 @@
                         <EnumSelector
                           value={displayValue}
                           options={enumMap}
+                          showSteppers={spec.id === 'color-lut' && paramName === 'preset'}
                           onChange={(v) => transientParameterChange(paramName, useConfigForInput ? v : effectiveToConfig(paramName, v))}
                         onCommit={commitParameterGestureUndo}
                         />
@@ -683,6 +688,7 @@
                       <EnumSelector
                         value={displayValue}
                         options={enumMap}
+                        showSteppers={spec.id === 'color-lut' && paramName === 'preset'}
                         onChange={(v) => transientParameterChange(paramName, useConfigForInput ? v : effectiveToConfig(paramName, v))}
                         onCommit={commitParameterGestureUndo}
                       />
@@ -854,6 +860,7 @@
                       <EnumSelector
                         value={displayValue}
                         options={enumMap}
+                        showSteppers={spec.id === 'color-lut' && paramName === 'preset'}
                         onChange={(v) => transientParameterChange(paramName, useConfigForInput ? v : effectiveToConfig(paramName, v))}
                         onCommit={commitParameterGestureUndo}
                       />
@@ -1070,7 +1077,8 @@
           </div>
         {/if}
       {:else if element.type === 'color-map-preview'}
-        {#if element.label}
+        {#if layoutSectionVisible(element.visibleWhen, node, spec)}
+          {#if element.label}
           <div class="layout-group">
             <div class="group-header">{element.label}</div>
             <div class="element color-map-preview-wrap">
@@ -1091,6 +1099,7 @@
               height={element.height}
             />
           </div>
+          {/if}
         {/if}
       {:else if element.type === 'color-picker'}
         {@const paramNames = element.parameters ?? ['l', 'c', 'h']}
@@ -1111,18 +1120,24 @@
         </div>
       {:else if element.type === 'color-picker-row'}
         {#if layoutSectionVisible(element.visibleWhen, node, spec)}
-          {@const [startParams, endParams] = element.pickers}
-          {@const startColor = {
-            l: getParamValue(startParams[0]),
-            c: getParamValue(startParams[1]),
-            h: getParamValue(startParams[2])
-          }}
-          {@const endColor = {
-            l: getParamValue(endParams[0]),
-            c: getParamValue(endParams[1]),
-            h: getParamValue(endParams[2])
-          }}
           {#if element.label}
+            {@const [startParams, endParams] = element.pickers}
+            {@const startColor = {
+              l: getParamValue(startParams[0]),
+              c: getParamValue(startParams[1]),
+              h: getParamValue(startParams[2]),
+            }}
+            {@const endColor = {
+              l: getParamValue(endParams[0]),
+              c: getParamValue(endParams[1]),
+              h: getParamValue(endParams[2]),
+            }}
+            {@const hasSwapColorsToggle = spec.parameters?.swapColors != null}
+            {@const swapColorsOn = hasSwapColorsToggle && getParamValue('swapColors') > 0}
+            {@const rowStartColor = swapColorsOn ? endColor : startColor}
+            {@const rowEndColor = swapColorsOn ? startColor : endColor}
+            {@const rowStartParams = swapColorsOn ? endParams : startParams}
+            {@const rowEndParams = swapColorsOn ? startParams : endParams}
             <div class="layout-group">
               <div class="group-header group-header-with-actions">
                 <span class="group-header-label">{element.label}</span>
@@ -1130,8 +1145,12 @@
                   <Button
                     variant="secondary"
                     size="sm"
-                    class="group-header-btn"
+                    class="group-header-btn group-header-btn-toggle {hasSwapColorsToggle && swapColorsOn ? 'is-active' : ''}"
                     onclick={() => {
+                      if (hasSwapColorsToggle) {
+                        onParameterChange('swapColors', swapColorsOn ? 0 : 1);
+                        return;
+                      }
                       const sL = getParamValue(startParams[0]);
                       const sC = getParamValue(startParams[1]);
                       const sH = getParamValue(startParams[2]);
@@ -1163,36 +1182,40 @@
               </div>
               <div class="element color-picker-row-wrap">
                 <ColorPickerRow
-                  startColor={startColor}
-                  endColor={endColor}
-                  onStartColorClick={(sx, sy) => showColorPicker(startColor, sx, sy, (l, c, h) => {
-                    onParameterChange(startParams[0], l);
-                    onParameterChange(startParams[1], c);
-                    onParameterChange(startParams[2], h);
+                  startColor={rowStartColor}
+                  endColor={rowEndColor}
+                  onStartColorClick={(sx, sy) => showColorPicker(rowStartColor, sx, sy, (l, c, h) => {
+                    onParameterChange(rowStartParams[0], l);
+                    onParameterChange(rowStartParams[1], c);
+                    onParameterChange(rowStartParams[2], h);
                   })}
-                  onEndColorClick={(sx, sy) => showColorPicker(endColor, sx, sy, (l, c, h) => {
-                    onParameterChange(endParams[0], l);
-                    onParameterChange(endParams[1], c);
-                    onParameterChange(endParams[2], h);
+                  onEndColorClick={(sx, sy) => showColorPicker(rowEndColor, sx, sy, (l, c, h) => {
+                    onParameterChange(rowEndParams[0], l);
+                    onParameterChange(rowEndParams[1], c);
+                    onParameterChange(rowEndParams[2], h);
                   })}
                 />
               </div>
             </div>
           {:else}
+            {@const pickerParams = element.pickers}
+            {@const pickerColors = element.pickers.map(([lParam, cParam, hParam]) => ({
+              l: getParamValue(lParam),
+              c: getParamValue(cParam),
+              h: getParamValue(hParam),
+            }))}
             <div class="element color-picker-row-wrap">
               <ColorPickerRow
-                startColor={startColor}
-                endColor={endColor}
-                onStartColorClick={(sx, sy) => showColorPicker(startColor, sx, sy, (l, c, h) => {
-                  onParameterChange(startParams[0], l);
-                  onParameterChange(startParams[1], c);
-                  onParameterChange(startParams[2], h);
-                })}
-                onEndColorClick={(sx, sy) => showColorPicker(endColor, sx, sy, (l, c, h) => {
-                  onParameterChange(endParams[0], l);
-                  onParameterChange(endParams[1], c);
-                  onParameterChange(endParams[2], h);
-                })}
+                colors={pickerColors}
+                onColorClick={(index, sx, sy) => {
+                  const params = pickerParams[index];
+                  const color = pickerColors[index];
+                  showColorPicker(color, sx, sy, (l, c, h) => {
+                    onParameterChange(params[0], l);
+                    onParameterChange(params[1], c);
+                    onParameterChange(params[2], h);
+                  });
+                }}
               />
             </div>
           {/if}
@@ -1226,15 +1249,38 @@
           />
         </div>
       {:else if element.type === 'arrangement-track-filter'}
-        <div class="element arrangement-track-filter-wrap">
-          {#if element.label}
-            <div class="layout-group">
-              <div class="group-header">{element.label}</div>
+        {@const trackFilterLabel =
+          element.label ?? spec.parameters.trackFilterMode?.label ?? 'Tracks'}
+        <div class="param-grid arrangement-track-filter-grid" use:paramGridCols>
+          <ParamCell
+            label={trackFilterLabel}
+            class="span-3-cols arrangement-track-filter-cell"
+            supportsAudio={false}
+            supportsAnimation={false}
+          >
+            {#snippet control()}
               <ArrangementTrackFilter
+                class="in-cell"
                 trackFilterMode={Number(node.parameters.trackFilterMode ?? 0)}
                 trackFilterList={typeof node.parameters.trackFilterList === 'string'
                   ? node.parameters.trackFilterList
                   : ''}
+                noteColorMode={
+                  spec.id === 'arrangement-notes'
+                    ? Number(node.parameters.noteColorMode ?? 2)
+                    : undefined
+                }
+                trackNoteColors={
+                  spec.id === 'arrangement-notes' &&
+                  typeof node.parameters.trackNoteColors === 'string'
+                    ? node.parameters.trackNoteColors
+                    : ''
+                }
+                onTrackNoteColorsChange={
+                  spec.id === 'arrangement-notes'
+                    ? (colors) => onParameterChange('trackNoteColors', colors)
+                    : undefined
+                }
                 positionStorageVariant={node.id}
                 {audioSetup}
                 kinds={element.trackKinds}
@@ -1245,24 +1291,8 @@
                   onParameterChange('trackFilterList', list);
                 }}
               />
-            </div>
-          {:else}
-            <ArrangementTrackFilter
-              trackFilterMode={Number(node.parameters.trackFilterMode ?? 0)}
-              trackFilterList={typeof node.parameters.trackFilterList === 'string'
-                ? node.parameters.trackFilterList
-                : ''}
-              positionStorageVariant={node.id}
-              {audioSetup}
-              kinds={element.trackKinds}
-              hideEmpty={element.hideEmpty ?? false}
-              showNoteCounts={element.showNoteCounts ?? false}
-              onFilterChange={(mode, list) => {
-                onParameterChange('trackFilterMode', mode);
-                onParameterChange('trackFilterList', list);
-              }}
-            />
-          {/if}
+            {/snippet}
+          </ParamCell>
         </div>
       {:else if element.type === 'frequency-range'}
         {@const bandIndex = element.bandIndex ?? 0}
@@ -1377,7 +1407,7 @@
             flex-shrink: 0;
           }
 
-          /* Button component receives these classes; styles apply via :global to its root */
+          /* Button: secondary + category tokens from .group-header-actions (base.css) */
           :global(.group-header-btn) {
             /* Layout */
             display: inline-flex;
@@ -1387,14 +1417,12 @@
             /* Box model */
             height: var(--color-map-row-button-height, 24px);
             padding: 0 var(--pd-md);
-            border: 1px solid var(--color-gray-70);
+            border: 1px solid var(--color-map-row-button-border);
             border-radius: var(--color-map-row-button-radius, var(--radius-md));
-            background: var(--color-gray-30);
 
             /* Typography */
             font-size: var(--color-map-row-button-font-size, var(--text-md));
             font-weight: var(--color-map-row-button-font-weight, 600);
-            color: var(--param-group-header-color);
 
             /* Other */
             cursor: default;
@@ -1405,14 +1433,19 @@
           }
 
           :global(.group-header-btn:hover) {
-            background: var(--color-gray-50);
-            border-color: var(--color-gray-80);
+            border-color: var(--color-map-row-button-border-hover);
           }
 
           :global(.group-header-btn.group-header-btn-toggle.is-active) {
-            background: var(--color-map-row-button-bg-active, var(--color-teal-100));
-            border-color: var(--color-map-row-button-border-active, var(--color-teal-120));
-            color: var(--color-map-row-button-color-active, var(--color-teal-10));
+            background: var(--color-map-row-button-bg-active);
+            border-color: var(--color-map-row-button-border-active);
+            color: var(--color-map-row-button-color-active);
+          }
+
+          :global(.group-header-btn.group-header-btn-toggle.is-active:hover) {
+            background: var(--color-map-row-button-bg-active);
+            border-color: var(--color-map-row-button-border-active);
+            color: var(--color-map-row-button-color-active);
           }
         }
       }
@@ -1523,6 +1556,12 @@
             flex: unset;
             min-width: 0;
           }
+        }
+      }
+
+      .arrangement-track-filter-grid {
+        :global(.arrangement-track-filter-cell .control-slot) {
+          justify-content: flex-end;
         }
       }
 
